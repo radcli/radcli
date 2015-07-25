@@ -631,6 +631,9 @@ void rc_dict_free(rc_handle *rh);
 int rc_tls_fd(rc_handle * rh);
 int rc_check_tls(rc_handle * rh);
 
+/* util.c */
+char *rc_mksid(void);
+
 /* ip_util.c */
 
 unsigned short rc_getport(int type);

@@ -69,6 +69,23 @@ double rc_getctime(void)
     return timev.tv_sec + ((double)timev.tv_usec) / 1000000.0;
 }
 
+/** Generates a "unique" string. Added only for API compatibility with older versions. Don't use.
+ *
+ * @return a pointer to a very unique string. Subsequent calls will overwrite the string.
+ *
+ */
+char *
+rc_mksid (void)
+{
+  static char buf[15];
+  static unsigned short int cnt = 0;
+  snprintf (buf, sizeof(buf), "%08lX%04X%02hX",
+	   (unsigned long int) time (NULL),
+	   (unsigned int) getpid (),
+	   cnt & 0xFF);
+  cnt++;
+  return buf;
+}
 /*
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  *
@@ -121,4 +138,3 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
 }
 
 #endif
-
