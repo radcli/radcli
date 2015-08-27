@@ -19,7 +19,7 @@ if test -z "$SERVER_IP6";then
 fi
 
 PID=$$
-sed -e 's/::1/'$SERVER_IP6'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf 
+sed -e 's/::1/'$SERVER_IP6'/g' -e 's/servers-ipv6-temp/servers-ipv6-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf
 sed 's/::1/'$SERVER_IP6'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID
 
 ../src/radiusclient -D -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE
