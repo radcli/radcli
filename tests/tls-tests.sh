@@ -18,11 +18,12 @@ if test -z "$SERVER_IP";then
 	exit 77
 fi
 
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/dtls/radiusclient-tls.conf >radiusclient-tls-temp.conf 
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-tls-temp
+PID=$$
+sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-tls-temp/servers-tls-temp'$PID'/g' <$srcdir/dtls/radiusclient-tls.conf >radiusclient-tls-temp$PID.conf
+sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-tls-temp$PID
 
 # Test whether a TLS session will succeed
-../src/radiusclient -f radiusclient-tls-temp.conf  User-Name=test Password=test >$TMPFILE
+../src/radiusclient -f radiusclient-tls-temp$PID.conf  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -50,12 +51,12 @@ if test $? != 0;then
 fi
 
 # Test whether a TLS invalidated session for some reason will reconnect
-./tls-restart -f radiusclient-tls-temp.conf  User-Name=test Password=test >$TMPFILE
+./tls-restart -f radiusclient-tls-temp$PID.conf  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in session restart"
 	exit 1
 fi
 
 rm -f $TMPFILE
-rm -f servers-tls-temp radiusclient-tls-temp.conf
+rm -f servers-tls-temp$PID radiusclient-tls-temp$PID.conf
 exit 0

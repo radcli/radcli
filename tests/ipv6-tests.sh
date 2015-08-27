@@ -18,10 +18,11 @@ if test -z "$SERVER_IP6";then
 	exit 77
 fi
 
-sed 's/::1/'$SERVER_IP6'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp.conf 
-sed 's/::1/'$SERVER_IP6'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp
+PID=$$
+sed -e 's/::1/'$SERVER_IP6'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf 
+sed 's/::1/'$SERVER_IP6'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID
 
-../src/radiusclient -f radiusclient-temp.conf  User-Name=test6 Password=test >$TMPFILE
+../src/radiusclient -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in PAP IPv6 auth"
 	exit 1
@@ -34,8 +35,8 @@ if test $? != 0;then
 	exit 1
 fi
 
-rm -f servers-temp 
+rm -f servers-temp$PID
 rm -f $TMPFILE
-rm -f radiusclient-temp.conf
+rm -f radiusclient-temp$PID.conf
 
 exit 0
