@@ -11,7 +11,7 @@ echo "This test will use a radius server on localhost"
 echo "and which can be executed with run-server.sh   "
 echo "***********************************************"
 
-TMPFILE=tmp.out
+TMPFILE=tmp$$.out
 
 if test -z "$SERVER_IP";then
 	echo "the variable SERVER_IP is not defined"

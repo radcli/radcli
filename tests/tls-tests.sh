@@ -5,7 +5,7 @@
 # License: BSD
 
 srcdir="${srcdir:-.}"
-TMPFILE=tmp.out
+TMPFILE=tmp$$.out
 
 echo "***********************************************"
 echo "This test will use a radius-tls server on localhost"
