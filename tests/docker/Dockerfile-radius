@@ -24,4 +24,4 @@ ADD cert-rsa.pem /etc/raddb/cert-rsa.pem
 ADD key-rsa.pem /etc/raddb/key-rsa.pem
 ADD ca.pem /etc/raddb/ca.pem
 
-CMD sshd-keygen;/usr/sbin/sshd;radiusd;sleep 360
+CMD sshd-keygen;/usr/sbin/sshd;radiusd;sleep 3600
