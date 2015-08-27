@@ -13,8 +13,8 @@ The radcli library
 ---------------
 The radcli library is a library for writing RADIUS Clients. The library's
 approach is to allow writing RADIUS-aware application in less than 50 lines
-of C code. It was based originally on freeradius-client and is source
-compatible with it.
+of C code. It was based originally on freeradius-client and radiusclient-ng
+and is source compatible with them.
 
 For the development of the openconnect VPN server, I needed a simple library to
 allow using radius for authentication and accounting without having to understand
