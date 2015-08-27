@@ -15,15 +15,6 @@
 #ifndef RADCLI_H
 #define RADCLI_H
 
-#undef CP_DEBUG
-extern unsigned int radcli_debug;
-extern void rc_setdebug(int debug);
-#ifdef CP_DEBUG
-#define		DEBUG(args...)	if(radcli_debug) syslog(args)
-#else
-#define		DEBUG(args...)	;
-#endif
-
 #include	<sys/types.h>
 /*
  * Include for C99 uintX_t defines is stdint.h on most systems.  Solaris uses
@@ -649,6 +640,7 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria);
 
 /* log.c */
 
+void rc_setdebug(int debug);
 void rc_openlog(char const *ident);
 /* to provide compatibility with any old applications that may have
  * been using rc_log() */
