@@ -17,6 +17,7 @@ etc/radiusclient-tls.conf
 include/radcli/version.h
 src/libtools.a
 lib/radcli.pc
+lib/radcli.map
 doc/Doxyfile
 doc/stamp_mans
 doc/xml
