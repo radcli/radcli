@@ -262,7 +262,7 @@ lib/radcli.pc
 lib/radcli.map
 tests/Makefile
 tests/docker/Makefile
-])
+],[chmod -w lib/radcli.map lib/radcli.pc])
 AC_CONFIG_COMMANDS([default],[[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h]],[[]])
 AC_OUTPUT
 
