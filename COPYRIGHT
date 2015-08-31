@@ -1,4 +1,6 @@
-See the respective source files to find out which copyrights apply.
+For old code see the respective source files to find out which copyrights
+apply. For new code it is recommended to introduce new source files, and
+use the 2-clause BSD license as license.
 
 ------------------------------------------------------------------------------
 Copyright (c) 1998 The NetBSD Foundation, Inc.
