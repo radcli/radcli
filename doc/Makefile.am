@@ -19,7 +19,7 @@ EXTRA_DIST = Doxyfile.in scripts/getfuncs.pl scripts/getfuncs-map.pl doc.mk
 
 dist_man_MANS = $(APIMANS)
 
-$(APIMANS): stamp_mans
+$(APIMANS):
 
 stamp_mans: ../include/radcli/radcli.h
 	-doxygen Doxyfile
