@@ -31,6 +31,8 @@
 #define FALSE 0
 #endif
 
+static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain);
+
 /** Find an option in the option list
  *
  * @param rh a handle to parsed configuration.
@@ -598,13 +600,13 @@ char *rc_conf_str(rc_handle const *rh, char const *optname)
 	}
 }
 
-/** Get the value of a config option
+/*- Get the value of a config option
  *
  * @param rh a handle to parsed configuration.
  * @param optname the name of an option.
  * @return config option value.
  */
-int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
+static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
 {
 	OPTION *option;
 
