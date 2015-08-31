@@ -400,10 +400,10 @@ VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, int attrid, int vendorpec)
 	return vp;
 }
 
-/*
- * Function: rc_avpair_copy
+/** Return a copy of the existing list "p" ala strdup().
  *
- * Purpose: Return a copy of the existing list "p" ala strdup().
+ * @param p a pointer to a VALUE_PAIR structure.
+ * @return the copy of "p".
  *
  */
 VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p)
