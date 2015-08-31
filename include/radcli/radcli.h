@@ -631,9 +631,6 @@ void rc_dict_free(rc_handle *rh);
 int rc_tls_fd(rc_handle * rh);
 int rc_check_tls(rc_handle * rh);
 
-/* util.c */
-char *rc_mksid(void);
-
 /* ip_util.c */
 
 unsigned short rc_getport(int type);
@@ -658,6 +655,16 @@ int rc_send_server (rc_handle *rh, SEND_DATA *data, char *msg,
 void rc_aaa_ctx_free(RC_AAA_CTX *ctx);
 const char *rc_aaa_ctx_get_secret(RC_AAA_CTX *ctx);
 const void *rc_aaa_ctx_get_vector(RC_AAA_CTX *ctx);
+
+/* obsolete functions */
+#define _RADCLI_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#if !defined RADCLI_INTERNAL_BUILD
+# if _RADCLI_GCC_VERSION >= 30100
+#  define _RADCLI_GCC_ATTR_DEPRECATED __attribute__ ((__deprecated__))
+# endif
+#endif
+char *rc_mksid(void) _RADCLI_GCC_ATTR_DEPRECATED;
+
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
