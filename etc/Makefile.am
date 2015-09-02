@@ -23,6 +23,7 @@ EXTRA_DIST = dictionary servers servers-tls radiusclient.conf.in \
 	radiusclient-tls.conf.in
 
 radiusclient.conf: radiusclient.conf.in
+	rm -f $@
 	sed -e 's|@sbin''dir@|$(sbindir)|g' \
 	    -e 's|@pkgsysconf''dir@|$(pkgsysconfdir)|g' \
 	    <$(srcdir)/radiusclient.conf.in >radiusclient.conf
@@ -36,6 +37,7 @@ install-data-local: servers servers-tls
 	$(INSTALL) -m 600 $(srcdir)/servers-tls $(DESTDIR)$(pkgsysconfdir)/servers-tls
 
 radiusclient-tls.conf: radiusclient-tls.conf.in
+	rm -f $@
 	sed -e 's|@sbin''dir@|$(sbindir)|g' \
 	    -e 's|@pkgsysconf''dir@|$(pkgsysconfdir)|g' \
 	    <$(srcdir)/radiusclient-tls.conf.in >radiusclient-tls.conf
