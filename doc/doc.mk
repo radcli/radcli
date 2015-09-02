@@ -46,6 +46,7 @@ APIMANS += man/rc_find_server_addr.3
 APIMANS += man/rc_getport.3
 APIMANS += man/rc_get_socket_type.3
 APIMANS += man/rc_get_srcaddr.3
+APIMANS += man/rc_mksid.3
 APIMANS += man/rc_new.3
 APIMANS += man/rc_openlog.3
 APIMANS += man/rc_own_hostname.3
