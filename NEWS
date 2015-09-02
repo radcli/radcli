@@ -1,4 +1,4 @@
-* Version 1.2.3 (unreleased)
+* Version 1.2.3 (released 2015-09-02)
 - Re-added server fallback ability (Michael Richardson)
 - Added 'clientdebug' option in the configuration file to allow
   easier debugging of the client (Michael Richardson)
