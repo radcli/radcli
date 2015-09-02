@@ -35,6 +35,12 @@
  * @defgroup tls-api TLS/DTLS API
  * @brief TLS and DTLS related functions
  *
+ * Note that, that API is for improving TLS and DTLS support
+ * in an application. Applications are not required to use this
+ * API to support them. TLS and DTLS support can be enabled by
+ * the administrator transparently from the radiusclient configuration
+ * file.
+ *
  * @{
  */
 
@@ -420,8 +426,11 @@ static void restart_session(rc_handle *rh, tls_st *st)
 
 /** Returns the file descriptor of the TLS/DTLS session
  *
+ * This can also be used as a test for the application to see
+ * whether TLS or DTLS are in use.
+ *
  * @param rh a handle to parsed configuration
- * @return the file descriptor used by the TLS session
+ * @return the file descriptor used by the TLS session, or -1 on error
  */
 int rc_tls_fd(rc_handle * rh)
 {
