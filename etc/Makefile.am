@@ -20,7 +20,7 @@ sharedir = $(datadir)/@PACKAGE@
 share_DATA = dictionary dictionary.microsoft dictionary.roaringpenguin
 
 EXTRA_DIST = dictionary servers servers-tls radiusclient.conf.in \
-	radiusclient-tls.conf.in
+	radiusclient-tls.conf.in dictionary.microsoft dictionary.roaringpenguin
 
 radiusclient.conf: radiusclient.conf.in
 	rm -f $@
