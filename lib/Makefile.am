@@ -10,7 +10,7 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-EXTRA_DIST = radcli.map.in
+EXTRA_DIST = radcli.map.in radcli.pc.in
 
 RC_LOG_FACILITY = @RC_LOG_FACILITY@
 LIBVERSION = @LIBVERSION@
