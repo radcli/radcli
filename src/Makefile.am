@@ -10,7 +10,7 @@ AUTOMAKE_OPTIONS = foreign
 
 pkgsysconfdir=@pkgsysconfdir@
 
-DEFS = @DEFS@ -DRC_CONFIG_FILE=\"${pkgsysconfdir}/radiusclient.conf\" \
+DEFS = @DEFS@ -DRC_CONFIG_FILE=\"${pkgsysconfdir}/radcli.conf\" \
 	      -DRC_SECURE_PATH=\"@RC_SECURE_PATH@\"
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_builddir)
 LDADD = ../lib/libradcli.la
