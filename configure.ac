@@ -253,13 +253,13 @@ AC_CONFIG_HEADERS([config.h])
 dnl LTLIBOBJS=`echo "$LIB@&t@OBJS" | sed 's,\.[[^.]]* ,.lo ,g;s,\.[[^.]]*$,.lo,'`
 dnl AC_SUBST(LTLIBOBJS)
 AC_CONFIG_FILES([
+lib/radcli.pc
+lib/radcli.map
 Makefile
 include/Makefile lib/Makefile src/Makefile man/Makefile etc/Makefile
 include/radcli/version.h
 doc/Makefile
 doc/Doxyfile
-lib/radcli.pc
-lib/radcli.map
 tests/Makefile
 tests/docker/Makefile
 ],[chmod -w lib/radcli.map lib/radcli.pc])
