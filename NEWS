@@ -1,3 +1,7 @@
+* Version 1.2.4 (unreleased)
+- Use a portable name for radius accounting service (issue #4)
+
+
 * Version 1.2.3 (released 2015-09-02)
 - Re-added server fallback ability (Michael Richardson)
 - Added 'clientdebug' option in the configuration file to allow
