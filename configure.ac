@@ -1,13 +1,12 @@
 #
-#  $Id: configure.in,v 1.38 2008/03/05 18:02:55 cparker Exp $
-#
 #  Copyright (C) 1996,1997 Lars Fenneberg
+#  Copyright (C) 2015 Nikos Mavrogiannopoulos
 #
 #  See the file COPYRIGHT for the respective terms and conditions.
 #
 #
 
-AC_INIT([radcli], [1.2.3], [n.mavrogiannopoulos@gmail.com])
+AC_INIT([radcli], [1.2.4], [n.mavrogiannopoulos@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET([])
