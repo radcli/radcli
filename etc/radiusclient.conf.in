@@ -2,6 +2,7 @@
 
 # The name to be used to identify this NAS (server). If set it will
 # be used in NAS-Identifier.
+#
 #nas-identifier my-server-name
 
 # RADIUS server to use for authentication requests.
@@ -10,16 +11,18 @@
 # no port is specified /etc/services is consulted of the radius
 # service. if this fails also a compiled in default is used.
 # For IPv6 addresses use the '[IPv6]:port:secret' format, or
-# simply '[IPv6]'.
+# simply '[IPv6]'. You may specify more than a single server.
+#
 authserver 	localhost
 
-# RADIUS server to use for accouting requests. All that I
-# said for authserver applies, too. 
+# RADIUS server to use for accouting requests. All that is
+# written for authserver applies, in acctserver as well. 
 #
 acctserver 	localhost
 
-# file holding shared secrets used for the communication
-# between the RADIUS client and server
+# File holding shared secrets used for the communication
+# between the RADIUS client and server. When multiple
+# server
 servers		@pkgsysconfdir@/servers
 
 # dictionary of allowed attributes and values

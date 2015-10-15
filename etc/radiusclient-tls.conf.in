@@ -10,7 +10,8 @@
 # no port is specified /etc/services is consulted of the radius
 # service. if this fails also a compiled in default is used.
 # For IPv6 addresses use the '[IPv6]:port' format, or
-# simply '[IPv6]'.
+# simply '[IPv6]'. You may specify more than a single server.
+#
 authserver 	localhost:2083
 
 # For DTLS with PSK authentication, the following format is valid:
