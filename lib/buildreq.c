@@ -38,8 +38,8 @@ static unsigned char rc_get_id()
  * @param timeout the timeout in seconds of a message.
  * @param retries the number of retries.
  */
-void rc_buildreq(rc_handle const *rh, SEND_DATA *data, int code, char *server, unsigned short port,
-		 char *secret, int timeout, int retries)
+void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
+		 unsigned short port, char *secret, int timeout, int retries)
 {
 	data->server = server;
 	data->secret = secret;
@@ -66,11 +66,12 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA *data, int code, char *server, u
  * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
  *	on failure as return value.
  */
-int rc_aaa_ctx(rc_handle *rh, RC_AAA_CTX **ctx, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **received,
-	   	char *msg, int add_nas_port, rc_standard_codes request_type)
+int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
+	       VALUE_PAIR * send, VALUE_PAIR ** received, char *msg,
+	       int add_nas_port, rc_standard_codes request_type)
 {
-	SERVER		*aaaserver;
-	rc_type		type;
+	SERVER *aaaserver;
+	rc_type type;
 
 	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS ||
 	    request_type != PW_ACCOUNTING_REQUEST) {
@@ -83,9 +84,9 @@ int rc_aaa_ctx(rc_handle *rh, RC_AAA_CTX **ctx, uint32_t client_port, VALUE_PAIR
 	if (aaaserver == NULL)
 		return ERROR_RC;
 
-        return rc_aaa_ctx_server(rh, ctx, aaaserver, type,
-                                 client_port, send, received, msg,
-                                 add_nas_port, request_type);
+	return rc_aaa_ctx_server(rh, ctx, aaaserver, type,
+				 client_port, send, received, msg,
+				 add_nas_port, request_type);
 }
 
 /** Builds an authentication/accounting request for port id client_port with the value_pairs send and submits it to a specified server.
@@ -105,44 +106,46 @@ int rc_aaa_ctx(rc_handle *rh, RC_AAA_CTX **ctx, uint32_t client_port, VALUE_PAIR
  * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
  *	on failure as return value.
  */
-int rc_aaa_ctx_server(rc_handle *rh, RC_AAA_CTX **ctx, SERVER *aaaserver,
-                      rc_type type,
-                      uint32_t client_port,
-                      VALUE_PAIR *send, VALUE_PAIR **received,
-                      char *msg, int add_nas_port, rc_standard_codes request_type)
+int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
+		      rc_type type,
+		      uint32_t client_port,
+		      VALUE_PAIR * send, VALUE_PAIR ** received,
+		      char *msg, int add_nas_port,
+		      rc_standard_codes request_type)
 {
-	SEND_DATA       data;
-	VALUE_PAIR	*adt_vp = NULL;
-	int		result;
-	int		timeout = rc_conf_int(rh, "radius_timeout");
-	int		retries = rc_conf_int(rh, "radius_retries");
-	double		start_time = 0;
-	double		now = 0;
-	time_t		dtime;
-        int             servernum;
+	SEND_DATA data;
+	VALUE_PAIR *adt_vp = NULL;
+	int result;
+	int timeout = rc_conf_int(rh, "radius_timeout");
+	int retries = rc_conf_int(rh, "radius_retries");
+	double start_time = 0;
+	double now = 0;
+	time_t dtime;
+	int servernum;
 
 	data.send_pairs = send;
 	data.receive_pairs = NULL;
 
-        /*
-         * if there is more than zero servers, then divide waiting time
-         * among all the servers.
-         */
-        if(aaaserver->max > 0) {
-          if(timeout > 0) {
-            timeout = (timeout+1) / aaaserver->max;
-          }
-          if(retries > 0) {
-            retries = (retries+1) / aaaserver->max;
-          }
-        }
+	/*
+	 * if there is more than zero servers, then divide waiting time
+	 * among all the servers.
+	 */
+	if (aaaserver->max > 0) {
+		if (timeout > 0) {
+			timeout = (timeout + 1) / aaaserver->max;
+		}
+		if (retries > 0) {
+			retries = (retries + 1) / aaaserver->max;
+		}
+	}
 
-	if (add_nas_port != 0 && rc_avpair_get(data.send_pairs, PW_NAS_PORT, 0) == NULL) {
+	if (add_nas_port != 0
+	    && rc_avpair_get(data.send_pairs, PW_NAS_PORT, 0) == NULL) {
 		/*
 		 * Fill in NAS-Port
 		 */
 		if (rc_avpair_add(rh, &(data.send_pairs), PW_NAS_PORT,
-		    &client_port, 0, 0) == NULL)
+				  &client_port, 0, 0) == NULL)
 			return ERROR_RC;
 	}
 
@@ -155,7 +158,8 @@ int rc_aaa_ctx_server(rc_handle *rh, RC_AAA_CTX **ctx, SERVER *aaaserver,
 		adt_vp = rc_avpair_get(data.send_pairs, PW_ACCT_DELAY_TIME, 0);
 		if (adt_vp == NULL) {
 			adt_vp = rc_avpair_add(rh, &(data.send_pairs),
-			    PW_ACCT_DELAY_TIME, &dtime, 0, 0);
+					       PW_ACCT_DELAY_TIME, &dtime, 0,
+					       0);
 			if (adt_vp == NULL)
 				return ERROR_RC;
 			start_time = now;
@@ -169,35 +173,34 @@ int rc_aaa_ctx_server(rc_handle *rh, RC_AAA_CTX **ctx, SERVER *aaaserver,
 		data.receive_pairs = NULL;
 	}
 
-        servernum=0;
-        do {
-          rc_buildreq(rh, &data, request_type, aaaserver->name[servernum],
-                      aaaserver->port[servernum],
-                      aaaserver->secret[servernum], timeout, retries);
+	servernum = 0;
+	do {
+		rc_buildreq(rh, &data, request_type, aaaserver->name[servernum],
+			    aaaserver->port[servernum],
+			    aaaserver->secret[servernum], timeout, retries);
 
-          if (request_type == PW_ACCOUNTING_REQUEST) {
-            dtime = rc_getctime() - start_time;
-            rc_avpair_assign(adt_vp, &dtime, 0);
-          }
+		if (request_type == PW_ACCOUNTING_REQUEST) {
+			dtime = rc_getctime() - start_time;
+			rc_avpair_assign(adt_vp, &dtime, 0);
+		}
 
-          result = rc_send_server_ctx (rh, ctx, &data, msg, type);
+		result = rc_send_server_ctx(rh, ctx, &data, msg, type);
 
-          if (request_type != PW_ACCOUNTING_REQUEST) {
-            *received = data.receive_pairs;
-          } else {
-            rc_avpair_free(data.receive_pairs);
-          }
+		if (request_type != PW_ACCOUNTING_REQUEST) {
+			*received = data.receive_pairs;
+		} else {
+			rc_avpair_free(data.receive_pairs);
+		}
 
-          if(result == OK_RC) {
-            DEBUG(LOG_INFO,
-                  "servernum %u returned success", servernum);
-            return result;
-          }
-
-          //rc_log(LOG_ERR,
-          //       "servernum %u returned error: %d", servernum, result);
-          servernum++;
-        } while(servernum < aaaserver->max && result == TIMEOUT_RC);
+		if (result == OK_RC) {
+			DEBUG(LOG_INFO,
+			      "servernum %u returned success", servernum);
+			return result;
+		}
+		//rc_log(LOG_ERR,
+		//       "servernum %u returned error: %d", servernum, result);
+		servernum++;
+	} while (servernum < aaaserver->max && result == TIMEOUT_RC);
 
 	return result;
 }
@@ -215,10 +218,12 @@ int rc_aaa_ctx_server(rc_handle *rh, RC_AAA_CTX **ctx, SERVER *aaaserver,
  * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
  *	on failure as return value.
  */
-int rc_aaa(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **received,
-	   char *msg, int add_nas_port, rc_standard_codes request_type)
+int rc_aaa(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
+	   VALUE_PAIR ** received, char *msg, int add_nas_port,
+	   rc_standard_codes request_type)
 {
-	return rc_aaa_ctx(rh, NULL, client_port, send, received, msg, add_nas_port, request_type);
+	return rc_aaa_ctx(rh, NULL, client_port, send, received, msg,
+			  add_nas_port, request_type);
 }
 
 /** Builds an authentication request for port id client_port with the value_pairs send and submits it to a server
@@ -232,11 +237,12 @@ int rc_aaa(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **r
  * @return received value_pairs in received, messages from the server in msg (if non-NULL),
  *	and OK_RC (0) on success, negative on failure as return value.
  */
-int rc_auth(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **received,
-    char *msg)
+int rc_auth(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
+	    VALUE_PAIR ** received, char *msg)
 {
 
-	return rc_aaa(rh, client_port, send, received, msg, 1, PW_ACCESS_REQUEST);
+	return rc_aaa(rh, client_port, send, received, msg, 1,
+		      PW_ACCESS_REQUEST);
 }
 
 /** Builds an authentication request for proxying
@@ -252,7 +258,8 @@ int rc_auth(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **
  * @return received value_pairs in received, messages from the server in msg (if non-NULL)
  *	and OK_RC (0) on success, negative on failure as return value.
  */
-int rc_auth_proxy(rc_handle *rh, VALUE_PAIR *send, VALUE_PAIR **received, char *msg)
+int rc_auth_proxy(rc_handle * rh, VALUE_PAIR * send, VALUE_PAIR ** received,
+		  char *msg)
 {
 	return rc_aaa(rh, 0, send, received, msg, 0, PW_ACCESS_REQUEST);
 }
@@ -266,9 +273,10 @@ int rc_auth_proxy(rc_handle *rh, VALUE_PAIR *send, VALUE_PAIR **received, char *
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @return received value_pairs in received, and OK_RC (0) on success, negative on failure as return value.
  */
-int rc_acct(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send)
+int rc_acct(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send)
 {
-	return rc_aaa(rh, client_port, send, NULL, NULL, 1, PW_ACCOUNTING_REQUEST);
+	return rc_aaa(rh, client_port, send, NULL, NULL, 1,
+		      PW_ACCOUNTING_REQUEST);
 }
 
 /** Builds an accounting request with the value_pairs at send
@@ -277,7 +285,7 @@ int rc_acct(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send)
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @return OK_RC (0) on success, negative on failure as return value.
  */
-int rc_acct_proxy(rc_handle *rh, VALUE_PAIR *send)
+int rc_acct_proxy(rc_handle * rh, VALUE_PAIR * send)
 {
 
 	return rc_aaa(rh, 0, send, NULL, NULL, 0, PW_ACCOUNTING_REQUEST);
@@ -293,14 +301,15 @@ int rc_acct_proxy(rc_handle *rh, VALUE_PAIR *send)
  *	PW_REPLY_MESSAGE received.
  * @return OK_RC (0) on success, negative on failure as return value.
  */
-int rc_check(rc_handle *rh, char *host, char *secret, unsigned short port, char *msg)
+int rc_check(rc_handle * rh, char *host, char *secret, unsigned short port,
+	     char *msg)
 {
-	SEND_DATA       data;
-	int		result;
-	uint32_t	service_type;
-	int		timeout = rc_conf_int(rh, "radius_timeout");
-	int		retries = rc_conf_int(rh, "radius_retries");
-	rc_type		type;
+	SEND_DATA data;
+	int result;
+	uint32_t service_type;
+	int timeout = rc_conf_int(rh, "radius_timeout");
+	int retries = rc_conf_int(rh, "radius_retries");
+	rc_type type;
 
 	data.send_pairs = data.receive_pairs = NULL;
 
@@ -314,13 +323,16 @@ int rc_check(rc_handle *rh, char *host, char *secret, unsigned short port, char 
 	 */
 
 	service_type = PW_ADMINISTRATIVE;
-	rc_avpair_add(rh, &(data.send_pairs), PW_SERVICE_TYPE, &service_type, 0, 0);
+	rc_avpair_add(rh, &(data.send_pairs), PW_SERVICE_TYPE, &service_type, 0,
+		      0);
 
-	rc_buildreq(rh, &data, PW_STATUS_SERVER, host, port, secret, timeout, retries);
-	result = rc_send_server (rh, &data, msg, type);
+	rc_buildreq(rh, &data, PW_STATUS_SERVER, host, port, secret, timeout,
+		    retries);
+	result = rc_send_server(rh, &data, msg, type);
 
 	rc_avpair_free(data.receive_pairs);
 
 	return result;
 }
+
 /** @} */
