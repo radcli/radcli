@@ -186,19 +186,24 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 
 		result = rc_send_server_ctx(rh, ctx, &data, msg, type);
 
-		if (request_type != PW_ACCOUNTING_REQUEST) {
-			*received = data.receive_pairs;
-		} else {
-			rc_avpair_free(data.receive_pairs);
-		}
-
 		if (result == OK_RC) {
+			if (request_type != PW_ACCOUNTING_REQUEST) {
+				*received = data.receive_pairs;
+			} else {
+				rc_avpair_free(data.receive_pairs);
+			}
+
 			DEBUG(LOG_INFO,
 			      "servernum %u returned success", servernum);
 			return result;
 		}
-		//rc_log(LOG_ERR,
-		//       "servernum %u returned error: %d", servernum, result);
+
+		rc_avpair_free(data.receive_pairs);
+		data.receive_pairs = NULL;
+
+		if (radcli_debug) {
+			rc_log(LOG_INFO, "servernum %u returned error: %d", servernum, result);
+		}
 		servernum++;
 	} while (servernum < aaaserver->max && result == TIMEOUT_RC);
 
