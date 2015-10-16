@@ -11,9 +11,11 @@
 # no port is specified /etc/services is consulted of the radius
 # service. if this fails also a compiled in default is used.
 # For IPv6 addresses use the '[IPv6]:port:secret' format, or
-# simply '[IPv6]'. You may specify more than a single server.
+# simply '[IPv6]'. You may specify more than a single server
+# in a comma-separated list.
 #
 authserver 	localhost
+#authserver 	127.1.1.1:9999,172.17.0.1
 
 # RADIUS server to use for accouting requests. All that is
 # written for authserver applies, in acctserver as well. 
