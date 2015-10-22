@@ -46,3 +46,5 @@ radius_retries	3
 # local address from which radius packets have to be sent
 bindaddr *
 
+# To enable verbose debugging messages in syslog, enable the following
+#clientdebug 1
