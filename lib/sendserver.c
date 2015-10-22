@@ -858,6 +858,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		   (recv_auth->code == PW_PASSWORD_REJECT)) {
 		result = REJECT_RC;
 	} else {
+		rc_log(LOG_ERR, "rc_send_server: received RADIUS server response neither ACCEPT nor REJECT, invalid");
 		result = BADRESP_RC;
 	}
 
