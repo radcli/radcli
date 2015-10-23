@@ -26,6 +26,7 @@ radiusclient.conf: radiusclient.conf.in
 	rm -f $@
 	sed -e 's|@sbin''dir@|$(sbindir)|g' \
 	    -e 's|@pkgsysconf''dir@|$(pkgsysconfdir)|g' \
+	    -e 's|@sharedir@|$(sharedir)|g' \
 	    <$(srcdir)/radiusclient.conf.in >radiusclient.conf
 	chmod ogu-w $@
 
@@ -40,6 +41,7 @@ radiusclient-tls.conf: radiusclient-tls.conf.in
 	rm -f $@
 	sed -e 's|@sbin''dir@|$(sbindir)|g' \
 	    -e 's|@pkgsysconf''dir@|$(pkgsysconfdir)|g' \
+	    -e 's|@sharedir@|$(sharedir)|g' \
 	    <$(srcdir)/radiusclient-tls.conf.in >radiusclient-tls.conf
 	chmod ogu-w $@
 

@@ -28,8 +28,9 @@ acctserver 	localhost:2083
 # be stored in "psk:username:hexkey" format.
 #servers		@pkgsysconfdir@/servers-tls
 
-# dictionary of allowed attributes and values
-# just like in the normal RADIUS distributions
+# Dictionary of allowed attributes and values. That depends
+# heavily on the features of your server. A default dictionary
+# is installed in @sharedir@/dictionary
 dictionary 	@pkgsysconfdir@/dictionary
 
 # default authentication realm to append to all usernames if no
