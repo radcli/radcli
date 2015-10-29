@@ -194,7 +194,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 			}
 
 			DEBUG(LOG_INFO,
-			      "servernum %u returned success", servernum);
+			      "rc_send_server_ctx returned success for server %u", servernum);
 			return result;
 		}
 
@@ -202,7 +202,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		data.receive_pairs = NULL;
 
 		if (radcli_debug) {
-			rc_log(LOG_INFO, "servernum %u returned error: %d (remain: %d)", servernum, result, aaaserver->max-servernum);
+			rc_log(LOG_INFO, "rc_send_server_ctx returned error (%d) for server %u: (remaining: %d)", result, servernum, aaaserver->max-servernum);
 		}
 		servernum++;
 	} while (servernum < aaaserver->max && result == TIMEOUT_RC);
