@@ -47,11 +47,23 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia);
 double rc_getctime(void);
 void rc_str2tm (char const *valstr, struct tm *tm);
 
+#undef rc_log
+
 #ifdef _MSC_VER /* TODO: Fix me */
 # define rc_log(...)
 #else
-# define rc_log syslog
+
+# ifdef __GNUC__
+#  define rc_log(prio, fmt, ...) \
+	syslog(prio, "radcli: %s: "fmt, __func__, ##__VA_ARGS__)
+# else
+#  define rc_log syslog
+# endif
 #endif
+
+extern unsigned int radcli_debug;
+
+#define		DEBUG(args...)	if(radcli_debug) rc_log(args)
 
 #endif /* UTIL_H */
 

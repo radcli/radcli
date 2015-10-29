@@ -157,14 +157,6 @@ int sigprocmask (int, sigset_t *, sigset_t *);
 
 #include <radcli/radcli.h>
 
-#undef CP_DEBUG
-extern unsigned int radcli_debug;
-#ifdef CP_DEBUG
-#define		DEBUG(args...)	if(radcli_debug) syslog(args)
-#else
-#define		DEBUG(args...)	;
-#endif
-
 #define GETSTR_LENGTH		128	//!< must be bigger than AUTH_PASS_LEN.
 
 typedef struct pw_auth_hdr
