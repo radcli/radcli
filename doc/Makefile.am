@@ -39,8 +39,8 @@ dist_man_MANS = $(APIMANS)
 $(APIMANS):
 
 stamp_mans: ../include/radcli/radcli.h
-	-doxygen Doxyfile
-	-doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library'  --out man --novalidate xml/radcli_8h.xml
+	doxygen Doxyfile
+	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library'  --out man --novalidate xml/radcli_8h.xml
 	echo > $@
 
 update-doc: stamp_mans
