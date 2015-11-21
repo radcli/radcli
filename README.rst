@@ -40,7 +40,22 @@ compatible with radiusclient-ng and freeradius-client.
 Documentation and examples are available at:
 http://radcli.github.io/radcli/
 
-4. Bug reporting
+4. Compilation
+--------------
+
+Run autogen.sh to generate the configure script and makefiles.
+
+Required dependencies (Fedora pkg):
+```
+yum install -y autoconf libtool automake gnutls-devel
+```
+
+Required dependencies (Debian pkg):
+```
+apt-get install -y autoconf libtool automake libgnutls28-dev
+```
+
+5. Bug reporting
 ----------------
 
 Please use the issue tracker at:
