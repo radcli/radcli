@@ -16,11 +16,13 @@ sbindir = @sbindir@
 pkgsysconfdir = @pkgsysconfdir@
 pkgsysconf_DATA = radiusclient.conf radiusclient-tls.conf
 
-sharedir = $(datadir)/@PACKAGE@
-share_DATA = dictionary dictionary.microsoft dictionary.roaringpenguin
+DICTIONARIES = dictionary dictionary.ascend dictionary.compat dictionary.merit dictionary.microsoft dictionary.roaringpenguin dictionary.sip
 
-EXTRA_DIST = dictionary servers servers-tls radiusclient.conf.in \
-	radiusclient-tls.conf.in dictionary.microsoft dictionary.roaringpenguin
+sharedir = $(datadir)/@PACKAGE@
+share_DATA = $(DICTIONARIES)
+
+EXTRA_DIST = $(DICTIONARIES) servers servers-tls radiusclient.conf.in \
+	radiusclient-tls.conf.in
 
 radiusclient.conf: radiusclient.conf.in
 	rm -f $@
