@@ -7,7 +7,7 @@
 #	is specified as one of 4 data types.  Valid data types are:
 #
 #	string - 0-253 octets
-#	ipaddr - 4 octets in network byte order
+#	ipv4addr - 4 octets in network byte order
 #	integer - 32 bit value in big endian order (high byte first)
 #	date - 32 bit value in big endian order - seconds since
 #					00:00:00 GMT,  Jan.  1,  1970
@@ -33,7 +33,7 @@ ATTRIBUTE	Sip-To-Tag		104	string
 ATTRIBUTE	Sip-From-Tag		105	string
 ATTRIBUTE	Sip-Branch-ID		106	string
 ATTRIBUTE	Sip-Translated-Request-URI	107	string
-ATTRIBUTE	Sip-Source-IP-Address	108	ipaddr
+ATTRIBUTE	Sip-Source-IP-Address	108	ipv4addr
 ATTRIBUTE	Sip-Source-Port		109	integer
 ATTRIBUTE	Sip-User-ID		110	string
 ATTRIBUTE	Sip-User-Realm		111	string
