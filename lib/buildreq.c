@@ -121,7 +121,13 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 	double start_time = 0;
 	double now = 0;
 	time_t dtime;
-	int servernum;
+	int servernum, radius_proto = 0;
+
+	radius_proto = rc_conf_int(rh, "radius_proto");
+	if(1 == radius_proto)
+		data.radius_proto = PROTO_UDP;
+	else
+		data.radius_proto = PROTO_TCP;
 
 	data.send_pairs = send;
 	data.receive_pairs = NULL;
