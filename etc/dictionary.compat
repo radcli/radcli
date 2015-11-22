@@ -3,13 +3,13 @@
 #	Move the $INCLUDE in the main dictionary file to the end if you want
 #	these names to be used in the "details" logfile.
 #
-ATTRIBUTE	Client-Id		4	ipaddr
+ATTRIBUTE	Client-Id		4	ipv4addr
 ATTRIBUTE	Client-Port-Id		5	integer
 ATTRIBUTE	User-Service-Type	6	integer
-ATTRIBUTE	Framed-Address		8	ipaddr
-ATTRIBUTE	Framed-Netmask		9	ipaddr
+ATTRIBUTE	Framed-Address		8	ipv4addr
+ATTRIBUTE	Framed-Netmask		9	ipv4addr
 ATTRIBUTE	Framed-Filter-Id	11	string
-ATTRIBUTE	Login-Host		14	ipaddr
+ATTRIBUTE	Login-Host		14	ipv4addr
 ATTRIBUTE	Login-Port		16	integer
 ATTRIBUTE	Old-Password		17	string
 ATTRIBUTE	Port-Message		18	string
@@ -27,7 +27,7 @@ VALUE		Service-Type		Dialback-Framed-User	4
 #	For compatibility with MERIT users files.
 #
 ATTRIBUTE	NAS-Port		5	integer
-ATTRIBUTE	Login-Host		14	ipaddr
+ATTRIBUTE	Login-Host		14	ipv4addr
 ATTRIBUTE	Login-Callback-Number	19	string
 ATTRIBUTE	Framed-Callback-Id	20	string
 ATTRIBUTE	Client-Port-DNIS	30	string
