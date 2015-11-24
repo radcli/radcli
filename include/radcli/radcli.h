@@ -419,6 +419,10 @@ enum rc_vendor_attr_roaringpenguin {
 #define PW_AUTH_ONLY		3
 #define PW_ALL			255
 
+/* Transport Protocol Types */
+#define PROTO_TCP  1
+#define PROTO_UDP  2
+
 /* Server data structures */
 
 typedef struct dict_attr
@@ -485,6 +489,7 @@ typedef struct send_data /* Used to pass information to sendserver() function */
 	int            retries;
 	VALUE_PAIR     *send_pairs;     //!< More a/v pairs to send.
 	VALUE_PAIR     *receive_pairs;  //!< Where to place received a/v pairs.
+	uint8_t        radius_proto;    //!< Transport protocol type. 
 } SEND_DATA;
 
 #define AUTH_VECTOR_LEN		16

@@ -242,7 +242,11 @@ static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	int sockfd;
 
-	sockfd = socket(our_sockaddr->sa_family, SOCK_DGRAM, 0);
+	if(*(int *)ptr == PROTO_TCP)
+		sockfd = socket(our_sockaddr->sa_family, SOCK_STREAM, 0);
+	else
+		sockfd = socket(our_sockaddr->sa_family, SOCK_DGRAM, 0);
+
 	if (sockfd < 0) {
 		return -1;
 	}
@@ -569,7 +573,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	}
 
 	if (sfuncs->get_fd) {
-		sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
+		sockfd = sfuncs->get_fd(&(data->radius_proto), SA(&our_sockaddr));
 		if (sockfd < 0) {
 			memset(secret, '\0', sizeof(secret));
 			rc_log(LOG_ERR, "rc_send_server: socket: %s",
@@ -671,6 +675,14 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 
 	for (;;) {
 		do {
+			if(PROTO_TCP == data->radius_proto) {
+				if((connect(sockfd, SA(auth_addr->ai_addr), auth_addr->ai_addrlen)) != 0)
+				{
+					rc_log(LOG_ERR, "%s: Connect Call Failed : %s", __FUNCTION__, strerror(errno));
+					result = -1;
+					break;
+				}
+			}
 			result =
 			    sfuncs->sendto(sfuncs->ptr, sockfd, (char *)auth,
 					   (unsigned int)total_length, (int)0,
