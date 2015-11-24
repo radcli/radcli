@@ -31,6 +31,8 @@ FreeRADIUS-client 1.1.7, January 19, 2015
   o Made rc_avpair_log thread-safe by using a buffer supplied
     by the caller.  Patch from Alex Massover.
   o Removed lock file for sequence number.  It isn't needed.
+    The file specified by the seqfile parameter can be deleted.
+    The sequence number is now generated randomly.
   o Use poll() where possible to avoid issues with FD_SETSIZE.
     Patch from Alfred E. Heggestad.
   o Set Acct-Delay-Time in Accounting-Request packets.
