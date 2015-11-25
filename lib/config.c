@@ -410,7 +410,7 @@ static int apply_config(rc_handle *rh)
         {
                 const char *txt;
                 int ret;
-                txt = rc_conf_str(rh, "serv-auth-type");
+                txt = rc_conf_str(rh, "serv-type");
                 if (txt != NULL) {
                         if (strcasecmp(txt, "dtls") == 0) {
                                 ret = rc_init_tls(rh, SEC_FLAG_DTLS);
