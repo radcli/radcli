@@ -122,10 +122,30 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 	double now = 0;
 	time_t dtime;
 	int servernum;
+	const char *serv_support = NULL;
 
 	data.send_pairs = send;
 	data.receive_pairs = NULL;
 
+	serv_support = rc_conf_str(rh, "serv-type");
+	if (NULL == serv_support){
+        rh->so_type = RC_SOCKET_UDP;
+	}
+	else{
+		if (strcasecmp(serv_support, "dtls") == 0) {
+			rh->so_type = RC_SOCKET_DTLS;
+		} else if (strcasecmp(serv_support, "tls") == 0) {
+			rh->so_type = RC_SOCKET_TLS;
+		} else if (strcasecmp(serv_support, "tcp") == 0) {
+			rh->so_type = RC_SOCKET_TCP;
+		} else if (strcasecmp(serv_support, "udp") == 0) {
+			rh->so_type = RC_SOCKET_UDP;
+		} else {
+			rc_log(LOG_CRIT, "unknown server authentication type: %s", serv_support);
+			return ERROR_RC;
+		}
+	}
+	
 	/*
 	 * if there is more than zero servers, then divide waiting time
 	 * among all the servers.

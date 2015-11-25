@@ -50,11 +50,12 @@ bindaddr *
 
 # TLS/DTLS settings
 
-# The type of authentication to use for the radius server.
-# The available options are 'tls' and 'dtls', or should be commented
-# out to use plain UDP. TLS and DTLS authentication can be used
-# with PSK keys or X.509 certificate authentication (see below).
-serv-auth-type	tls
+# Transport Protocol Support
+# Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
+# If commented out, udp will be used
+# TLS and DTLS authentication can be used with PSK keys or X.509 certificate 
+# authentication (see below).
+serv-type   tls
 
 # The CA certificate to be used to verify the server's certificate.
 # Does not need to be set if we are using PSK (pre-shared keys).

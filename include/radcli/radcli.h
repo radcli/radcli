@@ -93,7 +93,8 @@ typedef struct server {
 typedef enum rc_socket_type {
 	RC_SOCKET_UDP = 0,	//!< Plain UDP socket
 	RC_SOCKET_TLS = 1,	//!< TLS socket
-	RC_SOCKET_DTLS = 2	//!< DTLS socket
+	RC_SOCKET_DTLS = 2,	//!< DTLS socket
+	RC_SOCKET_TCP = 3	//!< Plain TCP socket
 } rc_socket_type;
 
 #define AUTH_HDR_LEN			20
