@@ -570,8 +570,8 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 			if (ret < 0) {
 				ret = -1;
 				rc_log(LOG_ERR,
-				       "%s: error in setting X.509 trust file: %s",
-				       __func__, gnutls_strerror(ret));
+				       "%s: error in setting X.509 trust file: %s: %s",
+				       __func__, gnutls_strerror(ret), ca_file);
 				goto cleanup;
 			}
 		}
@@ -585,8 +585,8 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 			if (ret < 0) {
 				ret = -1;
 				rc_log(LOG_ERR,
-				       "%s: error in setting X.509 cert and key file: %s",
-				       __func__, gnutls_strerror(ret));
+				       "%s: error in setting X.509 cert and key files: %s: %s - %s",
+				       __func__, gnutls_strerror(ret), cert_file, key_file);
 				goto cleanup;
 			}
 		}
