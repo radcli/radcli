@@ -1034,7 +1034,10 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
  * rc_config_free:
  * @param rh a handle to parsed configuration
  *
- * Free allocated config values
+ * Free allocated config values. For legacy compatibility
+ * reasons this will not release any dictionary entries.
+ * To release all memory from the handle use rc_destroy()
+ * instead.
  *
  */
 void rc_config_free(rc_handle *rh)
