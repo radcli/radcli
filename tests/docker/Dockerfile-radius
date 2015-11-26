@@ -20,6 +20,7 @@ RUN mkdir /etc/ocserv
 ADD radius-clients.conf /etc/raddb/clients.conf
 ADD freeradius-users /etc/raddb/users
 ADD tls.conf /etc/raddb/sites-enabled/tls
+ADD tcp.conf /etc/raddb/sites-enabled/tcp
 ADD cert-rsa.pem /etc/raddb/cert-rsa.pem
 ADD key-rsa.pem /etc/raddb/key-rsa.pem
 ADD ca.pem /etc/raddb/ca.pem

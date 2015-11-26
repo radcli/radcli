@@ -8,7 +8,7 @@ before_script:
   - sudo apt-get install freeradius
   - sudo apt-get install libgnutls28-dev
   - sudo cp tests/docker/freeradius-users /etc/freeradius/users 
-  - sudo cp tests/docker/radius-clients.conf /etc/freeradius/clients.conf
+  - sudo cp tests/docker/radius-clients-notcp.conf /etc/freeradius/clients.conf
   - sudo sed -i 's/auth+acct/auth/g' tests/docker/tls.conf
   - sudo cp tests/docker/tls.conf /etc/freeradius/sites-enabled/tls
   - sudo sed -i 's|ipaddr = 0.0.0.0/0|ipaddr = 127.0.0.1|g' /etc/freeradius/clients.conf
@@ -17,6 +17,6 @@ before_script:
   - sudo /usr/sbin/freeradius -fxx -l stdout >/dev/null 2>&1 &
   - touch config.rpath && autoreconf -fvi && ./configure --with-tls
 
-script: make && SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check && touch doc/stamp_mans && make dist
+script: make && NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check && touch doc/stamp_mans && make dist
 
 after_script: cppcheck -q -Iinclude lib src
