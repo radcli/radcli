@@ -261,9 +261,11 @@ doc/Makefile
 doc/Doxyfile
 tests/Makefile
 tests/docker/Makefile
-],[chmod -w lib/radcli.map lib/radcli.pc])
+])
 AC_CONFIG_COMMANDS([default],[[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h]],[[]])
 AC_OUTPUT
+
+chmod -w lib/radcli.map lib/radcli.pc
 
 AC_MSG_NOTICE([Configuration:
 
