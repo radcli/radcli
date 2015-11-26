@@ -191,6 +191,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	rc_avpair_free(send);
+	rc_destroy(rh);
 
 	return 0;
 
