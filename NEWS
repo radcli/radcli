@@ -1,3 +1,8 @@
+* Version 1.2.5 (unreleased)
+- Added TCP support (Aravind Prasad S)
+- Corrected buffer overflow in rc_ipaddr_local()
+
+
 * Version 1.2.4 (released 2015-09-26)
 - Use a portable name for radius accounting service (issue #4)
 
