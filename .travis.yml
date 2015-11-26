@@ -20,7 +20,7 @@ before_script:
 script:
   - CFLAGS="-fsanitize=address -g -O2" LDFLAGS="-lasan" ./configure --with-tls
   - make
-  - NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check
+  - NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check
   - touch doc/stamp_mans
   - make dist
 

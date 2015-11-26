@@ -42,6 +42,11 @@ if test -z "$SERVER_IP";then
 	exit 77
 fi
 
+if test "$NO_SERVER_TLS" = 1;then
+	echo "the server doesn't support TLS"
+	exit 77
+fi
+
 PID=$$
 sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-tls-temp/servers-tls-temp'$PID'/g' <$srcdir/dtls/radiusclient-tls.conf >$CONFFILE
 sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >$SERVERSFILE
