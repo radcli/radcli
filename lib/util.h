@@ -17,6 +17,8 @@ size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 
 #include <includes.h>
 
+#define	SA(p)	((struct sockaddr *)(p))
+
 #if !defined(SA_LEN)
 #define SA_LEN(sa) \
   (((sa)->sa_family == AF_INET) ? \

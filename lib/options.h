@@ -30,7 +30,8 @@ static OPTION config_options_default[] = {
 /* internally used options */
 {"config_file",		OT_STR, ST_UNDEF, NULL},
 /* RADIUS specific options */
-{"serv-auth-type",	OT_STR, ST_UNDEF, NULL},
+{"serv-type",		OT_STR, ST_UNDEF, NULL},
+{"serv-auth-type",	OT_STR, ST_UNDEF, NULL}, /* alias for serv-type */
 {"tls-verify-hostname",	OT_STR, ST_UNDEF, NULL},
 {"tls-ca-file",		OT_STR, ST_UNDEF, NULL},
 {"tls-cert-file",	OT_STR, ST_UNDEF, NULL},

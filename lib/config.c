@@ -400,34 +400,134 @@ rc_handle *rc_config_init(rc_handle *rh)
 	return rh;
 }
 
+static ssize_t plain_sendto(void *ptr, int sockfd,
+			    const void *buf, size_t len, int flags,
+			    const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
+}
+
+static ssize_t plain_tcp_sendto(void *ptr, int sockfd,
+			    const void *buf, size_t len, int flags,
+			    const struct sockaddr *dest_addr, socklen_t addrlen)
+{
+	if((connect(sockfd, dest_addr, addrlen)) != 0){
+		rc_log(LOG_ERR, "%s: Connect Call Failed : %s", __FUNCTION__, strerror(errno));
+		return -1;
+	}
+	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
+}
+
+static ssize_t plain_recvfrom(void *ptr, int sockfd,
+			      void *buf, size_t len, int flags,
+			      struct sockaddr *src_addr, socklen_t * addrlen)
+{
+	return recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
+}
+
+static void plain_close_fd(int fd)
+{
+	close(fd);
+}
+
+static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
+{
+	int sockfd;
+
+	sockfd = socket(our_sockaddr->sa_family, SOCK_DGRAM, 0);
+	if (sockfd < 0) {
+		return -1;
+	}
+
+	if (our_sockaddr->sa_family == AF_INET)
+		((struct sockaddr_in *)our_sockaddr)->sin_port = 0;
+	else
+		((struct sockaddr_in6 *)our_sockaddr)->sin6_port = 0;
+
+	if (bind(sockfd, SA(our_sockaddr), SA_LEN(our_sockaddr)) < 0) {
+		close(sockfd);
+		return -1;
+	}
+	return sockfd;
+}
+
+static int plain_tcp_get_fd(void *ptr, struct sockaddr *our_sockaddr)
+{
+	int sockfd;
+
+	sockfd = socket(our_sockaddr->sa_family, SOCK_STREAM, 0);
+	if (sockfd < 0) {
+		return -1;
+	}
+
+	if (our_sockaddr->sa_family == AF_INET)
+		((struct sockaddr_in *)our_sockaddr)->sin_port = 0;
+	else
+		((struct sockaddr_in6 *)our_sockaddr)->sin6_port = 0;
+
+	if (bind(sockfd, SA(our_sockaddr), SA_LEN(our_sockaddr)) < 0) {
+		close(sockfd);
+		return -1;
+	}
+	return sockfd;
+}
+
+const static rc_sockets_override default_socket_funcs = {
+	.get_fd = plain_get_fd,
+	.close_fd = plain_close_fd,
+	.sendto = plain_sendto,
+	.recvfrom = plain_recvfrom
+};
+
+const static rc_sockets_override default_tcp_socket_funcs = {
+	.get_fd = plain_tcp_get_fd,
+	.close_fd = plain_close_fd,
+	.sendto = plain_tcp_sendto,
+	.recvfrom = plain_recvfrom
+};
+
 static int apply_config(rc_handle *rh)
 {
+	const char *txt;
+	int ret;
+
 	memset(&rh->own_bind_addr, 0, sizeof(rh->own_bind_addr));
 	rh->own_bind_addr_set = 0;
 	rc_own_bind_addr(rh, &rh->own_bind_addr);
 	rh->own_bind_addr_set = 1;
-#ifdef HAVE_GNUTLS
-        {
-                const char *txt;
-                int ret;
-                txt = rc_conf_str(rh, "serv-auth-type");
-                if (txt != NULL) {
-                        if (strcasecmp(txt, "dtls") == 0) {
-                                ret = rc_init_tls(rh, SEC_FLAG_DTLS);
-                        } else if (strcasecmp(txt, "tls") == 0) {
-                                ret = rc_init_tls(rh, 0);
-                        } else {
-                                rc_log(LOG_CRIT, "unknown server authentication type: %s", txt);
-                                return -1;
-                        }
 
-                        if (ret < 0) {
-                                rc_log(LOG_CRIT, "error initializing %s", txt);
-                                return -1;
-                        }
-                }
-        }
+	txt = rc_conf_str(rh, "serv-type");
+	if (txt == NULL)
+		txt = rc_conf_str(rh, "serv-auth-type");
+
+	if (txt == NULL)
+		txt = "udp";
+
+	if (strcasecmp(txt, "udp") == 0) {
+		memset(&rh->so, 0, sizeof(rh->so));
+		rh->so_type = RC_SOCKET_UDP;
+		memcpy(&rh->so, &default_socket_funcs, sizeof(rh->so));
+		ret = 0;
+	} else if (strcasecmp(txt, "tcp") == 0) {
+		memset(&rh->so, 0, sizeof(rh->so));
+		rh->so_type = RC_SOCKET_TCP;
+		memcpy(&rh->so, &default_tcp_socket_funcs, sizeof(rh->so));
+		ret = 0;
+#ifdef HAVE_GNUTLS
+	} else if (strcasecmp(txt, "dtls") == 0) {
+		ret = rc_init_tls(rh, SEC_FLAG_DTLS);
+	} else if (strcasecmp(txt, "tls") == 0) {
+		ret = rc_init_tls(rh, 0);
 #endif
+	} else {
+		rc_log(LOG_CRIT, "unknown server type: %s", txt);
+		return -1;
+	}
+
+	if (ret < 0) {
+		rc_log(LOG_CRIT, "error initializing %s", txt);
+		return -1;
+	}
 
 	return 0;
 

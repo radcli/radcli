@@ -19,7 +19,6 @@
 #include "util.h"
 #include "rc-md5.h"
 
-#define	SA(p)	((struct sockaddr *)(p))
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
 static void rc_random_vector(unsigned char *);
@@ -219,52 +218,6 @@ static void strappend(char *dest, unsigned max_size, int *pos, const char *src)
 	return;
 }
 
-static ssize_t plain_sendto(void *ptr, int sockfd,
-			    const void *buf, size_t len, int flags,
-			    const struct sockaddr *dest_addr, socklen_t addrlen)
-{
-	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
-}
-
-static ssize_t plain_recvfrom(void *ptr, int sockfd,
-			      void *buf, size_t len, int flags,
-			      struct sockaddr *src_addr, socklen_t * addrlen)
-{
-	return recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
-}
-
-static void plain_close_fd(int fd)
-{
-	close(fd);
-}
-
-static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
-{
-	int sockfd;
-
-	sockfd = socket(our_sockaddr->sa_family, SOCK_DGRAM, 0);
-	if (sockfd < 0) {
-		return -1;
-	}
-
-	if (our_sockaddr->sa_family == AF_INET)
-		((struct sockaddr_in *)our_sockaddr)->sin_port = 0;
-	else
-		((struct sockaddr_in6 *)our_sockaddr)->sin6_port = 0;
-
-	if (bind(sockfd, SA(our_sockaddr), SA_LEN(our_sockaddr)) < 0) {
-		close(sockfd);
-		return -1;
-	}
-	return sockfd;
-}
-
-const static rc_sockets_override default_socket_funcs = {
-	.get_fd = plain_get_fd,
-	.close_fd = plain_close_fd,
-	.sendto = plain_sendto,
-	.recvfrom = plain_recvfrom
-};
 
 static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
 			uint8_t vector[AUTH_VECTOR_LEN])
@@ -527,16 +480,12 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		/*} */
 	}
 
-	if (rh->so_type == RC_SOCKET_UDP) {
-		sfuncs = &default_socket_funcs;
-	} else {
-		sfuncs = &rh->so;
+	sfuncs = &rh->so;
 
-		if (sfuncs->static_secret) {
-			/* any static secret set in sfuncs overrides the configured */
-			strlcpy(secret, sfuncs->static_secret,
-				MAX_SECRET_LENGTH);
-		}
+	if (sfuncs->static_secret) {
+		/* any static secret set in sfuncs overrides the configured */
+		strlcpy(secret, sfuncs->static_secret,
+			MAX_SECRET_LENGTH);
 	}
 
 	if (sfuncs->lock) {
