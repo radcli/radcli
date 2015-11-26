@@ -836,7 +836,7 @@ static int find_match (const struct addrinfo* addr, const struct addrinfo *hostn
 static int rc_ipaddr_local(const struct sockaddr *addr)
 {
 	int temp_sock, res, serrno;
-	struct sockaddr tmpaddr;
+	struct sockaddr_storage tmpaddr;
 
 	memcpy(&tmpaddr, addr, SA_LEN(addr));
 
@@ -849,7 +849,7 @@ static int rc_ipaddr_local(const struct sockaddr *addr)
 	} else {
 		((struct sockaddr_in6*)&tmpaddr)->sin6_port = 0;
 	}
-	res = bind(temp_sock, &tmpaddr, SA_LEN(&tmpaddr));
+	res = bind(temp_sock, SA(&tmpaddr), SS_LEN(&tmpaddr));
 	serrno = errno;
 	close(temp_sock);
 	if (res == 0)
