@@ -45,7 +45,7 @@ http://radcli.github.io/radcli/
 
 Run autogen.sh to generate the configure script and makefiles.
 
-Required dependencies (Fedora pkg):
+Required dependencies (Fedora/RHEL pkg):
 ```
 yum install -y autoconf libtool automake gnutls-devel
 ```
