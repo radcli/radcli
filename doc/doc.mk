@@ -25,6 +25,7 @@ APIMANS += man/rc_avpair_log.3
 APIMANS += man/rc_avpair_new.3
 APIMANS += man/rc_avpair_next.3
 APIMANS += man/rc_avpair_parse.3
+APIMANS += man/rc_avpair_remove.3
 APIMANS += man/rc_avpair_tostr.3
 APIMANS += man/rc_buildreq.3
 APIMANS += man/rc_check.3
