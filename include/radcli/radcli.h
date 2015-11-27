@@ -558,11 +558,12 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 /* avpair.c */
 
-  VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, void const *pval, int len, int vendorpec);
-  int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len);
-  VALUE_PAIR *rc_avpair_new (rc_handle const *rh, int attrid, void const *pval, int len, int vendorpec);
-  VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, void const *pval, int len, int vendorpec);
+int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len);
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, int attrid, void const *pval, int len, int vendorpec);
+VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
 			  int length, int vendorpec);
+void rc_avpair_remove (VALUE_PAIR **list, int attrid, int vendorpec);
 VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, int attrid, int vendorpec);
 VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p);
 void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b);

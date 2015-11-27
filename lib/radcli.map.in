@@ -62,6 +62,7 @@ RADCLI_@LIBMAJOR@
 	rc_aaa_ctx_server;
 	rc_avpair_copy;
 	rc_mksid;
+	rc_avpair_remove;
   local:
     *;
 };

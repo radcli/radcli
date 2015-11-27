@@ -58,6 +58,49 @@ VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, v
 
 }
 
+/** Removes an attribute-value pair from the given list
+ *
+ * See rc_avpair_assign() for the format of the data.
+ *
+ * @param list a VALUE_PAIR array of values
+ * @param attrid The attribute of the pair to remove (e.g., PW_USER_NAME).
+ * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ */
+void rc_avpair_remove (VALUE_PAIR **list, int attrid, int vendorpec)
+{
+	VALUE_PAIR *vp, *prev, *tmp;
+	int vattrid;
+
+	if(vendorpec != VENDOR_NONE)
+		vattrid = attrid | (vendorpec << 16);
+	else
+		vattrid = attrid;
+
+	prev = NULL;
+	vp = *list;
+	while(vp != NULL) {
+		if (vp->attribute == vattrid) {
+			/* found */
+			if (prev == NULL) { /* first one */
+				tmp = vp;
+				vp = tmp->next;
+				free(tmp);
+				*list = vp;
+			} else { /* somewhere in the middle */
+				prev->next = vp->next;
+				free(vp);
+				vp = prev;
+			}
+			break;
+		}
+
+		prev = vp;
+		vp = vp->next;
+	};
+
+	return;
+}
+
 /** Iterates through the attribute-value pairs
  *
  * The attribute-value are organized in a linked-list, and this
