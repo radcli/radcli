@@ -37,6 +37,7 @@ static OPTION config_options_default[] = {
 {"tls-cert-file",	OT_STR, ST_UNDEF, NULL},
 {"tls-key-file",	OT_STR, ST_UNDEF, NULL},
 {"nas-identifier",	OT_STR, ST_UNDEF, NULL},
+{"nas-ip",		OT_STR, ST_UNDEF, NULL},
 {"authserver",		OT_SRV, ST_UNDEF, NULL},
 {"acctserver",		OT_SRV, ST_UNDEF, NULL},
 {"servers",		OT_STR, ST_UNDEF, NULL},

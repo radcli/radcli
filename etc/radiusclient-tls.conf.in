@@ -4,6 +4,10 @@
 # be used in NAS-Identifier.
 #nas-identifier my-server-name
 
+# Override the IP (or IPv6) address of the NAS.
+#nas-ip 	10.100.5.3
+#nas-ip 	::1
+
 # RADIUS server to use for authentication requests.
 # optionally you can specify a the port number on which is remote
 # RADIUS listens separated by a colon from the hostname. if
@@ -52,7 +56,7 @@ bindaddr *
 
 # Transport Protocol Support
 # Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
-# If commented out, udp will be used
+# If commented out, udp will be used.
 # TLS and DTLS authentication can be used with PSK keys or X.509 certificate 
 # authentication (see below).
 serv-type   tls

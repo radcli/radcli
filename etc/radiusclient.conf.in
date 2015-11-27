@@ -1,9 +1,14 @@
 # RADIUS settings
 
 # The name to be used to identify this NAS (server). If set it will
-# be used in NAS-Identifier.
+# be used in NAS-Identifier field and will override any such setting
+# by the application.
 #
-#nas-identifier my-server-name
+#nas-identifier	my-server-name
+
+# Override the IP (or IPv6) address of the NAS.
+#nas-ip 	10.100.5.3
+#nas-ip 	::1
 
 # RADIUS server to use for authentication requests.
 # optionally you can specify a the port number on which is remote
@@ -46,6 +51,12 @@ radius_retries	3
 
 # local address from which radius packets have to be sent
 bindaddr *
+
+# Transport Protocol Support
+# Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
+# If commented out, udp will be used.
+#serv-type   udp
+
 
 # To enable verbose debugging messages in syslog, enable the following
 #clientdebug 1

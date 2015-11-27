@@ -428,7 +428,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 {
 	int sockfd = -1;
 	AUTH_HDR *auth, *recv_auth;
-	char *server_name;	/* Name of server to query */
+	char *server_name, *p;	/* Name of server to query */
 	struct sockaddr_storage our_sockaddr;
 	struct addrinfo *auth_addr = NULL;
 	socklen_t salen;
@@ -448,6 +448,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	VALUE_PAIR *vp;
 	struct pollfd pfd;
 	double start_time, timeout;
+	struct sockaddr_storage *ss_set = NULL;
 	char *server_type = "auth";
 
 	server_name = data->server;
@@ -543,12 +544,22 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	/*
 	 * Fill in NAS-IP-Address (if needed)
 	 */
-	if (rc_avpair_get(data->send_pairs, PW_NAS_IP_ADDRESS, 0) == NULL &&
-	    rc_avpair_get(data->send_pairs, PW_NAS_IPV6_ADDRESS, 0) == NULL) {
-		if (our_sockaddr.ss_family == AF_INET) {
+	if (rh->nas_addr_set) {
+		rc_avpair_remove(&(data->send_pairs), PW_NAS_IP_ADDRESS, 0);
+		rc_avpair_remove(&(data->send_pairs), PW_NAS_IPV6_ADDRESS, 0);
+
+		ss_set = &rh->nas_addr;
+	} else if (rc_avpair_get(data->send_pairs, PW_NAS_IP_ADDRESS, 0) == NULL &&
+	    	   rc_avpair_get(data->send_pairs, PW_NAS_IPV6_ADDRESS, 0) == NULL) {
+
+	    	ss_set = &our_sockaddr;
+	}
+
+	if (ss_set) {
+		if (ss_set->ss_family == AF_INET) {
 			uint32_t ip;
 			ip = *((uint32_t
-				*) (&((struct sockaddr_in *)&our_sockaddr)->
+				*) (&((struct sockaddr_in *)ss_set)->
 				    sin_addr));
 			ip = ntohl(ip);
 
@@ -556,22 +567,21 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 				      PW_NAS_IP_ADDRESS, &ip, 0, 0);
 		} else {
 			void *p;
-			p = &((struct sockaddr_in6 *)&our_sockaddr)->sin6_addr;
+			p = &((struct sockaddr_in6 *)ss_set)->sin6_addr;
 
 			rc_avpair_add(rh, &(data->send_pairs),
-				      PW_NAS_IPV6_ADDRESS, p, 0, 0);
+				      PW_NAS_IPV6_ADDRESS, p, 16, 0);
 		}
 	}
 
 	/*
 	 * Fill in NAS-Identifier (if needed)
 	 */
-	if (rc_avpair_get(data->send_pairs, PW_NAS_IDENTIFIER, 0) == NULL) {
-		char *p = rc_conf_str(rh, "nas-identifier");
-		if (p != NULL) {
-			rc_avpair_add(rh, &(data->send_pairs),
-				      PW_NAS_IDENTIFIER, p, -1, 0);
-		}
+	p = rc_conf_str(rh, "nas-identifier");
+	if (p != NULL) {
+		rc_avpair_remove(&(data->send_pairs), PW_NAS_IDENTIFIER, 0);
+		rc_avpair_add(rh, &(data->send_pairs),
+			      PW_NAS_IDENTIFIER, p, -1, 0);
 	}
 
 	/* Build a request */

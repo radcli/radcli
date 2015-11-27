@@ -486,6 +486,20 @@ const static rc_sockets_override default_tcp_socket_funcs = {
 	.recvfrom = plain_recvfrom
 };
 
+static int set_addr(struct sockaddr_storage *ss, const char *ip)
+{
+	memset(ss, 0, sizeof(*ss));
+	if (inet_pton(AF_INET, ip, &((struct sockaddr_in *)ss)->sin_addr) == 1) {
+		ss->ss_family = AF_INET;
+	} else if (inet_pton(AF_INET6, ip, &((struct sockaddr_in6 *)ss)->sin6_addr) == 1) {
+		ss->ss_family = AF_INET6;
+	} else {
+		rc_log(LOG_CRIT, "invalid IP address for nas-ip: %s", ip);
+		return -1;
+	}
+	return 0;
+}
+
 static int apply_config(rc_handle *rh)
 {
 	const char *txt;
@@ -495,6 +509,13 @@ static int apply_config(rc_handle *rh)
 	rh->own_bind_addr_set = 0;
 	rc_own_bind_addr(rh, &rh->own_bind_addr);
 	rh->own_bind_addr_set = 1;
+
+	txt = rc_conf_str(rh, "nas-ip");
+	if (txt != NULL) {
+		if (set_addr(&rh->nas_addr, txt) < 0)
+			return -1;
+		rh->nas_addr_set = 1;
+	}
 
 	txt = rc_conf_str(rh, "serv-type");
 	if (txt == NULL)

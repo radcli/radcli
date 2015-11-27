@@ -188,6 +188,9 @@ typedef struct rc_sockets_override {
 struct rc_conf
 {
 	struct _option		*config_options;
+	struct sockaddr_storage	nas_addr;
+	unsigned		nas_addr_set;
+
 	struct sockaddr_storage	own_bind_addr;
 	unsigned		own_bind_addr_set;
 
