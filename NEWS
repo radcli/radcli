@@ -1,6 +1,10 @@
 * Version 1.2.5 (unreleased)
 - Added TCP support (Aravind Prasad S)
 - Corrected buffer overflow in rc_ipaddr_local()
+- Added nas-ip config file option. That option allows to override
+  the IP reported by NAS to the radius server.
+- The NAS identifier set in the configuration file will override
+  any identifier set by the application.
 
 
 * Version 1.2.4 (released 2015-09-26)
