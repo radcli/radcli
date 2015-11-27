@@ -46,6 +46,12 @@ int main(int argc, char **argv)
 
 	vp = &send;
 	/* insert values */
+	ret = rc_avpair_parse(rh, "Framed-Protocol=7", vp);
+	if (ret < 0) {
+		fprintf(stderr, "error in %d\n", __LINE__);
+		exit(1);
+	}
+
 	ret = rc_avpair_parse(rh, "User-Name=test", vp);
 	if (ret < 0) {
 		fprintf(stderr, "error in %d\n", __LINE__);
@@ -53,6 +59,12 @@ int main(int argc, char **argv)
 	}
 
 	ret = rc_avpair_parse(rh, "Idle-Timeout=1821", vp);
+	if (ret < 0) {
+		fprintf(stderr, "error in %d\n", __LINE__);
+		exit(1);
+	}
+
+	ret = rc_avpair_parse(rh, "Session-Timeout=55", vp);
 	if (ret < 0) {
 		fprintf(stderr, "error in %d\n", __LINE__);
 		exit(1);
@@ -87,6 +99,12 @@ int main(int argc, char **argv)
 		} else if (vp2->attribute == PW_IDLE_TIMEOUT && (vp2->lvalue != 1821 || vp2->type != PW_TYPE_INTEGER)) {
 			fprintf(stderr, "%d: error checking Idle-Timeout: %d\n", __LINE__, vp2->lvalue);
 			exit(1);
+		} else if (vp2->attribute == PW_FRAMED_PROTOCOL && (vp2->lvalue != 7 || vp2->type != PW_TYPE_INTEGER)) {
+			fprintf(stderr, "%d: error checking Idle-Timeout: %d\n", __LINE__, vp2->lvalue);
+			exit(1);
+		} else if (vp2->attribute == PW_SESSION_TIMEOUT && (vp2->lvalue != 55 || vp2->type != PW_TYPE_INTEGER)) {
+			fprintf(stderr, "%d: error checking Session-Timeout: %d\n", __LINE__, vp2->lvalue);
+			exit(1);
 		} else if (vp2->attribute == PW_FRAMED_IP_ADDRESS && (vp2->lvalue != 3232235777 || vp2->type != PW_TYPE_IPADDR)) {
 			fprintf(stderr, "%d: error checking Framed-IP-Address: %u\n", __LINE__, vp2->lvalue);
 			exit(1);
@@ -109,8 +127,29 @@ int main(int argc, char **argv)
 		vp2 = vp2->next;
 	};
 
+	if (checks != 7) {
+		fprintf(stderr, "%d: error: not all attributes were found (expected 7, have %d)\n", __LINE__, checks);
+		exit(1);
+	}
+
+	/* check rc_avpair_remove */
+	rc_avpair_remove(&send, PW_SESSION_TIMEOUT, 0);
+
+	/* remove head */
+	if (send->attribute != PW_FRAMED_PROTOCOL) {
+		fprintf(stderr, "%d: error: head is not the expected\n", __LINE__);
+		exit(1);
+	}
+	rc_avpair_remove(&send, send->attribute, 0);
+	vp2 = send;
+	checks = 0;
+	while(vp2 != NULL) {
+		vp2 = vp2->next;
+		checks++;
+	}
+
 	if (checks != 5) {
-		fprintf(stderr, "%s: error: not all attributes were found\n", __LINE__);
+		fprintf(stderr, "%d: error: rc_avpair_remove didn't remove all expected elements\n", __LINE__);
 		exit(1);
 	}
 
