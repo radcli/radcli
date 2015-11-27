@@ -28,8 +28,8 @@
 
 srcdir="${srcdir:-.}"
 TMPFILE=tmp$$.out
-CONFFILE=conf.tmp$$.out
-SERVERSFILE=servers.tmp$$.out
+CONFFILE="conf.tmp$$.out"
+SERVERSFILE="servers.tmp$$.out"
 
 echo "***********************************************"
 echo "This test will use a radius-tls server on localhost"
@@ -48,7 +48,7 @@ if test "$NO_SERVER_TLS" = 1;then
 fi
 
 PID=$$
-sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-tls-temp/servers-tls-temp'$PID'/g' <$srcdir/dtls/radiusclient-tls.conf >$CONFFILE
+sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-tls-temp/'$SERVERSFILE'/g' <$srcdir/dtls/radiusclient-tls.conf >$CONFFILE
 sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >$SERVERSFILE
 
 # Test whether a TLS session will succeed
