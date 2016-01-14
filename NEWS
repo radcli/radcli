@@ -27,7 +27,7 @@
 - Corrections in the types of the distributed dictionary.
 - Added compatibility headers for radiusclient-ng.
 - Added new API to access the context of a request.
-- Eliminitated the radius_deadtime option, and simplified the
+- Eliminated the radius_deadtime option, and simplified the
   server setting option. Only a single auth or acct server
   can be specified.
 - API and ABI modifications:
