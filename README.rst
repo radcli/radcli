@@ -50,6 +50,13 @@ Required dependencies (Fedora/RHEL pkg):
 yum install -y autoconf libtool automake gnutls-devel
 ```
 
+
+Required dependencies (Fedora 23+):
+```
+dnf install -y autoconf libtool automake gnutls-devel gettext-devel
+```
+
+
 Required dependencies (Debian pkg):
 ```
 apt-get install -y autoconf libtool automake libgnutls28-dev
