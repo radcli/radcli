@@ -257,9 +257,7 @@ static int set_option_auo(char const *filename, int line, OPTION *option, char c
 	}
 
 	*iptr = 0;
-	/*if(strstr(p_dupe,", \t") != NULL) {*/
-		p_pointer = strtok_r(p_dupe, ", \t", &p_save);
-	/*}*/
+	p_pointer = strtok_r(p_dupe, ", \t", &p_save);
 
 	if (!strncmp(p_pointer, "local", 5))
 			*iptr = AUTH_LOCAL_FST;
