@@ -239,8 +239,6 @@ AH_OUTPUT([HAVE_STRUCT_UTSNAME_DOMAINNAME], [/*struct utsname has domainname fie
 #undef HAVE_STRUCT_UTSNAME_DOMAINNAME])
 AH_OUTPUT([NEED_SIG_PROTOTYPES], [/* do you need the sig* prototypes ? */
 #undef NEED_SIG_PROTOTYPES])
-AH_OUTPUT([RADIUS_116], [/* include code to kludge aroung Livingston RADIUS server 1.16 */
-#undef RADIUS_116])
 AH_OUTPUT([SCP], [/* SCP support */
 #undef SCP])
 AH_OUTPUT([PACKAGE], [
