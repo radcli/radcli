@@ -5,6 +5,8 @@
   the IP reported by NAS to the radius server.
 - The NAS identifier set in the configuration file will override
   any identifier set by the application.
+- The 'serv-auth-type' config option was renamed to 'serv-type'.
+  That option also allows to configure for radius with TCP.
 
 
 * Version 1.2.4 (released 2015-09-26)
