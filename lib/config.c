@@ -250,7 +250,7 @@ static int set_option_auo(char const *filename, int line, OPTION *option, char c
 		return -1;
 	}
 
-	if ((iptr = malloc(sizeof(iptr))) == NULL) {
+	if ((iptr = malloc(sizeof(*iptr))) == NULL) {
 			rc_log(LOG_CRIT, "read_config: out of memory");
 			free(p_dupe);
 			return -1;
