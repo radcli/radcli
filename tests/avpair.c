@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 	};
 
 	if (checks != 5) {
-		fprintf(stderr, "%s: error: not all attributes were found\n", __LINE__);
+		fprintf(stderr, "%d: error: not all attributes were found\n", __LINE__);
 		exit(1);
 	}
 	rc_avpair_free(send);
