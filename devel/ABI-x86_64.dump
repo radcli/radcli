@@ -1,0 +1,2908 @@
+$VAR1 = {
+          'ABI_DUMPER_VERSION' => '0.99.15',
+          'ABI_DUMP_VERSION' => '3.2',
+          'Arch' => 'x86_64',
+          'GccVersion' => '5.3.1',
+          'Headers' => {
+                         'in.h' => 1,
+                         'includes.h' => 1,
+                         'netdb.h' => 1,
+                         'options.h' => 1,
+                         'radcli.h' => 1,
+                         'sockaddr.h' => 1,
+                         'socket.h' => 1,
+                         'stddef.h' => 1,
+                         'stdint.h' => 1,
+                         'types.h' => 1,
+                         'util.h' => 1
+                       },
+          'Language' => 'C',
+          'LibraryName' => 'libradcli.so.4.1.2',
+          'LibraryVersion' => '1.2.6',
+          'NameSpaces' => {},
+          'Needed' => {
+                        'libc.so.6' => 1,
+                        'libgnutls.so.30' => 1,
+                        'libnettle.so.6' => 1
+                      },
+          'Sources' => {
+                         'aaa_ctx.c' => 1,
+                         'avpair.c' => 1,
+                         'buildreq.c' => 1,
+                         'config.c' => 1,
+                         'dict.c' => 1,
+                         'ip_util.c' => 1,
+                         'log.c' => 1,
+                         'sendserver.c' => 1,
+                         'tls.c' => 1,
+                         'util.c' => 1
+                       },
+          'SymbolInfo' => {
+                            '15432' => {
+                                         'Line' => '912',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'server_name',
+                                                               'type' => '241'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'info',
+                                                               'type' => '38014'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'secret',
+                                                               'type' => '154'
+                                                             },
+                                                      '4' => {
+                                                               'name' => 'type',
+                                                               'type' => '1069'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx',
+                                                    '4' => 'r8'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_find_server_addr',
+                                         'Source' => 'config.c'
+                                       },
+                            '15454' => {
+                                         'Header' => 'radcli.h',
+                                         'Line' => '607',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'optname',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_conf_str'
+                                       },
+                            '15466' => {
+                                         'Line' => '69',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'list',
+                                                               'type' => '4430'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'attrid',
+                                                               'type' => '87'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'vendorpec',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_avpair_remove',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '15512' => {
+                                         'Line' => '272',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'pair',
+                                                               'type' => '2936'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'ptr',
+                                                               'type' => '10047'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'length',
+                                                               'type' => '87'
+                                                             },
+                                                      '4' => {
+                                                               'name' => 'vendorpec',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx',
+                                                    '4' => 'r8'
+                                                  },
+                                         'Return' => '2936',
+                                         'ShortName' => 'rc_avpair_gen',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '15524' => {
+                                         'Line' => '122',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'lia',
+                                                               'type' => '962'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'ria',
+                                                               'type' => '3183'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_get_srcaddr',
+                                         'Source' => 'ip_util.c'
+                                       },
+                            '19013' => {
+                                         'Line' => '113',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 't',
+                                                               'type' => '2936'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '2936',
+                                         'ShortName' => 'rc_avpair_next',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '19393' => {
+                                         'Line' => '194',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'attrid',
+                                                               'type' => '87'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'pval',
+                                                               'type' => '968'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'len',
+                                                               'type' => '87'
+                                                             },
+                                                      '4' => {
+                                                               'name' => 'vendorpec',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx',
+                                                    '4' => 'r8'
+                                                  },
+                                         'Return' => '2936',
+                                         'ShortName' => 'rc_avpair_new',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '21447' => {
+                                         'Line' => '452',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'p',
+                                                               'type' => '2936'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '2936',
+                                         'ShortName' => 'rc_avpair_copy',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '21651' => {
+                                         'Line' => '483',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'a',
+                                                               'type' => '4430'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'p',
+                                                               'type' => '2936'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'b',
+                                                               'type' => '2936'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_avpair_insert',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '22145' => {
+                                         'Line' => '597',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'buffer',
+                                                               'type' => '241'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'first_pair',
+                                                               'type' => '4430'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_avpair_parse',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '23358' => {
+                                         'Line' => '827',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'pair',
+                                                               'type' => '2936'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'name',
+                                                               'type' => '154'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'ln',
+                                                               'type' => '87'
+                                                             },
+                                                      '4' => {
+                                                               'name' => 'value',
+                                                               'type' => '154'
+                                                             },
+                                                      '5' => {
+                                                               'name' => 'lv',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx',
+                                                    '4' => 'r8',
+                                                    '5' => 'r9'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_avpair_tostr',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24286' => {
+                                         'Line' => '943',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'pair',
+                                                               'type' => '2936'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'buf',
+                                                               'type' => '154'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'buf_len',
+                                                               'type' => '200'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx'
+                                                  },
+                                         'Return' => '154',
+                                         'ShortName' => 'rc_avpair_log',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24574' => {
+                                         'Line' => '973',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'vp',
+                                                               'type' => '2936'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'res',
+                                                               'type' => '24636'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_avpair_get_uint32',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24642' => {
+                                         'Line' => '994',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'vp',
+                                                               'type' => '2936'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'res',
+                                                               'type' => '24751'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'prefix',
+                                                               'type' => '24757'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_avpair_get_in6',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24763' => {
+                                         'Line' => '1026',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'vp',
+                                                               'type' => '2936'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'res',
+                                                               'type' => '16722'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'res_size',
+                                                               'type' => '24757'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_avpair_get_raw',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24839' => {
+                                         'Line' => '1046',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'vp',
+                                                               'type' => '2936'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'type',
+                                                               'type' => '24757'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'id',
+                                                               'type' => '24757'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_avpair_get_attr',
+                                         'Source' => 'avpair.c'
+                                       },
+                            '24982' => {
+                                         'Line' => '375',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'attribute',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '19975',
+                                         'ShortName' => 'rc_dict_getattr',
+                                         'Source' => 'dict.c'
+                                       },
+                            '24994' => {
+                                         'Line' => '459',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'vendorpec',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '43486',
+                                         'ShortName' => 'rc_dict_getvend',
+                                         'Source' => 'dict.c'
+                                       },
+                            '25109' => {
+                                         'Line' => '398',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'attrname',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '19975',
+                                         'ShortName' => 'rc_dict_findattr',
+                                         'Source' => 'dict.c'
+                                       },
+                            '25187' => {
+                                         'Line' => '421',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'valname',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '23325',
+                                         'ShortName' => 'rc_dict_findval',
+                                         'Source' => 'dict.c'
+                                       },
+                            '25252' => {
+                                         'Line' => '476',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'value',
+                                                               'type' => '779'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'attrname',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx'
+                                                  },
+                                         'Return' => '23325',
+                                         'ShortName' => 'rc_dict_getval',
+                                         'Source' => 'dict.c'
+                                       },
+                            '29065' => {
+                                         'Line' => '1092',
+                                         'Return' => '4406',
+                                         'ShortName' => 'rc_new',
+                                         'Source' => 'config.c'
+                                       },
+                            '3313' => {
+                                        'Line' => '41',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '3497'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'data',
+                                                              'type' => '3508'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'code',
+                                                              'type' => '87'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'server',
+                                                              'type' => '154'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'port',
+                                                              'type' => '52'
+                                                            },
+                                                     '5' => {
+                                                              'name' => 'secret',
+                                                              'type' => '154'
+                                                            },
+                                                     '6' => {
+                                                              'name' => 'timeout',
+                                                              'offset' => '0',
+                                                              'type' => '87'
+                                                            },
+                                                     '7' => {
+                                                              'name' => 'retries',
+                                                              'offset' => '8',
+                                                              'type' => '87'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8',
+                                                   '5' => 'r9'
+                                                 },
+                                        'Return' => '1',
+                                        'ShortName' => 'rc_buildreq',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '33492' => {
+                                         'Line' => '306',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'option_name',
+                                                               'type' => '241'
+                                                             },
+                                                      '2' => {
+                                                               'name' => 'option_val',
+                                                               'type' => '241'
+                                                             },
+                                                      '3' => {
+                                                               'name' => 'source',
+                                                               'type' => '241'
+                                                             },
+                                                      '4' => {
+                                                               'name' => 'line',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi',
+                                                    '2' => 'rdx',
+                                                    '3' => 'rcx',
+                                                    '4' => 'r8'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_add_config',
+                                         'Source' => 'config.c'
+                                       },
+                            '34976' => {
+                                         'Line' => '778',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'filename',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_test_config',
+                                         'Source' => 'config.c'
+                                       },
+                            '3514' => {
+                                        'Line' => '109',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'ctx',
+                                                              'type' => '4412'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'aaaserver',
+                                                              'type' => '4424'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'type',
+                                                              'type' => '1069'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'client_port',
+                                                              'type' => '779'
+                                                            },
+                                                     '5' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            },
+                                                     '6' => {
+                                                              'name' => 'received',
+                                                              'offset' => '0',
+                                                              'type' => '4430'
+                                                            },
+                                                     '7' => {
+                                                              'name' => 'msg',
+                                                              'offset' => '8',
+                                                              'type' => '154'
+                                                            },
+                                                     '8' => {
+                                                              'name' => 'add_nas_port',
+                                                              'offset' => '16',
+                                                              'type' => '87'
+                                                            },
+                                                     '9' => {
+                                                              'name' => 'request_type',
+                                                              'offset' => '24',
+                                                              'type' => '1566'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8',
+                                                   '5' => 'r9'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_aaa_ctx_server',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '38047' => {
+                                         'Line' => '1062',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_config_free',
+                                         'Source' => 'config.c'
+                                       },
+                            '38360' => {
+                                         'Line' => '1108',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_destroy',
+                                         'Source' => 'config.c'
+                                       },
+                            '38475' => {
+                                         'Line' => '359',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '4406',
+                                         'ShortName' => 'rc_config_init',
+                                         'Source' => 'config.c'
+                                       },
+                            '39040' => {
+                                         'Line' => '567',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'filename',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '4406',
+                                         'ShortName' => 'rc_read_config',
+                                         'Source' => 'config.c'
+                                       },
+                            '40596' => {
+                                         'Line' => '1122',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '27326',
+                                         'ShortName' => 'rc_get_socket_type',
+                                         'Source' => 'config.c'
+                                       },
+                            '41137' => {
+                                         'Line' => '497',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_dict_free',
+                                         'Source' => 'dict.c'
+                                       },
+                            '41195' => {
+                                         'Line' => '36',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'filename',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_read_dictionary',
+                                         'Source' => 'dict.c'
+                                       },
+                            '43378' => {
+                                         'Line' => '443',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '3497'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'vendorname',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '43486',
+                                         'ShortName' => 'rc_dict_findvend',
+                                         'Source' => 'dict.c'
+                                       },
+                            '4457' => {
+                                        'Line' => '69',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'ctx',
+                                                              'type' => '4412'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'client_port',
+                                                              'type' => '779'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'received',
+                                                              'type' => '4430'
+                                                            },
+                                                     '5' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            },
+                                                     '6' => {
+                                                              'name' => 'add_nas_port',
+                                                              'offset' => '0',
+                                                              'type' => '87'
+                                                            },
+                                                     '7' => {
+                                                              'name' => 'request_type',
+                                                              'offset' => '8',
+                                                              'type' => '1566'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8',
+                                                   '5' => 'r9'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_aaa_ctx',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '4744' => {
+                                        'Line' => '226',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'client_port',
+                                                              'type' => '779'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'received',
+                                                              'type' => '4430'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            },
+                                                     '5' => {
+                                                              'name' => 'add_nas_port',
+                                                              'type' => '87'
+                                                            },
+                                                     '6' => {
+                                                              'name' => 'request_type',
+                                                              'offset' => '0',
+                                                              'type' => '1566'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8',
+                                                   '5' => 'r9'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_aaa',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '48728' => {
+                                         'Line' => '63',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'type',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '52',
+                                         'ShortName' => 'rc_getport',
+                                         'Source' => 'ip_util.c'
+                                       },
+                            '48930' => {
+                                         'Line' => '81',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'hostname',
+                                                               'type' => '154'
+                                                             },
+                                                      '1' => {
+                                                               'name' => 'len',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi',
+                                                    '1' => 'rsi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_own_hostname',
+                                         'Source' => 'ip_util.c'
+                                       },
+                            '4935' => {
+                                        'Line' => '245',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'client_port',
+                                                              'type' => '779'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'received',
+                                                              'type' => '4430'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_auth',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '50746' => {
+                                         'Line' => '16',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'debug',
+                                                               'type' => '87'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_setdebug',
+                                         'Source' => 'log.c'
+                                       },
+                            '50789' => {
+                                         'Line' => '36',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'ident',
+                                                               'type' => '241'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_openlog',
+                                         'Source' => 'log.c'
+                                       },
+                            '5097' => {
+                                        'Line' => '266',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'received',
+                                                              'type' => '4430'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_auth_proxy',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '52185' => {
+                                         'Line' => '78',
+                                         'Return' => '154',
+                                         'ShortName' => 'rc_mksid',
+                                         'Source' => 'util.c'
+                                       },
+                            '5247' => {
+                                        'Line' => '281',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'client_port',
+                                                              'type' => '779'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_acct',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '5379' => {
+                                        'Line' => '293',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'send',
+                                                              'type' => '2936'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_acct_proxy',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '5493' => {
+                                        'Line' => '309',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'host',
+                                                              'type' => '154'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'secret',
+                                                              'type' => '154'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'port',
+                                                              'type' => '52'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_check',
+                                        'Source' => 'buildreq.c'
+                                      },
+                            '5971' => {
+                                        'Data' => 1,
+                                        'Header' => 'util.h',
+                                        'Line' => '66',
+                                        'Return' => '59',
+                                        'ShortName' => 'radcli_debug',
+                                        'Source' => 'log.c',
+                                        'SourceLine' => '14'
+                                      },
+                            '5994' => {
+                                        'Header' => 'radcli.h',
+                                        'Line' => '608',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '3497'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'optname',
+                                                              'type' => '241'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_conf_int',
+                                        'Source' => 'config.c',
+                                        'SourceLine' => '747'
+                                      },
+                            '6017' => {
+                                        'Line' => '436',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'vp',
+                                                              'type' => '2936'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'attrid',
+                                                              'type' => '87'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'vendorpec',
+                                                              'type' => '87'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx'
+                                                 },
+                                        'Return' => '2936',
+                                        'ShortName' => 'rc_avpair_get',
+                                        'Source' => 'avpair.c'
+                                      },
+                            '6029' => {
+                                        'Line' => '533',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'pair',
+                                                              'type' => '2936'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi'
+                                                 },
+                                        'Return' => '1',
+                                        'ShortName' => 'rc_avpair_free',
+                                        'Source' => 'avpair.c'
+                                      },
+                            '6063' => {
+                                        'Line' => '136',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'vp',
+                                                              'type' => '2936'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'pval',
+                                                              'type' => '968'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'len',
+                                                              'type' => '87'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_avpair_assign',
+                                        'Source' => 'avpair.c'
+                                      },
+                            '60696' => {
+                                         'Line' => '435',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_tls_fd',
+                                         'Source' => 'tls.c'
+                                       },
+                            '6075' => {
+                                        'Line' => '46',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '3497'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'list',
+                                                              'type' => '4430'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'attrid',
+                                                              'type' => '87'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'pval',
+                                                              'type' => '968'
+                                                            },
+                                                     '4' => {
+                                                              'name' => 'len',
+                                                              'type' => '87'
+                                                            },
+                                                     '5' => {
+                                                              'name' => 'vendorpec',
+                                                              'type' => '87'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx',
+                                                   '4' => 'r8',
+                                                   '5' => 'r9'
+                                                 },
+                                        'Return' => '2936',
+                                        'ShortName' => 'rc_avpair_add',
+                                        'Source' => 'avpair.c'
+                                      },
+                            '60759' => {
+                                         'Line' => '466',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'rh',
+                                                               'type' => '4406'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '87',
+                                         'ShortName' => 'rc_check_tls',
+                                         'Source' => 'tls.c'
+                                       },
+                            '6087' => {
+                                        'Header' => 'radcli.h',
+                                        'Line' => '609',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '3497'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'optname',
+                                                              'type' => '241'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi'
+                                                 },
+                                        'Return' => '1',
+                                        'ShortName' => 'rc_conf_srv'
+                                      },
+                            '6099' => {
+                                        'Line' => '221',
+                                        'Param' => {
+                                                     '0' => {
+                                                              'name' => 'rh',
+                                                              'type' => '4406'
+                                                            },
+                                                     '1' => {
+                                                              'name' => 'data',
+                                                              'type' => '3508'
+                                                            },
+                                                     '2' => {
+                                                              'name' => 'msg',
+                                                              'type' => '154'
+                                                            },
+                                                     '3' => {
+                                                              'name' => 'type',
+                                                              'type' => '1069'
+                                                            }
+                                                   },
+                                        'Reg' => {
+                                                   '0' => 'rdi',
+                                                   '1' => 'rsi',
+                                                   '2' => 'rdx',
+                                                   '3' => 'rcx'
+                                                 },
+                                        'Return' => '87',
+                                        'ShortName' => 'rc_send_server',
+                                        'Source' => 'sendserver.c'
+                                      },
+                            '64571' => {
+                                         'Line' => '41',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'ctx',
+                                                               'type' => '4418'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '241',
+                                         'ShortName' => 'rc_aaa_ctx_get_secret',
+                                         'Source' => 'aaa_ctx.c'
+                                       },
+                            '64624' => {
+                                         'Line' => '52',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'ctx',
+                                                               'type' => '4418'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '968',
+                                         'ShortName' => 'rc_aaa_ctx_get_vector',
+                                         'Source' => 'aaa_ctx.c'
+                                       },
+                            '64671' => {
+                                         'Line' => '62',
+                                         'Param' => {
+                                                      '0' => {
+                                                               'name' => 'ctx',
+                                                               'type' => '4418'
+                                                             }
+                                                    },
+                                         'Reg' => {
+                                                    '0' => 'rdi'
+                                                  },
+                                         'Return' => '1',
+                                         'ShortName' => 'rc_aaa_ctx_free',
+                                         'Source' => 'aaa_ctx.c'
+                                       }
+                          },
+          'SymbolVersion' => {
+                               '_ITM_deregisterTMCloneTable' => 'uname@@GLIBC_2.2.5',
+                               '_ITM_registerTMCloneTable' => 'uname@@GLIBC_2.2.5',
+                               '_Jv_RegisterClasses' => 'uname@@GLIBC_2.2.5',
+                               '__gmon_start__' => 'uname@@GLIBC_2.2.5',
+                               'rc_aaa' => 'rc_aaa@@RADCLI_4',
+                               'rc_aaa_ctx' => 'rc_aaa_ctx@@RADCLI_4',
+                               'rc_aaa_ctx_free' => 'rc_aaa_ctx_free@@RADCLI_4',
+                               'rc_aaa_ctx_get_secret' => 'rc_aaa_ctx_get_secret@@RADCLI_4',
+                               'rc_aaa_ctx_get_vector' => 'rc_aaa_ctx_get_vector@@RADCLI_4',
+                               'rc_aaa_ctx_server' => 'rc_aaa_ctx_server@@RADCLI_4',
+                               'rc_acct' => 'rc_acct@@RADCLI_4',
+                               'rc_acct_proxy' => 'rc_acct_proxy@@RADCLI_4',
+                               'rc_add_config' => 'rc_add_config@@RADCLI_4',
+                               'rc_auth' => 'rc_auth@@RADCLI_4',
+                               'rc_auth_proxy' => 'rc_auth_proxy@@RADCLI_4',
+                               'rc_avpair_add' => 'rc_avpair_add@@RADCLI_4',
+                               'rc_avpair_assign' => 'rc_avpair_assign@@RADCLI_4',
+                               'rc_avpair_copy' => 'rc_avpair_copy@@RADCLI_4',
+                               'rc_avpair_free' => 'rc_avpair_free@@RADCLI_4',
+                               'rc_avpair_gen' => 'rc_avpair_gen@@RADCLI_4',
+                               'rc_avpair_get' => 'rc_avpair_get@@RADCLI_4',
+                               'rc_avpair_get_attr' => 'rc_avpair_get_attr@@RADCLI_4',
+                               'rc_avpair_get_in6' => 'rc_avpair_get_in6@@RADCLI_4',
+                               'rc_avpair_get_raw' => 'rc_avpair_get_raw@@RADCLI_4',
+                               'rc_avpair_get_uint32' => 'rc_avpair_get_uint32@@RADCLI_4',
+                               'rc_avpair_insert' => 'rc_avpair_insert@@RADCLI_4',
+                               'rc_avpair_log' => 'rc_avpair_log@@RADCLI_4',
+                               'rc_avpair_new' => 'rc_avpair_new@@RADCLI_4',
+                               'rc_avpair_next' => 'rc_avpair_next@@RADCLI_4',
+                               'rc_avpair_parse' => 'rc_avpair_parse@@RADCLI_4',
+                               'rc_avpair_remove' => 'rc_avpair_remove@@RADCLI_4',
+                               'rc_avpair_tostr' => 'rc_avpair_tostr@@RADCLI_4',
+                               'rc_buildreq' => 'rc_buildreq@@RADCLI_4',
+                               'rc_check' => 'rc_check@@RADCLI_4',
+                               'rc_check_tls' => 'rc_check_tls@@RADCLI_4',
+                               'rc_conf_int' => 'rc_conf_int@@RADCLI_4',
+                               'rc_conf_srv' => 'rc_conf_srv@@RADCLI_4',
+                               'rc_conf_str' => 'rc_conf_str@@RADCLI_4',
+                               'rc_config_free' => 'rc_config_free@@RADCLI_4',
+                               'rc_config_init' => 'rc_config_init@@RADCLI_4',
+                               'rc_destroy' => 'rc_destroy@@RADCLI_4',
+                               'rc_dict_findattr' => 'rc_dict_findattr@@RADCLI_4',
+                               'rc_dict_findval' => 'rc_dict_findval@@RADCLI_4',
+                               'rc_dict_findvend' => 'rc_dict_findvend@@RADCLI_4',
+                               'rc_dict_free' => 'rc_dict_free@@RADCLI_4',
+                               'rc_dict_getattr' => 'rc_dict_getattr@@RADCLI_4',
+                               'rc_dict_getval' => 'rc_dict_getval@@RADCLI_4',
+                               'rc_dict_getvend' => 'rc_dict_getvend@@RADCLI_4',
+                               'rc_find_server_addr' => 'rc_find_server_addr@@RADCLI_4',
+                               'rc_get_socket_type' => 'rc_get_socket_type@@RADCLI_4',
+                               'rc_get_srcaddr' => 'rc_get_srcaddr@@RADCLI_4',
+                               'rc_getport' => 'rc_getport@@RADCLI_4',
+                               'rc_mksid' => 'rc_mksid@@RADCLI_4',
+                               'rc_new' => 'rc_new@@RADCLI_4',
+                               'rc_openlog' => 'rc_openlog@@RADCLI_4',
+                               'rc_own_hostname' => 'rc_own_hostname@@RADCLI_4',
+                               'rc_read_config' => 'rc_read_config@@RADCLI_4',
+                               'rc_read_dictionary' => 'rc_read_dictionary@@RADCLI_4',
+                               'rc_send_server' => 'rc_send_server@@RADCLI_4',
+                               'rc_setdebug' => 'rc_setdebug@@RADCLI_4',
+                               'rc_test_config' => 'rc_test_config@@RADCLI_4',
+                               'rc_tls_fd' => 'rc_tls_fd@@RADCLI_4'
+                             },
+          'Symbols' => {
+                         'libradcli.so.4.1.2' => {
+                                                   'rc_aaa@@RADCLI_4' => 1,
+                                                   'rc_aaa_ctx@@RADCLI_4' => 1,
+                                                   'rc_aaa_ctx_free@@RADCLI_4' => 1,
+                                                   'rc_aaa_ctx_get_secret@@RADCLI_4' => 1,
+                                                   'rc_aaa_ctx_get_vector@@RADCLI_4' => 1,
+                                                   'rc_aaa_ctx_server@@RADCLI_4' => 1,
+                                                   'rc_acct@@RADCLI_4' => 1,
+                                                   'rc_acct_proxy@@RADCLI_4' => 1,
+                                                   'rc_add_config@@RADCLI_4' => 1,
+                                                   'rc_auth@@RADCLI_4' => 1,
+                                                   'rc_auth_proxy@@RADCLI_4' => 1,
+                                                   'rc_avpair_add@@RADCLI_4' => 1,
+                                                   'rc_avpair_assign@@RADCLI_4' => 1,
+                                                   'rc_avpair_copy@@RADCLI_4' => 1,
+                                                   'rc_avpair_free@@RADCLI_4' => 1,
+                                                   'rc_avpair_gen@@RADCLI_4' => 1,
+                                                   'rc_avpair_get@@RADCLI_4' => 1,
+                                                   'rc_avpair_get_attr@@RADCLI_4' => 1,
+                                                   'rc_avpair_get_in6@@RADCLI_4' => 1,
+                                                   'rc_avpair_get_raw@@RADCLI_4' => 1,
+                                                   'rc_avpair_get_uint32@@RADCLI_4' => 1,
+                                                   'rc_avpair_insert@@RADCLI_4' => 1,
+                                                   'rc_avpair_log@@RADCLI_4' => 1,
+                                                   'rc_avpair_new@@RADCLI_4' => 1,
+                                                   'rc_avpair_next@@RADCLI_4' => 1,
+                                                   'rc_avpair_parse@@RADCLI_4' => 1,
+                                                   'rc_avpair_remove@@RADCLI_4' => 1,
+                                                   'rc_avpair_tostr@@RADCLI_4' => 1,
+                                                   'rc_buildreq@@RADCLI_4' => 1,
+                                                   'rc_check@@RADCLI_4' => 1,
+                                                   'rc_check_tls@@RADCLI_4' => 1,
+                                                   'rc_conf_int@@RADCLI_4' => 1,
+                                                   'rc_conf_srv@@RADCLI_4' => 1,
+                                                   'rc_conf_str@@RADCLI_4' => 1,
+                                                   'rc_config_free@@RADCLI_4' => 1,
+                                                   'rc_config_init@@RADCLI_4' => 1,
+                                                   'rc_destroy@@RADCLI_4' => 1,
+                                                   'rc_dict_findattr@@RADCLI_4' => 1,
+                                                   'rc_dict_findval@@RADCLI_4' => 1,
+                                                   'rc_dict_findvend@@RADCLI_4' => 1,
+                                                   'rc_dict_free@@RADCLI_4' => 1,
+                                                   'rc_dict_getattr@@RADCLI_4' => 1,
+                                                   'rc_dict_getval@@RADCLI_4' => 1,
+                                                   'rc_dict_getvend@@RADCLI_4' => 1,
+                                                   'rc_find_server_addr@@RADCLI_4' => 1,
+                                                   'rc_get_socket_type@@RADCLI_4' => 1,
+                                                   'rc_get_srcaddr@@RADCLI_4' => 1,
+                                                   'rc_getport@@RADCLI_4' => 1,
+                                                   'rc_mksid@@RADCLI_4' => 1,
+                                                   'rc_new@@RADCLI_4' => 1,
+                                                   'rc_openlog@@RADCLI_4' => 1,
+                                                   'rc_own_hostname@@RADCLI_4' => 1,
+                                                   'rc_read_config@@RADCLI_4' => 1,
+                                                   'rc_read_dictionary@@RADCLI_4' => 1,
+                                                   'rc_send_server@@RADCLI_4' => 1,
+                                                   'rc_setdebug@@RADCLI_4' => 1,
+                                                   'rc_test_config@@RADCLI_4' => 1,
+                                                   'rc_tls_fd@@RADCLI_4' => 1
+                                                 }
+                       },
+          'Target' => 'unix',
+          'TypeInfo' => {
+                          '1' => {
+                                   'Name' => 'void',
+                                   'Type' => 'Intrinsic'
+                                 },
+                          '10047' => {
+                                       'BaseType' => '10053',
+                                       'Name' => 'unsigned char const*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '10053' => {
+                                       'BaseType' => '45',
+                                       'Name' => 'unsigned char const',
+                                       'Size' => '1',
+                                       'Type' => 'Const'
+                                     },
+                          '1040' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '63',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'AUTH',
+                                                           'value' => '0'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'ACCT',
+                                                           'value' => '1'
+                                                         }
+                                                },
+                                      'Name' => 'enum rc_type',
+                                      'Size' => '4',
+                                      'Type' => 'Enum'
+                                    },
+                          '1069' => {
+                                      'BaseType' => '1040',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '66',
+                                      'Name' => 'rc_type',
+                                      'Size' => '4',
+                                      'Type' => 'Typedef'
+                                    },
+                          '1080' => {
+                                      'BaseType' => '1091',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '78',
+                                      'Name' => 'rc_handle',
+                                      'Size' => '384',
+                                      'Type' => 'Typedef'
+                                    },
+                          '1091' => {
+                                      'Header' => 'includes.h',
+                                      'Line' => '188',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'config_options',
+                                                           'offset' => '0',
+                                                           'type' => '3279'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'nas_addr',
+                                                           'offset' => '8',
+                                                           'type' => '865'
+                                                         },
+                                                  '10' => {
+                                                            'name' => 'so_type',
+                                                            'offset' => '376',
+                                                            'type' => '59'
+                                                          },
+                                                  '2' => {
+                                                           'name' => 'nas_addr_set',
+                                                           'offset' => '136',
+                                                           'type' => '59'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'own_bind_addr',
+                                                           'offset' => '144',
+                                                           'type' => '865'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'own_bind_addr_set',
+                                                           'offset' => '272',
+                                                           'type' => '59'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'first_dict_read',
+                                                           'offset' => '280',
+                                                           'type' => '154'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'dictionary_attributes',
+                                                           'offset' => '288',
+                                                           'type' => '2472'
+                                                         },
+                                                  '7' => {
+                                                           'name' => 'dictionary_values',
+                                                           'offset' => '296',
+                                                           'type' => '2544'
+                                                         },
+                                                  '8' => {
+                                                           'name' => 'dictionary_vendors',
+                                                           'offset' => '304',
+                                                           'type' => '2603'
+                                                         },
+                                                  '9' => {
+                                                           'name' => 'so',
+                                                           'offset' => '312',
+                                                           'type' => '3263'
+                                                         }
+                                                },
+                                      'Name' => 'struct rc_conf',
+                                      'Size' => '384',
+                                      'Type' => 'Struct'
+                                    },
+                          '1243' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '83',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'max',
+                                                           'offset' => '0',
+                                                           'type' => '87'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'name',
+                                                           'offset' => '8',
+                                                           'type' => '1316'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'port',
+                                                           'offset' => '72',
+                                                           'type' => '946'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'secret',
+                                                           'offset' => '88',
+                                                           'type' => '1316'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'deadtime_ends',
+                                                           'offset' => '152',
+                                                           'type' => '1332'
+                                                         }
+                                                },
+                                      'Name' => 'struct server',
+                                      'Size' => '216',
+                                      'Type' => 'Struct'
+                                    },
+                          '1316' => {
+                                      'BaseType' => '154',
+                                      'Name' => 'char*[8]',
+                                      'Size' => '64',
+                                      'Type' => 'Array'
+                                    },
+                          '1332' => {
+                                      'BaseType' => '1348',
+                                      'Name' => 'double[8]',
+                                      'Size' => '64',
+                                      'Type' => 'Array'
+                                    },
+                          '1348' => {
+                                      'Name' => 'double',
+                                      'Size' => '8',
+                                      'Type' => 'Intrinsic'
+                                    },
+                          '1355' => {
+                                      'BaseType' => '1243',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '89',
+                                      'Name' => 'SERVER',
+                                      'Size' => '216',
+                                      'Type' => 'Typedef'
+                                    },
+                          '1366' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '93',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'RC_SOCKET_UDP',
+                                                           'value' => '0'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'RC_SOCKET_TLS',
+                                                           'value' => '1'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'RC_SOCKET_DTLS',
+                                                           'value' => '2'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'RC_SOCKET_TCP',
+                                                           'value' => '3'
+                                                         }
+                                                },
+                                      'Name' => 'enum rc_socket_type',
+                                      'Size' => '4',
+                                      'Type' => 'Enum'
+                                    },
+                          '1407' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '108',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'PW_TYPE_STRING',
+                                                           'value' => '0'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'PW_TYPE_INTEGER',
+                                                           'value' => '1'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'PW_TYPE_IPADDR',
+                                                           'value' => '2'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'PW_TYPE_DATE',
+                                                           'value' => '3'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'PW_TYPE_IPV6ADDR',
+                                                           'value' => '4'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'PW_TYPE_IPV6PREFIX',
+                                                           'value' => '5'
+                                                         }
+                                                },
+                                      'Name' => 'enum rc_attr_type',
+                                      'Size' => '4',
+                                      'Type' => 'Enum'
+                                    },
+                          '141' => {
+                                     'BaseType' => '1',
+                                     'Name' => 'void*',
+                                     'Size' => '8',
+                                     'Type' => 'Pointer'
+                                   },
+                          '143' => {
+                                     'BaseType' => '94',
+                                     'Header' => 'types.h',
+                                     'Line' => '172',
+                                     'Name' => '__ssize_t',
+                                     'Size' => '8',
+                                     'Type' => 'Typedef'
+                                   },
+                          '1460' => {
+                                      'BaseType' => '1407',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '115',
+                                      'Name' => 'rc_attr_type',
+                                      'Size' => '4',
+                                      'Type' => 'Typedef'
+                                    },
+                          '1471' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '119',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'PW_ACCESS_REQUEST',
+                                                           'value' => '1'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'PW_ACCESS_ACCEPT',
+                                                           'value' => '2'
+                                                         },
+                                                  '10' => {
+                                                            'name' => 'PW_ACCESS_CHALLENGE',
+                                                            'value' => '11'
+                                                          },
+                                                  '11' => {
+                                                            'name' => 'PW_STATUS_SERVER',
+                                                            'value' => '12'
+                                                          },
+                                                  '12' => {
+                                                            'name' => 'PW_STATUS_CLIENT',
+                                                            'value' => '13'
+                                                          },
+                                                  '2' => {
+                                                           'name' => 'PW_ACCESS_REJECT',
+                                                           'value' => '3'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'PW_ACCOUNTING_REQUEST',
+                                                           'value' => '4'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'PW_ACCOUNTING_RESPONSE',
+                                                           'value' => '5'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'PW_ACCOUNTING_STATUS',
+                                                           'value' => '6'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'PW_PASSWORD_REQUEST',
+                                                           'value' => '7'
+                                                         },
+                                                  '7' => {
+                                                           'name' => 'PW_PASSWORD_ACK',
+                                                           'value' => '8'
+                                                         },
+                                                  '8' => {
+                                                           'name' => 'PW_PASSWORD_REJECT',
+                                                           'value' => '9'
+                                                         },
+                                                  '9' => {
+                                                           'name' => 'PW_ACCOUNTING_MESSAGE',
+                                                           'value' => '10'
+                                                         }
+                                                },
+                                      'Name' => 'enum rc_standard_codes',
+                                      'Size' => '4',
+                                      'Type' => 'Enum'
+                                    },
+                          '154' => {
+                                     'BaseType' => '160',
+                                     'Name' => 'char*',
+                                     'Size' => '8',
+                                     'Type' => 'Pointer'
+                                   },
+                          '1566' => {
+                                      'BaseType' => '1471',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '133',
+                                      'Name' => 'rc_standard_codes',
+                                      'Size' => '4',
+                                      'Type' => 'Typedef'
+                                    },
+                          '160' => {
+                                     'Name' => 'char',
+                                     'Size' => '1',
+                                     'Type' => 'Intrinsic'
+                                   },
+                          '167' => {
+                                     'BaseType' => '59',
+                                     'Header' => 'types.h',
+                                     'Line' => '189',
+                                     'Name' => '__socklen_t',
+                                     'Size' => '4',
+                                     'Type' => 'Typedef'
+                                   },
+                          '16722' => {
+                                       'BaseType' => '154',
+                                       'Name' => 'char**',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '178' => {
+                                     'BaseType' => '143',
+                                     'Header' => 'types.h',
+                                     'Line' => '109',
+                                     'Name' => 'ssize_t',
+                                     'Size' => '8',
+                                     'Type' => 'Typedef'
+                                   },
+                          '18051' => {
+                                       'BaseType' => '2390',
+                                       'Header' => 'radcli.h',
+                                       'Line' => '431',
+                                       'Name' => 'DICT_ATTR',
+                                       'Size' => '56',
+                                       'Type' => 'Typedef'
+                                     },
+                          '18135' => {
+                                       'BaseType' => '2478',
+                                       'Header' => 'radcli.h',
+                                       'Line' => '439',
+                                       'Name' => 'DICT_VALUE',
+                                       'Size' => '80',
+                                       'Type' => 'Typedef'
+                                     },
+                          '19975' => {
+                                       'BaseType' => '18051',
+                                       'Name' => 'DICT_ATTR*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '200' => {
+                                     'BaseType' => '66',
+                                     'Header' => 'stddef.h',
+                                     'Line' => '216',
+                                     'Name' => 'size_t',
+                                     'Size' => '8',
+                                     'Type' => 'Typedef'
+                                   },
+                          '225' => {
+                                     'BaseType' => '160',
+                                     'Name' => 'char[32]',
+                                     'Size' => '32',
+                                     'Type' => 'Array'
+                                   },
+                          '23309' => {
+                                       'BaseType' => '160',
+                                       'Name' => 'char[64]',
+                                       'Size' => '64',
+                                       'Type' => 'Array'
+                                     },
+                          '23325' => {
+                                       'BaseType' => '18135',
+                                       'Name' => 'DICT_VALUE*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '2390' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '425',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'name',
+                                                           'offset' => '0',
+                                                           'type' => '2456'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'value',
+                                                           'offset' => '36',
+                                                           'type' => '87'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'type',
+                                                           'offset' => '40',
+                                                           'type' => '1460'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'next',
+                                                           'offset' => '48',
+                                                           'type' => '2472'
+                                                         }
+                                                },
+                                      'Name' => 'struct dict_attr',
+                                      'Size' => '56',
+                                      'Type' => 'Struct'
+                                    },
+                          '241' => {
+                                     'BaseType' => '247',
+                                     'Name' => 'char const*',
+                                     'Size' => '8',
+                                     'Type' => 'Pointer'
+                                   },
+                          '2456' => {
+                                      'BaseType' => '160',
+                                      'Name' => 'char[33]',
+                                      'Size' => '33',
+                                      'Type' => 'Array'
+                                    },
+                          '24636' => {
+                                       'BaseType' => '779',
+                                       'Name' => 'uint32_t*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '247' => {
+                                     'BaseType' => '160',
+                                     'Name' => 'char const',
+                                     'Size' => '1',
+                                     'Type' => 'Const'
+                                   },
+                          '2472' => {
+                                      'BaseType' => '2390',
+                                      'Name' => 'struct dict_attr*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '24751' => {
+                                       'BaseType' => '7160',
+                                       'Name' => 'struct in6_addr*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '24757' => {
+                                       'BaseType' => '59',
+                                       'Name' => 'unsigned int*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '2478' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '433',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'attrname',
+                                                           'offset' => '0',
+                                                           'type' => '2456'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'name',
+                                                           'offset' => '33',
+                                                           'type' => '2456'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'value',
+                                                           'offset' => '68',
+                                                           'type' => '87'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'next',
+                                                           'offset' => '72',
+                                                           'type' => '2544'
+                                                         }
+                                                },
+                                      'Name' => 'struct dict_value',
+                                      'Size' => '80',
+                                      'Type' => 'Struct'
+                                    },
+                          '2544' => {
+                                      'BaseType' => '2478',
+                                      'Name' => 'struct dict_value*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '2550' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '441',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'vendorname',
+                                                           'offset' => '0',
+                                                           'type' => '2456'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'vendorpec',
+                                                           'offset' => '36',
+                                                           'type' => '87'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'next',
+                                                           'offset' => '40',
+                                                           'type' => '2603'
+                                                         }
+                                                },
+                                      'Name' => 'struct dict_vendor',
+                                      'Size' => '48',
+                                      'Type' => 'Struct'
+                                    },
+                          '2603' => {
+                                      'BaseType' => '2550',
+                                      'Name' => 'struct dict_vendor*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '2663' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '467',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'name',
+                                                           'offset' => '0',
+                                                           'type' => '2456'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'attribute',
+                                                           'offset' => '36',
+                                                           'type' => '59'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'type',
+                                                           'offset' => '40',
+                                                           'type' => '1460'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'lvalue',
+                                                           'offset' => '44',
+                                                           'type' => '779'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'strvalue',
+                                                           'offset' => '48',
+                                                           'type' => '2771'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'next',
+                                                           'offset' => '304',
+                                                           'type' => '2787'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'pad',
+                                                           'offset' => '312',
+                                                           'type' => '225'
+                                                         }
+                                                },
+                                      'Name' => 'struct rc_value_pair',
+                                      'Size' => '344',
+                                      'Type' => 'Struct'
+                                    },
+                          '27326' => {
+                                       'BaseType' => '1366',
+                                       'Header' => 'radcli.h',
+                                       'Line' => '98',
+                                       'Name' => 'rc_socket_type',
+                                       'Size' => '4',
+                                       'Type' => 'Typedef'
+                                     },
+                          '2771' => {
+                                      'BaseType' => '160',
+                                      'Name' => 'char[254]',
+                                      'Size' => '254',
+                                      'Type' => 'Array'
+                                    },
+                          '2787' => {
+                                      'BaseType' => '2663',
+                                      'Name' => 'struct rc_value_pair*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '2793' => {
+                                      'BaseType' => '2663',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '476',
+                                      'Name' => 'VALUE_PAIR',
+                                      'Size' => '344',
+                                      'Type' => 'Typedef'
+                                    },
+                          '2805' => {
+                                      'Header' => 'radcli.h',
+                                      'Line' => '478',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'code',
+                                                           'offset' => '0',
+                                                           'type' => '757'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'seq_nbr',
+                                                           'offset' => '1',
+                                                           'type' => '757'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'server',
+                                                           'offset' => '8',
+                                                           'type' => '154'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'svc_port',
+                                                           'offset' => '16',
+                                                           'type' => '87'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'secret',
+                                                           'offset' => '24',
+                                                           'type' => '154'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'timeout',
+                                                           'offset' => '32',
+                                                           'type' => '87'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'retries',
+                                                           'offset' => '36',
+                                                           'type' => '87'
+                                                         },
+                                                  '7' => {
+                                                           'name' => 'send_pairs',
+                                                           'offset' => '40',
+                                                           'type' => '2936'
+                                                         },
+                                                  '8' => {
+                                                           'name' => 'receive_pairs',
+                                                           'offset' => '48',
+                                                           'type' => '2936'
+                                                         }
+                                                },
+                                      'Name' => 'struct send_data',
+                                      'Size' => '56',
+                                      'Type' => 'Struct'
+                                    },
+                          '2936' => {
+                                      'BaseType' => '2793',
+                                      'Name' => 'VALUE_PAIR*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '2942' => {
+                                      'BaseType' => '2805',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '489',
+                                      'Name' => 'SEND_DATA',
+                                      'Size' => '56',
+                                      'Type' => 'Typedef'
+                                    },
+                          '2954' => {
+                                      'BaseType' => '2966',
+                                      'Header' => 'radcli.h',
+                                      'Line' => '494',
+                                      'Name' => 'RC_AAA_CTX',
+                                      'Size' => '113',
+                                      'Type' => 'Typedef'
+                                    },
+                          '2966' => {
+                                      'Header' => 'includes.h',
+                                      'Line' => '210',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'secret',
+                                                           'offset' => '0',
+                                                           'type' => '3285'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'request_vector',
+                                                           'offset' => '97',
+                                                           'type' => '930'
+                                                         }
+                                                },
+                                      'Name' => 'struct rc_aaa_ctx_st',
+                                      'Size' => '113',
+                                      'Type' => 'Struct'
+                                    },
+                          '3003' => {
+                                      'Header' => 'includes.h',
+                                      'Line' => '175',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'ptr',
+                                                           'offset' => '0',
+                                                           'type' => '141'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'static_secret',
+                                                           'offset' => '8',
+                                                           'type' => '241'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'get_fd',
+                                                           'offset' => '16',
+                                                           'type' => '3132'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'close_fd',
+                                                           'offset' => '24',
+                                                           'type' => '975'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'sendto',
+                                                           'offset' => '32',
+                                                           'type' => '3194'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'recvfrom',
+                                                           'offset' => '40',
+                                                           'type' => '3251'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'lock',
+                                                           'offset' => '48',
+                                                           'type' => '3257'
+                                                         },
+                                                  '7' => {
+                                                           'name' => 'unlock',
+                                                           'offset' => '56',
+                                                           'type' => '3257'
+                                                         }
+                                                },
+                                      'Name' => 'struct rc_sockets_override',
+                                      'Size' => '64',
+                                      'Type' => 'Struct'
+                                    },
+                          '3132' => {
+                                      'Name' => 'int(*)(void*, struct sockaddr*)',
+                                      'Param' => {
+                                                   '0' => {
+                                                            'type' => '141'
+                                                          },
+                                                   '1' => {
+                                                            'type' => '962'
+                                                          }
+                                                 },
+                                      'Return' => '87',
+                                      'Size' => '8',
+                                      'Type' => 'FuncPtr'
+                                    },
+                          '3183' => {
+                                      'BaseType' => '3189',
+                                      'Name' => 'struct sockaddr const*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '3189' => {
+                                      'BaseType' => '812',
+                                      'Name' => 'struct sockaddr const',
+                                      'Size' => '16',
+                                      'Type' => 'Const'
+                                    },
+                          '3194' => {
+                                      'Name' => 'ssize_t(*)(void*, int, void const*, size_t, int, struct sockaddr const*, socklen_t)',
+                                      'Param' => {
+                                                   '0' => {
+                                                            'type' => '141'
+                                                          },
+                                                   '1' => {
+                                                            'type' => '87'
+                                                          },
+                                                   '2' => {
+                                                            'type' => '968'
+                                                          },
+                                                   '3' => {
+                                                            'type' => '200'
+                                                          },
+                                                   '4' => {
+                                                            'type' => '87'
+                                                          },
+                                                   '5' => {
+                                                            'type' => '3183'
+                                                          },
+                                                   '6' => {
+                                                            'type' => '790'
+                                                          }
+                                                 },
+                                      'Return' => '178',
+                                      'Size' => '8',
+                                      'Type' => 'FuncPtr'
+                                    },
+                          '3245' => {
+                                      'BaseType' => '790',
+                                      'Name' => 'socklen_t*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '3251' => {
+                                      'Name' => 'ssize_t(*)(void*, int, void*, size_t, int, struct sockaddr*, socklen_t*)',
+                                      'Param' => {
+                                                   '0' => {
+                                                            'type' => '141'
+                                                          },
+                                                   '1' => {
+                                                            'type' => '87'
+                                                          },
+                                                   '2' => {
+                                                            'type' => '141'
+                                                          },
+                                                   '3' => {
+                                                            'type' => '200'
+                                                          },
+                                                   '4' => {
+                                                            'type' => '87'
+                                                          },
+                                                   '5' => {
+                                                            'type' => '962'
+                                                          },
+                                                   '6' => {
+                                                            'type' => '3245'
+                                                          }
+                                                 },
+                                      'Return' => '178',
+                                      'Size' => '8',
+                                      'Type' => 'FuncPtr'
+                                    },
+                          '3257' => {
+                                      'Name' => 'int(*)(void*)',
+                                      'Param' => {
+                                                   '0' => {
+                                                            'type' => '141'
+                                                          }
+                                                 },
+                                      'Return' => '87',
+                                      'Size' => '8',
+                                      'Type' => 'FuncPtr'
+                                    },
+                          '3263' => {
+                                      'BaseType' => '3003',
+                                      'Header' => 'includes.h',
+                                      'Line' => '186',
+                                      'Name' => 'rc_sockets_override',
+                                      'Size' => '64',
+                                      'Type' => 'Typedef'
+                                    },
+                          '3274' => {
+                                      'Header' => 'options.h',
+                                      'Line' => '23',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'name',
+                                                           'offset' => '0',
+                                                           'type' => '23309'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'type',
+                                                           'offset' => '64',
+                                                           'type' => '87'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'status',
+                                                           'offset' => '68',
+                                                           'type' => '87'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'val',
+                                                           'offset' => '72',
+                                                           'type' => '141'
+                                                         }
+                                                },
+                                      'Name' => 'struct _option',
+                                      'Size' => '80',
+                                      'Type' => 'Struct'
+                                    },
+                          '3279' => {
+                                      'BaseType' => '3274',
+                                      'Name' => 'struct _option*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '3285' => {
+                                      'BaseType' => '160',
+                                      'Name' => 'char[97]',
+                                      'Size' => '97',
+                                      'Type' => 'Array'
+                                    },
+                          '3497' => {
+                                      'BaseType' => '3503',
+                                      'Name' => 'rc_handle const*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '3503' => {
+                                      'BaseType' => '1080',
+                                      'Name' => 'rc_handle const',
+                                      'Size' => '384',
+                                      'Type' => 'Const'
+                                    },
+                          '3508' => {
+                                      'BaseType' => '2942',
+                                      'Name' => 'SEND_DATA*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '38014' => {
+                                       'BaseType' => '7462',
+                                       'Name' => 'struct addrinfo**',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '42737' => {
+                                       'BaseType' => '2550',
+                                       'Header' => 'radcli.h',
+                                       'Line' => '446',
+                                       'Name' => 'DICT_VENDOR',
+                                       'Size' => '48',
+                                       'Type' => 'Typedef'
+                                     },
+                          '43486' => {
+                                       'BaseType' => '42737',
+                                       'Name' => 'DICT_VENDOR*',
+                                       'Size' => '8',
+                                       'Type' => 'Pointer'
+                                     },
+                          '4406' => {
+                                      'BaseType' => '1080',
+                                      'Name' => 'rc_handle*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '4412' => {
+                                      'BaseType' => '4418',
+                                      'Name' => 'RC_AAA_CTX**',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '4418' => {
+                                      'BaseType' => '2954',
+                                      'Name' => 'RC_AAA_CTX*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '4424' => {
+                                      'BaseType' => '1355',
+                                      'Name' => 'SERVER*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '4430' => {
+                                      'BaseType' => '2936',
+                                      'Name' => 'VALUE_PAIR**',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '45' => {
+                                    'Name' => 'unsigned char',
+                                    'Size' => '1',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '52' => {
+                                    'Name' => 'unsigned short',
+                                    'Size' => '2',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '59' => {
+                                    'Name' => 'unsigned int',
+                                    'Size' => '4',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '66' => {
+                                    'Name' => 'unsigned long',
+                                    'Size' => '8',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '7070' => {
+                                      'Header' => 'in.h',
+                                      'Line' => '211',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => '__u6_addr8',
+                                                           'offset' => '0',
+                                                           'type' => '930'
+                                                         },
+                                                  '1' => {
+                                                           'name' => '__u6_addr16',
+                                                           'offset' => '0',
+                                                           'type' => '946'
+                                                         },
+                                                  '2' => {
+                                                           'name' => '__u6_addr32',
+                                                           'offset' => '0',
+                                                           'type' => '7144'
+                                                         }
+                                                },
+                                      'Name' => 'anon-union-in.h-211',
+                                      'Size' => '16',
+                                      'Type' => 'Union'
+                                    },
+                          '7144' => {
+                                      'BaseType' => '779',
+                                      'Name' => 'uint32_t[4]',
+                                      'Size' => '16',
+                                      'Type' => 'Array'
+                                    },
+                          '7160' => {
+                                      'Header' => 'in.h',
+                                      'Line' => '209',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => '__in6_u',
+                                                           'offset' => '0',
+                                                           'type' => '7070'
+                                                         }
+                                                },
+                                      'Name' => 'struct in6_addr',
+                                      'Size' => '16',
+                                      'Type' => 'Struct'
+                                    },
+                          '7338' => {
+                                      'Header' => 'netdb.h',
+                                      'Line' => '567',
+                                      'Memb' => {
+                                                  '0' => {
+                                                           'name' => 'ai_flags',
+                                                           'offset' => '0',
+                                                           'type' => '87'
+                                                         },
+                                                  '1' => {
+                                                           'name' => 'ai_family',
+                                                           'offset' => '4',
+                                                           'type' => '87'
+                                                         },
+                                                  '2' => {
+                                                           'name' => 'ai_socktype',
+                                                           'offset' => '8',
+                                                           'type' => '87'
+                                                         },
+                                                  '3' => {
+                                                           'name' => 'ai_protocol',
+                                                           'offset' => '12',
+                                                           'type' => '87'
+                                                         },
+                                                  '4' => {
+                                                           'name' => 'ai_addrlen',
+                                                           'offset' => '16',
+                                                           'type' => '790'
+                                                         },
+                                                  '5' => {
+                                                           'name' => 'ai_addr',
+                                                           'offset' => '24',
+                                                           'type' => '962'
+                                                         },
+                                                  '6' => {
+                                                           'name' => 'ai_canonname',
+                                                           'offset' => '32',
+                                                           'type' => '154'
+                                                         },
+                                                  '7' => {
+                                                           'name' => 'ai_next',
+                                                           'offset' => '40',
+                                                           'type' => '7462'
+                                                         }
+                                                },
+                                      'Name' => 'struct addrinfo',
+                                      'Size' => '48',
+                                      'Type' => 'Struct'
+                                    },
+                          '7462' => {
+                                      'BaseType' => '7338',
+                                      'Name' => 'struct addrinfo*',
+                                      'Size' => '8',
+                                      'Type' => 'Pointer'
+                                    },
+                          '757' => {
+                                     'BaseType' => '45',
+                                     'Header' => 'stdint.h',
+                                     'Line' => '48',
+                                     'Name' => 'uint8_t',
+                                     'Size' => '1',
+                                     'Type' => 'Typedef'
+                                   },
+                          '768' => {
+                                     'BaseType' => '52',
+                                     'Header' => 'stdint.h',
+                                     'Line' => '49',
+                                     'Name' => 'uint16_t',
+                                     'Size' => '2',
+                                     'Type' => 'Typedef'
+                                   },
+                          '779' => {
+                                     'BaseType' => '59',
+                                     'Header' => 'stdint.h',
+                                     'Line' => '51',
+                                     'Name' => 'uint32_t',
+                                     'Size' => '4',
+                                     'Type' => 'Typedef'
+                                   },
+                          '790' => {
+                                     'BaseType' => '167',
+                                     'Header' => 'socket.h',
+                                     'Line' => '33',
+                                     'Name' => 'socklen_t',
+                                     'Size' => '4',
+                                     'Type' => 'Typedef'
+                                   },
+                          '801' => {
+                                     'BaseType' => '52',
+                                     'Header' => 'sockaddr.h',
+                                     'Line' => '28',
+                                     'Name' => 'sa_family_t',
+                                     'Size' => '2',
+                                     'Type' => 'Typedef'
+                                   },
+                          '812' => {
+                                     'Header' => 'socket.h',
+                                     'Line' => '153',
+                                     'Memb' => {
+                                                 '0' => {
+                                                          'name' => 'sa_family',
+                                                          'offset' => '0',
+                                                          'type' => '801'
+                                                        },
+                                                 '1' => {
+                                                          'name' => 'sa_data',
+                                                          'offset' => '2',
+                                                          'type' => '849'
+                                                        }
+                                               },
+                                     'Name' => 'struct sockaddr',
+                                     'Size' => '16',
+                                     'Type' => 'Struct'
+                                   },
+                          '849' => {
+                                     'BaseType' => '160',
+                                     'Name' => 'char[14]',
+                                     'Size' => '14',
+                                     'Type' => 'Array'
+                                   },
+                          '865' => {
+                                     'Header' => 'socket.h',
+                                     'Line' => '166',
+                                     'Memb' => {
+                                                 '0' => {
+                                                          'name' => 'ss_family',
+                                                          'offset' => '0',
+                                                          'type' => '801'
+                                                        },
+                                                 '1' => {
+                                                          'name' => '__ss_align',
+                                                          'offset' => '8',
+                                                          'type' => '66'
+                                                        },
+                                                 '2' => {
+                                                          'name' => '__ss_padding',
+                                                          'offset' => '16',
+                                                          'type' => '914'
+                                                        }
+                                               },
+                                     'Name' => 'struct sockaddr_storage',
+                                     'Size' => '128',
+                                     'Type' => 'Struct'
+                                   },
+                          '87' => {
+                                    'Name' => 'int',
+                                    'Size' => '4',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '914' => {
+                                     'BaseType' => '160',
+                                     'Name' => 'char[112]',
+                                     'Size' => '112',
+                                     'Type' => 'Array'
+                                   },
+                          '930' => {
+                                     'BaseType' => '757',
+                                     'Name' => 'uint8_t[16]',
+                                     'Size' => '16',
+                                     'Type' => 'Array'
+                                   },
+                          '94' => {
+                                    'Name' => 'long',
+                                    'Size' => '8',
+                                    'Type' => 'Intrinsic'
+                                  },
+                          '946' => {
+                                     'BaseType' => '768',
+                                     'Name' => 'uint16_t[8]',
+                                     'Size' => '16',
+                                     'Type' => 'Array'
+                                   },
+                          '962' => {
+                                     'BaseType' => '812',
+                                     'Name' => 'struct sockaddr*',
+                                     'Size' => '8',
+                                     'Type' => 'Pointer'
+                                   },
+                          '968' => {
+                                     'BaseType' => '974',
+                                     'Name' => 'void const*',
+                                     'Size' => '8',
+                                     'Type' => 'Pointer'
+                                   },
+                          '974' => {
+                                     'BaseType' => '1',
+                                     'Name' => 'void const',
+                                     'Type' => 'Const'
+                                   },
+                          '975' => {
+                                     'Name' => 'void(*)(int)',
+                                     'Param' => {
+                                                  '0' => {
+                                                           'type' => '87'
+                                                         }
+                                                },
+                                     'Return' => '1',
+                                     'Size' => '8',
+                                     'Type' => 'FuncPtr'
+                                   }
+                        },
+          'UndefinedSymbols' => {
+                                  'libradcli.so.4.1.2' => {
+                                                            '_ITM_deregisterTMCloneTable' => 0,
+                                                            '_ITM_registerTMCloneTable' => 0,
+                                                            '_Jv_RegisterClasses' => 0,
+                                                            '__ctype_b_loc@GLIBC_2.3' => 0,
+                                                            '__cxa_finalize@GLIBC_2.2.5' => 0,
+                                                            '__errno_location@GLIBC_2.2.5' => 0,
+                                                            '__gmon_start__' => 0,
+                                                            '__isoc99_sscanf@GLIBC_2.7' => 0,
+                                                            '__strdup@GLIBC_2.2.5' => 0,
+                                                            '__strtok_r@GLIBC_2.2.5' => 0,
+                                                            'abort@GLIBC_2.2.5' => 0,
+                                                            'bind@GLIBC_2.2.5' => 0,
+                                                            'calloc@GLIBC_2.2.5' => 0,
+                                                            'close@GLIBC_2.2.5' => 0,
+                                                            'connect@GLIBC_2.2.5' => 0,
+                                                            'fclose@GLIBC_2.2.5' => 0,
+                                                            'fgets@GLIBC_2.2.5' => 0,
+                                                            'fopen@GLIBC_2.2.5' => 0,
+                                                            'free@GLIBC_2.2.5' => 0,
+                                                            'freeaddrinfo@GLIBC_2.2.5' => 0,
+                                                            'getaddrinfo@GLIBC_2.2.5' => 0,
+                                                            'getnameinfo@GLIBC_2.2.5' => 0,
+                                                            'getpid@GLIBC_2.2.5' => 0,
+                                                            'getservbyname@GLIBC_2.2.5' => 0,
+                                                            'getsockname@GLIBC_2.2.5' => 0,
+                                                            'gettimeofday@GLIBC_2.2.5' => 0,
+                                                            'gmtime@GLIBC_2.2.5' => 0,
+                                                            'gnutls_alert_get@GNUTLS_3_4' => 0,
+                                                            'gnutls_alert_get_name@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_allocate_credentials@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_free_credentials@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_set_verify_function@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_set_x509_key_file@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_set_x509_trust_file@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_type_get@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_verification_status_print@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_verify_peers2@GNUTLS_3_4' => 0,
+                                                            'gnutls_certificate_verify_peers3@GNUTLS_3_4' => 0,
+                                                            'gnutls_credentials_set@GNUTLS_3_4' => 0,
+                                                            'gnutls_deinit@GNUTLS_3_4' => 0,
+                                                            'gnutls_dtls_set_timeouts@GNUTLS_3_4' => 0,
+                                                            'gnutls_error_is_fatal@GNUTLS_3_4' => 0,
+                                                            'gnutls_free@GNUTLS_3_4' => 0,
+                                                            'gnutls_global_deinit@GNUTLS_3_4' => 0,
+                                                            'gnutls_global_init@GNUTLS_3_4' => 0,
+                                                            'gnutls_handshake@GNUTLS_3_4' => 0,
+                                                            'gnutls_handshake_set_timeout@GNUTLS_3_4' => 0,
+                                                            'gnutls_heartbeat_enable@GNUTLS_3_4' => 0,
+                                                            'gnutls_heartbeat_ping@GNUTLS_3_4' => 0,
+                                                            'gnutls_init@GNUTLS_3_4' => 0,
+                                                            'gnutls_priority_set_direct@GNUTLS_3_4' => 0,
+                                                            'gnutls_psk_allocate_client_credentials@GNUTLS_3_4' => 0,
+                                                            'gnutls_psk_free_client_credentials@GNUTLS_3_4' => 0,
+                                                            'gnutls_psk_set_client_credentials@GNUTLS_3_4' => 0,
+                                                            'gnutls_record_recv@GNUTLS_3_4' => 0,
+                                                            'gnutls_record_send@GNUTLS_3_4' => 0,
+                                                            'gnutls_server_name_set@GNUTLS_3_4' => 0,
+                                                            'gnutls_session_get_ptr@GNUTLS_3_4' => 0,
+                                                            'gnutls_session_set_ptr@GNUTLS_3_4' => 0,
+                                                            'gnutls_set_default_priority@GNUTLS_3_4' => 0,
+                                                            'gnutls_strerror@GNUTLS_3_4' => 0,
+                                                            'gnutls_transport_set_int2@GNUTLS_3_4' => 0,
+                                                            'inet_ntoa@GLIBC_2.2.5' => 0,
+                                                            'inet_ntop@GLIBC_2.2.5' => 0,
+                                                            'inet_pton@GLIBC_2.2.5' => 0,
+                                                            'localtime@GLIBC_2.2.5' => 0,
+                                                            'malloc@GLIBC_2.2.5' => 0,
+                                                            'memcmp@GLIBC_2.2.5' => 0,
+                                                            'memcpy@GLIBC_2.14' => 0,
+                                                            'memmove@GLIBC_2.2.5' => 0,
+                                                            'mktime@GLIBC_2.2.5' => 0,
+                                                            'nettle_MD5Final@NETTLE_6' => 0,
+                                                            'nettle_MD5Init@NETTLE_6' => 0,
+                                                            'nettle_MD5Update@NETTLE_6' => 0,
+                                                            'open@GLIBC_2.2.5' => 0,
+                                                            'openlog@GLIBC_2.2.5' => 0,
+                                                            'poll@GLIBC_2.2.5' => 0,
+                                                            'pthread_mutex_destroy@GLIBC_2.2.5' => 0,
+                                                            'pthread_mutex_init@GLIBC_2.2.5' => 0,
+                                                            'pthread_mutex_lock@GLIBC_2.2.5' => 0,
+                                                            'pthread_mutex_unlock@GLIBC_2.2.5' => 0,
+                                                            'random@GLIBC_2.2.5' => 0,
+                                                            'read@GLIBC_2.2.5' => 0,
+                                                            'recvfrom@GLIBC_2.2.5' => 0,
+                                                            'sendto@GLIBC_2.2.5' => 0,
+                                                            'snprintf@GLIBC_2.2.5' => 0,
+                                                            'socket@GLIBC_2.2.5' => 0,
+                                                            'sprintf@GLIBC_2.2.5' => 0,
+                                                            'srandom@GLIBC_2.2.5' => 0,
+                                                            'strcasecmp@GLIBC_2.2.5' => 0,
+                                                            'strcat@GLIBC_2.2.5' => 0,
+                                                            'strchr@GLIBC_2.2.5' => 0,
+                                                            'strcmp@GLIBC_2.2.5' => 0,
+                                                            'strcpy@GLIBC_2.2.5' => 0,
+                                                            'strerror@GLIBC_2.2.5' => 0,
+                                                            'strftime@GLIBC_2.2.5' => 0,
+                                                            'strlen@GLIBC_2.2.5' => 0,
+                                                            'strncmp@GLIBC_2.2.5' => 0,
+                                                            'strrchr@GLIBC_2.2.5' => 0,
+                                                            'strtol@GLIBC_2.2.5' => 0,
+                                                            'syslog@GLIBC_2.2.5' => 0,
+                                                            'time@GLIBC_2.2.5' => 0,
+                                                            'uname@GLIBC_2.2.5' => 0
+                                                          }
+                                },
+          'WordSize' => '8'
+        };

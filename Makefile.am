@@ -29,6 +29,20 @@ compare-exported: include/radcli/radcli.h
 	diff -u tmp-exp-$@ tmp-head-$@
 	rm -f tmp-exp-$@ tmp-head-$@
 
-dist-hook: compare-exported
+TMPFILE="abi-temp.xml"
+
+abi-check:
+	@rm -f $(TMPFILE)
+	@echo "Checking radcli ABI"
+	@echo "<version>$(VERSION)</version>" >$(TMPFILE)
+	@echo "<headers>$(srcdir)/include/radcli/" >>$(TMPFILE)
+	@echo "$(srcdir)/include/freeradius-client.h" >>$(TMPFILE)
+	@echo "$(srcdir)/include/radiusclient-ng.h</headers>" >>$(TMPFILE)
+	@echo "<libs>$(builddir)/lib/.libs</libs>" >>$(TMPFILE)
+	test ! -f "$(srcdir)/devel/ABI-$$(uname -m).dump" || \
+		abi-compliance-checker -abi -lib radcli -old "$(srcdir)/devel/ABI-$$(uname -m).dump" -new $(TMPFILE)
+	@rm -f $(TMPFILE)
+
+dist-hook: compare-exported abi-check
 
 CLEANFILES = *~
