@@ -39,8 +39,9 @@ abi-check:
 	@echo "$(srcdir)/include/freeradius-client.h" >>$(TMPFILE)
 	@echo "$(srcdir)/include/radiusclient-ng.h</headers>" >>$(TMPFILE)
 	@echo "<libs>$(builddir)/lib/.libs</libs>" >>$(TMPFILE)
-	test ! -f "$(srcdir)/devel/ABI-$$(uname -m).dump" || \
-		abi-compliance-checker -abi -lib radcli -old "$(srcdir)/devel/ABI-$$(uname -m).dump" -new $(TMPFILE)
+	if test -f "$(srcdir)/devel/ABI-$$(uname -m).dump" && test "$(ABI_SKIP)" != 1; then \
+		abi-compliance-checker -abi -lib radcli -old "$(srcdir)/devel/ABI-$$(uname -m).dump" -new $(TMPFILE); \
+	fi
 	@rm -f $(TMPFILE)
 
 dist-hook: compare-exported abi-check

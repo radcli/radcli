@@ -22,6 +22,6 @@ script:
   - make
   - NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check
   - touch doc/stamp_mans
-  - make dist
+  - make ABI_SKIP=1 dist
 
 after_script: cppcheck -q -Iinclude lib src
