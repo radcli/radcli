@@ -47,19 +47,19 @@ Run autogen.sh to generate the configure script and makefiles.
 
 Required dependencies (Fedora/RHEL pkg):
 ```
-yum install -y autoconf libtool automake gnutls-devel
+yum install -y autoconf libtool automake gnutls-devel abi-compliance-checker
 ```
 
 
 Required dependencies (Fedora 23+):
 ```
-dnf install -y autoconf libtool automake gnutls-devel gettext-devel
+dnf install -y autoconf libtool automake gnutls-devel gettext-devel abi-compliance-checker
 ```
 
 
 Required dependencies (Debian pkg):
 ```
-apt-get install -y autoconf libtool automake libgnutls28-dev
+apt-get install -y autoconf libtool automake libgnutls28-dev abi-compliance-checker
 ```
 
 5. Bug reporting
