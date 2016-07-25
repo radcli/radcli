@@ -54,19 +54,28 @@ void rc_str2tm (char const *valstr, struct tm *tm)
 	tm->tm_year = atoi (&valstr[7]) - 1900;
 }
 
-/*- Returns the current time as a double.
+/*- Returns the current monotonic time as a double
  *
- * @return current time (seconds since epoch) expressed as
+ * @return Get monotonic time seconds since some fixed start) expressed as
  * 	double-precision floating point number.
  -*/
-double rc_getctime(void)
+double rc_getmtime(void)
 {
+#ifdef HAVE_CLOCK_GETTIME
+    struct timespec timespec;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &timespec) != 0)
+        return -1;
+
+    return timespec.tv_sec + ((double)timespec.tv_nsec) / 1000000000.0d;
+#else
     struct timeval timev;
 
     if (gettimeofday(&timev, NULL) == -1)
         return -1;
 
     return timev.tv_sec + ((double)timev.tv_usec) / 1000000.0;
+#endif
 }
 
 /** Generates a "unique" string. Added only for API compatibility with older versions. Don't use.

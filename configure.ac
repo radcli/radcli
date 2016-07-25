@@ -104,6 +104,13 @@ if test "$ac_cv_func_pthread_mutex_lock" != "yes";then
 	AC_LIB_HAVE_LINKFLAGS(pthread,, [#include <pthread.h>], [pthread_mutex_lock (0);])
 fi
 
+AC_CHECK_FUNCS(clock_gettime, [], [
+  AC_CHECK_LIB(rt, clock_gettime, [
+    AC_DEFINE(HAVE_CLOCK_GETTIME, 1)
+    REST_LIBS="$REST_LIBS -lrt"
+  ])
+])
+
 if test "$ac_cv_func_uname" = 'yes' && test "$cross_compiling" = 'no'
 then
 	AC_MSG_CHECKING([for field domainname in struct utsname])
@@ -181,10 +188,10 @@ fi
 
 AM_CONDITIONAL(ENABLE_NETTLE, test "$use_nettle" = "yes")
 
-CRYPTO_LIBS="$CRYPTO_LIBS $LIBS"
+LINK_LIBS="$CRYPTO_LIBS $REST_LIBS $LIBS"
 
 AC_SUBST(CRYPTO_CFLAGS, [$CRYPTO_CFLAGS])
-AC_SUBST(CRYPTO_LIBS, [$CRYPTO_LIBS])
+AC_SUBST(LINK_LIBS, [$CRYPTO_LIBS])
 AC_SUBST(REQUIRES_PRIVATE)
 
 dnl Determine PATH setting
@@ -252,6 +259,7 @@ chmod -w lib/radcli.map lib/radcli.pc
 
 AC_MSG_NOTICE([Configuration:
 
+  Additional libraries:      $LINK_LIBS
   Nettle for MD5:            $with_nettle
   TLS and DTLS support:      $use_gnutls
   freeradius-client compat:  $enable_compat

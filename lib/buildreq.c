@@ -154,7 +154,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		 * Fill in Acct-Delay-Time
 		 */
 		dtime = 0;
-		now = rc_getctime();
+		now = rc_getmtime();
 		adt_vp = rc_avpair_get(data.send_pairs, PW_ACCT_DELAY_TIME, 0);
 		if (adt_vp == NULL) {
 			adt_vp = rc_avpair_add(rh, &(data.send_pairs),
@@ -180,7 +180,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 			    aaaserver->secret[servernum], timeout, retries);
 
 		if (request_type == PW_ACCOUNTING_REQUEST) {
-			dtime = rc_getctime() - start_time;
+			dtime = rc_getmtime() - start_time;
 			rc_avpair_assign(adt_vp, &dtime, 0);
 		}
 

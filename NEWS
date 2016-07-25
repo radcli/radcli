@@ -1,3 +1,8 @@
+* Version 1.2.7 (unreleased)
+- Use monotonic time to calculate time differences. Based on
+  patch by Marcel Patzlaff.
+
+
 * Version 1.2.6 (released 2016-04-04)
 - Removed unused or deprecated options from configure.
 - Added missing manpage rc_avpair_remove.3

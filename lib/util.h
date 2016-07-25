@@ -46,7 +46,7 @@ int rc_find_server_addr(rc_handle const *, char const *, struct addrinfo **, cha
 
 struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags);
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia);
-double rc_getctime(void);
+double rc_getmtime(void);
 void rc_str2tm (char const *valstr, struct tm *tm);
 
 #undef rc_log
