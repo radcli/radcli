@@ -28,7 +28,7 @@ which is of no significance today, was IPv4-only and had no releases for
 several years.
 
 This library addresses these shortcomings, adds package management via
-pkg-config, adds support for TLS and DTLS, provides documentation of the API,
+pkg-config, adds support for TCP, TLS and DTLS, provides documentation of the API,
 and will include any new features for the task. It is provided as a shared
 library in case it is useful to other projects as well, and is also made source
 compatible with radiusclient-ng and freeradius-client.
