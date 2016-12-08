@@ -456,7 +456,8 @@ typedef enum rc_send_status {
 	ERROR_RC=-1,
 	OK_RC=0,
 	TIMEOUT_RC=1,
-	REJECT_RC=2
+	REJECT_RC=2,
+	CHALLENGE_RC=3
 } rc_send_status;
 
 

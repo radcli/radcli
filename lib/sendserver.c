@@ -18,6 +18,7 @@
 #include <poll.h>
 #include "util.h"
 #include "rc-md5.h"
+#include <nettle/hmac.h>
 
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
@@ -27,7 +28,7 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
 
 /**
  * @defgroup radcli-api Main API
- * @brief Main API Functions 
+ * @brief Main API Functions
  *
  * @{
  */
@@ -382,6 +383,43 @@ static void rc_random_vector(unsigned char *vector)
 
 /** @} */
 
+
+/** Add a Message-Authenticator attribute to a message. This is mandatory,
+ *  for example, when sending a message containing an EAP-Message
+ *  attribute.
+ *
+ * @param rh - A handle to parsed configuration
+ * @param secret - The server's secret string
+ * @param secretlen - The secret string length
+ * @param auth - Pointer to the AUTH_HDR structure
+ * @param total_length - Total packet length before Message Authenticator
+ *                is added.
+ *
+ * @return int - Total packet length after Message Authenticator is added.
+ */
+static int add_msg_auth_attr(rc_handle * rh, char * secret,
+			AUTH_HDR *auth, int total_length)
+{
+	size_t secretlen = strlen(secret);
+	uint8_t *msg_auth = (uint8_t *)auth + total_length;
+	msg_auth[0] = PW_MESSAGE_AUTHENTICATOR;
+	msg_auth[1] = 18;
+	memset(&msg_auth[2], 0, AUTH_VECTOR_LEN);
+	total_length += 18;
+	auth->length = htons((unsigned short)total_length);
+
+	/* Calulate HMAC-MD5 [RFC2104] hash */
+	struct hmac_md5_ctx md5;
+	uint8_t digest[MD5_DIGEST_SIZE];
+	memset(digest, 0, sizeof(digest));
+	hmac_md5_set_key(&md5, secretlen, (unsigned char *)secret);
+	hmac_md5_update(&md5, total_length, (unsigned char *)auth);
+	hmac_md5_digest(&md5, MD5_DIGEST_SIZE, digest);
+	memcpy(&msg_auth[2], digest, sizeof(digest));
+
+	return total_length;
+}
+
 /** Sends a request to a RADIUS server and waits for the reply
  *
  * @param rh a handle to parsed configuration
@@ -580,6 +618,10 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		    rc_pack_list(data->send_pairs, secret, auth) + AUTH_HDR_LEN;
 
 		auth->length = htons((unsigned short)total_length);
+
+		/* If EAP message we MUST add a Message-Authenticator attribute */
+		if (rc_avpair_get(data->send_pairs, PW_EAP_MESSAGE, 0) != NULL)
+		    total_length = add_msg_auth_attr(rh, secret, auth, total_length);
 	}
 
 	if (radcli_debug) {
@@ -779,15 +821,25 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		}
 	}
 
-	if ((recv_auth->code == PW_ACCESS_ACCEPT) ||
-	    (recv_auth->code == PW_PASSWORD_ACK) ||
-	    (recv_auth->code == PW_ACCOUNTING_RESPONSE)) {
+	switch (recv_auth->code) {
+	case PW_ACCESS_ACCEPT:
+	case PW_PASSWORD_ACK:
+	case PW_ACCOUNTING_RESPONSE:
 		result = OK_RC;
-	} else if ((recv_auth->code == PW_ACCESS_REJECT) ||
-		   (recv_auth->code == PW_PASSWORD_REJECT)) {
+		break;
+
+	case PW_ACCESS_REJECT:
+	case PW_PASSWORD_REJECT:
 		result = REJECT_RC;
-	} else {
-		rc_log(LOG_ERR, "rc_send_server: received RADIUS server response neither ACCEPT nor REJECT, invalid");
+		break;
+
+	case PW_ACCESS_CHALLENGE:
+		result = CHALLENGE_RC;
+		break;
+
+	default:
+		rc_log(LOG_ERR, "rc_send_server: received RADIUS server response neither ACCEPT nor REJECT, code=%d is invalid",
+		       recv_auth->code);
 		result = BADRESP_RC;
 	}
 

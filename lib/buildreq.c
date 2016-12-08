@@ -13,7 +13,7 @@
 
 /**
  * @defgroup radcli-api Main API
- * @brief Main API Functions 
+ * @brief Main API Functions
  *
  * @{
  */
@@ -63,8 +63,9 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
  *	PW_REPLY_MESSAGE received.
  * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
- * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
- *	on failure as return value.
+ * @return received value_pairs in received, messages from the server in
+ *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
+ *  received, negative on failure as return value.
  */
 int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
 	       VALUE_PAIR * send, VALUE_PAIR ** received, char *msg,
@@ -103,8 +104,9 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
  *	PW_REPLY_MESSAGE received.
  * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
- * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
- *	on failure as return value.
+ * @return received value_pairs in received, messages from the server in
+ *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
+ *  received, negative on failure as return value.
  */
 int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		      rc_type type,
@@ -186,7 +188,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 
 		result = rc_send_server_ctx(rh, ctx, &data, msg, type);
 
-		if (result == OK_RC) {
+		if ((result == OK_RC) || (result == CHALLENGE_RC)) {
 			if (request_type != PW_ACCOUNTING_REQUEST) {
 				*received = data.receive_pairs;
 			} else {
@@ -220,8 +222,9 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
  *	PW_REPLY_MESSAGE received.
  * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
- * @return received value_pairs in received, messages from the server in msg and OK_RC (0) on success, negative
- *	on failure as return value.
+ * @return received value_pairs in received, messages from the server in
+ *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
+ *  received, negative on failure as return value.
  */
 int rc_aaa(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
 	   VALUE_PAIR ** received, char *msg, int add_nas_port,
@@ -239,8 +242,9 @@ int rc_aaa(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
  *	PW_REPLY_MESSAGE received.
- * @return received value_pairs in received, messages from the server in msg (if non-NULL),
- *	and OK_RC (0) on success, negative on failure as return value.
+ * @return received value_pairs in received, messages from the server in
+ *  msg (if non-NULL), and OK_RC (0) on success,CHALLENGE_RC (3) on
+ *  Access-Challenge received, negative on failure as return value.
  */
 int rc_auth(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
 	    VALUE_PAIR ** received, char *msg)
@@ -260,8 +264,9 @@ int rc_auth(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of
  *	any PW_REPLY_MESSAGE received.
- * @return received value_pairs in received, messages from the server in msg (if non-NULL)
- *	and OK_RC (0) on success, negative on failure as return value.
+ * @return received value_pairs in received, messages from the server in
+ *  msg (if non-NULL) and OK_RC (0) on success, CHALLENGE_RC (3) on
+ *  Access-Challenge received, negative on failure as return value.
  */
 int rc_auth_proxy(rc_handle * rh, VALUE_PAIR * send, VALUE_PAIR ** received,
 		  char *msg)
@@ -276,7 +281,9 @@ int rc_auth_proxy(rc_handle * rh, VALUE_PAIR * send, VALUE_PAIR ** received,
  * @param rh a handle to parsed configuration.
  * @param client_port the client port number to use (may be zero to use any available).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
- * @return received value_pairs in received, and OK_RC (0) on success, negative on failure as return value.
+ * @return received value_pairs in received, and OK_RC (0) on success,
+ *  CHALLENGE_RC (3) on Access-Challenge received, negative on failure as
+ *  return value.
  */
 int rc_acct(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send)
 {
@@ -288,7 +295,8 @@ int rc_acct(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send)
  *
  * @param rh a handle to parsed configuration.
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
- * @return OK_RC (0) on success, negative on failure as return value.
+ * @return OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
+ *  received, negative on failure as return value.
  */
 int rc_acct_proxy(rc_handle * rh, VALUE_PAIR * send)
 {
