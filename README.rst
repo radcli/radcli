@@ -62,7 +62,15 @@ Required dependencies (Debian pkg):
 apt-get install -y autoconf libtool automake libgnutls28-dev abi-compliance-checker
 ```
 
-5. Bug reporting
+5. Contributing/Submitting pull requests
+----------------------------------------
+
+For adding new features or extending functionality in addition to the code,
+please also submit a test program which verifies the correctness of operation.
+See tests/ and .travis.yml for the existing test suite.
+
+
+6. Bug reporting
 ----------------
 
 Please use the issue tracker at:
