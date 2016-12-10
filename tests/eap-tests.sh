@@ -26,6 +26,17 @@ PID=$$
 sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
 sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
 
+# NOTE: The string 2:0:0:9:1:74:65:73:74 is equivalent to defining a C array as
+#       follows:
+#           uint8_t eap_msg[] = { 2, 0, 0, 9, 1, 't', 'e', 's', 't' };
+#
+#       which corresponds to this EAP message:
+#           Code       = 2       (8-bit)  -> 2 for Response
+#           Identifier = 0       (8-bit)
+#           Length     = 9       (16-bit)
+#           Type       = 1       (8-bit)  -> 1 for Identity
+#           Data       = "test"  (string)
+
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf -e 2:0:0:9:1:74:65:73:74 User-Name=test Password=test | tee $TMPFILE
 ../src/radiusclient -D -i -f radiusclient-temp$PID.conf -e 2:0:0:9:1:74:65:73:74 User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
