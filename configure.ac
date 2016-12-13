@@ -169,7 +169,7 @@ fi
 AM_CONDITIONAL(ENABLE_GNUTLS, test "$use_gnutls" = "yes")
 
 
-PKG_CHECK_MODULES(NETTLE, [nettle >= 2.4], [use_nettle=yes], [use_nettle=no])
+PKG_CHECK_MODULES(NETTLE, [nettle >= 2.4], [use_nettle=yes])
 if test "$use_nettle" = yes;then
 	CRYPTO_CFLAGS="$CRYPTO_CFLAGS $NETTLE_CFLAGS"
 	CRYPTO_LIBS="$CRYPTO_LIBS $NETTLE_LIBS"
