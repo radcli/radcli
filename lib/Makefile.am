@@ -30,10 +30,12 @@ lib_LTLIBRARIES =  libradcli.la
 libradcli_la_SOURCES = buildreq.c sendserver.c \
 	avpair.c config.c dict.c ip_util.c log.c util.c  \
 	options.h rc-md5.h rc-md5.c util.h tls.c tls.h \
-	aaa_ctx.c radcli.map
+	aaa_ctx.c radcli.map rc-hmac.h
 
 if !ENABLE_NETTLE
-libradcli_la_SOURCES += md5.c md5.h
+libradcli_la_SOURCES += md5.c md5.h hmac.c hmac.h
+else
+libradcli_la_SOURCES += nettle-hmac.c
 endif
 
 libradcli_la_LDFLAGS = -version-info $(LIBVERSION)

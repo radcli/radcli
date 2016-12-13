@@ -155,6 +155,7 @@ AC_ARG_WITH([tls], [AS_HELP_STRING([--without-tls],
 	[with_tls=$withval],
 	[with_tls=yes])
 
+default_nettle_val=yes
 if test "$with_tls" != no; then
 	PKG_CHECK_MODULES([LIBGNUTLS], [gnutls >= 3.1.0], [use_gnutls=yes], [use_gnutls=no])
 
@@ -164,21 +165,28 @@ if test "$with_tls" != no; then
 		AC_DEFINE([HAVE_GNUTLS], 1, [Define to 1 to use gnutls for TLS and DTLS.])
 		REQUIRES_PRIVATE="${REQUIRES_PRIVATE} gnutls,"
 	fi
+	default_nettle_val=yes
 fi
 
 AM_CONDITIONAL(ENABLE_GNUTLS, test "$use_gnutls" = "yes")
 
+AC_ARG_WITH([nettle], [AS_HELP_STRING([--without-nettle],
+	[use nettle for crypto @<:@default=no@:>@])],
+	[with_nettle=$withval],
+	[with_nettle=$default_nettle_val])
 
-PKG_CHECK_MODULES(NETTLE, [nettle >= 2.4], [use_nettle=yes])
-if test "$use_nettle" = yes;then
-	CRYPTO_CFLAGS="$CRYPTO_CFLAGS $NETTLE_CFLAGS"
-	CRYPTO_LIBS="$CRYPTO_LIBS $NETTLE_LIBS"
-	AC_DEFINE([HAVE_NETTLE], 1, [Define to 1 to use nettle for MD5.])
-	REQUIRES_PRIVATE="${REQUIRES_PRIVATE} nettle"
+if test "$with_nettle" != no; then
+	PKG_CHECK_MODULES(NETTLE, [nettle >= 2.4], [use_nettle=yes], [use_nettle=no])
+
+	if test "$use_nettle" = yes;then
+		CRYPTO_CFLAGS="$CRYPTO_CFLAGS $NETTLE_CFLAGS"
+		CRYPTO_LIBS="$CRYPTO_LIBS $NETTLE_LIBS"
+		AC_DEFINE([HAVE_NETTLE], 1, [Define to 1 to use nettle for MD5.])
+		REQUIRES_PRIVATE="${REQUIRES_PRIVATE} nettle"
+	fi
 fi
 
 AM_CONDITIONAL(ENABLE_NETTLE, test "$use_nettle" = "yes")
-
 
 LINK_LIBS="$CRYPTO_LIBS $REST_LIBS $LIBS"
 
