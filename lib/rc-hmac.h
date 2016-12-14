@@ -35,10 +35,12 @@
 
 #ifdef HAVE_NETTLE
 
+#include <stddef.h>
+#include <stdint.h>
 #include <nettle/hmac.h>
-extern void hmac_md5_with_nettle(unsigned char *data, int  data_len,
-                                 unsigned char *key,  int  key_len,
-                                 unsigned char  digest[MD5_DIGEST_SIZE]);
+extern void hmac_md5_with_nettle(uint8_t *data, size_t  data_len,
+                                 uint8_t *key,  size_t  key_len,
+                                 uint8_t  digest[MD5_DIGEST_SIZE]);
 #define rc_hmac_md5      hmac_md5_with_nettle
 
 #else  /* HAVE_NETTLE */

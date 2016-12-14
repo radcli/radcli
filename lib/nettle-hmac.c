@@ -29,13 +29,12 @@
 * either expressed or implied, of the FreeBSD Project.
 */
 
-#include <nettle/hmac.h>
-#include <string.h>         /* memset() */
+#include <string.h>   /* memset() */
 #include "rc-hmac.h"
 
-void hmac_md5_with_nettle(unsigned char *data, int  data_len,
-                          unsigned char *key,  int  key_len,
-                          unsigned char  digest[MD5_DIGEST_SIZE])
+void hmac_md5_with_nettle(uint8_t *data, size_t  data_len,
+                          uint8_t *key,  size_t  key_len,
+                          uint8_t  digest[MD5_DIGEST_SIZE])
 {
     struct hmac_md5_ctx md5;
     memset(digest, 0, MD5_DIGEST_SIZE);
