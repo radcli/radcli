@@ -830,6 +830,7 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 	struct in_addr  inad;
 	unsigned char  *ptr;
 	unsigned int    pos;
+	unsigned int    slen;
 
 	*name = *value = '\0';
 
@@ -845,7 +846,6 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 	    case PW_TYPE_STRING:
 		lv--;
 		pos = 0;
-		unsigned int slen;
 		ptr = (unsigned char *) pair->strvalue;
 		if (pair->attribute == PW_DIGEST_ATTRIBUTES) {
 			slen = ptr[1] - 2;

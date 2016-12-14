@@ -33,9 +33,9 @@
 #include <string.h>         /* memset() */
 #include "rc-hmac.h"
 
-void nettle_hmac_md5(unsigned char *data, int  data_len,
-                     unsigned char *key,  int  key_len,
-                     unsigned char  digest[MD5_DIGEST_SIZE])
+void hmac_md5_with_nettle(unsigned char *data, int  data_len,
+                          unsigned char *key,  int  key_len,
+                          unsigned char  digest[MD5_DIGEST_SIZE])
 {
     struct hmac_md5_ctx md5;
     memset(digest, 0, MD5_DIGEST_SIZE);
