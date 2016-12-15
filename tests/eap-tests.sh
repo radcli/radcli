@@ -2,7 +2,7 @@
 
 # License: 2-clause BSD
 #
-# Copyright (c) 2016, Martin Belanger <Martin_Belanger@dell.com>
+# Copyright (c) 2016, Martin Belanger <nitram_67@hotmail.com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,9 +25,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
 
 srcdir="${srcdir:-.}"
 
