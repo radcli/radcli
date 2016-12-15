@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([radcli], [1.2.7], [n.mavrogiannopoulos@gmail.com])
+AC_INIT([radcli], [1.2.8], [n.mavrogiannopoulos@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET([])
@@ -116,7 +116,7 @@ then
 	AC_MSG_CHECKING([for field domainname in struct utsname])
 	AC_TRY_RUN([
 	#include <sys/utsname.h>
-	
+
 	main(int argc, char **argv)
 	{
 		struct utsname uts;
@@ -260,7 +260,7 @@ chmod -w lib/radcli.map lib/radcli.pc
 AC_MSG_NOTICE([Configuration:
 
   Additional libraries:      $LINK_LIBS
-  Nettle for MD5:            $with_nettle
+  Nettle for MD5:            $use_nettle
   TLS and DTLS support:      $use_gnutls
   freeradius-client compat:  $enable_compat
 ])

@@ -43,7 +43,8 @@ static void
 usage(void)
 {
 
-    fprintf(stderr, "usage: radiusclient [-D] [-f config_file] [-p nas_port] [-i] [-s | [-a] a1=v1 [a2=v2[...[aN=vN]...]]]\n");
+    fprintf(stderr, "usage: radiusclient [-D] [-f config_file] [-p nas_port] [-i] [-e hex-bytes] [-s | [-a] a1=v1 [a2=v2[...[aN=vN]...]]]\n");
+    fprintf(stderr, "       -e hex-bytes - Specify an EAP message with colon-separated hex bytes. Ex. -e 2:0:0:9:1:74:65:73:74\n");
     exit(1);
 }
 
@@ -58,13 +59,15 @@ main(int argc, char **argv)
     char lbuf[4096];
     int info = 0;
     int debug = 0;
+    size_t  eap_len = 0;
+    uint8_t eap_msg[255];
 
     rc_conf = RC_CONFIG_FILE;
     nas_port = 5060;
 
     acct = 0;
     server = 0;
-    while ((ch = getopt(argc, argv, "Daf:p:si")) != -1) {
+    while ((ch = getopt(argc, argv, "Daf:p:sie:")) != -1) {
         switch (ch) {
         case 'D':
           debug = 1;
@@ -87,6 +90,27 @@ main(int argc, char **argv)
 
         case 'i':
             info = 1;
+            break;
+
+        case 'e':
+            if (optarg && *optarg != '\0') {
+                char   *next = optarg;
+                while (*next != '\0') {
+                    char    *endptr;
+                    long int l = strtol(next, &endptr, 16);
+                    if (l > 0xFF) {
+                        fprintf(stderr, "-e: hex-bytes invalid. %X greater than 0xFF\n", (unsigned int)l);
+                        exit(3);
+                    }
+                    eap_msg[eap_len++] = (uint8_t)l;
+                    if (*endptr == '\0')
+                        break;
+                    next = endptr + 1;
+                }
+            } else {
+                fprintf(stderr, "-e: can't parse hex-bytes buffer\n");
+                exit(3);
+            }
             break;
 
         default:
@@ -121,6 +145,13 @@ main(int argc, char **argv)
         for (i = 0; i < argc; i++) {
             if (rc_avpair_parse(rh, argv[i], &send) < 0) {
                 fprintf(stderr, "%s: can't parse AV pair\n", argv[i]);
+                exit(3);
+            }
+        }
+        if (eap_len > 0) {
+
+            if (rc_avpair_add(rh, &send, PW_EAP_MESSAGE, eap_msg, eap_len, 0) == NULL) {
+                fprintf(stderr, "Can't add EAP-Message AV pair\n");
                 exit(3);
             }
         }
@@ -204,5 +235,5 @@ process(void *rh, VALUE_PAIR *send, int acct, int nas_port, int send_info)
         i = rc_acct(rh, nas_port, send);
     }
 
-    return (i == OK_RC) ? 0 : 1;
+    return (i == OK_RC) || (i == CHALLENGE_RC) ? 0 : 1;
 }
