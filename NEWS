@@ -1,14 +1,11 @@
-* Version 1.2.8 (unreleased)
-- Adding EAP support. radcli will now automatically add
+* Version 1.2.7 (unreleased)
+- Use monotonic time to calculate time differences. Based on
+  patch by Marcel Patzlaff.
+- Added basic EAP support. radcli will now automatically add
   a Message-Authenticator attribute to messages containing
   EAP-Message attributes. In addition, radcli will handle
   Access-Challenge response by returning a new
   CHALLENGE_RC result code.
-
-
-* Version 1.2.7 (unreleased)
-- Use monotonic time to calculate time differences. Based on
-  patch by Marcel Patzlaff.
 
 
 * Version 1.2.6 (released 2016-04-04)
