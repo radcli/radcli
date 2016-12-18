@@ -5,7 +5,7 @@
   a Message-Authenticator attribute to messages containing
   EAP-Message attributes. In addition, radcli will handle
   Access-Challenge response by returning a new
-  CHALLENGE_RC result code.
+  CHALLENGE_RC result code. Patch by Martin Belanger.
 
 
 * Version 1.2.6 (released 2016-04-04)
