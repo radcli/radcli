@@ -24,4 +24,4 @@ script:
   - touch doc/stamp_mans
   - make ABI_SKIP=1 dist
 
-after_script: cppcheck -q -Iinclude lib src
+after_script: cppcheck --force -q -Iinclude lib src
