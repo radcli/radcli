@@ -20,6 +20,11 @@
 #include "rc-md5.h"
 #include "rc-hmac.h"
 
+#if defined(HAVE_GNUTLS)
+# include <gnutls/gnutls.h>
+# include <gnutls/crypto.h>
+#endif
+
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
 static void rc_random_vector(unsigned char *);
@@ -338,7 +343,11 @@ static void rc_random_vector(unsigned char *vector)
 {
 	int randno;
 	int i;
-#if defined(HAVE_GETENTROPY)
+#if defined(HAVE_GNUTLS)
+	if (gnutls_rnd(GNUTLS_RND_NONCE, vector, AUTH_VECTOR_LEN) >= 0) {
+		return;
+	}
+#elif defined(HAVE_GETENTROPY)
 	if (getentropy(vector, AUTH_VECTOR_LEN) >= 0) {
 		return;
 	}			/* else fall through */
