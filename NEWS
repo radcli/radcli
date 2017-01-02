@@ -1,3 +1,9 @@
+* Version 1.2.8 (unreleased)
+- rc_random_vector will use gnutls_rnd() to obtain randomness if
+  compiled with GnuTLS. This enables the library to non depend
+  on specific kernel versions (there are versions of Linux kernel
+  which do not provide calls for getentopy libc function).
+
 * Version 1.2.7 (released 2016-12-18)
 - Use monotonic time to calculate time differences. Based on
   patch by Marcel Patzlaff.
