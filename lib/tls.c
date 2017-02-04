@@ -504,7 +504,6 @@ void rc_deinit_tls(rc_handle * rh)
 			gnutls_certificate_free_credentials(st->x509_cred);
 		if (st->psk_cred)
 			gnutls_psk_free_client_credentials(st->psk_cred);
-		gnutls_global_deinit();
 	}
 	free(st);
 }
@@ -529,14 +528,6 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	SERVER *authservers;
 	char hostname[256];	/* server's hostname */
 	unsigned port;		/* server's port */
-
-	ret = gnutls_global_init();
-	if (ret < 0) {
-		rc_log(LOG_ERR,
-		       "%s: error initializing gnutls: %s",
-		       __func__, gnutls_strerror(ret));
-		return -1;
-	}
 
 	memset(&rh->so, 0, sizeof(rh->so));
 

@@ -353,6 +353,8 @@ int rc_add_config(rc_handle *rh, char const *option_name, char const *option_val
  * Initialize the configuration structure from an external program.  For use when not
  * running a standalone client that reads from a config file.
  *
+ * The provided handled must have been allocated using rc_new().
+ *
  * @param rh a handle to parsed configuration.
  * @return rc_handle on success, NULL on failure.
  */
@@ -555,7 +557,9 @@ static int apply_config(rc_handle *rh)
 /** Read the global config file
  *
  * This function will load the provided configuration file, and
- * any other files such as the dictionary.
+ * any other files such as the dictionary. This is the most common
+ * mode of use of this library. The configuration format is compatible
+ * with the radiusclient-ng and freeradius-client formats.
  *
  * Note: To preserve compatibility with libraries of the same API
  * which don't load the dictionary care is taken not to reload the
@@ -573,7 +577,6 @@ rc_handle *rc_read_config(char const *filename)
 	size_t pos;
 	rc_handle *rh;
 
-	srandom((unsigned int)(time(NULL)+getpid()));
 
 	rh = rc_new();
 	if (rh == NULL)
@@ -1085,6 +1088,8 @@ void rc_config_free(rc_handle *rh)
 	rh->first_dict_read = NULL;
 }
 
+static int _initialized = 0;
+
 /** Initialises new Radius Client handle
  *
  * @return a new rc_handle (free with rc_destroy).
@@ -1092,6 +1097,21 @@ void rc_config_free(rc_handle *rh)
 rc_handle *rc_new(void)
 {
 	rc_handle *rh;
+	int ret;
+
+	if (_initialized == 0) {
+		srandom((unsigned int)(time(NULL)+getpid()));
+#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x030300
+		ret = gnutls_global_init();
+		if (ret < 0) {
+			rc_log(LOG_ERR,
+			       "%s: error initializing gnutls: %s",
+			       __func__, gnutls_strerror(ret));
+			return NULL;
+		}
+#endif
+	}
+	_initialized++;
 
 	rh = calloc(1, sizeof(*rh));
 	if (rh == NULL) {
@@ -1110,6 +1130,13 @@ void rc_destroy(rc_handle *rh)
 	rc_dict_free(rh);
 	rc_config_free(rh);
 	free(rh);
+
+#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x030300
+	_initialized--;
+	if (_initialized == 0) {
+		gnutls_global_deinit();
+	}
+#endif
 }
 
 /** Returns the type of the socket used
