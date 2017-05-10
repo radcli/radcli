@@ -128,19 +128,6 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 	data.send_pairs = send;
 	data.receive_pairs = NULL;
 
-	/*
-	 * if there is more than zero servers, then divide waiting time
-	 * among all the servers.
-	 */
-	if (aaaserver->max > 0) {
-		if (timeout > 0) {
-			timeout = (timeout + 1) / aaaserver->max;
-		}
-		if (retries > 0) {
-			retries = (retries + 1) / aaaserver->max;
-		}
-	}
-
 	if (add_nas_port != 0
 	    && rc_avpair_get(data.send_pairs, PW_NAS_PORT, 0) == NULL) {
 		/*
@@ -188,7 +175,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 
 		result = rc_send_server_ctx(rh, ctx, &data, msg, type);
 
-		if ((result == OK_RC) || (result == CHALLENGE_RC)) {
+		if ((result == OK_RC) || (result == CHALLENGE_RC) || (result == REJECT_RC)) {
 			if (request_type != PW_ACCOUNTING_REQUEST) {
 				*received = data.receive_pairs;
 			} else {
