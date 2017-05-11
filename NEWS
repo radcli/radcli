@@ -3,6 +3,9 @@
   compiled with GnuTLS. This enables the library to not depend
   on specific kernel versions (there are versions of Linux kernel
   which do not provide calls for getentopy libc function).
+- Fixed issue when several servers in radiusclient.conf are present.
+  The issue caused only the first server to be contacted. Report
+  and fix by Martin Belanger.
 
 * Version 1.2.7 (released 2016-12-18)
 - Use monotonic time to calculate time differences. Based on
