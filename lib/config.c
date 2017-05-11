@@ -923,35 +923,35 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 	char            hostnm[AUTH_ID_LEN + 1];
 	char	       *buffer_save;
 	char	       *hostnm_save;
-	SERVER	       *authservers;
-	SERVER	       *acctservers;
+	SERVER	       *servers;
 	struct addrinfo *tmpinfo = NULL;
 	const char      *fservers;
+	char const      *optname;
 
 	/* Lookup the IP address of the radius server */
 	if ((*info = rc_getaddrinfo (server_name, type==AUTH?PW_AI_AUTH:PW_AI_ACCT)) == NULL)
 		return -1;
 
-	if (type == AUTH) {
+	switch (type)
+	{
+	case AUTH: optname = "authserver"; break;
+	case ACCT: optname = "acctserver"; break;
+	default:   optname = NULL;
+	}
+
+	if ( (optname != NULL) &&
+	     ((servers = rc_conf_srv(rh, optname)) != NULL) )
+	{
 		/* Check to see if the server secret is defined in the rh config */
-		if( (authservers = rc_conf_srv(rh, "authserver")) != NULL )
+		unsigned  servernum;
+		size_t    server_name_len = strlen(server_name);
+		for (servernum = 0; servernum < servers->max; servernum++)
 		{
-			if( (strncmp(server_name, authservers->name[0], strlen(server_name)) == 0) &&
-			    (authservers->secret[0] != NULL) )
+			if( (strncmp(server_name, servers->name[servernum], server_name_len) == 0) &&
+				(servers->secret[servernum] != NULL) )
 			{
-				memset (secret, '\0', MAX_SECRET_LENGTH);
-				strlcpy (secret, authservers->secret[0], MAX_SECRET_LENGTH);
-				return 0;
-			}
-		}
-	} else if (type == ACCT) {
-		if( (acctservers = rc_conf_srv(rh, "acctserver")) != NULL )
-		{
-			if( (strncmp(server_name, acctservers->name[0], strlen(server_name)) == 0) &&
-			    (acctservers->secret[0] != NULL) )
-			{
-				memset (secret, '\0', MAX_SECRET_LENGTH);
-				strlcpy (secret, acctservers->secret[0], MAX_SECRET_LENGTH);
+				memset(secret, '\0', MAX_SECRET_LENGTH);
+				strlcpy(secret, servers->secret[servernum], MAX_SECRET_LENGTH);
 				return 0;
 			}
 		}
