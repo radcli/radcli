@@ -6,6 +6,11 @@
 - Fixed issue when several servers in radiusclient.conf are present.
   The issue caused only the first server to be contacted. Report
   and fix by Martin Belanger.
+- No longer divide the timeout when across multiple servers.
+  This restores the semantics of radiusclient-ng and freeradius-client
+  in the 'radius_timeout' configuration contents. Report and
+  fix by Martin Belanger.
+
 
 * Version 1.2.7 (released 2016-12-18)
 - Use monotonic time to calculate time differences. Based on
