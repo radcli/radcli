@@ -67,7 +67,7 @@ double rc_getmtime(void)
     if (clock_gettime(CLOCK_MONOTONIC, &timespec) != 0)
         return -1;
 
-    return timespec.tv_sec + ((double)timespec.tv_nsec) / 1000000000.0d;
+    return timespec.tv_sec + ((double)timespec.tv_nsec) / 1000000000.0;
 #else
     struct timeval timev;
 
