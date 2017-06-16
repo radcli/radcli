@@ -378,8 +378,8 @@ static void rc_random_vector(unsigned char *vector)
 		close(fd);
 		return;
 	}			/* else fall through */
-#endif
  fallback:
+#endif
 	for (i = 0; i < AUTH_VECTOR_LEN;) {
 		randno = random();
 		memcpy((char *)vector, (char *)&randno, sizeof(int));
