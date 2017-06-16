@@ -89,7 +89,6 @@ void rc_avpair_remove (VALUE_PAIR **list, int attrid, int vendorpec)
 			} else { /* somewhere in the middle */
 				prev->next = vp->next;
 				free(vp);
-				vp = prev;
 			}
 			break;
 		}
