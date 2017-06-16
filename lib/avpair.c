@@ -523,8 +523,10 @@ void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b)
 		}
 	}
 
-	b->next = this_node->next;
-	this_node->next = b;
+	if (this_node) {
+		b->next = this_node->next;
+		this_node->next = b;
+	}
 
 	return;
 }
