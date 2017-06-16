@@ -455,8 +455,12 @@ VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p)
 	while (p) {
 		vp = malloc(sizeof(VALUE_PAIR));
 		if (!vp) {
-                  rc_log(LOG_CRIT, "rc_avpair_copy: out of memory");
-                  return NULL;  /* could leak pairs already copied */
+			while(fp) { /* free allocated memory */
+				vp = fp;
+				fp = fp->next;
+				free(vp);
+			}
+			return NULL;
 		}
 		*vp = *p;
 		if (!fp)
