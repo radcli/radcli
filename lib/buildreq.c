@@ -175,7 +175,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 
 		result = rc_send_server_ctx(rh, ctx, &data, msg, type);
 
-		if ((result == OK_RC) || (result == CHALLENGE_RC)) {
+		if ((result == OK_RC) || (result == CHALLENGE_RC) || (result == REJECT_RC)) {
 			if (request_type != PW_ACCOUNTING_REQUEST) {
 				*received = data.receive_pairs;
 			} else {
