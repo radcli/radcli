@@ -27,13 +27,32 @@ sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 if test $? == 0;then
-	echo "Authentication passed. Unexpected"
+	echo "Authentication passed. Not expected. Error"
 	exit 1
 fi
 
+grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
+if test $? == 0;then
+    echo "Credentials passed. Not expected. Error."
+    cat $TMPFILE
+    exit 1
+fi
+
+grep "^Framed-IP-Address                = '192.168.1.190'$" $TMPFILE >/dev/null 2>&1
+if test $? == 0;then
+    echo "Credentials passed. Not expected. Error."
+    cat $TMPFILE
+    exit 1
+fi
+
+grep "^Framed-Route                     = '192.168.100.5/24'$" $TMPFILE >/dev/null 2>&1
+if test $? == 0;then
+    echo "Credentials passed. Not expected. Error."
+    cat $TMPFILE
+    exit 1
+fi
 
 rm -f servers-temp$PID 
-#cat $TMPFILE
 rm -f $TMPFILE
 rm -f radiusclient-temp$PID.conf
 
