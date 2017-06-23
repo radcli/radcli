@@ -26,45 +26,11 @@ sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
 
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
-if test $? != 0;then
-	echo "Error in PAP auth"
+if test $? == 0;then
+	echo "Authentication passed. Unexpected"
 	exit 1
 fi
 
-grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-	echo "Error in data received by server (Framed-Protocol)"
-	cat $TMPFILE
-	exit 1
-fi
-
-grep "^Framed-IP-Address                = '192.168.1.190'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-	echo "Error in data received by server (Framed-IP-Address)"
-	cat $TMPFILE
-	exit 1
-fi
-
-grep "^Framed-Route                     = '192.168.100.5/24'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-	echo "Error in data received by server (Framed-Route)"
-	cat $TMPFILE
-	exit 1
-fi
-
-grep "^Request-Info-Secret = testing123$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-	echo "Error in request info data (secret)"
-	cat $TMPFILE
-	exit 1
-fi
-
-grep "^Request-Info-Vector = " $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-	echo "Error in request info data (vector)"
-	cat $TMPFILE
-	exit 1
-fi
 
 rm -f servers-temp$PID 
 #cat $TMPFILE
