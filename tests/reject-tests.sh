@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2014 Nikos Mavrogiannopoulos
+# Copyright (C) 2017 Aravind Prasad <raja.avi@gmail.com>
 #
 # License: BSD
 
@@ -32,22 +32,22 @@ if test $? == 0;then
 fi
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-    echo "Credentials passed. Not expected. Error."
+if test $? = 0;then
+    echo "Credentials passed here. Credentials should have failed. Error."
     cat $TMPFILE
     exit 1
 fi
 
 grep "^Framed-IP-Address                = '192.168.1.190'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-    echo "Credentials passed. Not expected. Error."
+if test $? = 0;then
+    echo "Credentials passed here. Credentials should have failed. Error."
     cat $TMPFILE
     exit 1
 fi
 
 grep "^Framed-Route                     = '192.168.100.5/24'$" $TMPFILE >/dev/null 2>&1
-if test $? == 0;then
-    echo "Credentials passed. Not expected. Error."
+if test $? = 0;then
+    echo "Credentials passed here. Credentials should have failed. Error."
     cat $TMPFILE
     exit 1
 fi
