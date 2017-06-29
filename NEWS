@@ -10,6 +10,9 @@
   This restores the semantics of radiusclient-ng and freeradius-client
   in the 'radius_timeout' configuration contents. Report and
   fix by Martin Belanger.
+- On REJECT copy back the AV-pair list. Prior to 1.2.8 radcli
+  would copy the AV-pair list only in case of ACCEPT and CHALLENGE
+  scenarios, and that caused issues with EAP. Patch by Aravind Prasad S.
 
 
 * Version 1.2.7 (released 2016-12-18)
