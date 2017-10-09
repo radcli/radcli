@@ -50,32 +50,9 @@ main (int argc, char **argv)
 	 * Set the required options for configuration
 	 */
 
-	/* set auth_order to be radius only */
-
-	if (rc_add_config(rh, "auth_order", "radius", "config", 0) != 0) 
-	{
-		printf("ERROR: Unable to set auth_order.\n");
-		rc_destroy(rh);
-		exit(1);
-	}
-
-	if (rc_add_config(rh, "login_tries", "4", "config", 0) != 0) 
-	{
-		printf("ERROR: Unable to set login_tries.\n");
-		rc_destroy(rh);
-		exit(1);
-	}
-
 	if (rc_add_config(rh, "dictionary", "/usr/local/radius/dictionary", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set dictionary.\n");
-		rc_destroy(rh);
-		exit(1);
-	}
-	
-	if (rc_add_config(rh, "seqfile", "/var/run/radius.seq", "config", 0) != 0)
-	{
-		printf("ERROR: Unable to set seq file.\n");
 		rc_destroy(rh);
 		exit(1);
 	}
