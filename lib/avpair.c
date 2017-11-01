@@ -296,8 +296,6 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 	if (length != attrlen) {
 		pair = rc_avpair_gen(rh, pair, ptr + attrlen, length - attrlen,
 		    vendorpec);
-		if (pair == NULL)
-			return NULL;
 	}
 
 	/* Actual processing */
