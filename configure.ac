@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([radcli], [1.2.8], [n.mavrogiannopoulos@gmail.com])
+AC_INIT([radcli], [1.2.9], [n.mavrogiannopoulos@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET([])
@@ -21,7 +21,7 @@ AC_SUBST(NUMBER_VERSION, `printf "0x%02x%02x%02x" $MAJOR_VERSION $MINOR_VERSION 
 # Interfaces added:                             AGE++
 # Interfaces removed:                           AGE=0
 V_CURRENT=5
-V_REVISION=2
+V_REVISION=3
 V_AGE=1
 LIBVERSION="$V_CURRENT:$V_REVISION:$V_AGE"
 LIBMAJOR=`expr $V_CURRENT - $V_AGE`
