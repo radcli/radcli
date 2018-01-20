@@ -1,4 +1,4 @@
-* Version 1.2.9 (unreleased)
+* Version 1.2.9 (released 2018-01-20)
 - rc_avpair_gen: addressed issue that caused all attributes to be
   rejected if the last attribute in the message is a VSA with an unknown
   Vendor-ID or Type.
