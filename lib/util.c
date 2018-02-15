@@ -12,6 +12,8 @@
  *
  */
 
+#define _GNU_SOURCE
+
 #include <sys/time.h>
 
 #include <config.h>
@@ -20,6 +22,11 @@
 #include "util.h"
 
 #define	RC_BUFSIZ	1024
+
+#ifdef __linux__
+#include <sched.h>
+#define NSNET_SZ (128)
+#endif
 
 
 static char const * months[] =
@@ -146,4 +153,88 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
     return(s - src - 1);    /* count does not include NUL */
 }
 
+#endif
+
+#ifdef __linux__
+/** Set the network namespace for the current thread (or process - if single threaded).
+ *
+ * @param net_namespace - New network namespace to set.
+ * @param prev_ns_handle - Handle to previous network namespace.
+ *
+ * @return 0 on success, -1 when failure.
+ */
+int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
+{
+    int rc = -1;
+    static const char* crt_nsnet = "/proc/self/ns/net";
+    int sock_ns_fd = -1;
+    char sock_nsnet[NSNET_SZ];
+
+    if (NULL == net_namespace) {
+        rc_log(LOG_ERR, "Namespace not provided");
+        return rc;
+    }
+    if (NULL == prev_ns_handle) {
+        rc_log(LOG_ERR, "NULL NS handle for: %s", net_namespace);
+        return rc;
+    }
+    *prev_ns_handle = -1;
+    snprintf(sock_nsnet, NSNET_SZ, "/var/run/netns/%s", net_namespace);
+    do {
+        *prev_ns_handle = open(crt_nsnet, O_RDONLY);
+        if (*prev_ns_handle < 0) {
+            rc_log(LOG_ERR, "Cannot open %s errno=%s(%d)", crt_nsnet, strerror (errno), errno);
+            break;
+        }
+        sock_ns_fd = open(sock_nsnet, O_RDONLY);
+        if (sock_ns_fd < 0) {
+            rc_log(LOG_ERR, "Cannot open %s errno=%s(%d)", sock_nsnet, strerror (errno), errno);
+            break;
+        }
+        if (setns(sock_ns_fd, CLONE_NEWNET) < 0) {
+            rc_log(LOG_ERR, "'setns' set failed for %s errno=%s(%d)", sock_nsnet,
+            strerror(errno), errno);
+            break;
+        }
+        rc = 0;
+    }while (0);
+    if (sock_ns_fd >= 0) {
+        (void)close(sock_ns_fd);
+    }
+    if (rc != 0) {
+        if (*prev_ns_handle >=0 ) {
+            (void)close(*prev_ns_handle);
+            *prev_ns_handle = -1;
+        }
+    }
+
+    return rc;
+}
+
+/** Reset the network name space for the current thread (or process - if single threaded).
+ *  'prev_ns_handle' becomes invalid after this call.
+ *
+ * @param  prev_ns_handle - Handle to previous network name space.
+ *
+ * @return 0 on success, -1 when failure.
+ */
+int rc_reset_netns(int *prev_ns_handle)
+{
+    int rc = 0;
+
+    if (NULL == prev_ns_handle) {
+        rc_log(LOG_ERR, "NULL NS handle");
+        return -1;
+    }
+    if (setns(*prev_ns_handle, CLONE_NEWNET) < 0) {
+        rc_log(LOG_ERR, "'setns' - reset failed errno=%s(%d)", strerror (errno), errno);
+    }
+    if (close(*prev_ns_handle) != 0) {
+        rc_log(LOG_ERR, "Close error fd=%d errno=%s(%d)", *prev_ns_handle, strerror (errno), errno);
+        rc = -1;
+    }
+    *prev_ns_handle = -1;
+
+    return rc;
+}
 #endif

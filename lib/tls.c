@@ -497,13 +497,33 @@ int rc_check_tls(rc_handle * rh)
 void rc_deinit_tls(rc_handle * rh)
 {
 	tls_st *st = rh->so.ptr;
+#ifdef __linux__    
+	char *ns = NULL;
+	int ns_def_hdl = 0;
+#endif    
+
 	if (st) {
+#ifdef __linux__    
+		ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+		if (ns != NULL) {
+			if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
+				rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
+				return;
+			}
+		}
+#endif    
 		if (st->ctx.init != 0)
 			deinit_session(&st->ctx);
 		if (st->x509_cred)
 			gnutls_certificate_free_credentials(st->x509_cred);
 		if (st->psk_cred)
 			gnutls_psk_free_client_credentials(st->psk_cred);
+#ifdef __linux__    
+		if (ns != NULL) {
+			if(-1 == rc_reset_netns(&ns_def_hdl))
+			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+		}
+#endif    
 	}
 	free(st);
 }
@@ -528,8 +548,22 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	SERVER *authservers;
 	char hostname[256];	/* server's hostname */
 	unsigned port;		/* server's port */
+#ifdef __linux__    
+	char *ns = NULL;
+	int ns_def_hdl = 0;
+#endif    
 
 	memset(&rh->so, 0, sizeof(rh->so));
+
+#ifdef __linux__    
+	ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+	if (ns != NULL) {
+		if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
+			return -1;
+		}
+	}
+#endif    
 
 	if (flags & SEC_FLAG_DTLS) {
 		rh->so_type = RC_SOCKET_DTLS;
@@ -685,6 +719,14 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	rh->so.recvfrom = tls_recvfrom;
 	rh->so.lock = tls_lock;
 	rh->so.unlock = tls_unlock;
+#ifdef __linux__    
+	if (ns != NULL) {
+		if(-1 == rc_reset_netns(&ns_def_hdl)) {
+			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+			goto cleanup;
+		}
+	}
+#endif    
 	return 0;
  cleanup:
 	if (st) {
@@ -696,6 +738,10 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 			gnutls_psk_free_client_credentials(st->psk_cred);
 	}
 	free(st);
+	if (ns != NULL) {
+		if(-1 == rc_reset_netns(&ns_def_hdl))
+		rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+	}
 	return ret;
 }
 

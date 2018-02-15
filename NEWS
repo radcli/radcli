@@ -1,3 +1,13 @@
+* Version 1.2.11 (unreleased)
+- Added Namespace support (#30). radcli now supports Namespace on 
+  Linux based systems. 
+
+
+* Version 1.2.10 (unreleased)
+- rc_send_server_ctx: addressed unaligned access issue on certain
+  platforms (#27).
+
+
 * Version 1.2.9 (released 2018-01-20)
 - rc_avpair_gen: addressed issue that caused all attributes to be
   rejected if the last attribute in the message is a VSA with an unknown

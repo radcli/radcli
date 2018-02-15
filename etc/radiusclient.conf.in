@@ -57,6 +57,10 @@ bindaddr *
 # If commented out, udp will be used.
 #serv-type   udp
 
+# Namespace in which all sockets of Radcli are to be opened. This is effectively same as the        
+# Radcli existing on that namespace.                                                                 
+# If commented out, the default existing Namespace will be used.                                    
+#namespace   namespace-name                                                                         
 
 # To enable verbose debugging messages in syslog, enable the following
 #clientdebug 1
