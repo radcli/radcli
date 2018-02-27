@@ -41,8 +41,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 	char            valstr[AUTH_ID_LEN];
 	char            attrstr[AUTH_ID_LEN];
 	char            typestr[AUTH_ID_LEN];
-	char		optstr[AUTH_ID_LEN];
-	char		*cp, *ifilename;
+	char            optstr[AUTH_ID_LEN];
+	char            *cp, *ifilename;
 	int             line_no;
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
@@ -254,8 +254,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			dval->next = rh->dictionary_values;
 			rh->dictionary_values = dval;
 		}
-                else if (strncmp (buffer, "$INCLUDE", 8) == 0)
-                {
+		else if (strncmp (buffer, "$INCLUDE", 8) == 0)
+		{
 			/* Read the $INCLUDE line */
 			if (sscanf (buffer, "%63s%63s", dummystr, namestr) != 2)
 			{
@@ -356,7 +356,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			/* Insert it into the list */
 			dvend->next = rh->dictionary_vendors;
 			rh->dictionary_vendors = dvend;
-                }
+		}
 	}
 	fclose (dictfd);
 
