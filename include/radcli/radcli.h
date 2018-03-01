@@ -44,7 +44,7 @@ extern "C" {
  * @{
  */
 
-#define AUTH_PASS_LEN		(3 * 16) /* multiple of 16 */
+#define AUTH_PASS_LEN		(7 * 16) /* multiple of 16 */
 #define AUTH_ID_LEN		64
 
 #define BUFFER_LEN		8192
