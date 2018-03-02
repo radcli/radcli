@@ -50,12 +50,12 @@ radius_timeout	10
 radius_retries	3
 
 # local address from which radius packets have to be sent
-bindaddr *
+bindaddr	*
 
 # Transport Protocol Support
 # Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
 # If commented out, udp will be used.
-#serv-type   udp
+#serv-type	udp
 
 
 # To enable verbose debugging messages in syslog, enable the following
