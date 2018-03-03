@@ -457,6 +457,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	uint8_t recv_buffer[BUFFER_LEN];
 	uint8_t send_buffer[BUFFER_LEN];
 	uint8_t *attr;
+	uint16_t tlen;
 	int retries;
 	VALUE_PAIR *vp;
 	struct pollfd pfd;
@@ -607,7 +608,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		total_length =
 		    rc_pack_list(data->send_pairs, secret, auth) + AUTH_HDR_LEN;
 
-		auth->length = htons((unsigned short)total_length);
+		tlen = htons((unsigned short)total_length);
+		memcpy(&auth->length, &tlen, sizeof(uint16_t));
 
 		memset((char *)auth->vector, 0, AUTH_VECTOR_LEN);
 		secretlen = strlen(secret);
