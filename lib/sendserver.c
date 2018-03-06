@@ -457,21 +457,20 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	uint8_t recv_buffer[BUFFER_LEN];
 	uint8_t send_buffer[BUFFER_LEN];
 	uint8_t *attr;
+	uint16_t tlen;
 	int retries;
 	VALUE_PAIR *vp;
 	struct pollfd pfd;
 	double start_time, timeout;
 	struct sockaddr_storage *ss_set = NULL;
 	char *server_type = "auth";
-#ifdef __linux__    
 	char *ns = NULL;
 	int ns_def_hdl = 0;
-#endif
 
 	server_name = data->server;
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
-#ifdef __linux__
+
 	ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
 	if (ns != NULL) {
 		if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
@@ -479,7 +478,6 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			return ERROR_RC;
 		}
 	}
-#endif    
 	if ((vp = rc_avpair_get(data->send_pairs, PW_SERVICE_TYPE, 0)) &&
 	    (vp->lvalue == PW_ADMINISTRATIVE)) {
 		strcpy(secret, MGMT_POLL_SECRET);
@@ -623,7 +621,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		total_length =
 		    rc_pack_list(data->send_pairs, secret, auth) + AUTH_HDR_LEN;
 
-		auth->length = htons((unsigned short)total_length);
+		tlen = htons((unsigned short)total_length);
+		memcpy(&auth->length, &tlen, sizeof(uint16_t));
 
 		memset((char *)auth->vector, 0, AUTH_VECTOR_LEN);
 		secretlen = strlen(secret);
@@ -874,14 +873,12 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		}
 	}
  exit_error:
-#ifdef __linux__
 	if (ns != NULL) {
 		if(-1 == rc_reset_netns(&ns_def_hdl)) {
 			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
 			result = ERROR_RC;
 		}
 	}
-#endif    
 
 	return result;
 }

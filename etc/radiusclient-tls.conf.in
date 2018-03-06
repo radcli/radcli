@@ -6,7 +6,7 @@
 
 # Override the IP (or IPv6) address of the NAS.
 #nas-ip 	10.100.5.3
-#nas-ip 	::1
+#nas-ip		::1
 
 # RADIUS server to use for authentication requests.
 # optionally you can specify a the port number on which is remote
@@ -17,25 +17,25 @@
 # simply '[IPv6]'. You may specify more than a single server
 # in a comma-separated list.
 #
-authserver 	localhost:2083
-#authserver 	127.1.1.1:9999,172.17.0.1
+authserver	localhost:2083
+#authserver	127.1.1.1:9999,172.17.0.1
 
 # For DTLS with PSK authentication, the following format is valid:
-#authserver 	localhost:2083:psk@username@hexkey
+#authserver	localhost:2083:psk@username@hexkey
 
 # In TLS/DTLS the acct server directive is ignored.
 #
-acctserver 	localhost:2083
+acctserver	localhost:2083
 
 # file holding PSKs used for the communication
 # between the RADIUS client and server. They should
 # be stored in "psk:username:hexkey" format.
-#servers		@pkgsysconfdir@/servers-tls
+#servers	@pkgsysconfdir@/servers-tls
 
 # Dictionary of allowed attributes and values. That depends
 # heavily on the features of your server. A default dictionary
 # is installed in @sharedir@/dictionary
-dictionary 	@pkgsysconfdir@/dictionary
+dictionary	@pkgsysconfdir@/dictionary
 
 # default authentication realm to append to all usernames if no
 # realm was explicitly specified by the user
@@ -50,7 +50,7 @@ radius_timeout	10
 radius_retries	3
 
 # local address from which radius packets have to be sent
-bindaddr *
+bindaddr	*
 
 # Namespace in which all sockets of Radcli are to be opened. This is effectively same as the 
 # Radcli existing on that namespace.
@@ -64,18 +64,17 @@ bindaddr *
 # If commented out, udp will be used.
 # TLS and DTLS authentication can be used with PSK keys or X.509 certificate 
 # authentication (see below).
-serv-type   tls
+serv-type	tls
 
 # The CA certificate to be used to verify the server's certificate.
 # Does not need to be set if we are using PSK (pre-shared keys).
-tls-ca-file @pkgsysconfdir@/ca.pem
+tls-ca-file	@pkgsysconfdir@/ca.pem
 
 # Our certificate and key files. These identify this NAS to the
 # radius servers. They don't need to be set if using PSK.
-tls-cert-file @pkgsysconfdir@/cert.pem
-tls-key-file @pkgsysconfdir@/key.pem
+tls-cert-file	@pkgsysconfdir@/cert.pem
+tls-key-file	@pkgsysconfdir@/key.pem
 
 # Used for debugging purposed. It will disable hostname verification
 # on the connected host. Not recommended to be enabled.
-#tls-verify-hostname false
-
+#tls-verify-hostname	false

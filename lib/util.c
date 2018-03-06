@@ -155,7 +155,6 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
 
 #endif
 
-#ifdef __linux__
 /** Set the network namespace for the current thread (or process - if single threaded).
  *
  * @param net_namespace - New network namespace to set.
@@ -165,7 +164,9 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
  */
 int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
 {
-    int rc = -1;
+    int rc = 0;
+#ifdef __linux__
+    rc = -1;
     static const char* crt_nsnet = "/proc/self/ns/net";
     int sock_ns_fd = -1;
     char sock_nsnet[NSNET_SZ];
@@ -207,7 +208,9 @@ int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
             *prev_ns_handle = -1;
         }
     }
-
+#else    
+    rc_log(LOG_ERR, "Not a Linux system. No operation performed");
+#endif
     return rc;
 }
 
@@ -221,7 +224,7 @@ int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
 int rc_reset_netns(int *prev_ns_handle)
 {
     int rc = 0;
-
+#ifdef __linux__
     if (NULL == prev_ns_handle) {
         rc_log(LOG_ERR, "NULL NS handle");
         return -1;
@@ -234,7 +237,8 @@ int rc_reset_netns(int *prev_ns_handle)
         rc = -1;
     }
     *prev_ns_handle = -1;
-
+#else    
+    rc_log(LOG_ERR, "Not a Linux system. No operation performed");
+#endif    
     return rc;
 }
-#endif
