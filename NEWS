@@ -1,6 +1,8 @@
 * Version 1.2.10 (unreleased)
 - rc_send_server_ctx: addressed unaligned access issue on certain
   platforms (#27).
+- Added Namespace support (#30). radcli now supports Namespace on 
+  Linux based systems.
 
 
 * Version 1.2.9 (released 2018-01-20)

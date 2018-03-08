@@ -464,19 +464,30 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	double start_time, timeout;
 	struct sockaddr_storage *ss_set = NULL;
 	char *server_type = "auth";
+	char *ns = NULL;
+	int ns_def_hdl = 0;
 
 	server_name = data->server;
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
 
+	ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+	if (ns != NULL) {
+		if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
+			return ERROR_RC;
+		}
+	}
 	if ((vp = rc_avpair_get(data->send_pairs, PW_SERVICE_TYPE, 0)) &&
 	    (vp->lvalue == PW_ADMINISTRATIVE)) {
 		strcpy(secret, MGMT_POLL_SECRET);
 		auth_addr =
 		    rc_getaddrinfo(server_name,
 				   type == AUTH ? PW_AI_AUTH : PW_AI_ACCT);
-		if (auth_addr == NULL)
-			return ERROR_RC;
+		if (auth_addr == NULL) {
+			result = ERROR_RC;
+			goto exit_error;
+		}    
 	} else {
 		if (data->secret != NULL) {
 			strlcpy(secret, data->secret, MAX_SECRET_LENGTH);
@@ -490,7 +501,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			rc_log(LOG_ERR,
 			       "rc_send_server: unable to find server: %s",
 			       server_name);
-			return ERROR_RC;
+			result = ERROR_RC;
+			goto exit_error;
 		}
 		/*} */
 	}
@@ -506,7 +518,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	if (sfuncs->lock) {
 		if (sfuncs->lock(sfuncs->ptr) != 0) {
 			rc_log(LOG_ERR, "%s: lock error", __func__);
-			return ERROR_RC;
+			result = ERROR_RC;
+			goto exit_error;
 		}
 	}
 
@@ -857,6 +870,13 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	if (sfuncs->unlock) {
 		if (sfuncs->unlock(sfuncs->ptr) != 0) {
 			rc_log(LOG_ERR, "%s: unlock error", __func__);
+		}
+	}
+ exit_error:
+	if (ns != NULL) {
+		if(-1 == rc_reset_netns(&ns_def_hdl)) {
+			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+			result = ERROR_RC;
 		}
 	}
 

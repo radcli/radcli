@@ -52,6 +52,11 @@ radius_retries	3
 # local address from which radius packets have to be sent
 bindaddr	*
 
+# Namespace in which all sockets of Radcli are to be opened. This is effectively same as the 
+# Radcli existing on that namespace.
+# If commented out, the default existing Namespace will be used.                                    
+#namespace   namespace-name
+
 # TLS/DTLS settings
 
 # Transport Protocol Support
