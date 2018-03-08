@@ -23,13 +23,16 @@ before_script:
 
 script:
   - CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $SCAN_BUILD ./configure --with-tls
-  - $SCAN_BUILD make
+  - $SCAN_BUILD make -j $(nproc)
   - if test $CHECK = 1;then
-      NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check;
-      touch doc/stamp_mans;
+      NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check &&
+      touch doc/stamp_mans &&
       make ABI_SKIP=1 dist;
     fi
 
 after_script:
   - cppcheck --force -q -Iinclude lib src
   - sudo killall freeradius
+
+after_failure:
+  - cat tests/test-suite.log
