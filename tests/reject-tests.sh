@@ -26,10 +26,6 @@ sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
 
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
-if test $? = 0;then
-	echo "Authentication passed. Not expected. Error"
-	exit 1
-fi
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
 if test $? = 0;then
