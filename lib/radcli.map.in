@@ -63,6 +63,7 @@ RADCLI_@LIBMAJOR@
 	rc_avpair_copy;
 	rc_mksid;
 	rc_avpair_remove;
+	rc_apply_config;
   local:
     *;
 };
