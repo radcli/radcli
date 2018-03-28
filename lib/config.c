@@ -500,7 +500,16 @@ static int set_addr(struct sockaddr_storage *ss, const char *ip)
 	return 0;
 }
 
-static int apply_config(rc_handle *rh)
+/** Applies and initializes any parameters from the radcli configuration
+ *
+ * When no configuration file is provided and the configuration
+ * is provided via rc_add_config(), radcli requires the call of this function
+ * in order to initialize items for the connection.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return 0 on success, -1 when failure.
+ */
+int rc_apply_config(rc_handle *rh)
 {
 	const char *txt;
 	int ret;
@@ -813,7 +822,7 @@ int rc_test_config(rc_handle *rh, char const *filename)
 		return -1;
 	}
 
-	if (apply_config(rh) == -1) {
+	if (rc_apply_config(rh) == -1) {
 		return -1;
 	}
 

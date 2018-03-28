@@ -8,6 +8,7 @@ APIMANS += man/rc_aaa_ctx_server.3
 APIMANS += man/rc_acct.3
 APIMANS += man/rc_acct_proxy.3
 APIMANS += man/rc_add_config.3
+APIMANS += man/rc_apply_config.3
 APIMANS += man/rc_auth.3
 APIMANS += man/rc_auth_proxy.3
 APIMANS += man/rc_avpair_add.3

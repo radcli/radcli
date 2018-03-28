@@ -3,22 +3,20 @@
  * client, using the FreeRADIUS Client Library without an external configuration file.
  */
 
-
 #include <stdlib.h>
 #include <sys/types.h>
 #include <syslog.h>
 #include <radcli/radcli.h>
-
 
 int
 main (int argc, char **argv)
 {
 	int		retval = 0;
 	rc_handle 	*rh = NULL;
-
-	uint32_t 		client_port = 0;
-	uint32_t		status_type = PW_STATUS_STOP; 
+	uint32_t 	client_port = 0;
+	uint32_t	status_type = PW_STATUS_STOP;
         VALUE_PAIR      *send = NULL;
+
 /*
 	VALUE_PAIR 	*vp = NULL;
 	DICT_VALUE 	*dval = NULL;
@@ -31,7 +29,7 @@ main (int argc, char **argv)
 	/* Initialize the 'rh' structure */
 
 	rh = rc_new();
-	if (rh == NULL) 
+	if (rh == NULL)
 	{
 		printf("ERROR: Failed to allocate initial structure\n");
 		exit(1);
@@ -46,25 +44,25 @@ main (int argc, char **argv)
 		exit(1);
 	}
 
-	/* 
+	/*
 	 * Set the required options for configuration
 	 */
 
-	if (rc_add_config(rh, "dictionary", "/usr/local/radius/dictionary", "config", 0) != 0)
+	if (rc_add_config(rh, "dictionary", "../etc/dictionary", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set dictionary.\n");
 		rc_destroy(rh);
 		exit(1);
 	}
-	
-	if (rc_add_config(rh, "radius_retries", "3", "config", 0) != 0) 
+
+	if (rc_add_config(rh, "radius_retries", "3", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set radius_retries.\n");
 		rc_destroy(rh);
 		exit(1);
 	}
 
-	if (rc_add_config(rh, "radius_timeout", "5", "config", 0) != 0) 
+	if (rc_add_config(rh, "radius_timeout", "5", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set radius_timeout.\n");
 		rc_destroy(rh);
@@ -73,18 +71,17 @@ main (int argc, char **argv)
 
 	/* auth/acct servers are added in the form: host[:port[:secret]]
 	 * If you don't set the secret via the add_config option, you must set a 'servers'
-         * entry to specify the location of the 'servers' file which stores the secrets to
-         * be used.
-         */
-
-	if (rc_add_config(rh, "authserver", "localhost::testing123", "config", 0) != 0) 
+	 * entry to specify the location of the 'servers' file which stores the secrets to
+	 * be used.
+	 */
+	if (rc_add_config(rh, "authserver", "localhost::testing123", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set authserver.\n");
 		rc_destroy(rh);
 		exit(1);
 	}
 
-	if (rc_add_config(rh, "acctserver", "localhost:1813:testing123", "config", 0) != 0) 
+	if (rc_add_config(rh, "acctserver", "localhost:1813:testing123", "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set acctserver.\n");
 		rc_destroy(rh);
@@ -92,39 +89,45 @@ main (int argc, char **argv)
 	}
 
 	/* Done setting configuration items */
-	
+
 	/* Read in the dictionary file(s) */
 
-	if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary")) != 0) 
+	if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary")) != 0)
 	{
 		printf("ERROR: Failed to initialize radius dictionary\n");
 		exit(1);
 	}
 
-        if (rc_avpair_add(rh, &send, PW_ACCT_STATUS_TYPE, &status_type, -1, 0) == NULL)
-	{	
-		printf("ERROR: Failed adding Acct-Status-Type: to %d\n", status_type);		
-                exit(1);
+	if (rc_avpair_add(rh, &send, PW_ACCT_STATUS_TYPE, &status_type, -1, 0) == NULL)
+	{
+		printf("ERROR: Failed adding Acct-Status-Type: to %d\n", status_type);
+		exit(1);
 	}
-        if (rc_avpair_add(rh, &send, PW_ACCT_SESSION_ID, myuuid, -1, 0) == NULL)
-	{	
-		printf("ERROR: Failed adding Acct-Session-ID: to %s\n", myuuid);		
-                exit(1);
+	if (rc_avpair_add(rh, &send, PW_ACCT_SESSION_ID, myuuid, -1, 0) == NULL)
+	{
+		printf("ERROR: Failed adding Acct-Session-ID: to %s\n", myuuid);
+		exit(1);
 	}
-        if (rc_avpair_add(rh, &send, PW_USER_NAME, username, -1, 0) == NULL)
-	{	
-		printf("ERROR: Failed adding User-Name: to %s\n", username);		
-                exit(1);
+	if (rc_avpair_add(rh, &send, PW_USER_NAME, username, -1, 0) == NULL)
+	{
+		printf("ERROR: Failed adding User-Name: to %s\n", username);
+		exit(1);
 	}
-        if (rc_avpair_add(rh, &send, PW_CALLED_STATION_ID, callto, -1, 0) == NULL)
-	{	
-		printf("ERROR: Failed adding Called-Station-ID: to %s\n", callto);		
-                exit(1);
+	if (rc_avpair_add(rh, &send, PW_CALLED_STATION_ID, callto, -1, 0) == NULL)
+	{
+		printf("ERROR: Failed adding Called-Station-ID: to %s\n", callto);
+        exit(1);
 	}
-        if (rc_avpair_add(rh, &send, PW_CALLING_STATION_ID, callfrom, -1, 0) == NULL)
-	{	
-		printf("ERROR: Failed adding Calling-Station-ID: to %s\n", callfrom);		
-                exit(1);
+	if (rc_avpair_add(rh, &send, PW_CALLING_STATION_ID, callfrom, -1, 0) == NULL)
+	{
+		printf("ERROR: Failed adding Calling-Station-ID: to %s\n", callfrom);
+		exit(1);
+	}
+	/* Initialize socket related info in RADIUS Handle */
+	if (rc_apply_config(rh) == -1)
+	{
+		printf("ERROR: Failed to update Radius handle socket info");
+		exit(1);
 	}
 
 	if(rc_acct(rh, client_port, send) == OK_RC)
