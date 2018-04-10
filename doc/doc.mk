@@ -57,3 +57,4 @@ APIMANS += man/rc_send_server.3
 APIMANS += man/rc_setdebug.3
 APIMANS += man/rc_test_config.3
 APIMANS += man/rc_tls_fd.3
+APIMANS += man/rc_apply_config.3
