@@ -43,6 +43,10 @@ stamp_mans: ../include/radcli/radcli.h
 	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library'  --out man --novalidate xml/radcli_8h.xml
 	echo > $@
 
+stamp_html: ../include/radcli/radcli.h
+	doxygen Doxyfile
+	echo > $@
+
 update-doc: stamp_mans
 	FUNCS=`cat $(top_srcdir)/include/radcli/radcli.h | $(top_srcdir)/doc/scripts/getfuncs.pl|sort -d|uniq`; \
 	MANS=""; \

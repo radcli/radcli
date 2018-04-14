@@ -44,6 +44,30 @@ abi-check:
 	fi
 	@rm -f $(TMPFILE)
 
+web: html.upload
+
+clean:
+	rm -f .html.stamp
+
+.html.stamp:
+	rm -rf html/* doc/html/* doc/stamp_html
+	make -C doc stamp_html
+	rsync -Hvax doc/web/ html/
+	rsync -Hvax doc/html/ html/manual/
+	touch $@
+
+html.upload: .html.stamp
+	-git branch -D tmp-web-pages
+	-git branch -D gh-pages
+	git checkout -b tmp-web-pages
+	git add -f html
+	git commit -n -sm "auto-generated web-pages" html
+	git push origin `git subtree split --prefix html tmp-web-pages`:gh-pages --force
+	git checkout master
+	git branch -D tmp-web-pages
+
 dist-hook: compare-exported abi-check
 
 CLEANFILES = *~
+
+.PHONY: web html.upload
