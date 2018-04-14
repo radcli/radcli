@@ -531,7 +531,7 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
  * parsing the file, simplifying application configuration and administration.
  *
  * Alternative operation without a configuration file is also possible, see
- * rc_add_config().
+ * rc_add_config() and rc_apply_config().
  *
  * Check radexample.c for a functional example.
  *
