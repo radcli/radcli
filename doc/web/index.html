@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>radcli by nmav</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">radcli</h1>
+      <h2 class="project-tagline">A simple RADIUS client library</h2>
+      <a href="https://radcli.github.io/radcli/manual" class="btn">Documentation</a>
+      <a href="https://github.com/radcli/radcli/" class="btn">Github + Issue tracker</a>
+      <a href="https://github.com/radcli/radcli/releases" class="btn">Download
+      latest release</a>
+    </section>
+
+    <section class="main-content">
+      <h3>
+<a id="welcome-to-radcli-pages" class="anchor" href="#welcome-to-radcli-pages" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to radcli Pages.</h3>
+
+<p>The radcli library is a library for writing RADIUS Clients. The library's
+approach is to allow writing RADIUS-aware application in less than 50 lines
+of C code. It was based originally on freeradius-client and is source
+compatible with it.</p>
+<p>
+For the development of the openconnect VPN server, I needed a simple library
+to allow using radius for authentication and accounting without having to
+understand the internals of radius. Such library was the freeradius-client library, but
+it had too much legacy code centered around radlogin, a tool which is of no
+significance today, was IPv4-only and had no releases for several years.
+This library addresses these shortcomings, adds package management via
+pkg-config, adds support for TLS and DTLS, provides documentation of the
+API, and will include any new features for the task. It is provided as a
+shared library in case it is useful to other projects as well, and is also made
+source compatible with radiusclient-ng and freeradius-client.
+</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"></span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
