@@ -75,3 +75,10 @@ See tests/ and .travis.yml for the existing test suite.
 
 Please use the issue tracker at:
 https://github.com/radcli/radcli/issues
+
+
+7. Web Site
+-----------
+
+The web site http://radcli.github.io/radcli is the primary web-site for
+radcli and is auto-generated via the 'make web' rule.
