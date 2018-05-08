@@ -61,8 +61,7 @@ clean:
 	touch $@
 
 html.upload: .html.stamp
-	-git branch -D tmp-web-pages
-	-git branch -D gh-pages
+	-git branch -D tmp-web-pages gh-pages
 	git checkout -b tmp-web-pages
 	git add -f html
 	git commit -n -sm "auto-generated web-pages" html
@@ -74,4 +73,4 @@ dist-hook: compare-exported abi-check
 
 CLEANFILES = *~
 
-.PHONY: web html.upload
+.PHONY: web html.upload .html.stamp
