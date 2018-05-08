@@ -44,6 +44,10 @@ abi-check:
 	fi
 	@rm -f $(TMPFILE)
 
+abi-dump:
+	@echo "Saving radcli ABI"
+	abi-dumper $(builddir)/lib/.libs/libradcli.so -o "$(srcdir)/devel/ABI-$$(uname -m).dump"
+
 web: html.upload
 
 clean:
