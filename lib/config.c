@@ -118,7 +118,6 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 
 	serv = (SERVER *) option->val;
 	if (serv == NULL) {
-		DEBUG(LOG_ERR, "option->val / server is NULL, allocating memory");
 		serv = calloc(1, sizeof(*serv));
 		if (serv == NULL) {
 			rc_log(LOG_CRIT, "read_config: out of memory");
