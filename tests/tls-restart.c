@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <radcli/radcli.h>
 #include <common.h>
@@ -158,7 +159,10 @@ int process(void *rh, VALUE_PAIR * send, int acct, int nas_port)
 
 	fd = rc_tls_fd(rh);
 	if (fd >= 0) {
-		dup(fd);
+		if (dup(fd) == -1) {
+			fprintf(stderr, "tls-restart: dup failed %s", strerror(errno));
+			return 1; 
+		}
 		close(fd);
 	}
 
