@@ -240,7 +240,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			dval->next = rh->dictionary_values;
 			rh->dictionary_values = dval;
 		}
-		else if ((pfilename != NULL) && 
+		else if ((filename != NULL) && 
 				(strncmp (buffer, "$INCLUDE", 8) == 0))
 		{
 			/* Read the $INCLUDE line */
