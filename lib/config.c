@@ -1105,11 +1105,10 @@ static int _initialized = 0;
 rc_handle *rc_new(void)
 {
 	rc_handle *rh;
-	int ret;
 
 	if (_initialized == 0) {
-		srandom((unsigned int)(time(NULL)+getpid()));
 #if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x030300
+		int ret;
 		ret = gnutls_global_init();
 		if (ret < 0) {
 			rc_log(LOG_ERR,
@@ -1118,6 +1117,7 @@ rc_handle *rc_new(void)
 			return NULL;
 		}
 #endif
+		srandom((unsigned int)(time(NULL)+getpid()));
 	}
 	_initialized++;
 

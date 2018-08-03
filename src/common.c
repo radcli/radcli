@@ -84,7 +84,9 @@ char *rc_getstr (rc_handle *rh, char const *prompt, int do_echo)
 		}
 	}
 
-	(void)write(out, prompt, strlen(prompt));
+	if (write(out, prompt, strlen(prompt)) == -1) {
+		rc_log(LOG_ERR, "rc_getstr: prompt string write to stdout failed");
+	}
 
 	/* well, this looks ugly, but it handles the following end of line
 	   markers: \r \r\0 \r\n \n \n\r, at least at a second pass */
@@ -107,15 +109,24 @@ char *rc_getstr (rc_handle *rh, char const *prompt, int do_echo)
 
 		if (p < buf + GETSTR_LENGTH)
 		{
-			if (do_echo && !is_term)
-				(void)write(out, &c, 1);
+			if (do_echo && !is_term) {
+				if (write(out, &c, 1) == -1) {
+					rc_log(LOG_ERR, "rc_getstr: user string write to stdout"
+					       " failed");
+				}
+			}
 			*p++ = c;
 		}
 	}
 
 	*p = '\0';
 
-	if (!do_echo || !is_term) (void)write(out, "\r\n", 2);
+	if (!do_echo || !is_term) {
+		if (write(out, "\r\n", 2) < 2) {
+			rc_log(LOG_ERR, "rc_getstr: Escape sequences write to stdout"
+			       " failed");
+		}
+	} 
 
 	if (is_term)
 		tcsetattr (in, TCSAFLUSH, &term_old);
