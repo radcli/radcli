@@ -42,7 +42,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 	char            attrstr[AUTH_ID_LEN];
 	char            typestr[AUTH_ID_LEN];
 	char            optstr[AUTH_ID_LEN];
-	char            *cp, *ifilename;
+	char            ifilename[PATH_MAX] = {0};
+	char            *cp;
 	int             line_no;
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
@@ -265,14 +266,13 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 				fclose(dictfd);
 				return -1;
 			}
-			ifilename = namestr;
+			strncpy(ifilename, namestr, sizeof(ifilename));
 			/* Append directory if necessary */
 			if (namestr[0] != '/') {
 				cp = strrchr(filename, '/');
 				if (cp != NULL) {
-					ifilename = alloca(AUTH_ID_LEN);
 					*cp = '\0';
-					snprintf(ifilename, AUTH_ID_LEN, "%s/%s", filename, namestr);
+					snprintf(ifilename, sizeof(ifilename), "%s/%s", filename, namestr);
 					*cp = '/';
 				}
 			}
