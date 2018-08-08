@@ -24,18 +24,18 @@
 #include <radcli/radcli.h>
 #include "util.h"
 
-/** Initialize the dictionary
+/** Parse the input dictionary-config and initialize the dictionary.
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
  * Read all VALUES into the dictionary_values list.
  *
- * @param rh a handle to parsed configuration.
+ * @param rh       a handle to parsed configuration.
+ * @param dictfd   a handle to the dictionary config.
  * @param filename the name of the dictionary file.
  * @return 0 on success, -1 on failure.
  */
-int rc_read_dictionary (rc_handle *rh, char const *filename)
+static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 {
-	FILE           *dictfd;
 	char            dummystr[AUTH_ID_LEN];
 	char            namestr[AUTH_ID_LEN];
 	char            valstr[AUTH_ID_LEN];
@@ -44,7 +44,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 	char            optstr[AUTH_ID_LEN];
 	char            ifilename[PATH_MAX] = {0};
 	char            *cp;
-	int             line_no;
+	int             line_no = 0;
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
 	DICT_VENDOR    *dvend;
@@ -52,18 +52,13 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 	int             value;
 	int             type;
 	unsigned attr_vendorspec = 0;
+	const char *pfilename = filename;
 
-	if (rh->first_dict_read != NULL && strcmp(filename, rh->first_dict_read) == 0)
-		return 0;
-
-	if ((dictfd = fopen (filename, "r")) == NULL)
+	if (pfilename == NULL) 
 	{
-		rc_log(LOG_ERR, "rc_read_dictionary couldn't open dictionary %s: %s",
-				filename, strerror(errno));
-		return -1;
-	}
+		pfilename = "memory";
+	}        
 
-	line_no = 0;
 	while (fgets (buffer, sizeof (buffer), dictfd) != NULL)
 	{
 		line_no++;
@@ -87,11 +82,11 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			optstr[0] = '\0';
 			/* Read the ATTRIBUTE line */
 			if (sscanf (buffer, "%63s%63s%63s%63s%63s", dummystr, namestr,
-				    valstr, typestr, optstr) < 4)
+				valstr, typestr, optstr) < 4)
 			{
-				rc_log(LOG_ERR, "rc_read_dictionary: invalid attribute on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+				rc_log(LOG_ERR, 
+					"rc_dict_init: invalid attribute on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
@@ -100,18 +95,17 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			 */
 			if (strlen (namestr) > NAME_LENGTH)
 			{
-				rc_log(LOG_ERR, "rc_read_dictionary: invalid name length on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+				rc_log(LOG_ERR, 
+					"rc_dict_init: invalid name length on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
 			if (!isdigit (*valstr))
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid value on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid value on line %d of dictionary %s",
+					line_no, pfilename);
 				return -1;
 			}
 			value = atoi (valstr);
@@ -147,9 +141,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			else
 			{
 				rc_log(LOG_ERR,
-				  "rc_read_dictionary: invalid type on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid type on line %d of dictionary %s",
+					line_no, pfilename);
 				return -1;
 			}
 
@@ -167,9 +160,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 					dvend = rc_dict_findvend(rh, cp1);
 					if (dvend == NULL) {
 						rc_log(LOG_ERR,
-						 "rc_read_dictionary: unknown Vendor-Id %s on line %d of dictionary %s",
-							 cp1, line_no, filename);
-						fclose(dictfd);
+							"rc_dict_init: unknown Vendor-Id %s on line %d of "
+							"dictionary %s", cp1, line_no, pfilename);
 						return -1;
 					}
 				}
@@ -178,8 +170,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			/* Create a new attribute for the list */
 			if ((attr = malloc (sizeof (DICT_ATTR))) == NULL)
 			{
-				rc_log(LOG_CRIT, "rc_read_dictionary: out of memory");
-				fclose(dictfd);
+				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
 			strcpy (attr->name, namestr);
@@ -203,9 +194,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 				    namestr, valstr) != 4)
 			{
 				rc_log(LOG_ERR,
-			   "rc_read_dictionary: invalid value entry on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid value entry on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
@@ -215,27 +205,24 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			if (strlen (attrstr) > NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
-		      "rc_read_dictionary: invalid attribute length on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid attribute length on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
 			if (strlen (namestr) > NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
-			   "rc_read_dictionary: invalid name length on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid name length on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
 			if (!isdigit (*valstr))
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid value on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid value on line %d of dictionary %s",
+					line_no, pfilename);
 				return -1;
 			}
 			value = atoi (valstr);
@@ -243,8 +230,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			/* Create a new VALUE entry for the list */
 			if ((dval = malloc (sizeof (DICT_VALUE))) == NULL)
 			{
-				rc_log(LOG_CRIT, "rc_read_dictionary: out of memory");
-				fclose(dictfd);
+				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
 			strcpy (dval->attrname, attrstr);
@@ -255,15 +241,15 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			dval->next = rh->dictionary_values;
 			rh->dictionary_values = dval;
 		}
-		else if (strncmp (buffer, "$INCLUDE", 8) == 0)
+		else if ((filename != NULL) && 
+				(strncmp (buffer, "$INCLUDE", 8) == 0))
 		{
 			/* Read the $INCLUDE line */
 			if (sscanf (buffer, "%63s%63s", dummystr, namestr) != 2)
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid include entry on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid include entry on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 			strncpy(ifilename, namestr, sizeof(ifilename));
@@ -278,7 +264,6 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			}
 			if (rc_read_dictionary(rh, ifilename) < 0)
 			{
-				fclose(dictfd);
 				return -1;
 			}
 		}
@@ -293,18 +278,16 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			if (sscanf (buffer+12, "%63s", dummystr) != 1)
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid Vendor-Id on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid Vendor-Id on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
 			v = rc_dict_findvend(rh, dummystr);
 			if (v == NULL) {
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: unknown Vendor %s on line %d of dictionary %s",
-					 dummystr, line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: unknown Vendor %s on line %d of "
+					"dictionary %s", dummystr, line_no, pfilename);
 				return -1;
 			}
 
@@ -316,9 +299,8 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			if (sscanf (buffer, "%63s%63s%63s", dummystr, attrstr, valstr) != 3)
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid Vendor-Id on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid Vendor-Id on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
@@ -326,18 +308,16 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			if (strlen (attrstr) > NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid attribute length on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid attribute length on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 
 			if (!isdigit (*valstr))
 			{
 				rc_log(LOG_ERR,
-				 "rc_read_dictionary: invalid Vendor-Id on line %d of dictionary %s",
-					 line_no, filename);
-				fclose(dictfd);
+					"rc_dict_init: invalid Vendor-Id on line %d of "
+					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
 			value = atoi (valstr);
@@ -346,8 +326,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			dvend = malloc(sizeof(DICT_VENDOR));
 			if (dvend == NULL)
 			{
-				rc_log(LOG_CRIT, "rc_read_dictionary: out of memory");
-				fclose(dictfd);
+				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
 			strcpy (dvend->vendorname, attrstr);
@@ -358,12 +337,70 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 			rh->dictionary_vendors = dvend;
 		}
 	}
+	return 0;
+}
+
+/** Initialize the dictionary
+ *
+ * Read all ATTRIBUTES into the dictionary_attributes list.
+ * Read all VALUES into the dictionary_values list.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param filename the name of the dictionary file.
+ * @return 0 on success, -1 on failure.
+ */
+int rc_read_dictionary (rc_handle *rh, char const *filename)
+{
+	FILE    *dictfd;
+	int     ret_val = 0;
+
+	if (rh->first_dict_read != NULL && strcmp(filename, rh->first_dict_read) == 0)
+		return 0;
+
+	if ((dictfd = fopen (filename, "r")) == NULL)
+	{
+		rc_log(LOG_ERR, "rc_read_dictionary couldn't open dictionary %s: %s",
+				filename, strerror(errno));
+		return -1;
+	}
+
+	ret_val = rc_dict_init(rh, dictfd, filename);
+
 	fclose (dictfd);
 
 	if (rh->first_dict_read == NULL)
 		rh->first_dict_read = strdup(filename);
 
-	return 0;
+	return ret_val;
+}
+
+/** Initialize the dictionary from Buffer
+ *
+ * Read all ATTRIBUTES into the dictionary_attributes list.
+ * Read all VALUES into the dictionary_values list.
+ *
+ * @param rh   a handle to parsed configuration.
+ * @param buf  buffer holding Dictionary info
+ * @param size size of buffer
+ * @return 0 on success, -1 on failure.
+ */
+int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size)
+{
+	FILE      *dictfd;
+	int       ret_val = 0;
+
+	if ((dictfd = fmemopen ((void *)buf, size, "r")) == NULL)
+	{
+		rc_log(LOG_ERR, "rc_read_dictionary_from_buffer failed to read "
+				"input buffer %s", strerror(errno));
+		return -1;
+	}
+
+	ret_val = rc_dict_init(rh, dictfd, NULL);
+
+	fclose (dictfd);
+
+	return ret_val;
 }
 
 /** Lookup a DICT_ATTR by attribute number

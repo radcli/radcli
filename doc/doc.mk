@@ -54,6 +54,7 @@ APIMANS += man/rc_openlog.3
 APIMANS += man/rc_own_hostname.3
 APIMANS += man/rc_read_config.3
 APIMANS += man/rc_read_dictionary.3
+APIMANS += man/rc_read_dictionary_from_buffer.3
 APIMANS += man/rc_send_server.3
 APIMANS += man/rc_setdebug.3
 APIMANS += man/rc_test_config.3
