@@ -41,6 +41,7 @@ RADCLI_@LIBMAJOR@
 	rc_destroy;
 	rc_get_socket_type;
 	rc_read_dictionary;
+	rc_read_dictionary_from_buffer;
 	rc_dict_getattr;
 	rc_dict_findattr;
 	rc_dict_findval;

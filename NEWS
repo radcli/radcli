@@ -1,5 +1,7 @@
 * Version 1.2.11 (unreleased)
-
+- rc_read_dictionary_from_buffer: introduced new function; this
+  is required to load dictionary attributes from string buffer
+  (#24)
 
 * Version 1.2.10 (released 2018-05-08)
 - rc_send_server_ctx: addressed unaligned access issue on certain
