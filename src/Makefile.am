@@ -20,7 +20,7 @@ CLEANFILES = *~
 noinst_LIBRARIES = libtools.a
 libtools_a_SOURCES = common.c common.h
 
-noinst_PROGRAMS = radstatus radacct radexample radiusclient radembedded
+noinst_PROGRAMS = radstatus radacct radexample radiusclient radembedded radembedded_dict
 radacct_SOURCES = radacct.c
 radstatus_SOURCES = radstatus.c
 
@@ -32,3 +32,5 @@ radiusclient_LDADD = ../lib/libradcli.la libtools.a
 
 
 radembedded_SOURCES = radembedded.c
+
+radembedded_dict_SOURCES = radembedded_dict.c
