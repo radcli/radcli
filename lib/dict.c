@@ -42,7 +42,8 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	char            attrstr[AUTH_ID_LEN];
 	char            typestr[AUTH_ID_LEN];
 	char            optstr[AUTH_ID_LEN];
-	char            *cp, *ifilename;
+	char            ifilename[PATH_MAX] = {0};
+	char            *cp;
 	int             line_no = 0;
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
@@ -251,14 +252,13 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
-			ifilename = namestr;
+			strncpy(ifilename, namestr, sizeof(ifilename));
 			/* Append directory if necessary */
 			if (namestr[0] != '/') {
 				cp = strrchr(filename, '/');
 				if (cp != NULL) {
-					ifilename = alloca(AUTH_ID_LEN);
 					*cp = '\0';
-					snprintf(ifilename, AUTH_ID_LEN, "%s/%s", filename, namestr);
+					snprintf(ifilename, sizeof(ifilename), "%s/%s", filename, namestr);
 					*cp = '/';
 				}
 			}
