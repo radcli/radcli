@@ -25,7 +25,7 @@ script:
   - CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $SCAN_BUILD ./configure --with-tls
   - $SCAN_BUILD make -j $(nproc)
   - if test $CHECK = 1;then
-      NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check &&
+      sudo NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check &&
       touch doc/stamp_mans &&
       make ABI_SKIP=1 dist;
     fi

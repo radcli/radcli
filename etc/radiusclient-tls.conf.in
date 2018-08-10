@@ -57,6 +57,14 @@ bindaddr	*
 # If commented out, the default existing Namespace will be used.                                    
 #namespace   namespace-name
 
+# Support for IPv6 non-temporary address support. This is an IPv6-only option
+# and is valid only when IPv6 Privacy Extensions are enabled in system.
+# If this option is set to "true", the radius packets will be sent with the
+# IPv6 Global address and will not use the temporary adresses. If commented
+# out, temporary IPv6 addresses will be used as source address for the packets
+# sent.
+#use-public-addr	true
+
 # TLS/DTLS settings
 
 # Transport Protocol Support

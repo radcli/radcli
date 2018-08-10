@@ -2,6 +2,10 @@
 - rc_read_dictionary_from_buffer: introduced new function; this
   is required to load dictionary attributes from string buffer
   (#24)
+- Added non-temporary IPv6 address support (#23). This enables
+  radcli to use Global IPv6 address instead of temporary IPv6
+  address as source address for packets sent out when IPv6 
+  Privacy Extensions are enabled in system.
 
 * Version 1.2.10 (released 2018-05-08)
 - rc_send_server_ctx: addressed unaligned access issue on certain
