@@ -1,5 +1,6 @@
 FROM fedora:21
 
+RUN yum install -y yum-plugin-ovl
 RUN yum install -y openssh-server
 RUN yum install -y freeradius
 RUN sed 's/PermitRootLogin without-password/PermitRootLogin yes/g' -i /etc/ssh/sshd_config

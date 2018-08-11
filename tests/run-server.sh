@@ -100,6 +100,11 @@ if test -z "$IP";then
 	echo "Detected IP is null!"
 	stop
 fi
-echo "$IP"
+
+serv_ip=$( echo $IP | cut -d' ' -f1 )
+
+echo ""
+echo "Server IP = $serv_ip"
+echo "Command to run the tests => \"SERVER_IP=$serv_ip SERVER_IP6=$serv_ip make check\""
 
 exit 0
