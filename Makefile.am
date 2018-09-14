@@ -29,24 +29,15 @@ compare-exported: include/radcli/radcli.h
 	diff -u tmp-exp-$@ tmp-head-$@
 	rm -f tmp-exp-$@ tmp-head-$@
 
-TMPFILE="abi-temp.xml"
-
 abi-check:
-	@rm -f $(TMPFILE)
 	@echo "Checking radcli ABI"
-	@echo "<version>$(VERSION)</version>" >$(TMPFILE)
-	@echo "<headers>$(srcdir)/include/radcli/" >>$(TMPFILE)
-	@echo "$(srcdir)/include/freeradius-client.h" >>$(TMPFILE)
-	@echo "$(srcdir)/include/radiusclient-ng.h</headers>" >>$(TMPFILE)
-	@echo "<libs>$(builddir)/lib/.libs</libs>" >>$(TMPFILE)
 	if test -f "$(srcdir)/devel/ABI-$$(uname -m).dump" && test "$(ABI_SKIP)" != 1; then \
-		abi-compliance-checker -abi -lib radcli -old "$(srcdir)/devel/ABI-$$(uname -m).dump" -new $(TMPFILE); \
+		abidiff --no-added-syms --hd2 $(srcdir)/include/radcli/ $(builddir)/lib/.libs/libradcli.so devel/ABI-x86_64.dump; \
 	fi
-	@rm -f $(TMPFILE)
 
 abi-dump:
 	@echo "Saving radcli ABI"
-	abi-dumper $(builddir)/lib/.libs/libradcli.so -o "$(srcdir)/devel/ABI-$$(uname -m).dump"
+	abidw $(builddir)/lib/.libs/libradcli.so --out-file "$(srcdir)/devel/ABI-$$(uname -m).dump"
 
 web: html.upload
 
