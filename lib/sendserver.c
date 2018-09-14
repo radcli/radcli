@@ -25,6 +25,11 @@
 # include <gnutls/crypto.h>
 #endif
 
+#if defined(__linux__)
+#include <linux/in6.h>
+#endif
+
+
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
 static void rc_random_vector(unsigned char *);
@@ -553,6 +558,35 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			       strerror(errno));
 			result = ERROR_RC;
 			goto cleanup;
+		}
+	}
+
+	if(our_sockaddr.ss_family  == AF_INET6) {
+		/* Check for IPv6 non-temporary address support */
+		char *non_temp_addr = rc_conf_str(rh, "use-public-addr");
+		if (non_temp_addr && (strcasecmp(non_temp_addr, "true") == 0)) {
+#if defined(__linux__)
+			int sock_opt = IPV6_PREFER_SRC_PUBLIC;
+			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES, 
+					&sock_opt, sizeof(sock_opt)) != 0) {
+				rc_log(LOG_ERR, "rc_send_server: setsockopt: %s", 
+					strerror(errno));
+				result = ERROR_RC;
+				goto cleanup;
+			}
+#elif defined(BSD) || defined(__APPLE__)
+			int sock_opt = 0;
+			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
+				&sock_opt, sizeof(sock_opt)) != 0) {
+				rc_log(LOG_ERR, "rc_send_server: setsockopt: %s", 
+					strerror(errno));
+				result = ERROR_RC;
+				goto cleanup;
+			}
+#else
+			rc_log(LOG_INFO, "rc_send_server: Usage of non-temporary IPv6"
+					" address is not supported in this system");
+#endif       
 		}
 	}
 
