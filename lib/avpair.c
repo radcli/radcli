@@ -921,10 +921,14 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 
 		break;
 		}
-		case PW_TYPE_DATE:
-		strftime (value, lv, "%m/%d/%y %H:%M:%S",
-			  gmtime ((time_t *) & pair->lvalue));
+		case PW_TYPE_DATE: {
+			struct tm *ptm = gmtime((time_t *) & pair->lvalue);
+			if (ptm == NULL)
+				return -1;
+
+			strftime (value, lv, "%m/%d/%y %H:%M:%S", ptm);
 		break;
+		}
 
 		default:
 		rc_log(LOG_ERR, "rc_avpair_tostr: unknown attribute type %d", pair->type);
