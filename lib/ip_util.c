@@ -131,9 +131,11 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 	}
 
 	if (connect(temp_sock, ria, SA_LEN(ria)) != 0) {
+		int e = errno; // Preserve connect's errno
 		rc_log(LOG_ERR, "rc_get_srcaddr: connect: %s",
 		    strerror(errno));
 		close(temp_sock);
+		errno = e;     // Make connect's errno available to caller
 		return -1;
 	}
 
