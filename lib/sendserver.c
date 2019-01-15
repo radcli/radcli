@@ -541,8 +541,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	      server_name);
 	if (discover_local_ip) {
 		result = rc_get_srcaddr(SA(&our_sockaddr), auth_addr->ai_addr);
-		if (result != 0) {
-			result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
+		if (result != OK_RC) {
 			memset(secret, '\0', sizeof(secret));
 			rc_log(LOG_ERR,
 			       "rc_send_server: cannot figure our own address");

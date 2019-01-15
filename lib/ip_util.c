@@ -115,9 +115,11 @@ int rc_own_hostname(char *hostname, int len)
  * Given remote address find local address which the system will use as a source address for sending
  * datagrams to that remote address.
  *
- * @param lia local address.
- * @param ria the remove address.
- * @return 0 in success, -1 on failure, address is filled into the first argument.
+ * @param[out] lia local address.
+ * @param[in]  ria the remote address.
+ * @return OK_RC on success. NETUNREACH_RC if network is unreachable (i.e.
+ *         no route to destination). ERROR_RC for all other failures.
+ *         Address is filled into the first argument.
  */
 int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 {
@@ -127,16 +129,15 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 	temp_sock = socket(ria->sa_family, SOCK_DGRAM, 0);
 	if (temp_sock == -1) {
 		rc_log(LOG_ERR, "rc_get_srcaddr: socket: %s", strerror(errno));
-		return -1;
+		return ERROR_RC;
 	}
 
 	if (connect(temp_sock, ria, SA_LEN(ria)) != 0) {
-		int e = errno; // Preserve connect's errno
+		int rc = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
 		rc_log(LOG_ERR, "rc_get_srcaddr: connect: %s",
 		    strerror(errno));
 		close(temp_sock);
-		errno = e;     // Make connect's errno available to caller
-		return -1;
+		return rc;
 	}
 
 	namelen = SA_LEN(ria);
@@ -144,11 +145,11 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 		rc_log(LOG_ERR, "rc_get_srcaddr: getsockname: %s",
 		    strerror(errno));
 		close(temp_sock);
-		return -1;
+		return ERROR_RC;
 	}
 
 	close(temp_sock);
-	return 0;
+	return OK_RC;
 }
 
 /** Find our source address
