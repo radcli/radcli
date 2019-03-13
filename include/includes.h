@@ -194,6 +194,9 @@ struct rc_conf
 	struct sockaddr_storage	own_bind_addr;
 	unsigned		own_bind_addr_set;
 
+	struct sockaddr_storage	own_bind_addr6;
+	unsigned		own_bind_addr6_set;
+
 	 /* we keep a copy of the filename to avoid re-reading a dictionary,
 	  * for applications relying on the old API which required explicit
 	  * load of it. */

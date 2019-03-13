@@ -149,6 +149,55 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 	return 0;
 }
 
+/** Parse bindaddr config parameter to retrieve the source address
+ *
+ * bindaddr parameter in config file can have values: * or <ipv4>,<ipv6>
+ *   "192.168.11.11,2001::2" or "*,2001::2" or "192.168.11.11,*" or "*" or "192.168.11.11"
+ *   * - means the IP packet can have any outbound interface IP. 
+ *
+ * @param bindaddr_str bindaddr parameter from config file.
+ * @param srctxtaddr out paramter which will have IPv4 or IPv6 source address
+ * @param addr_type AF family type to be retrieved.
+ */
+void rc_get_source_ip(char *bindaddr_str, char *srctxtaddr, unsigned short addr_type)
+{
+	char *p_save;
+	char *p_ptr = NULL;
+
+	if (bindaddr_str == NULL)
+	{
+		rc_log(LOG_ERR, "bind address is null");
+		return;
+	}
+
+	char *p_bindaddr = strdup(bindaddr_str);
+	if (addr_type == AF_INET)
+	{
+		p_ptr = strtok_r(p_bindaddr, "," ,&p_save);
+		if (p_ptr != NULL)
+		{
+			rc_log(LOG_DEBUG, "%s: return address %s", __FUNCTION__, p_ptr);
+			strcpy(srctxtaddr, p_ptr);
+		}
+	}
+
+	if (addr_type == AF_INET6)
+	{
+		char *pch = strrchr(p_bindaddr, ',');
+		if (pch != NULL)
+		{
+			rc_log(LOG_DEBUG, "%s : inet6 string %s ", __FUNCTION__, pch);
+			strcpy(srctxtaddr, pch+1);
+		}
+	}
+
+	if (p_bindaddr != NULL)
+	{
+		free(p_bindaddr);
+		p_bindaddr = NULL;
+	}
+}
+
 /** Find our source address
  *
  * Get the IP address to be used as a source address
@@ -160,13 +209,16 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
  **/
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 {
-	char *txtaddr = rc_conf_str(rh, "bindaddr");
+	char *bindaddr_str = rc_conf_str(rh, "bindaddr");
 	struct addrinfo *info;
 
 	if (rh->own_bind_addr_set) {
 		memcpy(lia, &rh->own_bind_addr, SS_LEN(&rh->own_bind_addr));
 		return;
 	}
+
+	char txtaddr[strlen(bindaddr_str)];
+	rc_get_source_ip(bindaddr_str, txtaddr, AF_INET);
 
 	memset(lia, 0, sizeof(*lia));
 	if (txtaddr == NULL || txtaddr[0] == '*') {
@@ -178,6 +230,47 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 			rc_log(LOG_ERR, "rc_own_ipaddress: couldn't get IP address from bindaddr");
 			((struct sockaddr_in*)lia)->sin_family = AF_INET;
 			((struct sockaddr_in*)lia)->sin_addr.s_addr = INADDR_ANY;
+			return;
+		}
+
+		memcpy(lia, info->ai_addr, info->ai_addrlen);
+       }
+
+       return;
+}
+
+/** Find our IPv6 source address
+ *
+ * Get the IPv6 address to be used as a source address
+ * for sending requests in host order.
+ *
+ * @param rh a handle to parsed configuration
+ * @param lia the local address to listen to
+ *
+ **/
+void rc_own_bind_addr6(rc_handle *rh, struct sockaddr_storage *lia)
+{
+	char *bindaddr_str = rc_conf_str(rh, "bindaddr");
+	struct addrinfo *info;
+
+	if (rh->own_bind_addr6_set) {
+		memcpy(lia, &rh->own_bind_addr6, SS_LEN(&rh->own_bind_addr6));
+		return;
+	}
+
+	char txtaddr[strlen(bindaddr_str)];
+	rc_get_source_ip(bindaddr_str, txtaddr, AF_INET6);
+
+	memset(lia, 0, sizeof(*lia));
+	if (txtaddr == NULL || txtaddr[0] == '*') {
+		((struct sockaddr_in6*)lia)->sin6_family = AF_INET6;
+		((struct sockaddr_in6*)lia)->sin6_addr = in6addr_any;
+	} else {
+		info = rc_getaddrinfo (txtaddr, PW_AI_PASSIVE);
+		if (info == NULL) {
+			rc_log(LOG_ERR, "rc_own_ipaddress6: couldn't get IP address from bindaddr_v6");
+			((struct sockaddr_in6*)lia)->sin6_family = AF_INET6;
+			((struct sockaddr_in6*)lia)->sin6_addr = in6addr_any;
 			return;
 		}
 

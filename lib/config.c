@@ -518,6 +518,11 @@ int rc_apply_config(rc_handle *rh)
 	rc_own_bind_addr(rh, &rh->own_bind_addr);
 	rh->own_bind_addr_set = 1;
 
+	memset(&rh->own_bind_addr6, 0, sizeof(rh->own_bind_addr6));
+	rh->own_bind_addr6_set = 0;
+	rc_own_bind_addr6(rh, &rh->own_bind_addr6);
+	rh->own_bind_addr6_set = 1;
+
 	txt = rc_conf_str(rh, "nas-ip");
 	if (txt != NULL) {
 		if (set_addr(&rh->nas_addr, txt) < 0)
