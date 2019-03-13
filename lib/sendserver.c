@@ -528,7 +528,12 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		}
 	}
 
-	rc_own_bind_addr(rh, &our_sockaddr);
+	if (auth_addr->ai_family == AF_INET6) {
+		rc_own_bind_addr6(rh, &our_sockaddr);
+	}
+	else {
+		rc_own_bind_addr(rh, &our_sockaddr);
+	}
 	discover_local_ip = 0;
 	if (our_sockaddr.ss_family == AF_INET) {
 		if (((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr ==

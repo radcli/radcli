@@ -186,4 +186,37 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 
        return;
 }
+
+/** Find our IPv6 source address
+ *
+ * Get the IPv6 address to be used as a source address
+ * for sending requests in host order.
+ *
+ * @param rh a handle to parsed configuration
+ * @param lia the local address to listen to
+ *
+ **/
+void rc_own_bind_addr6(rc_handle *rh, struct sockaddr_storage *lia)
+{
+	char *txtaddr = rc_conf_str(rh, "bindaddr_v6");
+	struct addrinfo *info;
+
+	memset(lia, 0, sizeof(*lia));
+	if (txtaddr == NULL || txtaddr[0] == '*') {
+		((struct sockaddr_in6*)lia)->sin6_family = AF_INET6;
+		((struct sockaddr_in6*)lia)->sin6_addr = in6addr_any;
+	} else {
+		info = rc_getaddrinfo (txtaddr, PW_AI_PASSIVE);
+		if (info == NULL) {
+			rc_log(LOG_ERR, "rc_own_ipaddress6: couldn't get IP address from bindaddr_v6");
+			((struct sockaddr_in6*)lia)->sin6_family = AF_INET6;
+			((struct sockaddr_in6*)lia)->sin6_addr = in6addr_any;
+			return;
+		}
+
+		memcpy(lia, info->ai_addr, info->ai_addrlen);
+       }
+
+       return;
+}
 /** @} */
