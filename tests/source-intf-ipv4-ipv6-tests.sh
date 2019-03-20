@@ -64,7 +64,6 @@ if test -z "$SERVER_IP";then
 	exit 77
 fi
 
-
 case $SERVER_IP in
 	"127"* ) BIND_ADDR=* ;;
 	* ) BIND_ADDR=`echo $SERVER_IP | awk -F. '{$4--}{gsub(OFS,".")}1'` ;;
