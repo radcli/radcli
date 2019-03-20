@@ -64,8 +64,13 @@ if test -z "$SERVER_IP";then
 	exit 77
 fi
 
-BIND_ADDR=`echo $SERVER_IP | awk -F. '{$4--}{gsub(OFS,".")}1'`
-echo $BIND_ADDR
+
+case $SERVER_IP in
+	"127"* ) BIND_ADDR=* ;;
+	* ) BIND_ADDR=`echo $SERVER_IP | awk -F. '{$4--}{gsub(OFS,".")}1'` ;;
+esac
+
+echo "${BIND_ADDR}"
 
 create_conffile() {
 	if test -f "${CONF_FILE}"; then
@@ -137,7 +142,6 @@ auth() {
         tests=$*
         echo ""
         echo "********************************************************************************"
-        printf "Testing bindaddr : \"${bindaddr}\" \n"
 
 	create_conffile "${bindaddr}"
 
@@ -167,7 +171,6 @@ auth "*,2001::2" check_frameprot check_frameip check_frameroute check_request_in
 
 echo " Test #4:"
 auth "*" check_frameprot check_frameip check_frameroute check_request_info
-
 
 rm -f ${CONF_FILE} ${TMPFILE}
 
