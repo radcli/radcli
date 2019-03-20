@@ -168,7 +168,6 @@ auth "*,2001::2" check_frameprot check_frameip check_frameroute check_request_in
 echo " Test #4:"
 auth "*" check_frameprot check_frameip check_frameroute check_request_info
 
-
 rm -f ${CONF_FILE} ${TMPFILE}
 
 exit 0

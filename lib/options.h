@@ -48,6 +48,7 @@ static OPTION config_options_default[] = {
 {"radius_timeout",	OT_INT, ST_UNDEF, NULL},
 {"radius_retries",	OT_INT,	ST_UNDEF, NULL},
 {"radius_deadtime",	OT_INT, ST_UNDEF, NULL},
+{"bindaddr_v6",		OT_STR, ST_UNDEF, NULL},
 {"bindaddr",		OT_STR, ST_UNDEF, NULL},
 {"clientdebug",		OT_INT, ST_UNDEF, NULL},
 /* Deprecated options */

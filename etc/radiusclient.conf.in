@@ -52,6 +52,9 @@ radius_retries	3
 # local address from which radius packets have to be sent
 bindaddr	*
 
+# local IPv6 address from which radius packets have to be sent
+bindaddr_v6	*
+
 # Transport Protocol Support
 # Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
 # If commented out, udp will be used.
