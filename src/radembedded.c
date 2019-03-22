@@ -7,6 +7,11 @@
 #include <sys/types.h>
 #include <syslog.h>
 #include <radcli/radcli.h>
+#include <string.h>
+
+#define AUTH_PORT_PASSWORD ":1812:testing123"
+#define ACCT_PORT_PASSWORD ":1813:testing123"
+#define SERVER_ADDR "localhost"
 
 int
 main (int argc, char **argv)
@@ -25,6 +30,20 @@ main (int argc, char **argv)
 	char		callfrom[255] = "8475551212";
 	char		callto[255] = "8479630116";
 	char		myuuid[255] = "981743-asdf-90834klj234";
+	char		auth_server_ip[255] = {0};
+	char		acct_server_ip[255] = {0};
+	char		*server_ip;
+
+	if(argc > 2)
+	{
+		fprintf(stderr, "ERROR: Invalid number of arguments.\n");
+		exit(1);
+	}
+
+	if (argc == 2)
+		server_ip = argv[1];
+	else
+		server_ip = NULL;
 
 	/* Initialize the 'rh' structure */
 
@@ -74,14 +93,26 @@ main (int argc, char **argv)
 	 * entry to specify the location of the 'servers' file which stores the secrets to
 	 * be used.
 	 */
-	if (rc_add_config(rh, "authserver", "localhost::testing123", "config", 0) != 0)
+	/* If the IP Address is provided via Command-line, take it for processing. Else,
+	 * use localhost as default.
+	 */
+
+	if(server_ip == NULL)
+		server_ip = SERVER_ADDR;
+
+	snprintf(auth_server_ip, sizeof(auth_server_ip), "%s%s", server_ip,
+		 AUTH_PORT_PASSWORD);
+	snprintf(acct_server_ip, sizeof(acct_server_ip), "%s%s", server_ip,
+		 ACCT_PORT_PASSWORD);
+
+	if (rc_add_config(rh, "authserver", auth_server_ip, "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set authserver.\n");
 		rc_destroy(rh);
 		exit(1);
 	}
 
-	if (rc_add_config(rh, "acctserver", "localhost:1813:testing123", "config", 0) != 0)
+	if (rc_add_config(rh, "acctserver", acct_server_ip, "config", 0) != 0)
 	{
 		printf("ERROR: Unable to set acctserver.\n");
 		rc_destroy(rh);

@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <syslog.h>
 #include <radcli/radcli.h>
+#include <string.h>
 
 int
 main (int argc, char **argv)
@@ -21,6 +22,9 @@ main (int argc, char **argv)
 	char		callfrom[255] = "8475551212";
 	char		callto[255] = "8479630116";
 	char		myuuid[255] = "981743-asdf-90834klj234";
+	char		auth_server_ip[255] = {0};                                                          
+	char		acct_server_ip[255] = {0};                                                          
+                                                               
 	char		dict_buffer[] = 
 		"ATTRIBUTE	User-Name		1	string\n"
 		"ATTRIBUTE	Password		2	string\n"
@@ -121,6 +125,12 @@ main (int argc, char **argv)
 		"ATTRIBUTE	Error-Cause		101	integer\n"
 		"ATTRIBUTE	EAP-Key-Name		102	string\n";
 
+	if(argc > 2)
+	{
+		printf("ERROR: Invalid number of arguments.\n");
+		exit(1);
+	}        
+
 	/* Initialize the 'rh' structure */
 
 	rh = rc_new();
@@ -161,14 +171,32 @@ main (int argc, char **argv)
 	 * entry to specify the location of the 'servers' file which stores the secrets to
 	 * be used.
 	 */
-	if (rc_add_config(rh, "authserver", "localhost::testing123", "config", 0) != 0)
-	{
-	    printf("ERROR: Unable to set authserver.\n");
-	    rc_destroy(rh);
-	    exit(1);
+	/* If the IP Address is provided via Command-line, take it for processing. Else,              
+	 * use localhost as default.                                                                    
+	 */                                                                                             
+	if(argc == 2)                                                                                   
+	{                                                                                              
+		snprintf(auth_server_ip, (strlen(argv[1])+strlen(":1812:testing123")+1), "%s%s", argv[1],
+				":1812:testing123");
+		snprintf(acct_server_ip, (strlen(argv[1])+strlen(":1813:testing123")+1), "%s%s", argv[1],
+				":1813:testing123");
+	}                                                                                               
+	else                                                                                            
+	{   
+		snprintf(auth_server_ip, (strlen("localhost:1812:testing123")+1), "%s",
+				"localhost:1812:testing123");
+		snprintf(acct_server_ip, (strlen("localhost:1813:testing123")+1), "%s",
+				"localhost:1813:testing123");
 	}
 
-	if (rc_add_config(rh, "acctserver", "localhost:1813:testing123", "config", 0) != 0)
+	if (rc_add_config(rh, "authserver", auth_server_ip, "config", 0) != 0)                          
+	{                                                                                               
+		printf("ERROR: Unable to set authserver.\n");                                               
+		rc_destroy(rh);                                                                             
+		exit(1);                                                                                    
+	}                                                                                               
+
+	if (rc_add_config(rh, "acctserver", acct_server_ip, "config", 0) != 0)       
 	{
 	    printf("ERROR: Unable to set acctserver.\n");
 	    rc_destroy(rh);
