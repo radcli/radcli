@@ -57,7 +57,7 @@ int rc_reset_netns(int *prev_ns_handle);
 # define rc_log(...)
 #else
 
-# ifdef __GNUC__
+#if defined(__GNUC__) || defined(__SUNPRO_C)
 #  define rc_log(prio, fmt, ...) \
 	syslog(prio, "radcli: %s: "fmt, __func__, ##__VA_ARGS__)
 # else

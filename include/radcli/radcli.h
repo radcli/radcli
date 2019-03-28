@@ -662,11 +662,17 @@ const char *rc_aaa_ctx_get_secret(RC_AAA_CTX *ctx);
 const void *rc_aaa_ctx_get_vector(RC_AAA_CTX *ctx);
 
 /* obsolete functions */
+#if defined(__GNUC__)
 #define _RADCLI_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #if !defined RADCLI_INTERNAL_BUILD
 # if _RADCLI_GCC_VERSION >= 30100
 #  define _RADCLI_GCC_ATTR_DEPRECATED __attribute__ ((__deprecated__))
 # endif
+#endif
+#elif defined(__SUNPRO_C)
+#define _RADCLI_GCC_ATTR_DEPRECATED __attribute__ ((__deprecated__))
+#else
+#define _RADCLI_GCC_ATTR_DEPRECATED
 #endif
 char *rc_mksid(void) _RADCLI_GCC_ATTR_DEPRECATED;
 
