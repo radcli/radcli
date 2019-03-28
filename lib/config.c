@@ -471,14 +471,14 @@ static int plain_tcp_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	return sockfd;
 }
 
-const static rc_sockets_override default_socket_funcs = {
+static const rc_sockets_override default_socket_funcs = {
 	.get_fd = plain_get_fd,
 	.close_fd = plain_close_fd,
 	.sendto = plain_sendto,
 	.recvfrom = plain_recvfrom
 };
 
-const static rc_sockets_override default_tcp_socket_funcs = {
+static const rc_sockets_override default_tcp_socket_funcs = {
 	.get_fd = plain_tcp_get_fd,
 	.close_fd = plain_close_fd,
 	.sendto = plain_tcp_sendto,
