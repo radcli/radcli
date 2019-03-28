@@ -125,7 +125,11 @@ main(int argc, char **argv)
 
     if(debug) {
       rc_setdebug(1);
+#if HAVE_DECL_LOG_PERROR
       openlog("radiusclient", LOG_PERROR|LOG_NDELAY, LOG_LOCAL7);
+#else
+      openlog("radiusclient", LOG_NDELAY, LOG_LOCAL7);
+#endif
     } else {
       openlog("radiusclient", LOG_NDELAY, LOG_AUTH);
     }

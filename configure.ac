@@ -75,7 +75,12 @@ AC_CHECK_HEADERS(signal.h sys/signal.h sys/stat.h)
 AC_CHECK_HEADERS(fcntl.h sys/fcntl.h)
 AC_CHECK_HEADERS(sys/utsname.h getopt.h unistd.h)
 AC_CHECK_HEADERS(sys/file.h termios.h sys/ioctl.h)
-AC_CHECK_HEADERS(netdb.h syslog.h pwd.h)
+AC_CHECK_HEADERS(netdb.h pwd.h)
+AC_CHECK_HEADERS([syslog.h])
+if test "x$ac_cv_header_syslog_h" = "xyes"
+then
+	AC_CHECK_DECLS([LOG_PERROR], [], [], [[#include <syslog.h>]])
+fi
 AC_CHECK_HEADERS(sys/socket.h netinet/in.h arpa/inet.h)
 if test "$shadow_passwords" = "yes"
 then
