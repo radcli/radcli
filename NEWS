@@ -2,6 +2,10 @@
 - Removed duplicate function definition from util.h (#53)
 - Increased size of dictionary vendor and values to 32-bits from 16.
 - Corrected a string termination issue in rc_avpair_tostr()
+- Added functions to create dictionary without a file:
+   - rc_dict_addattr
+   - rc_dict_addval
+   - rc_dict_addvend
 
 
 * Version 1.2.12 (released 2020-09-11)
