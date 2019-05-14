@@ -24,6 +24,126 @@
 #include <radcli/radcli.h>
 #include "util.h"
 
+/** Add attribute to dictionary
+ *
+ * Does not check if such attribute already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param namestr         attribute name
+ * @param type            attribute type
+ * @param value           attribute value
+ * @param vendorspec      vendorspec
+ * @return                added attr on success, NULL on failure
+ */
+DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, int value, int type, unsigned vendorspec)
+{
+	DICT_ATTR *attr;
+
+	if (strlen (namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addattr: invalid attribute length");
+		return NULL;
+	}
+
+	if (type < 0 || type >= PW_TYPE_NUM)
+	{
+		rc_log(LOG_ERR, "rc_dict_addattr: invalid attribute type");
+		return NULL;
+	}
+
+	/* Create a new attribute for the list */
+	if ((attr = malloc(sizeof (DICT_ATTR))) == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_addattr: out of memory");
+		return NULL;
+	}
+	strcpy(attr->name, namestr);
+	attr->value = value | (vendorspec << 16);
+	attr->type = type;
+
+	/* Insert it into the list */
+	attr->next = rh->dictionary_attributes;
+	rh->dictionary_attributes = attr;
+	return attr;
+}
+
+/** Add value to dictionary
+ *
+ * Does not check if such value already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param attrstr         attribute name
+ * @param namestr         name
+ * @param value           attribute value
+ * @return                added value on success, NULL on failure
+ */
+DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * namestr, int value)
+{
+	DICT_VALUE *dval;
+
+	if (strlen(attrstr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addval: invalid attribute length");
+		return NULL;
+	}
+
+	if (strlen(namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addval: invalid name length");
+		return NULL;
+	}
+
+	/* Create a new VALUE entry for the list */
+	if ((dval = malloc(sizeof (DICT_VALUE))) == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_addval: out of memory");
+		return NULL;
+	}
+	strcpy(dval->attrname, attrstr);
+	strcpy(dval->name, namestr);
+	dval->value = value;
+
+	/* Insert it into the list */
+	dval->next = rh->dictionary_values;
+	rh->dictionary_values = dval;
+	return dval;
+}
+
+/** Add vendor to dictionary
+ *
+ * Does not check if such vendor already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param namestr         vendor name
+ * @param value           value
+ * @return                added value on success, NULL on failure
+ */
+DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, int value)
+{
+	DICT_VENDOR *dvend;
+
+	if (strlen(namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addvend: invalid vendor name length");
+		return NULL;
+	}
+
+	/* Create a new VENDOR entry for the list */
+	dvend = malloc(sizeof(DICT_VENDOR));
+	if (dvend == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_init: out of memory");
+		return NULL;
+	}
+	strcpy(dvend->vendorname, namestr);
+	dvend->vendorpec = value;
+
+	/* Insert it into the list */
+	dvend->next = rh->dictionary_vendors;
+	rh->dictionary_vendors = dvend;
+	return dvend;
+}
+
 /** Parse the input dictionary-config and initialize the dictionary.
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
