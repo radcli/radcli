@@ -111,7 +111,8 @@ typedef enum rc_attr_type {
 	PW_TYPE_IPADDR=2,	//!< The attribute is an IPv4 address in host-byte order.
 	PW_TYPE_DATE=3,		//!< The attribute contains a 32-bit number indicating the seconds since epoch.
 	PW_TYPE_IPV6ADDR=4,	//!< The attribute is an 128-bit IPv6 address.
-	PW_TYPE_IPV6PREFIX=5    //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
+	PW_TYPE_IPV6PREFIX=5,    //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
+	PW_TYPE_NUM=6
 } rc_attr_type;
 
 /** \enum rc_standard_codes Standard RADIUS request codes
@@ -623,6 +624,9 @@ rc_socket_type rc_get_socket_type(rc_handle * rh);
 
 int rc_read_dictionary (rc_handle *rh, char const *filename);
 int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size);
+DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, int value, int type, unsigned vendorspec);
+DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * namestr, int value);
+DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * vendorname, int value);
 DICT_ATTR *rc_dict_getattr(rc_handle const *rh, int attribute);
 DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname);
 DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname);
