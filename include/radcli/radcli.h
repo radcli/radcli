@@ -111,7 +111,7 @@ typedef enum rc_attr_type {
 	PW_TYPE_IPADDR=2,	//!< The attribute is an IPv4 address in host-byte order.
 	PW_TYPE_DATE=3,		//!< The attribute contains a 32-bit number indicating the seconds since epoch.
 	PW_TYPE_IPV6ADDR=4,	//!< The attribute is an 128-bit IPv6 address.
-	PW_TYPE_IPV6PREFIX=5,    //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
+	PW_TYPE_IPV6PREFIX=5,   //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
 	PW_TYPE_NUM=6
 } rc_attr_type;
 
