@@ -451,6 +451,7 @@ typedef struct dict_vendor
 /** \enum rc_send_status Return codes for rc_send_server()
  */
 typedef enum rc_send_status {
+	NETUNREACH_RC=-4,
 	BADRESPID_RC=-3,
 	BADRESP_RC=-2,
 	ERROR_RC=-1,
