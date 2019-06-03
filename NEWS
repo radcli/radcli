@@ -1,6 +1,8 @@
 * Version 1.2.12 (unreleased)
 - rc_avpair_tostr: return error instead of crashing when time is
   invalid.
+- Handle errno=ENETUNREACH and return NETUNREACH_RC.
+- Do not use LOG_PERROR if not defined in syslog.h
 
 
 * Version 1.2.11 (released 2018-09-14)
