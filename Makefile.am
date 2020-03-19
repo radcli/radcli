@@ -52,11 +52,12 @@ clean:
 	touch $@
 
 html.upload: .html.stamp
-	-git branch -D tmp-web-pages gh-pages
+	-git branch -D tmp-web-pages
+	-git branch -D tmp-web-pages
 	git checkout -b tmp-web-pages
 	git add -f html
 	git commit -n -sm "auto-generated web-pages" html
-	git push origin `git subtree split --prefix html tmp-web-pages`:gh-pages --force
+	git push origin $$(git subtree split --prefix html tmp-web-pages):refs/heads/gh-pages --force
 	git checkout master
 	git branch -D tmp-web-pages
 
