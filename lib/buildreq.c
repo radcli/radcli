@@ -61,7 +61,7 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
  *	PW_REPLY_MESSAGE received.
- * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
+ * @param add_nas_port this should be zero; if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
  * @return received value_pairs in received, messages from the server in
  *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
@@ -102,7 +102,7 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
  *	PW_REPLY_MESSAGE received.
- * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
+ * @param add_nas_port this should be zero; if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
  * @return received value_pairs in received, messages from the server in
  *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
@@ -206,7 +206,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
  *	PW_REPLY_MESSAGE received.
- * @param add_nas_port if non-zero it will include PW_NAS_PORT in sent pairs.
+ * @param add_nas_port this should be zero; if non-zero it will include PW_NAS_PORT in sent pairs.
  * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
  * @return received value_pairs in received, messages from the server in
  *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
