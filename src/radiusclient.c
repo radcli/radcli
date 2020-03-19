@@ -218,7 +218,7 @@ process(void *rh, VALUE_PAIR *send, int acct, int nas_port, int send_info)
 
     received = NULL;
     if (acct == 0) {
-        i = rc_aaa_ctx(rh, &ctx, nas_port, send, &received, NULL, 1, PW_ACCESS_REQUEST);
+        i = rc_aaa_ctx(rh, &ctx, nas_port, send, &received, NULL, 0, PW_ACCESS_REQUEST);
         if (received != NULL) {
             printf("%s", rc_avpair_log(rh, received, buf, BUF_LEN));
             rc_avpair_free(received);
