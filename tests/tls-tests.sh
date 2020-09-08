@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2014 Nikos Mavrogiannopoulos
 # Copyright (C) 2015 Red Hat, Inc
@@ -27,32 +27,28 @@
 #   SUCH DAMAGE.
 
 srcdir="${srcdir:-.}"
-TMPFILE=tmp$$.out
-CONFFILE="conf.tmp$$.out"
-SERVERSFILE="servers.tmp$$.out"
+TMPFILE=tmp$$.tmp
+CONFFILE="conf.$$.tmp"
+SERVERSFILE="servers.tmp$$.tmp"
+PID=$$
+CLI_ADDRESS=10.203.19.1
+ADDRESS=10.203.20.1
+
+function finish {
+	rm -f $TMPFILE $SERVERSFILE $CONFFILE
+}
+
+. ns.sh
 
 echo "***********************************************"
 echo "This test will use a radius-tls server on localhost"
-echo "and which can be executed with run-server.sh   "
 echo "***********************************************"
 
-
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
-
-if test "$NO_SERVER_TLS" = 1;then
-	echo "the server doesn't support TLS"
-	exit 77
-fi
-
-PID=$$
-sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-tls-temp/'$SERVERSFILE'/g' <$srcdir/dtls/radiusclient-tls.conf >$CONFFILE
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >$SERVERSFILE
+sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$ADDRESS'/g' -e 's/servers-tls-temp/'$SERVERSFILE'/g' <$srcdir/dtls/radiusclient-tls.conf >$CONFFILE
+sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >$SERVERSFILE
 
 # Test whether a TLS session will succeed
-../src/radiusclient -D -f $CONFFILE  User-Name=test Password=test >$TMPFILE
+${CMDNS1} ../src/radiusclient -D -f $CONFFILE  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -80,12 +76,10 @@ if test $? != 0;then
 fi
 
 # Test whether a TLS invalidated session for some reason will reconnect
-./tls-restart -f $CONFFILE  User-Name=test Password=test >$TMPFILE
+${CMDNS1} ./tls-restart -f $CONFFILE  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in session restart"
 	exit 1
 fi
 
-rm -f $TMPFILE
-rm -f $SERVERSFILE $CONFFILE
 exit 0

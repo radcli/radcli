@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # License: 2-clause BSD
 #
@@ -28,9 +28,21 @@
 
 srcdir="${srcdir:-.}"
 
+CLI_ADDRESS=10.203.33.1
+ADDRESS=10.203.34.1
+DICT_FILE=skip-unknown-vsa.sh.dictionary
+CONF_FILE=skip-unknown-vsa.sh.conf
+OUTP_FILE=skip-unknown-vsa.sh.out
+
+function finish {
+	rm -f ${OUTP_FILE} ${CONF_FILE} ${DICT_FILE}
+}
+
+. ns.sh
+
 echo "********************************************************************************"
 echo "This test will use a radius server on localhost previously launched with"
-echo "run-server.sh. The test sends an authentication message to the server and"
+echo "ns.sh. The test sends an authentication message to the server and"
 echo "expects an Access-Accept response containing VSAs for two vendors:"
 echo "   1) Microsoft"
 echo "   2) Roaring Penguin"
@@ -57,14 +69,6 @@ echo ""
 echo "   When both dictionaries are provided, the VSAs from both vendors"
 echo "   should be processed."
 
-DICT_FILE=skip-unknown-vsa.sh.dictionary
-CONF_FILE=skip-unknown-vsa.sh.conf
-OUTP_FILE=skip-unknown-vsa.sh.out
-
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
 
 # Create a dictionary with support for microsoft VSAs only
 cp ../etc/dictionary ${DICT_FILE}
@@ -73,8 +77,8 @@ echo '$'INCLUDE ../etc/dictionary.microsoft >> ${DICT_FILE}
 # Create a radius-client configuration file
 cat <<-EOF >> ${CONF_FILE}
 nas-identifier my-nas-id
-authserver  $SERVER_IP::testing123
-acctserver  $SERVER_IP::testing123
+authserver  $ADDRESS::testing123
+acctserver  $ADDRESS::testing123
 dictionary  ${DICT_FILE}
 default_realm
 radius_timeout	6
@@ -108,7 +112,7 @@ auth() {
 	echo "********************************************************************************"
 	printf "Testing user: \"${user}\" with support for vendors: \"${vendors}\"\n"
 
-	../src/radiusclient -D -i -f ${CONF_FILE}  User-Name=${user} Password=test | tee ${OUTP_FILE}
+	${CMDNS1} ../src/radiusclient -D -i -f ${CONF_FILE}  User-Name=${user} Password=test | tee ${OUTP_FILE}
 	if test $? != 0;then
 		printf "Error in auth for user: \"${user}\"\n\n"
 		exit 1
@@ -127,7 +131,5 @@ echo '$'INCLUDE ../etc/dictionary.roaringpenguin >> ${DICT_FILE}
 
 auth "microsoft+roaring-penguin" user-known-vsa-last check_ms_present check_rp_present
 auth "microsoft+roaring-penguin" user-unknown-vsa-last check_ms_present check_rp_present
-
-rm -f ${OUTP_FILE} ${CONF_FILE} ${DICT_FILE}
 
 exit 0

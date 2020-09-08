@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2015 Red Hat, Inc
 #
@@ -29,28 +29,30 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "This test will use a radius TCP server on localhost"
-echo "and which can be executed with run-server.sh   "
+echo "and which can be executed with ns.sh   "
 echo "***********************************************"
 
 TMPFILE=tmp$$.out
 
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
-
-if test "$NO_SERVER_TCP" = 1;then
-	echo "the server doesn't support TCP"
-	exit 77
-fi
-
+CLI_ADDRESS=10.203.15.1
+ADDRESS=10.203.16.1
+RADDB_DIR=raddb-tcp
 PID=$$
-sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
+
+function finish {
+	rm -f servers-temp$PID 
+	rm -f $TMPFILE
+	rm -f radiusclient-temp$PID.conf
+}
+
+. ns.sh
+
+sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
 echo "serv-type tcp" >> radiusclient-temp$PID.conf
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
+sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >servers-temp$PID
 
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
-../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -90,10 +92,5 @@ if test $? != 0;then
 	cat $TMPFILE
 	exit 1
 fi
-
-rm -f servers-temp$PID 
-#cat $TMPFILE
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0

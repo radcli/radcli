@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2017 Aravind Prasad <raja.avi@gmail.com>
 #
@@ -8,24 +8,30 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "This test will use a radius server on localhost"
-echo "and which can be executed with run-server.sh.  "
+echo "and which can be executed with ns.sh.  "
 echo "Test passes invalid client credentials and     "
 echo "expects it to be rejected by Server.           "
 echo "***********************************************"
 
 TMPFILE=tmp$$.out
-
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
-
 PID=$$
-sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
+
+CLI_ADDRESS=10.203.13.1
+ADDRESS=10.203.14.1
+
+function finish {
+	rm -f servers-temp$PID 
+	rm -f $TMPFILE
+	rm -f radiusclient-temp$PID.conf
+}
+
+. ns.sh
+
+sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
+sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >servers-temp$PID
 
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
-../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
+${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
 if test $? = 0;then
@@ -61,9 +67,5 @@ if test $? != 0;then
     cat $TMPFILE
     exit 1
 fi
-
-rm -f servers-temp$PID 
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0

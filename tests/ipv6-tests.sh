@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2014 Nikos Mavrogiannopoulos
 #
@@ -8,21 +8,27 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "This test will use a radius server on localhost"
-echo "and which can be executed with run-server.sh   "
+echo "and which can be executed with ns.sh   "
 echo "***********************************************"
 
-TMPFILE=tmp$$.out
-
-if test -z "$SERVER_IP6";then
-	echo "the variable SERVER_IP6 is not defined"
-	exit 77
-fi
-
 PID=$$
-sed -e 's/::1/'$SERVER_IP6'/g' -e 's/servers-ipv6-temp/servers-ipv6-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf
-sed 's/::1/'$SERVER_IP6'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID
+TMPFILE=tmp$$.out
+CLI_ADDRESS="fc6b:1bf6:2675:77ad:6755:57ee::"
+ADDRESS="fd45:f830:991d:6fc7:c49b:4205::"
+PREFIX=96
 
-../src/radiusclient -D -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE
+function finish {
+	rm -f servers-temp$PID
+	rm -f $TMPFILE
+	rm -f radiusclient-temp$PID.conf
+}
+
+. ns.sh
+
+sed -e 's/::1/'$ADDRESS'/g' -e 's/servers-ipv6-temp/servers-ipv6-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf
+sed 's/::1/'$ADDRESS'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID
+
+${CMDNS1} ../src/radiusclient -D -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE 
 if test $? != 0;then
 	cat $TMPFILE
 	echo "Error in PAP IPv6 auth"
@@ -35,9 +41,5 @@ if test $? != 0;then
 	cat $TMPFILE
 	exit 1
 fi
-
-rm -f servers-temp$PID
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0
