@@ -132,7 +132,7 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
         while(p_pointer != NULL) {
                 if (serv->max > SERVER_MAX) {
                         DEBUG(LOG_ERR, "cannot set more than %d servers", SERVER_MAX);
-                        return -1;
+                        goto fail;
                 }
 
 		DEBUG(LOG_ERR, "processing server: %s", p_pointer);
@@ -144,9 +144,8 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 
                         q = strchr(p_pointer, ']');
                         if (q == NULL) {
-                                free(p_dupe);
                                 rc_log(LOG_CRIT, "read_config: IPv6 parse error");
-                                return -1;
+                                goto fail;
                         }
                         *q = '\0';
                         q++;
@@ -162,11 +161,7 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
                                 serv->secret[serv->max] = strdup(s);
                                 if (serv->secret[serv->max] == NULL) {
                                         rc_log(LOG_CRIT, "read_config: out of memory");
-                                        if (option->val == NULL) {
-                                                free(p_dupe);
-                                                free(serv);
-                                        }
-                                        return -1;
+                                        goto fail;
                                 }
                         }
 
@@ -182,11 +177,7 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
                                         serv->secret[serv->max] = strdup(s);
                                         if (serv->secret[serv->max] == NULL) {
                                                 rc_log(LOG_CRIT, "read_config: out of memory");
-                                                if (option->val == NULL) {
-                                                        free(p_dupe);
-                                                        free(serv);
-                                                }
-                                                return -1;
+                                                goto fail;
                                         }
                                 }
                         }
@@ -206,22 +197,14 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
                                         serv->port[serv->max] = ntohs ((unsigned int) svp->s_port);
                         else {
                                 rc_log(LOG_ERR, "%s: line %d: no default port for %s", filename, line, option->name);
-                                if (option->val == NULL) {
-                                        free(p_dupe);
-                                        free(serv);
-                                }
-                                return -1;
+                                goto fail;
                         }
                 }
 
                 serv->name[serv->max] = strdup(p_pointer);
                 if (serv->name[serv->max] == NULL) {
                         rc_log(LOG_CRIT, "read_config: out of memory");
-                        if (option->val == NULL) {
-                                free(p_dupe);
-                                free(serv);
-                        }
-                        return -1;
+                        goto fail;
                 }
 
                 serv->max++;
@@ -233,6 +216,12 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 		option->val = (void *)serv;
 
 	return 0;
+ fail:
+        free(p_dupe);
+        if (option->val == NULL)
+	        free(serv);
+        return -1;
+
 }
 
 static int set_option_auo(char const *filename, int line, OPTION *option, char const *p)
