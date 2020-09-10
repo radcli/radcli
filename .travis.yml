@@ -10,28 +10,19 @@ env:
 before_script:
   - sudo apt-get update -qq
   - sudo apt-get install -qq clang cppcheck freeradius libgnutls28-dev libasan0
-  - sudo cp tests/docker/freeradius-users /etc/freeradius/3.0/users 
-  - sudo cp tests/docker/radius-clients-notcp.conf /etc/freeradius/3.0/clients.conf
-  - sudo sed -i 's/auth+acct/auth/g' tests/docker/tls.conf
-  - sudo cp tests/docker/tls.conf /etc/freeradius/3.0/sites-enabled/tls
-  - sudo sed -i 's|ipaddr = 0.0.0.0/0|ipaddr = 127.0.0.1|g' /etc/freeradius/3.0/clients.conf
-  - sudo sed -i 's|ipv6addr = ::|ipv6addr = ::1|g' /etc/freeradius/3.0/clients.conf
-  - sudo killall freeradius
-  - sudo /usr/sbin/freeradius -fxx -l stdout >/dev/null 2>&1 &
   - touch config.rpath && autoreconf -fvi
 
 script:
   - CFLAGS="$CFLAGS" LDFLAGS="$LDFLAGS" $SCAN_BUILD ./configure --with-tls
   - $SCAN_BUILD make -j $(nproc)
   - if test $CHECK = 1;then
-      sudo NO_SERVER_TLS=1 NO_SERVER_TCP=1 SERVER_IP=127.0.0.1 SERVER_IP6=127.0.0.1 make check &&
+      sudo make check &&
       touch doc/stamp_mans &&
       make ABI_SKIP=1 dist;
     fi
 
 after_script:
   - cppcheck --force -q -Iinclude lib src
-  - sudo killall freeradius
 
 after_failure:
   - cat tests/test-suite.log

@@ -255,7 +255,6 @@ include/radcli/version.h
 doc/Makefile
 doc/Doxyfile
 tests/Makefile
-tests/docker/Makefile
 ])
 AC_CONFIG_COMMANDS([default],[[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h]],[[]])
 AC_OUTPUT
