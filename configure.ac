@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([radcli], [1.2.11], [n.mavrogiannopoulos@gmail.com])
+AC_INIT([radcli], [1.2.12], [n.mavrogiannopoulos@gmail.com])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_TARGET([])

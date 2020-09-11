@@ -1,4 +1,4 @@
-* Version 1.2.12 (unreleased)
+* Version 1.2.12 (released 2020-09-11)
 - rc_avpair_tostr: return error instead of crashing when time is
   invalid.
 - Handle errno=ENETUNREACH and return NETUNREACH_RC.
