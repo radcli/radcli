@@ -41,7 +41,7 @@ endif
 libradcli_la_LDFLAGS = -version-info $(LIBVERSION)
 
 if HAVE_LD_VERSION_SCRIPT
-libradcli_la_LDFLAGS += -Wl,--version-script=$(srcdir)/radcli.map
+libradcli_la_LDFLAGS += -Wl,--version-script=$(builddir)/radcli.map
 endif
 
 libradcli_la_LIBADD = $(LINK_LIBS)
