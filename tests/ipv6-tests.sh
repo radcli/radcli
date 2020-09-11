@@ -23,7 +23,7 @@ function finish {
 	rm -f radiusclient-temp$PID.conf
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 sed -e 's/::1/'$ADDRESS'/g' -e 's/servers-ipv6-temp/servers-ipv6-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf
 sed 's/::1/'$ADDRESS'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID

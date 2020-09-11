@@ -48,7 +48,7 @@ function finish {
 	rm -f radiusclient-temp$PID.conf
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 # Specify a list of 2 servers as follows:
 #   1) 127.1.1.1:9999:hardly-a-secret

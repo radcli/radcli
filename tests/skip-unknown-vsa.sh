@@ -38,7 +38,7 @@ function finish {
 	rm -f ${OUTP_FILE} ${CONF_FILE} ${DICT_FILE}
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 echo "********************************************************************************"
 echo "This test will use a radius server on localhost previously launched with"

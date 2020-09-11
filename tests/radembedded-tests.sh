@@ -18,7 +18,7 @@ function finish {
 	/bin/true
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 ${CMDNS1} ../src/radembedded ${ADDRESS}
 if test $? != 0;then

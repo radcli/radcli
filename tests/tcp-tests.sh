@@ -45,7 +45,7 @@ function finish {
 	rm -f radiusclient-temp$PID.conf
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
 echo "serv-type tcp" >> radiusclient-temp$PID.conf

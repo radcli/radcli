@@ -47,7 +47,7 @@ function finish {
 	rm -f ${CONFIG}
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/'${SERVERS}'/g' <$srcdir/radiusclient.conf >${CONFIG}
 sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >${SERVERS}

@@ -38,7 +38,7 @@ function finish {
 	rm -f $TMPFILE $SERVERSFILE $CONFFILE
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 echo "***********************************************"
 echo "This test will use a radius-tls server on localhost"

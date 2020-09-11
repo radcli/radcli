@@ -30,7 +30,7 @@ function finish {
 	sysctl -w net.ipv6.conf.all.temp_prefered_lft=86400
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 #Identify the platform
 OS="`uname`"

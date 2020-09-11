@@ -21,7 +21,7 @@ function finish {
 	rm -f radiusclient-temp$PID.conf
 }
 
-. ns.sh
+. ${srcdir}/ns.sh
 
 TMPFILE=tmp$$.out
 
