@@ -41,7 +41,7 @@ abi-dump:
 
 web: html.upload
 
-clean:
+clean-local:
 	rm -f .html.stamp
 
 .html.stamp:
