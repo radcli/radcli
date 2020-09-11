@@ -11,7 +11,7 @@ test	Cleartext-Password := "test"
 	Framed-IP-Address = 192.168.1.190,
 	Framed-IP-Netmask = 255.255.255.0,
 	Framed-Routing = Broadcast-Listen,
-	Framed-MTU = 1500,
+	Framed-MTU = 1500
 
 test6	Cleartext-Password := "test"
 	Service-Type = Framed-User,
@@ -22,7 +22,7 @@ test6	Cleartext-Password := "test"
 	Framed-IP-Address = 192.168.1.190,
 	Framed-IP-Netmask = 255.255.255.0,
 	Framed-Routing = Broadcast-Listen,
-	Framed-MTU = 1500,
+	Framed-MTU = 1500
 
 # user-unknown-vsa-last sends an unknown VSA as the last attribute,
 # but a known VSA as the one before last.
@@ -36,7 +36,7 @@ user-unknown-vsa-last	Cleartext-Password := "test"
 	Framed-Routing = Broadcast-Listen,
 	Framed-MTU = 1500,
 	MS-CHAP-Response = Hi-There,
-	RP-Upstream-Speed-Limit = 3,
+	RP-Upstream-Speed-Limit = 3
 
 # user-known-vsa-last sends an known VSA as the last attribute,
 # and an unknown VSA as the one before last.

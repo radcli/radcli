@@ -1,0 +1,83 @@
+# -*- text -*-
+##
+##  eap.conf -- Configuration for EAP types (PEAP, TTLS, etc.)
+##
+##	$Id: a89a783663588017b12bcc076362e728261ba8f2 $
+
+#######################################################################
+#
+#  Whatever you do, do NOT set 'Auth-Type := EAP'.  The server
+#  is smart enough to figure this out on its own.  The most
+#  common side effect of setting 'Auth-Type := EAP' is that the
+#  users then cannot use ANY other authentication method.
+#
+eap {
+	#  Invoke the default supported EAP type when
+	#  EAP-Identity response is received.
+	#
+	#  The incoming EAP messages DO NOT specify which EAP
+	#  type they will be using, so it MUST be set here.
+	#
+	#  For now, only one default EAP type may be used at a time.
+	#
+	#  If the EAP-Type attribute is set by another module,
+	#  then that EAP type takes precedence over the
+	#  default type configured here.
+	#
+	default_eap_type = md5
+
+	#  A list is maintained to correlate EAP-Response
+	#  packets with EAP-Request packets.  After a
+	#  configurable length of time, entries in the list
+	#  expire, and are deleted.
+	#
+	timer_expire = 60
+
+	#  There are many EAP types, but the server has support
+	#  for only a limited subset.  If the server receives
+	#  a request for an EAP type it does not support, then
+	#  it normally rejects the request.  By setting this
+	#  configuration to "yes", you can tell the server to
+	#  instead keep processing the request.  Another module
+	#  MUST then be configured to proxy the request to
+	#  another RADIUS server which supports that EAP type.
+	#
+	#  If another module is NOT configured to handle the
+	#  request, then the request will still end up being
+	#  rejected.
+	#
+	ignore_unknown_eap_types = no
+
+	# Cisco AP1230B firmware 12.2(13)JA1 has a bug.  When given
+	# a User-Name attribute in an Access-Accept, it copies one
+	# more byte than it should.
+	#
+	# We can work around it by configurably adding an extra
+	# zero byte.
+	#
+	cisco_accounting_username_bug = no
+
+	#  Help prevent DoS attacks by limiting the number of
+	#  sessions that the server is tracking.  For simplicity,
+	#  this is taken from the "max_requests" directive in
+	#  radiusd.conf.
+	#
+	max_sessions = ${max_requests}
+
+
+	############################################################
+	#
+	#  Supported EAP-types
+	#
+
+
+	#  EAP-MD5
+	#
+	#  We do NOT recommend using EAP-MD5 authentication
+	#  for wireless connections.  It is insecure, and does
+	#  not provide for dynamic WEP keys.
+	#
+	md5 {
+	}
+
+}

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2018 Aravind Prasad S
 #
@@ -8,15 +8,19 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "This test will use a radius server on localhost"
-echo "and which can be executed with run-server.sh   "
+echo "and which can be executed with ns.sh   "
 echo "***********************************************"
 
-if test -z "${SERVER_IP}";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
+CLI_ADDRESS=10.203.11.1
+ADDRESS=10.203.12.1
 
-../src/radembedded ${SERVER_IP}
+function finish {
+	/bin/true
+}
+
+. ns.sh
+
+${CMDNS1} ../src/radembedded ${ADDRESS}
 if test $? != 0;then
 	echo "Error in Radembedded handling"
 	exit 1

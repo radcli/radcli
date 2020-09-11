@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # License: 2-clause BSD
 #
@@ -38,23 +38,29 @@ echo "**************************************************"
 
 TMPFILE=tmp$$.out
 
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
+CLI_ADDRESS=10.203.7.1
+ADDRESS=10.203.8.1
+PID=$$
+
+function finish {
+	rm -f servers-temp$PID 
+	rm -f $TMPFILE
+	rm -f radiusclient-temp$PID.conf
+}
+
+. ns.sh
 
 # Specify a list of 2 servers as follows:
 #   1) 127.1.1.1:9999:hardly-a-secret
-#   2) $SERVER_IP::testing123
+#   2) $ADDRESS::testing123
 #
 # The first server is specified with and invalid port to force it to fail.
 # The second one contains the valid info so it should pass.
 
-PID=$$
 cat <<-EOF >> radiusclient-temp$PID.conf
 nas-identifier my-nas-id
-authserver 	127.1.1.1:9999:hardly-a-secret,$SERVER_IP::testing123
-acctserver 	127.1.1.1:9999:hardly-a-secret,$SERVER_IP::testing123
+authserver 	127.1.1.1:9999:hardly-a-secret,$ADDRESS::testing123
+acctserver 	127.1.1.1:9999:hardly-a-secret,$ADDRESS::testing123
 dictionary 	../etc/dictionary
 default_realm
 radius_timeout	6
@@ -62,7 +68,7 @@ radius_retries	1
 bindaddr *
 EOF
 
-../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -102,10 +108,5 @@ if test $? != 0;then
 	cat $TMPFILE
 	exit 1
 fi
-
-rm -f servers-temp$PID
-#cat $TMPFILE
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0

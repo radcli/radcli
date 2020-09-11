@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (C) 2014 Nikos Mavrogiannopoulos
 #
@@ -8,22 +8,27 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "This test will use a radius server on localhost"
-echo "and which can be executed with run-server.sh   "
+echo "and which can be executed with ns.sh   "
 echo "***********************************************"
 
+PID=$$
+CLI_ADDRESS=10.203.1.1
+ADDRESS=10.203.2.1
 TMPFILE=tmp$$.out
 
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
+function finish {
+	rm -f servers-temp$PID 
+	rm -f $TMPFILE
+	rm -f radiusclient-temp$PID.conf
+}
 
-PID=$$
-sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
+. ns.sh
+
+sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
+sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >servers-temp$PID
 
 echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
-../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -63,10 +68,5 @@ if test $? != 0;then
 	cat $TMPFILE
 	exit 1
 fi
-
-rm -f servers-temp$PID 
-#cat $TMPFILE
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0

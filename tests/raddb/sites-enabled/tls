@@ -82,7 +82,7 @@ listen {
 	#
 	tls {
 		private_key_password = whatever
-		private_key_file = /etc/raddb/key-rsa.pem
+		private_key_file = raddb/key-rsa.pem
 
 		#  If Private key & Certificate are located in
 		#  the same file, then private_key_file &
@@ -94,7 +94,7 @@ listen {
 		#  only the server certificate, but ALSO all
 		#  of the CA certificates used to sign the
 		#  server certificate.
-		certificate_file = /etc/raddb/cert-rsa.pem
+		certificate_file = raddb/cert-rsa.pem
 
 		#  Trusted Root CA list
 		#
@@ -111,7 +111,7 @@ listen {
 		#  not use client certificates, and you do not want
 		#  to permit EAP-TLS authentication, then delete
 		#  this configuration item.
-		ca_file = /etc/raddb/ca.pem
+		ca_file = raddb/ca.pem
 
 		#
 		#  For DH cipher suites to work, you have to

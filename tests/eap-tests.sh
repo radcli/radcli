@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # License: 2-clause BSD
 #
@@ -29,8 +29,6 @@
 srcdir="${srcdir:-.}"
 
 echo "***********************************************"
-echo "This test will use a radius server on localhost"
-echo "and which can be executed with run-server.sh   "
 echo "The test sends a basic EAP message and expects "
 echo "an Acess-Challenge response. The test does not "
 echo "go beyond this point as there is no real EAP   "
@@ -38,15 +36,21 @@ echo "service capable of handling a full EAP request "
 echo "***********************************************"
 
 TMPFILE=tmp$$.out
+CONFIG="radiusclient-temp$$.conf"
+SERVERS="servers-temp$$"
+CLI_ADDRESS=10.203.30.1
+ADDRESS=10.203.31.1
 
-if test -z "$SERVER_IP";then
-	echo "the variable SERVER_IP is not defined"
-	exit 77
-fi
+function finish {
+	rm -f ${SERVERS} 
+	rm -f $TMPFILE
+	rm -f ${CONFIG}
+}
 
-PID=$$
-sed -e 's/localhost/'$SERVER_IP'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
-sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
+. ns.sh
+
+sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/'${SERVERS}'/g' <$srcdir/radiusclient.conf >${CONFIG}
+sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >${SERVERS}
 
 # NOTE: The string 2:0:0:9:1:74:65:73:74 is equivalent to defining a C array as
 #       follows:
@@ -59,10 +63,10 @@ sed 's/localhost/'$SERVER_IP'/g' <$srcdir/servers >servers-temp$PID
 #           Type       = 1       (8-bit)  -> 1 for Identity
 #           Data       = "test"  (string)
 
-echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf -e 2:0:0:9:1:74:65:73:74 User-Name=test Password=test | tee $TMPFILE
-../src/radiusclient -D -i -f radiusclient-temp$PID.conf -e 2:0:0:9:1:74:65:73:74 User-Name=test Password=test | tee $TMPFILE
+echo ../src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
+${CMDNS1} ../src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
 if test $? != 0;then
-	echo "Error in PAP auth"
+	echo "Error in EAP auth"
 	exit 1
 fi
 
@@ -100,10 +104,5 @@ if test $? != 0;then
 	cat $TMPFILE
 	exit 1
 fi
-
-rm -f servers-temp$PID
-#cat $TMPFILE
-rm -f $TMPFILE
-rm -f radiusclient-temp$PID.conf
 
 exit 0
