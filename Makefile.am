@@ -18,7 +18,7 @@ ACLOCAL = @ACLOCAL@
 LTLIBOBJS = @LTLIBOBJS@
 
 SUBDIRS = include lib src etc man doc tests
-EXTRA_DIST = NEWS COPYRIGHT README.rst
+EXTRA_DIST = NEWS COPYRIGHT README.md
 
 compare-exported: include/radcli/radcli.h
 	doc/scripts/getfuncs.pl <$^|sort -u >tmp-head-$@
