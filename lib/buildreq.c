@@ -50,13 +50,13 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
 	data->code = code;
 }
 
-/** Builds an authentication/accounting request for port id client_port with the value_pairs send and submits it to a server.
+/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a server.
  * This function keeps its state in ctx after a successful operation. It can be deallocated using
  * rc_aaa_ctx_free().
  *
  * @param rh a handle to parsed configuration.
  * @param ctx if non-NULL it will contain the context of the request; Its initial value should be NULL and it must be released using rc_aaa_ctx_free().
- * @param client_port the client port number to use (may be zero to use any available).
+ * @param nas_port the physical NAS port number to use (may be zero).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
@@ -67,7 +67,7 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
  *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
  *  received, negative on failure as return value.
  */
-int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
+int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t nas_port,
 	       VALUE_PAIR * send, VALUE_PAIR ** received, char *msg,
 	       int add_nas_port, rc_standard_codes request_type)
 {
@@ -86,18 +86,18 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
 		return ERROR_RC;
 
 	return rc_aaa_ctx_server(rh, ctx, aaaserver, type,
-				 client_port, send, received, msg,
+				 nas_port, send, received, msg,
 				 add_nas_port, request_type);
 }
 
-/** Builds an authentication/accounting request for port id client_port with the value_pairs send and submits it to a specified server.
+/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a specified server.
  * This function keeps its state in ctx after a successful operation. It can be deallocated using
  * rc_aaa_ctx_free().
  *
  * @param rh a handle to parsed configuration.
  * @param ctx if non-NULL it will contain the context of the request; Its initial value should be NULL and it must be released using rc_aaa_ctx_free().
  * @param aaaserver a non-NULL SERVER to send the message to.
- * @param client_port the client port number to use (may be zero to use any available).
+ * @param nas_port the physical NAS port number to use (may be zero).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
@@ -110,7 +110,7 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t client_port,
  */
 int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		      rc_type type,
-		      uint32_t client_port,
+		      uint32_t nas_port,
 		      VALUE_PAIR * send, VALUE_PAIR ** received,
 		      char *msg, int add_nas_port,
 		      rc_standard_codes request_type)
@@ -134,7 +134,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		 * Fill in NAS-Port
 		 */
 		if (rc_avpair_add(rh, &(data.send_pairs), PW_NAS_PORT,
-				  &client_port, 0, 0) == NULL)
+				  &nas_port, 0, 0) == NULL)
 			return ERROR_RC;
 	}
 
@@ -198,10 +198,10 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 	return result;
 }
 
-/** Builds an authentication/accounting request for port id client_port with the value_pairs send and submits it to a server
+/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a server
  *
  * @param rh a handle to parsed configuration.
- * @param client_port the client port number to use (may be zero to use any available).
+ * @param nas_port the physical NAS port number to use (may be zero).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
@@ -212,18 +212,18 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
  *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
  *  received, negative on failure as return value.
  */
-int rc_aaa(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
+int rc_aaa(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send,
 	   VALUE_PAIR ** received, char *msg, int add_nas_port,
 	   rc_standard_codes request_type)
 {
-	return rc_aaa_ctx(rh, NULL, client_port, send, received, msg,
+	return rc_aaa_ctx(rh, NULL, nas_port, send, received, msg,
 			  add_nas_port, request_type);
 }
 
-/** Builds an authentication request for port id client_port with the value_pairs send and submits it to a server
+/** Builds an authentication request for port id nas_port with the value_pairs send and submits it to a server
  *
  * @param rh a handle to parsed configuration.
- * @param client_port the client port number to use (may be zero to use any available).
+ * @param nas_port the physical NAS port number to use (may be zero).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @param received an allocated array of received values.
  * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
@@ -232,11 +232,11 @@ int rc_aaa(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
  *  msg (if non-NULL), and OK_RC (0) on success,CHALLENGE_RC (3) on
  *  Access-Challenge received, negative on failure as return value.
  */
-int rc_auth(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send,
+int rc_auth(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send,
 	    VALUE_PAIR ** received, char *msg)
 {
 
-	return rc_aaa(rh, client_port, send, received, msg, 1,
+	return rc_aaa(rh, nas_port, send, received, msg, 1,
 		      PW_ACCESS_REQUEST);
 }
 
@@ -260,20 +260,20 @@ int rc_auth_proxy(rc_handle * rh, VALUE_PAIR * send, VALUE_PAIR ** received,
 	return rc_aaa(rh, 0, send, received, msg, 0, PW_ACCESS_REQUEST);
 }
 
-/** Builds an accounting request for port id client_port with the value_pairs at send
+/** Builds an accounting request for port id nas_port with the value_pairs at send
  *
  * @note NAS-IP-Address, NAS-Port and Acct-Delay-Time get filled in by this function, the rest has to be supplied.
  *
  * @param rh a handle to parsed configuration.
- * @param client_port the client port number to use (may be zero to use any available).
+ * @param nas_port the physical NAS port number to use (may be zero).
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
  * @return received value_pairs in received, and OK_RC (0) on success,
  *  CHALLENGE_RC (3) on Access-Challenge received, negative on failure as
  *  return value.
  */
-int rc_acct(rc_handle * rh, uint32_t client_port, VALUE_PAIR * send)
+int rc_acct(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send)
 {
-	return rc_aaa(rh, client_port, send, NULL, NULL, 1,
+	return rc_aaa(rh, nas_port, send, NULL, NULL, 1,
 		      PW_ACCOUNTING_REQUEST);
 }
 
