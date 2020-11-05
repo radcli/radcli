@@ -12,22 +12,19 @@ jobs:
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq clang clang-tools cppcheck libgnutls28-dev
+                  sudo apt-get install -qq clang clang-tools libgnutls28-dev
             - name: Configure
               run: |
                   touch config.rpath && autoreconf -fvi
                   CFLAGS="-O2 -g" scan-build --status-bugs ./configure --with-tls
             - name: Clang analyzer
               run: |
-                  scan-build --status-bugs make -j $(nproc)
-            - name: cppcheck
-              run: |
-                  cppcheck --force -q -Iinclude lib src
+                  scan-build --status-bugs -o analyzer make -j $(nproc)
             - name: Upload artifacts
               uses: actions/upload-artifact@v2
               with:
-                  name: test-suite log
-                  path: tests/test-suite.log
+                  name: analyzer output
+                  path: analyzer/
                   retention-days: 5
 
     tests-asan:
