@@ -1,0 +1,83 @@
+name: Tests
+
+on: push
+
+jobs:
+    static-analyzer:
+        runs-on: ubuntu-20.04
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq clang clang-tools libgnutls28-dev
+            - name: Configure
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  CFLAGS="-O2 -g" scan-build --status-bugs ./configure --with-tls
+            - name: Clang analyzer
+              run: |
+                  scan-build --status-bugs -o analyzer make -j $(nproc)
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v2
+              with:
+                  name: analyzer output
+                  path: analyzer/
+                  retention-days: 5
+
+    tests-asan:
+        runs-on: ubuntu-20.04
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev libasan5
+            - name: Compile
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  LDFLAGS="-lasan" CFLAGS="-fsanitize=address -g -O2" ./configure --with-tls
+                  make -j $(nproc)
+            - name: Test
+              run: |
+                  sudo make check
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v2
+              with:
+                  name: test-suite log
+                  path: tests/test-suite.log
+                  retention-days: 5
+
+    tests:
+        runs-on: ubuntu-20.04
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev
+            - name: Compile
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  ./configure --with-tls
+                  make -j $(nproc)
+            - name: Test
+              run: |
+                  sudo make check
+            - name: Simulate dist
+              run: |
+                  touch doc/stamp_mans
+                  make ABI_SKIP=1 dist
+            - name: Upload artifacts
+              uses: actions/upload-artifact@v2
+              with:
+                  name: test-suite log
+                  path: tests/test-suite.log
+                  retention-days: 5
+
