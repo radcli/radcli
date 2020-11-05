@@ -37,8 +37,6 @@ size_t rc_strlcpy(char *dst, char const *src, size_t siz);
   ((sa)->sa_family == AF_INET) ? \
     sizeof(struct in_addr) : sizeof(struct in6_addr)
 
-int rc_find_server_addr(rc_handle const *, char const *, struct addrinfo **, char *, unsigned flags);
-
 /* flags to rc_getaddrinfo() */
 #define PW_AI_PASSIVE		1
 #define PW_AI_AUTH		(1<<1)

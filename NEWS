@@ -1,3 +1,7 @@
+* Version 1.2.13 (unreleased)
+- Removed duplicate function definition from util.h (#53)
+
+
 * Version 1.2.12 (released 2020-09-11)
 - rc_avpair_tostr: return error instead of crashing when time is
   invalid.
