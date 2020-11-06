@@ -25,7 +25,7 @@ TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh
 check_PROGRAMS =
 
 if ENABLE_GNUTLS
-TESTS += tls-tests.sh avpair
+TESTS += tls-tests.sh avpair dict
 
 check_PROGRAMS += tls-restart avpair dict
 
