@@ -1,6 +1,7 @@
 * Version 1.3.0 (unreleased)
 - Removed duplicate function definition from util.h (#53)
 - Increased size of dictionary vendor and values to 32-bits from 16.
+- Corrected a string termination issue in rc_avpair_tostr()
 
 
 * Version 1.2.12 (released 2020-09-11)
