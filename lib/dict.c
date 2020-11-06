@@ -609,15 +609,15 @@ DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname)
 /** Lookup a DICT_VENDOR by its IANA number
  *
  * @param rh a handle to parsed configuration.
- * @param vendorpec the vendor ID.
+ * @param vendorspec the vendor ID.
  * @return the full vendor structure based on the vendor id number.
  */
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec)
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorspec)
 {
         DICT_VENDOR      *vend;
 
 	for (vend = rh->dictionary_vendors; vend != NULL; vend = vend->next)
-		if (vend->vendorpec == vendorpec)
+		if (vend->vendorpec == vendorspec)
 			return vend;
 	return NULL;
 }

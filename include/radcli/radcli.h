@@ -562,13 +562,13 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 /* avpair.c */
 
-VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorspec);
 int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len);
-VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorspec);
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, uint32_t vendorpec);
-void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorpec);
-VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorpec);
+			  int length, uint32_t vendorspec);
+void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorspec);
+VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorspec);
 VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p);
 void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b);
 void rc_avpair_free (VALUE_PAIR *pair);
@@ -635,7 +635,7 @@ DICT_ATTR *rc_dict_getattr(rc_handle const *rh, uint64_t attribute);
 DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname);
 DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname);
 DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname);
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec);
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorspec);
 DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attrname);
 void rc_dict_free(rc_handle *rh);
 
