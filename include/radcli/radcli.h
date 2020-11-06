@@ -53,8 +53,9 @@ extern "C" {
 
 #define MAX_SECRET_LENGTH	(6 * 16) /* MUST be multiple of 16 */
 
-#define VENDOR(x)		(((x) >> 16) & 0xffff)
-#define ATTRID(x)		((x) & 0xffff)
+#define VENDOR_BIT_SIZE		32
+#define VENDOR(x)		(((x) >> VENDOR_BIT_SIZE) & 0xffffffff)
+#define ATTRID(x)		((x) & 0xffffffff)
 
 #define PW_MAX_MSG_SIZE		4096
 
@@ -425,7 +426,7 @@ enum rc_vendor_attr_roaringpenguin {
 typedef struct dict_attr
 {
 	char              name[NAME_LENGTH + 1];	//!< attribute name.
-	int               value;			//!< attribute index.
+	uint64_t          value;			//!< attribute index and vendor number; use VENDOR() and ATTRID() to separate.
 	rc_attr_type      type;				//!< string, int, etc..
 	struct dict_attr *next;
 } DICT_ATTR;
@@ -434,14 +435,14 @@ typedef struct dict_value
 {
 	char               attrname[NAME_LENGTH +1];
 	char               name[NAME_LENGTH + 1];
-	int                value;
+	uint32_t           value;
 	struct dict_value *next;
 } DICT_VALUE;
 
 typedef struct dict_vendor
 {
 	char               vendorname[NAME_LENGTH +1];
-	int                vendorpec;
+	uint32_t           vendorpec;
 	struct dict_vendor *next;
 } DICT_VENDOR;
 
@@ -469,7 +470,7 @@ typedef enum rc_send_status {
 typedef struct rc_value_pair
 {
 	char               name[NAME_LENGTH + 1];	//!< attribute name if known.
-	unsigned           attribute;			//!< attribute numeric value of type rc_attr_id.
+	uint64_t           attribute;			//!< attribute numeric value of type rc_attr_id including vendor; use VENDOR() and ATTRID() to separate.
 	rc_attr_type	   type;			//!< attribute type.
 	uint32_t           lvalue;			//!< attribute value if type is PW_TYPE_INTEGER, PW_TYPE_DATE or PW_TYPE_IPADDR.
 	char               strvalue[AUTH_STRING_LEN + 1]; //!< contains attribute value in other cases.
@@ -560,13 +561,13 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 /* avpair.c */
 
-VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, void const *pval, int len, int vendorpec);
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
 int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len);
-VALUE_PAIR *rc_avpair_new (rc_handle const *rh, int attrid, void const *pval, int len, int vendorpec);
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, int vendorpec);
-void rc_avpair_remove (VALUE_PAIR **list, int attrid, int vendorpec);
-VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, int attrid, int vendorpec);
+			  int length, uint32_t vendorpec);
+void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorpec);
+VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorpec);
 VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p);
 void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b);
 void rc_avpair_free (VALUE_PAIR *pair);
@@ -624,11 +625,11 @@ rc_socket_type rc_get_socket_type(rc_handle * rh);
 
 int rc_read_dictionary (rc_handle *rh, char const *filename);
 int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size);
-DICT_ATTR *rc_dict_getattr(rc_handle const *rh, int attribute);
+DICT_ATTR *rc_dict_getattr(rc_handle const *rh, uint64_t attribute);
 DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname);
 DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname);
 DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname);
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, int vendorpec);
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec);
 DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attrname);
 void rc_dict_free(rc_handle *rh);
 
