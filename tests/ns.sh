@@ -120,16 +120,13 @@ ETHNAME2="radeth-s$$"
 ${IP} netns add ${NSNAME1}
 ${IP} netns add ${NSNAME2}
 
-echo x1
 ${IP} link add ${ETHNAME1} type veth peer name ${ETHNAME2}
 ${IP} ${IPEXTRA} link set dev ${ETHNAME1} netns ${NSNAME1}
 ${IP} ${IPEXTRA} link set dev ${ETHNAME2} netns ${NSNAME2}
 
-echo x2
 CMDNS1="${IP} netns exec ${NSNAME1}"
 CMDNS2="${IP} netns exec ${NSNAME2}"
 
-echo x3
 if [[ $ADDRESS == *':'* ]]; then
 ${IP} -n ${NSNAME1} ${IPEXTRA} addr add ${CLI_ADDRESS}/${PREFIX} dev ${ETHNAME1} nodad
 ${IP} -n ${NSNAME2} ${IPEXTRA} addr add ${ADDRESS}/${PREFIX} dev ${ETHNAME2} nodad
@@ -141,7 +138,6 @@ fi
 ${IP} -n ${NSNAME1} ${IPEXTRA} link set ${ETHNAME1} up
 ${IP} -n ${NSNAME2} ${IPEXTRA} link set ${ETHNAME2} up
 
-echo x4
 if [[ $ADDRESS == *':'* ]]; then
 ${IP} -n ${NSNAME1} ${IPEXTRA} route add "${CLI_ADDRESS}/128" dev ${ETHNAME1}
 ${IP} -n ${NSNAME1} ${IPEXTRA} route add default dev ${ETHNAME1} # via "${CLI_ADDRESS}"
