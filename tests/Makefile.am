@@ -27,7 +27,7 @@ check_PROGRAMS =
 if ENABLE_GNUTLS
 TESTS += tls-tests.sh avpair
 
-check_PROGRAMS += tls-restart avpair
+check_PROGRAMS += tls-restart avpair dict
 
 tls_restart_SOURCES = tls-restart.c
 tls_restart_LDADD = ../src/libtools.a ../lib/libradcli.la

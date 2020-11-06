@@ -49,7 +49,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	DICT_VALUE     *dval;
 	DICT_VENDOR    *dvend;
 	char            buffer[256];
-	int             value;
+	uint32_t        value;
 	int             type;
 	unsigned attr_vendorspec = 0;
 	const char *pfilename = filename;
@@ -174,13 +174,12 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				return -1;
 			}
 			strcpy (attr->name, namestr);
-			attr->value = value | (attr_vendorspec << 16);
 			attr->type = type;
 
 			if (dvend != NULL) {
-				attr->value = value | (dvend->vendorpec << 16);
+				attr->value = VATTRID_SET(value, dvend->vendorpec);
 			} else {
-				attr->value = value | (attr_vendorspec << 16);
+				attr->value = VATTRID_SET(value, attr_vendorspec);
 			}
 
 			/* Insert it into the list */
@@ -409,7 +408,7 @@ int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size)
  * @param attribute the attribute ID.
  * @return the full attribute structure based on the attribute id number.
  */
-DICT_ATTR *rc_dict_getattr(rc_handle const *rh, int attribute)
+DICT_ATTR *rc_dict_getattr(rc_handle const *rh, uint64_t attribute)
 {
 	DICT_ATTR      *attr;
 
@@ -458,7 +457,6 @@ DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname)
 DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname)
 {
 	DICT_VALUE     *val;
-
 	val = rh->dictionary_values;
 	while (val != NULL)
 	{
@@ -493,7 +491,7 @@ DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname)
  * @param vendorpec the vendor ID.
  * @return the full vendor structure based on the vendor id number.
  */
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, int vendorpec)
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec)
 {
         DICT_VENDOR      *vend;
 

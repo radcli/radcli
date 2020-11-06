@@ -93,9 +93,38 @@ int main(int argc, char **argv)
 	checks = 0;
 	prev = -1;
 	while(vp2 != NULL) {
-		if (vp2->attribute == PW_USER_NAME && (memcmp(vp2->strvalue, "test", 4) != 0 || vp2->type != PW_TYPE_STRING)) {
-			fprintf(stderr, "%d: error checking username: %s/%d\n", __LINE__, vp2->strvalue, vp2->lvalue);
-			exit(1);
+		if (vp2->attribute == PW_USER_NAME) {
+			char tmp1[128];
+			char tmp[128];
+			if ((memcmp(vp2->strvalue, "test", 4) != 0 || vp2->type != PW_TYPE_STRING)) {
+				fprintf(stderr, "%d: error checking username: %s/%d\n", __LINE__, vp2->strvalue, vp2->lvalue);
+				exit(1);
+			}
+			if (rc_avpair_tostr(rh, vp2, tmp1, sizeof(tmp1), tmp, sizeof(tmp)) != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed (1)\n");
+				exit(1);
+			}
+			if (strcmp(tmp1, "User-Name") != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed output (ln1)\n");
+				exit(1);
+			}
+			if (strcmp(tmp, "test") != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed output (lv1)\n");
+				exit(1);
+			}
+			memset(tmp, 0, sizeof(tmp));
+			if (rc_avpair_tostr(rh, vp2, tmp1, sizeof("User-Name")-1, tmp, sizeof("test")-1) != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed (2)\n");
+				exit(1);
+			}
+			if (strcmp(tmp1, "User-Nam") != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed output (ln2): %s\n", tmp1);
+				exit(1);
+			}
+			if (strcmp(tmp, "tes") != 0) {
+				fprintf(stderr, "rc_avpair_tostr: failed output (lv2): %s\n", tmp);
+				exit(1);
+			}
 		} else if (vp2->attribute == PW_IDLE_TIMEOUT && (vp2->lvalue != 1821 || vp2->type != PW_TYPE_INTEGER)) {
 			fprintf(stderr, "%d: error checking Idle-Timeout: %d\n", __LINE__, vp2->lvalue);
 			exit(1);

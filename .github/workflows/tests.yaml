@@ -21,6 +21,7 @@ jobs:
               run: |
                   scan-build --status-bugs -o analyzer make -j $(nproc)
             - name: Upload artifacts
+              if: failure()
               uses: actions/upload-artifact@v2
               with:
                   name: analyzer output
@@ -46,6 +47,7 @@ jobs:
               run: |
                   sudo make check
             - name: Upload artifacts
+              if: failure()
               uses: actions/upload-artifact@v2
               with:
                   name: test-suite log
@@ -75,6 +77,7 @@ jobs:
                   touch doc/stamp_mans
                   make ABI_SKIP=1 dist
             - name: Upload artifacts
+              if: failure()
               uses: actions/upload-artifact@v2
               with:
                   name: test-suite log

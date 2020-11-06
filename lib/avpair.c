@@ -43,7 +43,7 @@
  * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return pointer to added a/v pair upon success, NULL pointer upon failure.
  */
-VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, void const *pval, int len, int vendorpec)
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorpec)
 {
 	VALUE_PAIR     *vp;
 
@@ -66,13 +66,13 @@ VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, int attrid, v
  * @param attrid The attribute of the pair to remove (e.g., PW_USER_NAME).
  * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
  */
-void rc_avpair_remove (VALUE_PAIR **list, int attrid, int vendorpec)
+void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorpec)
 {
 	VALUE_PAIR *vp, *prev, *tmp;
-	int vattrid;
+	uint64_t vattrid;
 
 	if(vendorpec != VENDOR_NONE)
-		vattrid = attrid | (vendorpec << 16);
+		vattrid = VATTRID_SET(attrid, vendorpec);
 	else
 		vattrid = attrid;
 
@@ -190,17 +190,18 @@ int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len)
  * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return pointer to generated a/v pair when successful, NULL when failure.
  */
-VALUE_PAIR *rc_avpair_new (rc_handle const *rh, int attrid, void const *pval, int len, int vendorpec)
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorpec)
 {
 	VALUE_PAIR     *vp = NULL;
 	DICT_ATTR      *pda;
-	int vattrid;
+	uint64_t vattrid;
 
 	if(vendorpec != VENDOR_NONE) {
-		vattrid = attrid | (vendorpec << 16);
+		vattrid = VATTRID_SET(attrid, vendorpec);
 	} else {
 		vattrid = attrid;
 	}
+
 	if ((pda = rc_dict_getattr (rh, vattrid)) == NULL)
 	{
 		rc_log(LOG_ERR,"rc_avpair_new: no attribute %d/%u in dictionary", vendorpec, attrid);
@@ -268,9 +269,10 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, int attrid, void const *pval, in
  * @return value_pair list or NULL on failure.
  */
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, int vendorpec)
+			  int length, uint32_t vendorpec)
 {
-	int attribute, attrlen, x_len;
+	uint64_t attribute;
+	int attrlen, x_len;
 	unsigned char const *x_ptr;
 	uint32_t lvalue;
 	DICT_ATTR *attr;
@@ -298,7 +300,7 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 	}
 
 	/* Actual processing */
-	attribute = ptr[0] | (vendorpec << 16);
+	attribute = VATTRID_SET(ptr[0], vendorpec);
 	ptr += 2;
 	attrlen -= 2;
 
@@ -334,16 +336,15 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 		if (vendorpec == 0) {
 			rc_log(LOG_WARNING, "rc_avpair_gen: received "
 			    "unknown attribute %d of length %d: 0x%s",
-			    attribute, attrlen + 2, buffer);
+			    (unsigned)attribute, attrlen + 2, buffer);
 		} else {
 			rc_log(LOG_WARNING, "rc_avpair_gen: received "
-			    "unknown VSA attribute %d, vendor %d of "
-			    "length %d: 0x%s", attribute & 0xffff,
-			    VENDOR(attribute), attrlen + 2, buffer);
+			    "unknown VSA attribute %u, vendor %u of "
+			    "length %d: 0x%s", (unsigned)ATTRID(attribute),
+			    (unsigned)VENDOR(attribute), attrlen + 2, buffer);
 		}
 		goto skipit;
 	}
-
 	rpair = calloc(1, sizeof(*rpair));
 	if (rpair == NULL) {
 		rc_log(LOG_CRIT, "rc_avpair_gen: out of memory");
@@ -429,10 +430,11 @@ shithappens:
  * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return the value pair found.
  */
-VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, int attrid, int vendorpec)
+VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorpec)
 {
-	for (; vp != NULL && !(ATTRID(vp->attribute) == ATTRID(attrid) &&
-	    VENDOR(vp->attribute) == vendorpec); vp = vp->next)
+	uint64_t attr = VATTRID_SET(attrid, vendorpec);
+
+	for (; vp != NULL && !(attr == vp->attribute); vp = vp->next)
 	{
 		continue;
 	}
@@ -878,10 +880,7 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 			}
 			ptr++;
 		}
-		if (lv > 0)
-			value[pos++] = 0;
-		else
-			value[pos-1] = 0;
+		value[pos] = 0;
 		break;
 
 		case PW_TYPE_INTEGER:
