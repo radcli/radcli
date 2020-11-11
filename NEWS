@@ -1,6 +1,7 @@
 * Version 1.3.0 (unreleased)
 - Removed duplicate function definition from util.h (#53)
-- Increased size of dictionary vendor and values to 32-bits from 16.
+- Increased size of dictionary vendor and values to 32-bits from 16;
+  this breaks the ABI from the previous release.
 - Corrected a string termination issue in rc_avpair_tostr()
 - Added functions to create dictionary without a file:
    - rc_dict_addattr
