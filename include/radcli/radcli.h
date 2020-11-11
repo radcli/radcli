@@ -112,7 +112,8 @@ typedef enum rc_attr_type {
 	PW_TYPE_IPADDR=2,	//!< The attribute is an IPv4 address in host-byte order.
 	PW_TYPE_DATE=3,		//!< The attribute contains a 32-bit number indicating the seconds since epoch.
 	PW_TYPE_IPV6ADDR=4,	//!< The attribute is an 128-bit IPv6 address.
-	PW_TYPE_IPV6PREFIX=5    //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
+	PW_TYPE_IPV6PREFIX=5,   //!< The attribute is an IPv6 prefix; the lvalue will indicate its size.
+	PW_TYPE_MAX=6   	//!< Maximum number of types (last+1)
 } rc_attr_type;
 
 /** \enum rc_standard_codes Standard RADIUS request codes
@@ -561,13 +562,13 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 /* avpair.c */
 
-VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorspec);
 int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len);
-VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorpec);
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorspec);
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, uint32_t vendorpec);
-void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorpec);
-VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorpec);
+			  int length, uint32_t vendorspec);
+void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorspec);
+VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorspec);
 VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p);
 void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b);
 void rc_avpair_free (VALUE_PAIR *pair);
@@ -625,11 +626,16 @@ rc_socket_type rc_get_socket_type(rc_handle * rh);
 
 int rc_read_dictionary (rc_handle *rh, char const *filename);
 int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size);
+
+DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, uint32_t value, int type, uint32_t vendorspec);
+DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * namestr, uint32_t value);
+DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * vendorname, uint32_t value);
+
 DICT_ATTR *rc_dict_getattr(rc_handle const *rh, uint64_t attribute);
 DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname);
 DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname);
 DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname);
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec);
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorspec);
 DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attrname);
 void rc_dict_free(rc_handle *rh);
 

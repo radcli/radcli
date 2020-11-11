@@ -40,14 +40,14 @@
  * @param attrid The attribute of the pair to add (e.g., PW_USER_NAME).
  * @param pval the value (e.g., the actual username).
  * @param len the length of pval, or -1 if to calculate (in case of strings).
- * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return pointer to added a/v pair upon success, NULL pointer upon failure.
  */
-VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorpec)
+VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attrid, void const *pval, int len, uint32_t vendorspec)
 {
 	VALUE_PAIR     *vp;
 
-	vp = rc_avpair_new (rh, attrid, pval, len, vendorpec);
+	vp = rc_avpair_new (rh, attrid, pval, len, vendorspec);
 
 	if (vp != NULL)
 	{
@@ -64,15 +64,15 @@ VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attr
  *
  * @param list a VALUE_PAIR array of values
  * @param attrid The attribute of the pair to remove (e.g., PW_USER_NAME).
- * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  */
-void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorpec)
+void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorspec)
 {
 	VALUE_PAIR *vp, *prev, *tmp;
 	uint64_t vattrid;
 
-	if(vendorpec != VENDOR_NONE)
-		vattrid = VATTRID_SET(attrid, vendorpec);
+	if(vendorspec != VENDOR_NONE)
+		vattrid = VATTRID_SET(attrid, vendorspec);
 	else
 		vattrid = attrid;
 
@@ -187,29 +187,29 @@ int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len)
  * @param attrid The attribute of the pair to add (e.g., PW_USER_NAME).
  * @param pval the value (e.g., the actual username).
  * @param len the length of pval, or -1 if to calculate (in case of strings).
- * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return pointer to generated a/v pair when successful, NULL when failure.
  */
-VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorpec)
+VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorspec)
 {
 	VALUE_PAIR     *vp = NULL;
 	DICT_ATTR      *pda;
 	uint64_t vattrid;
 
-	if(vendorpec != VENDOR_NONE) {
-		vattrid = VATTRID_SET(attrid, vendorpec);
+	if(vendorspec != VENDOR_NONE) {
+		vattrid = VATTRID_SET(attrid, vendorspec);
 	} else {
 		vattrid = attrid;
 	}
 
 	if ((pda = rc_dict_getattr (rh, vattrid)) == NULL)
 	{
-		rc_log(LOG_ERR,"rc_avpair_new: no attribute %d/%u in dictionary", vendorpec, attrid);
+		rc_log(LOG_ERR,"rc_avpair_new: no attribute %d/%u in dictionary", vendorspec, attrid);
 		return NULL;
 	}
-	if (vendorpec != 0 && rc_dict_getvend(rh, vendorpec) == NULL)
+	if (vendorspec != 0 && rc_dict_getvend(rh, vendorspec) == NULL)
 	{
-		rc_log(LOG_ERR,"rc_avpair_new: no Vendor-Id %d in dictionary", vendorpec);
+		rc_log(LOG_ERR,"rc_avpair_new: no Vendor-Id %d in dictionary", vendorspec);
 		return NULL;
 	}
 	if ((vp = malloc (sizeof (VALUE_PAIR))) != NULL)
@@ -265,11 +265,11 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pva
  * @param pair a pointer to a VALUE_PAIR structure.
  * @param ptr the value (e.g., the actual username).
  * @param length the length of ptr, or -1 if to calculate (in case of strings).
- * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return value_pair list or NULL on failure.
  */
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, uint32_t vendorpec)
+			  int length, uint32_t vendorspec)
 {
 	uint64_t attribute;
 	int attrlen, x_len;
@@ -296,11 +296,11 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 	/* Advance to the next attribute and process recursively */
 	if (length != attrlen) {
 		pair = rc_avpair_gen(rh, pair, ptr + attrlen, length - attrlen,
-		    vendorpec);
+		    vendorspec);
 	}
 
 	/* Actual processing */
-	attribute = VATTRID_SET(ptr[0], vendorpec);
+	attribute = VATTRID_SET(ptr[0], vendorspec);
 	ptr += 2;
 	attrlen -= 2;
 
@@ -312,16 +312,16 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 			goto skipit;
 		}
 		memcpy(&lvalue, ptr, 4);
-		vendorpec = ntohl(lvalue);
-		if (rc_dict_getvend(rh, vendorpec) == NULL) {
+		vendorspec = ntohl(lvalue);
+		if (rc_dict_getvend(rh, vendorspec) == NULL) {
 			/* Warn and skip over the unknown VSA */
 			rc_log(LOG_WARNING, "rc_avpair_gen: received VSA "
-			    "attribute with unknown Vendor-Id %d", vendorpec);
+			    "attribute with unknown Vendor-Id %d", vendorspec);
 			goto skipit;
 		}
 		/* Process recursively */
 		return rc_avpair_gen(rh, pair, ptr + 4, attrlen - 4,
-		    vendorpec);
+		    vendorspec);
 	}
 
 	/* Normal */
@@ -333,7 +333,7 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 			snprintf(hex, sizeof(hex), "%2.2X", x_ptr[0]);
 			strcat(buffer, hex);
 		}
-		if (vendorpec == 0) {
+		if (vendorspec == 0) {
 			rc_log(LOG_WARNING, "rc_avpair_gen: received "
 			    "unknown attribute %d of length %d: 0x%s",
 			    (unsigned)attribute, attrlen + 2, buffer);
@@ -427,12 +427,12 @@ shithappens:
  *
  * @param vp a pointer to a VALUE_PAIR structure.
  * @param attrid The attribute of the pair to find (e.g., PW_USER_NAME).
- * @param vendorpec The vendor ID in case of a vendor specific value - 0 otherwise.
+ * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return the value pair found.
  */
-VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorpec)
+VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorspec)
 {
-	uint64_t attr = VATTRID_SET(attrid, vendorpec);
+	uint64_t attr = VATTRID_SET(attrid, vendorspec);
 
 	for (; vp != NULL && !(attr == vp->attribute); vp = vp->next)
 	{

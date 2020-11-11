@@ -25,9 +25,11 @@ TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh
 check_PROGRAMS =
 
 if ENABLE_GNUTLS
-TESTS += tls-tests.sh avpair dict
+ctests = avpair dict dict-add
 
-check_PROGRAMS += tls-restart avpair dict
+TESTS += tls-tests.sh $(ctests)
+
+check_PROGRAMS += tls-restart $(ctests)
 
 tls_restart_SOURCES = tls-restart.c
 tls_restart_LDADD = ../src/libtools.a ../lib/libradcli.la

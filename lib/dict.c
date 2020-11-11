@@ -24,6 +24,127 @@
 #include <radcli/radcli.h>
 #include "util.h"
 
+/** Add attribute to dictionary
+ *
+ * Does not check if such attribute already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param namestr         attribute name
+ * @param type            attribute type
+ * @param value           attribute value
+ * @param vendorspec      vendorspec
+ * @return                added attr on success, NULL on failure
+ */
+DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, uint32_t value, int type, uint32_t vendorspec)
+{
+	DICT_ATTR *attr;
+
+	if (strlen (namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addattr: invalid attribute length");
+		return NULL;
+	}
+
+	if (type < 0 || type >= PW_TYPE_MAX)
+	{
+		rc_log(LOG_ERR, "rc_dict_addattr: invalid attribute type");
+		return NULL;
+	}
+
+	/* Create a new attribute for the list */
+	if ((attr = malloc(sizeof (DICT_ATTR))) == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_addattr: out of memory");
+		return NULL;
+	}
+
+	strlcpy(attr->name, namestr, sizeof(attr->name));
+	attr->value = VATTRID_SET(value, vendorspec);
+	attr->type = type;
+
+	/* Insert it into the list */
+	attr->next = rh->dictionary_attributes;
+	rh->dictionary_attributes = attr;
+	return attr;
+}
+
+/** Add value to dictionary
+ *
+ * Does not check if such value already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param attrstr         attribute name
+ * @param namestr         name
+ * @param value           attribute value
+ * @return                added value on success, NULL on failure
+ */
+DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * namestr, uint32_t value)
+{
+	DICT_VALUE *dval;
+
+	if (strlen(attrstr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addval: invalid attribute length");
+		return NULL;
+	}
+
+	if (strlen(namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addval: invalid name length");
+		return NULL;
+	}
+
+	/* Create a new VALUE entry for the list */
+	if ((dval = malloc(sizeof (DICT_VALUE))) == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_addval: out of memory");
+		return NULL;
+	}
+	strlcpy(dval->attrname, attrstr, sizeof(dval->attrname));
+	strlcpy(dval->name, namestr, sizeof(dval->name));
+	dval->value = value;
+
+	/* Insert it into the list */
+	dval->next = rh->dictionary_values;
+	rh->dictionary_values = dval;
+	return dval;
+}
+
+/** Add vendor to dictionary
+ *
+ * Does not check if such vendor already exists
+ *
+ * @param rh              a handle to configuration.
+ * @param namestr         vendor name
+ * @param vendorspec      vendorspec
+ * @return                added value on success, NULL on failure
+ */
+DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendorspec)
+{
+	DICT_VENDOR *dvend;
+
+	if (strlen(namestr) > NAME_LENGTH)
+	{
+		rc_log(LOG_ERR, "rc_dict_addvend: invalid vendor name length");
+		return NULL;
+	}
+
+	/* Create a new VENDOR entry for the list */
+	dvend = malloc(sizeof(DICT_VENDOR));
+	if (dvend == NULL)
+	{
+		rc_log(LOG_CRIT, "rc_dict_init: out of memory");
+		return NULL;
+	}
+	strlcpy(dvend->vendorname, namestr, sizeof(dvend->vendorname));
+	dvend->vendorpec = vendorspec;
+
+	/* Insert it into the list */
+	dvend->next = rh->dictionary_vendors;
+	rh->dictionary_vendors = dvend;
+	return dvend;
+}
+
 /** Parse the input dictionary-config and initialize the dictionary.
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
@@ -488,15 +609,15 @@ DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname)
 /** Lookup a DICT_VENDOR by its IANA number
  *
  * @param rh a handle to parsed configuration.
- * @param vendorpec the vendor ID.
+ * @param vendorspec the vendor ID.
  * @return the full vendor structure based on the vendor id number.
  */
-DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorpec)
+DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorspec)
 {
         DICT_VENDOR      *vend;
 
 	for (vend = rh->dictionary_vendors; vend != NULL; vend = vend->next)
-		if (vend->vendorpec == vendorpec)
+		if (vend->vendorpec == vendorspec)
 			return vend;
 	return NULL;
 }
