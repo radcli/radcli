@@ -63,7 +63,7 @@ jobs:
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools
             - name: Compile
               run: |
                   touch config.rpath && autoreconf -fvi
@@ -72,6 +72,9 @@ jobs:
             - name: Test
               run: |
                   sudo make check
+            - name: ABI check
+              run: |
+                  make abi-check
             - name: Simulate dist
               run: |
                   touch doc/stamp_mans
