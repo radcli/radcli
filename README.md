@@ -17,13 +17,14 @@ allow using radius for authentication and accounting without having to understan
 the internals of radius. Such library was the freeradius-client library, but
 was undocumented, had too much legacy code centered around radlogin, a tool 
 which is of no significance today, was IPv4-only and had no releases for
-several years.
+several years, and zero tests.
 
-This library addresses these shortcomings, adds package management via
-pkg-config, adds support for TCP, TLS and DTLS, provides documentation of the API,
-and will include any new features for the task. It is provided as a shared
-library in case it is useful to other projects as well, and is also made source
-compatible with radiusclient-ng and freeradius-client.
+This library addresses these shortcomings, adds a test suite and test driven
+development, adds package management via pkg-config, adds support for TCP,
+TLS and DTLS, provides documentation of the API, and will include any new
+features for the task. It is provided as a shared library in case it is
+useful to other projects as well, and is also made source compatible with
+radiusclient-ng and freeradius-client.
 
 
 ## Documentation
