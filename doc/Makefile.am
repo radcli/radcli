@@ -30,7 +30,7 @@ include $(top_srcdir)/doc/doc.mk
 APIMANS += man/radcli.h.3
 
 CLEANFILES = *~
-DISTCLEANFILES = stamp_mans
+DISTCLEANFILES = stamp_mans stamp_html
 
 EXTRA_DIST = Doxyfile.in scripts/getfuncs.pl scripts/getfuncs-map.pl doc.mk
 
