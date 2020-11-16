@@ -93,7 +93,7 @@ jobs:
             - name: Compile
               run: |
                   touch config.rpath && autoreconf -fvi
-                  ./configure --with-tls
+                  CFLAGS="-O2 -g -Wall -Wno-cpp -Werror" ./configure --with-tls
                   make -j $(nproc)
             - name: Test
               run: |
