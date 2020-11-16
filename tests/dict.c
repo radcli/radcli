@@ -45,8 +45,7 @@ char large_vendor_dict[] =
 int main(int argc, char **argv)
 {
 	rc_handle 	*rh = NULL;
-	int checks;
-	int ret, prev;
+	int ret;
 	DICT_ATTR *attr;
 	DICT_VENDOR *v;
 	DICT_VALUE *dv;

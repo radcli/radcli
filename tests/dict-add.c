@@ -42,8 +42,6 @@ main (int argc, char **argv)
     char		auth_server_ip[255] = {0};
     char		*server_ip = NULL;
 
-    int use_state = 0;
-
     if(argc > 2)
     {
         printf("ERROR: Invalid number of arguments.\n");
@@ -144,7 +142,7 @@ main (int argc, char **argv)
     /* Check dict */
     for (int i = 0; i < sizeof(entries)/sizeof(entries[0]); ++i)
     {
-        if (attr = rc_dict_getattr(rh, entries[i].val))
+        if ((attr = rc_dict_getattr(rh, entries[i].val)) != 0)
         {
             if (attr->value != entries[i].val || attr->type != entries[i].type)
             {
