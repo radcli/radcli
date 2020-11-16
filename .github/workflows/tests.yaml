@@ -38,10 +38,36 @@ jobs:
               run: |
                   sudo apt-get update -qq
                   sudo apt-get install -qq gcc freeradius libgnutls28-dev libasan5
-            - name: Compile
+            - name: Compile with address sanitizer
               run: |
                   touch config.rpath && autoreconf -fvi
                   LDFLAGS="-lasan" CFLAGS="-fsanitize=address -g -O2" ./configure --with-tls
+                  make -j $(nproc)
+            - name: Test
+              run: |
+                  sudo make check
+            - name: Upload artifacts
+              if: failure()
+              uses: actions/upload-artifact@v2
+              with:
+                  name: test-suite log
+                  path: tests/test-suite.log
+                  retention-days: 5
+
+    tests-ubsan:
+        runs-on: ubuntu-20.04
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev
+            - name: Compile with undefined sanitizer
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  CFLAGS="-O1 -g -Wno-cpp -Werror -fno-omit-frame-pointer -fsanitize=undefined,bool,alignment,null,enum,bounds-strict,address,leak,nonnull-attribute -fno-sanitize-recover=all -fsanitize-address-use-after-scope" ./configure --with-tls
                   make -j $(nproc)
             - name: Test
               run: |
