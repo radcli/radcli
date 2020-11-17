@@ -78,7 +78,8 @@ typedef enum rc_type {
 struct rc_conf;
 typedef struct rc_conf rc_handle;
 
-/** \struct server Avoid using this structure directly, it is included for backwards compatibility only.
+/** \struct server
+ * Avoid using this structure directly, it is included for backwards compatibility only.
  * Several of its fields have been deprecated.
  */
 typedef struct server {
@@ -466,7 +467,8 @@ typedef enum rc_send_status {
 
 # define AUTH_STRING_LEN		253	 /* maximum of 253 */
 
-/** \struct rc_value_pair Avoid using this structure directly. Use the rc_avpair_get_ functions.
+/** \struct rc_value_pair
+ * Avoid using this structure directly. Use the rc_avpair_get_ functions.
  */
 typedef struct rc_value_pair
 {
