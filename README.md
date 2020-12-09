@@ -1,4 +1,4 @@
-[![Tests](https://github.com/radcli/radcli/workflows/Tests/badge.svg?branch=master)]
+![Tests](https://github.com/radcli/radcli/workflows/Tests/badge.svg?branch=master)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/radcli/radcli.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/radcli/radcli/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/radcli/radcli.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/radcli/radcli/context:cpp)
 
