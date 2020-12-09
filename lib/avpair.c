@@ -607,7 +607,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 	DICT_VALUE     *dval;
 	VALUE_PAIR     *pair;
 	VALUE_PAIR     *link;
-	struct tm      *tm;
+	struct tm      *tm, _tm;
 	time_t          timeval;
 
 	mode = PARSE_MODE_NAME;
@@ -743,7 +743,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 
 			    case PW_TYPE_DATE:
 				timeval = time (0);
-				tm = localtime (&timeval);
+				tm = localtime_r (&timeval, &_tm);
 				tm->tm_hour = 0;
 				tm->tm_min = 0;
 				tm->tm_sec = 0;
@@ -921,7 +921,8 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 		break;
 		}
 		case PW_TYPE_DATE: {
-			struct tm *ptm = gmtime((time_t *) & pair->lvalue);
+			struct tm _tm;
+			struct tm *ptm = gmtime_r((time_t *) & pair->lvalue, &_tm);
 			if (ptm == NULL)
 				return -1;
 

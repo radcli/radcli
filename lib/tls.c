@@ -305,8 +305,6 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 			       "%s: error in setting PSK priorities: %s",
 			       __func__, gnutls_strerror(ret));
 			goto cleanup;
-
-			cred_set = 1;
 		}
 	} else if (st) {
 		cred_set = 1;
