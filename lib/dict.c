@@ -39,7 +39,7 @@ DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, uint32_t value, 
 {
 	DICT_ATTR *attr;
 
-	if (strlen (namestr) > NAME_LENGTH)
+	if (strlen (namestr) > RC_NAME_LENGTH)
 	{
 		rc_log(LOG_ERR, "rc_dict_addattr: invalid attribute length");
 		return NULL;
@@ -82,13 +82,13 @@ DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * nam
 {
 	DICT_VALUE *dval;
 
-	if (strlen(attrstr) > NAME_LENGTH)
+	if (strlen(attrstr) > RC_NAME_LENGTH)
 	{
 		rc_log(LOG_ERR, "rc_dict_addval: invalid attribute length");
 		return NULL;
 	}
 
-	if (strlen(namestr) > NAME_LENGTH)
+	if (strlen(namestr) > RC_NAME_LENGTH)
 	{
 		rc_log(LOG_ERR, "rc_dict_addval: invalid name length");
 		return NULL;
@@ -123,7 +123,7 @@ DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendo
 {
 	DICT_VENDOR *dvend;
 
-	if (strlen(namestr) > NAME_LENGTH)
+	if (strlen(namestr) > RC_NAME_LENGTH)
 	{
 		rc_log(LOG_ERR, "rc_dict_addvend: invalid vendor name length");
 		return NULL;
@@ -214,7 +214,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			/*
 			 * Validate all entries
 			 */
-			if (strlen (namestr) > NAME_LENGTH)
+			if (strlen (namestr) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR, 
 					"rc_dict_init: invalid name length on line %d of "
@@ -322,7 +322,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			/*
 			 * Validate all entries
 			 */
-			if (strlen (attrstr) > NAME_LENGTH)
+			if (strlen (attrstr) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "
@@ -330,7 +330,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				return -1;
 			}
 
-			if (strlen (namestr) > NAME_LENGTH)
+			if (strlen (namestr) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid name length on line %d of "
@@ -425,7 +425,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			}
 
 			/* Validate all entries */
-			if (strlen (attrstr) > NAME_LENGTH)
+			if (strlen (attrstr) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "

@@ -56,7 +56,7 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 	int total_length = 0;
 	size_t secretlen;
 	uint32_t lvalue, vendor;
-	unsigned char passbuf[MAX(AUTH_PASS_LEN, CHAP_VALUE_LENGTH)];
+	unsigned char passbuf[RC_MAX(AUTH_PASS_LEN, CHAP_VALUE_LENGTH)];
 	unsigned char md5buf[256];
 	unsigned char *buf, *vector, *vsa_length_ptr;
 
@@ -459,8 +459,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	size_t secretlen;
 	char secret[MAX_SECRET_LENGTH + 1];
 	unsigned char vector[AUTH_VECTOR_LEN];
-	uint8_t recv_buffer[BUFFER_LEN];
-	uint8_t send_buffer[BUFFER_LEN];
+	uint8_t recv_buffer[RC_BUFFER_LEN];
+	uint8_t send_buffer[RC_BUFFER_LEN];
 	uint8_t *attr;
 	uint16_t tlen;
 	int retries;
@@ -768,7 +768,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			}
 
 			result =
-			    rc_check_reply(recv_auth, BUFFER_LEN, secret,
+			    rc_check_reply(recv_auth, RC_BUFFER_LEN, secret,
 					   vector, data->seq_nbr);
 			if (result != BADRESPID_RC) {
 				/* if a message that doesn't match our ID was received, then ignore
