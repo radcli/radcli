@@ -47,9 +47,9 @@ extern "C" {
 #define AUTH_PASS_LEN		(7 * 16) /* multiple of 16 */
 #define AUTH_ID_LEN		64
 
-#define BUFFER_LEN		8192
+#define RC_BUFFER_LEN		8192
 
-#define NAME_LENGTH		32
+#define RC_NAME_LENGTH		32
 
 #define MAX_SECRET_LENGTH	(6 * 16) /* MUST be multiple of 16 */
 
@@ -68,7 +68,7 @@ typedef enum rc_type {
 
 /* defines for config.c */
 
-#define SERVER_MAX 8
+#define RC_SERVER_MAX 8
 
 #define AUTH_LOCAL_FST	(1<<0)
 #define AUTH_RADIUS_FST	(1<<1)
@@ -84,10 +84,10 @@ typedef struct rc_conf rc_handle;
  */
 typedef struct server {
 	int   max;
-	char *name[SERVER_MAX];
-	uint16_t port[SERVER_MAX];
-	char *secret[SERVER_MAX];
-	double deadtime_ends[SERVER_MAX]; //!< unused
+	char *name[RC_SERVER_MAX];
+	uint16_t port[RC_SERVER_MAX];
+	char *secret[RC_SERVER_MAX];
+	double deadtime_ends[RC_SERVER_MAX]; //!< unused
 } SERVER;
 
 /** \enum rc_socket_type Indicate the type of the socket
@@ -427,7 +427,7 @@ enum rc_vendor_attr_roaringpenguin {
 
 typedef struct dict_attr
 {
-	char              name[NAME_LENGTH + 1];	//!< attribute name.
+	char              name[RC_NAME_LENGTH + 1];	//!< attribute name.
 	uint64_t          value;			//!< attribute index and vendor number; use VENDOR() and ATTRID() to separate.
 	rc_attr_type      type;				//!< string, int, etc..
 	struct dict_attr *next;
@@ -435,15 +435,15 @@ typedef struct dict_attr
 
 typedef struct dict_value
 {
-	char               attrname[NAME_LENGTH +1];
-	char               name[NAME_LENGTH + 1];
+	char               attrname[RC_NAME_LENGTH +1];
+	char               name[RC_NAME_LENGTH + 1];
 	uint32_t           value;
 	struct dict_value *next;
 } DICT_VALUE;
 
 typedef struct dict_vendor
 {
-	char               vendorname[NAME_LENGTH +1];
+	char               vendorname[RC_NAME_LENGTH +1];
 	uint32_t           vendorpec;
 	struct dict_vendor *next;
 } DICT_VENDOR;
@@ -472,7 +472,7 @@ typedef enum rc_send_status {
  */
 typedef struct rc_value_pair
 {
-	char               name[NAME_LENGTH + 1];	//!< attribute name if known.
+	char               name[RC_NAME_LENGTH + 1];	//!< attribute name if known.
 	uint64_t           attribute;			//!< attribute numeric value of type rc_attr_id including vendor; use VENDOR() and ATTRID() to separate.
 	rc_attr_type	   type;			//!< attribute type.
 	uint32_t           lvalue;			//!< attribute value if type is PW_TYPE_INTEGER, PW_TYPE_DATE or PW_TYPE_IPADDR.
@@ -499,11 +499,11 @@ typedef struct send_data /* Used to pass information to sendserver() function */
 struct rc_aaa_ctx_st;
 typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
-#ifndef MIN
-#define MIN(a, b)     ((a) < (b) ? (a) : (b))
+#ifndef RC_MIN
+#define RC_MIN(a, b)     ((a) < (b) ? (a) : (b))
 #endif
-#ifndef MAX
-#define MAX(a, b)     ((a) > (b) ? (a) : (b))
+#ifndef RC_MAX
+#define RC_MAX(a, b)     ((a) > (b) ? (a) : (b))
 #endif
 
 #ifndef PATH_MAX
