@@ -130,8 +130,8 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 	p_pointer = strtok_r(p_dupe, ", \t", &p_save);
 
         while(p_pointer != NULL) {
-                if (serv->max > SERVER_MAX) {
-                        DEBUG(LOG_ERR, "cannot set more than %d servers", SERVER_MAX);
+                if (serv->max > RC_SERVER_MAX) {
+                        DEBUG(LOG_ERR, "cannot set more than %d servers", RC_SERVER_MAX);
                         goto fail;
                 }
 
