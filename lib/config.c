@@ -1061,7 +1061,7 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
  */
 void rc_config_free(rc_handle *rh)
 {
-	int i;
+	int i, j;
 	SERVER *serv;
 
 	if (rh->config_options == NULL)
@@ -1071,9 +1071,11 @@ void rc_config_free(rc_handle *rh)
 		if (rh->config_options[i].val == NULL)
 			continue;
 		if (rh->config_options[i].type == OT_SRV) {
-		        serv = (SERVER *)rh->config_options[i].val;
-			free(serv->name[0]);
-			if(serv->secret[0]) free(serv->secret[0]);
+			serv = (SERVER *)rh->config_options[i].val;
+			for (j = 0; j < serv->max; j++) {
+				free(serv->name[j]);
+				if(serv->secret[j]) free(serv->secret[j]);
+			}
 			free(serv);
 		} else {
 			free(rh->config_options[i].val);
