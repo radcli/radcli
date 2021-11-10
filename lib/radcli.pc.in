@@ -7,7 +7,7 @@ includedir=@includedir@
 
 Name: radcli
 Description: A small radius client library
-URL: http://radcli.github.io/libradcli/
+URL: http://radcli.github.io/radcli/
 Version: @VERSION@
 Libs: -L${libdir} -lradcli
 @REQUIRES_PRIVATE@
