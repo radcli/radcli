@@ -26,6 +26,8 @@
 #include	<stdio.h>
 #include	<time.h>
 
+/* for struct in6_addr */
+#include	<netinet/in.h>
 
 /* for struct addrinfo and sockaddr_storage */
 #include <sys/socket.h>
