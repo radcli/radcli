@@ -27,9 +27,9 @@ sharedir = $(datadir)/@PACKAGE@
 DISTCLEANFILES = $(pkgconfig_DATA)
 
 lib_LTLIBRARIES =  libradcli.la
-libradcli_la_SOURCES = buildreq.c sendserver.c \
-	avpair.c config.c dict.c ip_util.c log.c util.c  \
-	options.h rc-md5.h rc-md5.c util.h tls.c tls.h \
+libradcli_la_SOURCES = buildreq.c sendserver.c sendserver_util.c \
+	sendserver_async.c avpair.c config.c dict.c ip_util.c log.c util.c  \
+	sendserver_util.h options.h rc-md5.h rc-md5.c util.h tls.c tls.h \
 	aaa_ctx.c radcli.map rc-hmac.h
 
 if !ENABLE_NETTLE

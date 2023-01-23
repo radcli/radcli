@@ -6,6 +6,8 @@
  * Copyright 1992,1993, 1994,1995 The Regents of the University of Michigan
  * and Merit Network, Inc. All Rights Reserved
  *
+ * Copyright (C) 2022 Cadami GmbH info@cadami.net
+ *
  * See the file COPYRIGHT for the respective terms and conditions.
  * If the file is missing contact me at lf@elemental.net
  * and I'll send you a copy.
@@ -25,6 +27,8 @@
 /* #include	<inttypes.h> */
 #include	<stdio.h>
 #include	<time.h>
+
+#include <poll.h>
 
 /* for struct in6_addr */
 #include	<netinet/in.h>
@@ -672,6 +676,39 @@ int rc_send_server (rc_handle *rh, SEND_DATA *data, char *msg,
 void rc_aaa_ctx_free(RC_AAA_CTX *ctx);
 const char *rc_aaa_ctx_get_secret(RC_AAA_CTX *ctx);
 const void *rc_aaa_ctx_get_vector(RC_AAA_CTX *ctx);
+
+
+/* Async utility from sendserver_async.c */
+
+/** \struct rc_async_handle
+ * Handle to an async radius request.
+ */
+struct rc_async_handle;
+
+struct rc_async_handle *
+rc_async_create_handle(rc_handle *rh, RC_AAA_CTX **ctx, SERVER *aaaserver,
+		rc_type type, uint32_t nas_port, VALUE_PAIR *send,
+		int add_nas_port, rc_standard_codes request_type);
+struct rc_async_handle *
+rc_async_create_handle_auth(rc_handle *rh, uint32_t nas_port,
+	VALUE_PAIR *send);
+struct rc_async_handle *
+rc_async_create_handle_acct(rc_handle *rh, uint32_t nas_port,
+	VALUE_PAIR *send);
+
+void rc_async_destroy_handle(struct rc_async_handle *hdl);
+
+int rc_async_is_done(struct rc_async_handle *hdl);
+int rc_async_get_result(struct rc_async_handle *hdl);
+char * rc_async_get_reply_message(struct rc_async_handle *hdl);
+VALUE_PAIR * rc_async_get_receive_pairs(struct rc_async_handle *hdl);
+VALUE_PAIR * rc_async_get_send_pairs(struct rc_async_handle *hdl);
+rc_socket_type rc_async_get_socket_type(struct rc_async_handle *hdl);
+int rc_async_get_fd(struct rc_async_handle *hdl);
+short rc_async_get_events(struct rc_async_handle *hdl);
+
+int rc_async_process_handle(struct rc_async_handle *hdl, short revents);
+
 
 /* obsolete functions */
 #define _RADCLI_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
