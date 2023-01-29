@@ -122,7 +122,7 @@ then
 	AC_TRY_RUN([
 	#include <sys/utsname.h>
 
-	main(int argc, char **argv)
+	int main(int argc, char **argv)
 	{
 		struct utsname uts;
 		uts.domainname[0] = '\0';
