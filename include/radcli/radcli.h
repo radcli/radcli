@@ -709,6 +709,33 @@ short rc_async_get_events(struct rc_async_handle *hdl);
 
 int rc_async_process_handle(struct rc_async_handle *hdl, short revents);
 
+/** \struct rc_multihandle
+ * Handle to a list of rc_async_handle of inflight requests.
+ */
+struct rc_multihandle;
+
+struct rc_multihandle *
+rc_multi_create_multihandle(void);
+void rc_multi_destroy_multihandle(struct rc_multihandle *mhdl);
+
+int rc_multi_add(struct rc_multihandle *mhdl,
+	struct rc_async_handle *hdl);
+int rc_multi_remove(struct rc_multihandle *mhdl,
+	struct rc_async_handle *hdl);
+struct rc_async_handle *
+rc_multi_remove_next_done(struct rc_multihandle *mhdl);
+
+int rc_multi_get_pollfds(struct rc_multihandle *mhdl,
+	struct pollfd *pollfds, unsigned pollfds_len);
+int rc_multi_get_fd_set(struct rc_multihandle *mhdl,
+	fd_set *rfd, fd_set *wfd);
+
+int rc_multi_process(struct rc_multihandle *mhdl);
+int rc_multi_process_pollfds(struct rc_multihandle *mhdl,
+	struct pollfd *pollfds, unsigned pollfds_len);
+int rc_multi_process_fd_set(struct rc_multihandle *mhdl,
+	fd_set *rfd, fd_set *wfd);
+
 
 /* obsolete functions */
 #define _RADCLI_GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)

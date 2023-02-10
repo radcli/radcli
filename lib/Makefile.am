@@ -30,7 +30,7 @@ lib_LTLIBRARIES =  libradcli.la
 libradcli_la_SOURCES = buildreq.c sendserver.c sendserver_util.c \
 	sendserver_async.c avpair.c config.c dict.c ip_util.c log.c util.c  \
 	sendserver_util.h options.h rc-md5.h rc-md5.c util.h tls.c tls.h \
-	aaa_ctx.c radcli.map rc-hmac.h
+	aaa_ctx.c radcli.map rc-hmac.h multihandle.c
 
 if !ENABLE_NETTLE
 libradcli_la_SOURCES += md5.c md5.h hmac.c hmac.h

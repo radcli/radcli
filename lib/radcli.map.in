@@ -38,6 +38,16 @@ RADCLI_@LIBMAJOR@
 	rc_async_get_fd;
 	rc_async_get_events;
 	rc_async_process_handle;
+	rc_multi_create_multihandle;
+	rc_multi_destroy_multihandle;
+	rc_multi_add;
+	rc_multi_remove;
+	rc_multi_remove_next_done;
+	rc_multi_get_pollfds;
+	rc_multi_get_fd_set;
+	rc_multi_process;
+	rc_multi_process_pollfds;
+	rc_multi_process_fd_set;
 	rc_check;
 	rc_aaa;
 	rc_aaa_ctx;
