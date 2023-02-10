@@ -300,6 +300,21 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		      data->svc_port);
 	}
 
+	if (sfuncs->connect) {
+		do {
+			result =
+			    sfuncs->connect(sfuncs->ptr, sockfd,
+					    SA(auth_addr->ai_addr),
+					    auth_addr->ai_addrlen);
+		} while (result == -1 && errno == EINTR);
+		if (result == -1) {
+			result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
+			rc_log(LOG_ERR, "%s: connect: %s", __FUNCTION__,
+			       strerror(errno));
+			goto cleanup;
+		}
+	}
+
 	for (;;) {
 		do {
 			result =
@@ -310,7 +325,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		} while (result == -1 && errno == EINTR);
 		if (result == -1) {
 			result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
-			rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__,
+			rc_log(LOG_ERR, "%s: sendto: %s", __FUNCTION__,
 			       strerror(errno));
 			goto cleanup;
 		}
