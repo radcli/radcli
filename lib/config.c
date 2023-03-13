@@ -395,15 +395,11 @@ static ssize_t plain_sendto(void *ptr, int sockfd,
 	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
 }
 
-static ssize_t plain_tcp_sendto(void *ptr, int sockfd,
-			    const void *buf, size_t len, int flags,
-			    const struct sockaddr *dest_addr, socklen_t addrlen)
+static ssize_t plain_connect(void *ptr, int sockfd,
+			     const struct sockaddr *dest_addr,
+			     socklen_t addrlen)
 {
-	if((connect(sockfd, dest_addr, addrlen)) != 0){
-		rc_log(LOG_ERR, "%s: Connect Call Failed : %s", __FUNCTION__, strerror(errno));
-		return -1;
-	}
-	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
+	return connect(sockfd, dest_addr, addrlen);
 }
 
 static ssize_t plain_recvfrom(void *ptr, int sockfd,
@@ -470,7 +466,8 @@ static const rc_sockets_override default_socket_funcs = {
 static const rc_sockets_override default_tcp_socket_funcs = {
 	.get_fd = plain_tcp_get_fd,
 	.close_fd = plain_close_fd,
-	.sendto = plain_tcp_sendto,
+	.connect = plain_connect,
+	.sendto = plain_sendto,
 	.recvfrom = plain_recvfrom
 };
 

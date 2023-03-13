@@ -177,6 +177,8 @@ typedef struct rc_sockets_override {
 	const char *static_secret;
 	int (*get_fd)(void *ptr, struct sockaddr* our_sockaddr);
 	void (*close_fd)(int fd);
+	ssize_t (*connect)(void *ptr, int sockfd,
+	                   const struct sockaddr *dest_addr, socklen_t addrlen);
 	ssize_t (*sendto)(void *ptr, int sockfd, const void *buf, size_t len, int flags,
 	                  const struct sockaddr *dest_addr, socklen_t addrlen);
 	ssize_t (*recvfrom)(void *ptr, int sockfd, void *buf, size_t len, int flags,
