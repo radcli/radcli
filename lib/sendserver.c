@@ -109,7 +109,7 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 				rc_md5_calc(buf, md5buf,
 					    secretlen + AUTH_VECTOR_LEN);
 
-				/* Remeber the start of the digest */
+				/* Remember the start of the digest */
 				vector = buf;
 
 				/* Xor the password into the MD5 digest */
@@ -226,7 +226,7 @@ static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
  * @param msg must be an array of %PW_MAX_MSG_SIZE or NULL; will contain the concatenation of
  *	any %PW_REPLY_MESSAGE received.
  * @param type must be %AUTH or %ACCT
- * @return OK_RC (0) on success, TIMEOUT_RC on timeout REJECT_RC on acess reject, or negative
+ * @return OK_RC (0) on success, TIMEOUT_RC on timeout REJECT_RC on access reject, or negative
  *	on failure as return value.
  */
 int rc_send_server(rc_handle * rh, SEND_DATA * data, char *msg, rc_type type)
@@ -421,7 +421,7 @@ static int add_msg_auth_attr(rc_handle * rh, char * secret,
 	total_length += 18;
 	auth->length = htons((unsigned short)total_length);
 
-	/* Calulate HMAC-MD5 [RFC2104] hash */
+	/* Calculate HMAC-MD5 [RFC2104] hash */
 	uint8_t digest[MD5_DIGEST_SIZE];
 	rc_hmac_md5((uint8_t *)auth, (size_t)total_length, (uint8_t *)secret, secretlen, digest);
 	memcpy(&msg_auth[2], digest, MD5_DIGEST_SIZE);

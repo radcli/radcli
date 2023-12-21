@@ -714,7 +714,7 @@ char *rc_conf_str(rc_handle const *rh, char const *optname)
 	if (option != NULL) {
 		return (char *)option->val;
 	} else {
-		rc_log(LOG_CRIT, "rc_conf_str: unkown config option requested: %s", optname);
+		rc_log(LOG_CRIT, "rc_conf_str: unknown config option requested: %s", optname);
 		return NULL;
 	}
 }
@@ -739,7 +739,7 @@ static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
 		}
                 return 0;
 	} else {
-		rc_log(LOG_CRIT, "rc_conf_int: unkown config option requested: %s", optname);
+		rc_log(LOG_CRIT, "rc_conf_int: unknown config option requested: %s", optname);
 		return 0;
 	}
 }
@@ -764,7 +764,7 @@ SERVER *rc_conf_srv(rc_handle const *rh, char const *optname)
 	if (option != NULL) {
 		return (SERVER *)option->val;
 	} else {
-		rc_log(LOG_CRIT, "rc_conf_srv: unkown config option requested: %s", optname);
+		rc_log(LOG_CRIT, "rc_conf_srv: unknown config option requested: %s", optname);
 		return NULL;
 	}
 }

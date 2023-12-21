@@ -22,7 +22,7 @@
 
 #define	RC_BUFSIZ	1024
 
-/** Reads in a string from the user (with or witout echo)
+/** Reads in a string from the user (with or without echo)
  *
  * @param rh a handle to parsed configuration.
  * @param prompt the prompt to print.
