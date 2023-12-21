@@ -39,7 +39,7 @@ dictionary	@pkgsysconfdir@/dictionary
 
 # default authentication realm to append to all usernames if no
 # realm was explicitly specified by the user
-# the radiusd directly form Livingston doesnt use any realms, so leave
+# the radiusd directly form Livingston doesn't use any realms, so leave
 # it blank then
 default_realm
 
@@ -60,7 +60,7 @@ bindaddr	*
 # Support for IPv6 non-temporary address support. This is an IPv6-only option
 # and is valid only when IPv6 Privacy Extensions are enabled in system.
 # If this option is set to "true", the radius packets will be sent with the
-# IPv6 Global address and will not use the temporary adresses. If commented
+# IPv6 Global address and will not use the temporary addresses. If commented
 # out, temporary IPv6 addresses will be used as source address for the packets
 # sent.
 #use-public-addr	true

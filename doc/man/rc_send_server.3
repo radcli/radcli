@@ -45,7 +45,7 @@ must be AUTH or ACCT
 struct send_data {
   uint8_t      \fIcode\fP;          // RADIUS packet code. 
   uint8_t      \fIseq_nbr\fP;       // Packet sequence number. 
-  char        *\fIserver\fP;        // Name/addrress of RADIUS server. 
+  char        *\fIserver\fP;        // Name/address of RADIUS server. 
   int          \fIsvc_port\fP;      // RADIUS protocol destination port. 
   char        *\fIsecret\fP;        // Shared secret of RADIUS server. 
   int          \fItimeout\fP;       // Session timeout in seconds. 
@@ -58,7 +58,7 @@ struct send_data {
 .RE
 .SH RETURN VALUE
 .PP
-OK_RC (0) on success, TIMEOUT_RC on timeout REJECT_RC on acess reject, or negative on failure as return value. 
+OK_RC (0) on success, TIMEOUT_RC on timeout REJECT_RC on access reject, or negative on failure as return value. 
 .SH SEE ALSO
 .PP
 .nh
