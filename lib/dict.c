@@ -59,7 +59,7 @@ DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, uint32_t value, 
 	}
 
 	strlcpy(attr->name, namestr, sizeof(attr->name));
-	attr->value = VATTRID_SET(value, vendorspec);
+	attr->value = RADCLI_VENDOR_ATTR_SET(value, vendorspec);
 	attr->type = type;
 
 	/* Insert it into the list */
@@ -298,9 +298,9 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			attr->type = type;
 
 			if (dvend != NULL) {
-				attr->value = VATTRID_SET(value, dvend->vendorpec);
+				attr->value = RADCLI_VENDOR_ATTR_SET(value, dvend->vendorpec);
 			} else {
-				attr->value = VATTRID_SET(value, attr_vendorspec);
+				attr->value = RADCLI_VENDOR_ATTR_SET(value, attr_vendorspec);
 			}
 
 			/* Insert it into the list */

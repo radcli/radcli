@@ -72,7 +72,7 @@ void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorspec)
 	uint64_t vattrid;
 
 	if(vendorspec != VENDOR_NONE)
-		vattrid = VATTRID_SET(attrid, vendorspec);
+		vattrid = RADCLI_VENDOR_ATTR_SET(attrid, vendorspec);
 	else
 		vattrid = attrid;
 
@@ -197,7 +197,7 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pva
 	uint64_t vattrid;
 
 	if(vendorspec != VENDOR_NONE) {
-		vattrid = VATTRID_SET(attrid, vendorspec);
+		vattrid = RADCLI_VENDOR_ATTR_SET(attrid, vendorspec);
 	} else {
 		vattrid = attrid;
 	}
@@ -300,7 +300,7 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char c
 	}
 
 	/* Actual processing */
-	attribute = VATTRID_SET(ptr[0], vendorspec);
+	attribute = RADCLI_VENDOR_ATTR_SET(ptr[0], vendorspec);
 	ptr += 2;
 	attrlen -= 2;
 
@@ -432,7 +432,7 @@ shithappens:
  */
 VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorspec)
 {
-	uint64_t attr = VATTRID_SET(attrid, vendorspec);
+	uint64_t attr = RADCLI_VENDOR_ATTR_SET(attrid, vendorspec);
 
 	for (; vp != NULL && !(attr == vp->attribute); vp = vp->next)
 	{

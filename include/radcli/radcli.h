@@ -57,7 +57,7 @@ extern "C" {
 
 #define RADCLI_VENDOR_MASK 0xffffffff
 #define VENDOR_BIT_SIZE		32
-#define RADCLI_VENDOR_ATTR_SET(a,v) ((a)|((uint64_t)((v)&RADCLI_VENDOR_MASK)) << VENDOR_BIT_SIZE)
+#define RADCLI_VENDOR_ATTR_SET(attr, vendor) ((attr)|((uint64_t)((vendor)&RADCLI_VENDOR_MASK)) << VENDOR_BIT_SIZE)
 
 #define VENDOR(x)		(((x) >> VENDOR_BIT_SIZE) & 0xffffffff)
 #define ATTRID(x)		((x) & 0xffffffff)

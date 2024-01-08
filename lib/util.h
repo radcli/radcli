@@ -10,8 +10,6 @@
 
 #include <string.h>
 
-#define VATTRID_SET(a,v) ((a)|((uint64_t)((v)&0xffffffff)) << VENDOR_BIT_SIZE)
-
 #ifndef HAVE_STRLCPY
 size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 # define strlcpy rc_strlcpy
