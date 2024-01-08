@@ -55,7 +55,10 @@ extern "C" {
 
 #define MAX_SECRET_LENGTH	(6 * 16) /* MUST be multiple of 16 */
 
+#define RADCLI_VENDOR_MASK 0xffffffff
 #define VENDOR_BIT_SIZE		32
+#define RADCLI_VENDOR_ATTR_SET(a,v) ((a)|((uint64_t)((v)&RADCLI_VENDOR_MASK)) << VENDOR_BIT_SIZE)
+
 #define VENDOR(x)		(((x) >> VENDOR_BIT_SIZE) & 0xffffffff)
 #define ATTRID(x)		((x) & 0xffffffff)
 
