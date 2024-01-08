@@ -634,7 +634,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	}
 	strlcpy(hostname, authservers->name[0], sizeof(hostname));
 	port = authservers->port[0];
-	if (authservers->secret)
+	if (authservers->secret[0])
 		pskkey = authservers->secret[0];
 
 	if (pskkey && pskkey[0] != 0) {
