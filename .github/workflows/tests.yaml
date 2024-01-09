@@ -1,12 +1,17 @@
 name: Tests
-on: push
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
 
 jobs:
     static-analyzer:
         runs-on: ubuntu-22.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -20,7 +25,7 @@ jobs:
                   scan-build --status-bugs -o analyzer make -j $(nproc)
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: analyzer output
                   path: analyzer/
@@ -30,7 +35,7 @@ jobs:
         runs-on: ubuntu-22.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -45,7 +50,7 @@ jobs:
                   sudo make check
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: test-suite log
                   path: tests/test-suite.log
@@ -55,7 +60,7 @@ jobs:
         runs-on: ubuntu-22.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -70,7 +75,7 @@ jobs:
                   sudo make check
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: test-suite log
                   path: tests/test-suite.log
@@ -80,7 +85,7 @@ jobs:
         runs-on: ubuntu-22.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -102,7 +107,7 @@ jobs:
                   make ABI_SKIP=1 dist
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v2
+              uses: actions/upload-artifact@v4
               with:
                   name: test-suite log
                   path: tests/test-suite.log
