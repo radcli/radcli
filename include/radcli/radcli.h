@@ -46,14 +46,14 @@ extern "C" {
  * @{
  */
 
-#define AUTH_PASS_LEN		(7 * 16) /* multiple of 16 */
+#define AUTH_PASS_LEN		(8 * 16) /* multiple of 16 */
 #define AUTH_ID_LEN		64
 
 #define RC_BUFFER_LEN		8192
 
 #define RC_NAME_LENGTH		32
 
-#define MAX_SECRET_LENGTH	(6 * 16) /* MUST be multiple of 16 */
+#define MAX_SECRET_LENGTH	(16 * 16) /* MUST be multiple of 16 */
 
 #define RADCLI_VENDOR_MASK 0xffffffff
 #define VENDOR_BIT_SIZE		32
