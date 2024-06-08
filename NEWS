@@ -1,4 +1,4 @@
-* Version 1.3.2 (unreleased)
+* Version 1.4.0 (released 2024-06-08)
 - Bump the maximal length of the password to 128, as required by
   RFC 2865.
 - Bump the maximal length of the shared secret to 256. It should match
@@ -6,6 +6,7 @@
 - New helper macros to set vendor and attribute
    - RADCLI_VENDOR_ATTR_SET
    - RADCLI_VENDOR_MASK
+
 
 * Version 1.3.1 (released 2023-01-29)
 - Modified the variable names so that they do not conflict with
