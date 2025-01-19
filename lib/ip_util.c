@@ -39,7 +39,7 @@ struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags)
 	if (flags & PW_AI_AUTH)
 		service = "radius";
 	else if (flags & PW_AI_ACCT)
-		service = "radacct";
+		service = "radius-acct";
  
 	err = getaddrinfo(host, service, &hints, &res);
 	if (err != 0) {
