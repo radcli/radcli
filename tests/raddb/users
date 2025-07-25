@@ -11,7 +11,8 @@ test	Cleartext-Password := "test"
 	Framed-IP-Address = 192.168.1.190,
 	Framed-IP-Netmask = 255.255.255.0,
 	Framed-Routing = Broadcast-Listen,
-	Framed-MTU = 1500
+	Framed-MTU = 1500,
+	Message-Authenticator := 0x00
 
 test6	Cleartext-Password := "test"
 	Service-Type = Framed-User,
