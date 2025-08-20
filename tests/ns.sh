@@ -28,6 +28,11 @@ if test -z "${RADIUSD}";then
 	RADIUSD=$(which freeradius)
 fi 
 
+if test -z "${RADIUSD}";then
+	echo "This test requires radiusd"
+	exit 77
+fi
+
 if test "$(id -u)" != "0";then
 	echo "This test must be run as root"
 	exit 77
