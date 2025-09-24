@@ -442,23 +442,17 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 	uint8_t *idx = verify_buffer + AUTH_HDR_LEN;
 	const char *received_message_authenticator = NULL;
 
-	/* Reconstruct the original packet, but fill the Message-Authenticator value with zeroes instead */
-	memset(verify_buffer, 0, sizeof(verify_buffer));
-	memcpy(verify_buffer, recv_buffer, AUTH_HDR_LEN);
+	/* Copy the original packet, and clear the Message-Authenticator value */
+	memcpy(verify_buffer, recv_buffer, AUTH_HDR_LEN + length);
 	for (; vp != NULL; vp = vp->next) {
-		*idx++ = vp->attribute;
+		idx += 2;
 		if (!rc_avpair_get_uint32(vp, NULL)) {
-			*idx++ = 6;
-			const uint32_t value = ntohl(vp->lvalue);
-			memcpy(idx, &value, 4);
 			idx += 4;
 		} else if (vp->attribute == PW_MESSAGE_AUTHENTICATOR) {
-			*idx++ = vp->lvalue + 2;
-			idx += vp->lvalue;
+			memset(idx, '\0', vp->lvalue);
 			received_message_authenticator = vp->strvalue;
+			break;
 		} else {
-			*idx++ = vp->lvalue + 2;
-			memcpy(idx, vp->strvalue, vp->lvalue);
 			idx += vp->lvalue;
 		}
 	}
@@ -466,7 +460,7 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 	/* Calculate HMAC-MD5 [RFC2104] hash */
 	uint8_t digest[MD5_DIGEST_SIZE];
 	rc_hmac_md5((uint8_t *)verify_buffer, (size_t)length + AUTH_HDR_LEN, (uint8_t *)secret, strlen(secret), digest);
-	return memcmp(received_message_authenticator, digest, 16);
+	return memcmp(received_message_authenticator, digest, MD5_DIGEST_SIZE);
 }
 
 /** Sends a request to a RADIUS server and waits for the reply
