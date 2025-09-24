@@ -457,6 +457,11 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 		}
 	}
 
+	/* This should not happen, but it keeps clang-analyzer happy */
+	if (received_message_authenticator == NULL) {
+		return -1;
+	}
+
 	/* Calculate HMAC-MD5 [RFC2104] hash */
 	uint8_t digest[MD5_DIGEST_SIZE];
 	rc_hmac_md5((uint8_t *)verify_buffer, (size_t)length + AUTH_HDR_LEN, (uint8_t *)secret, strlen(secret), digest);
