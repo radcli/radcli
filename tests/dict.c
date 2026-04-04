@@ -31,10 +31,15 @@
 
 #include <radcli/radcli.h>
 
-char large_value_dict[] = 
+char large_value_dict[] =
 "ATTRIBUTE	Sip-Method		101	integer\n"
 "ATTRIBUTE	Digest-Method		1065	string\n"
 "ATTRIBUTE	LargeOne		17000	string\n";
+
+/* Names longer than the old RC_NAME_LENGTH (32) limit: issue #112 */
+char long_name_dict[] =
+"ATTRIBUTE	WISPr-Session-Terminate-End-Of-Day              10	string\n"
+"ATTRIBUTE	Airespace-Real-Time-Bandwidth-Average-Contract-Upstream	56	string\n";
 
 char large_vendor_dict[] = 
 "\nVENDOR          Largeone       18311     Large\n"
@@ -112,6 +117,29 @@ int main(int argc, char **argv)
 
 	dv = rc_dict_findval(rh, "UnknownOne");
 	assert(dv == NULL);
+
+	rc_dict_free(rh);
+
+	/* Long attribute names (> old 32-char limit) */
+	ret = rc_read_dictionary_from_buffer(rh, long_name_dict, sizeof(long_name_dict));
+	if (ret != 0) {
+		fprintf(stderr, "error: long attribute names rejected (line %d)\n", __LINE__);
+		exit(1);
+	}
+
+	attr = rc_dict_findattr(rh, "WISPr-Session-Terminate-End-Of-Day");
+	if (attr == NULL) {
+		fprintf(stderr, "error: WISPr-Session-Terminate-End-Of-Day not found\n");
+		exit(1);
+	}
+	assert(ATTRID(attr->value) == 10);
+
+	attr = rc_dict_findattr(rh, "Airespace-Real-Time-Bandwidth-Average-Contract-Upstream");
+	if (attr == NULL) {
+		fprintf(stderr, "error: Airespace-Real-Time-Bandwidth-Average-Contract-Upstream not found\n");
+		exit(1);
+	}
+	assert(ATTRID(attr->value) == 56);
 
 	rc_dict_free(rh);
 

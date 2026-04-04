@@ -51,7 +51,7 @@ extern "C" {
 
 #define RC_BUFFER_LEN		8192
 
-#define RC_NAME_LENGTH		32
+#define RC_NAME_LENGTH		64
 
 #define MAX_SECRET_LENGTH	(16 * 16) /* MUST be multiple of 16 */
 

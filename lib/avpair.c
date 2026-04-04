@@ -953,7 +953,7 @@ char *rc_avpair_log(rc_handle const *rh, VALUE_PAIR *pair, char *buf, size_t buf
 {
 	size_t len, nlen;
 	VALUE_PAIR *vp;
-	char name[33], value[256];
+	char name[RC_NAME_LENGTH + 1], value[256];
 
 	len = 0;
 	for (vp = pair; vp != NULL; vp = vp->next) {
