@@ -706,16 +706,12 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			goto cleanup;
 		}
 
-		/* Re-fetch fd: in TLS mode sendto() may have triggered a session
-		 * restart (restart_session), replacing the underlying socket.
-		 * Only do this for TLS/DTLS — for UDP/TCP get_fd() allocates a
-		 * new socket each call and must not be called here. */
-		if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
-			if (sfuncs->get_fd) {
-				int new_fd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
-				if (new_fd >= 0)
-					sockfd = new_fd;
-			}
+		/* Re-fetch fd: sendto() may have triggered a TLS session
+		 * restart (restart_session), replacing the underlying socket. */
+		if (sfuncs->get_active_fd) {
+			int new_fd = sfuncs->get_active_fd(sfuncs->ptr);
+			if (new_fd >= 0)
+				sockfd = new_fd;
 		}
 		pfd.fd = sockfd;
 		pfd.events = POLLIN;

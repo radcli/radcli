@@ -82,6 +82,12 @@ static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	return st->ctx.sockfd;
 }
 
+static int tls_get_active_fd(void *ptr)
+{
+	tls_st *st = ptr;
+	return st->ctx.sockfd;
+}
+
 static ssize_t tls_sendto(void *ptr, int sockfd,
 			   const void *buf, size_t len,
 			   int flags, const struct sockaddr *dest_addr,
@@ -711,6 +717,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	}
 
 	rh->so.get_fd = tls_get_fd;
+	rh->so.get_active_fd = tls_get_active_fd;
 	rh->so.sendto = tls_sendto;
 	rh->so.recvfrom = tls_recvfrom;
 	rh->so.lock = tls_lock;

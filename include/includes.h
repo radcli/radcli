@@ -176,6 +176,10 @@ typedef struct rc_sockets_override {
 	void *ptr;
 	const char *static_secret;
 	int (*get_fd)(void *ptr, struct sockaddr* our_sockaddr);
+	/* get_active_fd: return the fd of an already-established connection
+	 * without allocating a new socket. Only set by transports that
+	 * maintain a persistent connection (TLS/DTLS). */
+	int (*get_active_fd)(void *ptr);
 	void (*close_fd)(int fd);
 	ssize_t (*sendto)(void *ptr, int sockfd, const void *buf, size_t len, int flags,
 	                  const struct sockaddr *dest_addr, socklen_t addrlen);
