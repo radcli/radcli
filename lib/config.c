@@ -1127,6 +1127,9 @@ rc_handle *rc_new(void)
 void rc_destroy(rc_handle *rh)
 {
 	rc_dict_free(rh);
+#ifdef HAVE_GNUTLS
+	rc_deinit_tls(rh);
+#endif
 	rc_config_free(rh);
 	free(rh);
 
