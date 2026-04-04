@@ -74,7 +74,7 @@ typedef struct tls_st {
 	rc_handle *rh; /* a pointer to our owner */
 } tls_st;
 
-static void restart_session(rc_handle *rh, tls_st *st);
+static int restart_session(rc_handle *rh, tls_st *st);
 
 static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
@@ -91,7 +91,10 @@ static ssize_t tls_sendto(void *ptr, int sockfd,
 	int ret;
 
 	if (st->ctx.need_restart != 0) {
-		restart_session(st->rh, st);
+		if (restart_session(st->rh, st) < 0) {
+			errno = EIO;
+			return -1;
+		}
 	}
 
 	ret = gnutls_record_send(st->ctx.session, buf, len);
@@ -392,15 +395,20 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
  * we will try heartbeats */
 #define TIME_ALIVE 120
 
-static void restart_session(rc_handle *rh, tls_st *st)
+static int restart_session(rc_handle *rh, tls_st *st)
 {
 	struct tls_int_st tmps;
 	time_t now = time(0);
 	int ret;
 	int timeout;
 
-	if (now - st->ctx.last_restart < TIME_ALIVE)
-		return;
+	/* Bypass the time guard when need_restart is set: the session is
+	 * known to be broken (a send or recv already failed), so we must
+	 * attempt reconnection regardless of how recently we last tried.
+	 * When need_restart is 0 (proactive check from rc_check_tls via a
+	 * failed heartbeat), keep the guard to avoid rapid reconnect loops. */
+	if (now - st->ctx.last_restart < TIME_ALIVE && !st->ctx.need_restart)
+		return -1;
 
 	st->ctx.last_restart = now;
 
@@ -409,8 +417,8 @@ static void restart_session(rc_handle *rh, tls_st *st)
 	/* reinitialize this session */
 	ret = init_session(rh, &tmps, st->ctx.hostname, st->ctx.port, &st->ctx.our_sockaddr, timeout, st->flags);
 	if (ret < 0) {
-		rc_log(LOG_ERR, "%s: error in re-initializing DTLS", __func__);
-		return;
+		rc_log(LOG_ERR, "%s: error in re-initializing TLS session", __func__);
+		return -1;
 	}
 
 	if (tmps.sockfd == st->ctx.sockfd)
@@ -419,7 +427,7 @@ static void restart_session(rc_handle *rh, tls_st *st)
 	memcpy(&st->ctx, &tmps, sizeof(tmps));
 	st->ctx.need_restart = 0;
 
-	return;
+	return 0;
 }
 
 /** Returns the file descriptor of the TLS/DTLS session

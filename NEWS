@@ -1,5 +1,6 @@
 * Version 1.4.1 (unreleased)
 - Send Message-Authenticator message unconditionally.
+- Fix reconnection to a server that has closed the TLS connection (#89)
 
 
 * Version 1.4.0 (released 2024-06-08)
