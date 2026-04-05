@@ -429,6 +429,75 @@ static int add_msg_auth_attr(rc_handle * rh, char * secret,
 	return total_length;
 }
 
+/** Validate the Message-Authenticator attribute
+ *
+ * @param vp The received a/v pairs
+ * @param recv_buffer The original packet
+ * @param length The length of the attribute data (packet length minus AUTH_HDR_LEN)
+ * @param secret The RADIUS secret
+ * @param req_auth The request authenticator from the Access-Request (RFC 3579 §3.2
+ *   requires MA in responses to be computed over the packet with the Request
+ *   Authenticator in the Authenticator field, not the Response Authenticator)
+ * @return zero on success, other values for failure
+ */
+static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_buffer,
+					  const size_t length, const char *secret,
+					  const unsigned char *req_auth)
+{
+	uint8_t verify_buffer[RC_BUFFER_LEN];
+	uint8_t *idx = verify_buffer + AUTH_HDR_LEN;
+	const uint8_t *verify_end = verify_buffer + sizeof(verify_buffer);
+	const char *received_message_authenticator = NULL;
+	uint8_t digest[MD5_DIGEST_SIZE];
+	unsigned attr_len;
+
+	if (AUTH_HDR_LEN + length > sizeof(verify_buffer)) {
+		rc_log(LOG_ERR, "%s: packet too large for verification buffer", __func__);
+		return -1;
+	}
+
+	/* Copy the original packet, then substitute the Request Authenticator
+	 * per RFC 3579 §3.2, and clear the Message-Authenticator value */
+	memcpy(verify_buffer, recv_buffer, AUTH_HDR_LEN + length);
+	memcpy(verify_buffer + 4, req_auth, AUTH_VECTOR_LEN);
+	for (; vp != NULL; vp = vp->next) {
+		if (vp->type == PW_TYPE_INTEGER || vp->type == PW_TYPE_DATE ||
+		    vp->type == PW_TYPE_IPADDR) {
+			attr_len = 4;
+		} else {
+			attr_len = vp->lvalue;
+		}
+
+		/* type (1) + length (1) + value */
+		if (idx + 2 + attr_len > verify_end) {
+			rc_log(LOG_ERR, "%s: attribute overflows verification buffer", __func__);
+			return -1;
+		}
+		idx += 2;
+
+		if (vp->attribute == PW_MESSAGE_AUTHENTICATOR) {
+			if (vp->lvalue != MD5_DIGEST_SIZE) {
+				rc_log(LOG_ERR, "%s: Message-Authenticator has wrong length %u",
+				       __func__, vp->lvalue);
+				return -1;
+			}
+			memset(idx, '\0', MD5_DIGEST_SIZE);
+			received_message_authenticator = vp->strvalue;
+			break;
+		} else {
+			idx += attr_len;
+		}
+	}
+
+	if (received_message_authenticator == NULL) {
+		return -1;
+	}
+
+	/* Calculate HMAC-MD5 [RFC2104] hash */
+	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, strlen(secret), digest);
+	return memcmp(received_message_authenticator, digest, MD5_DIGEST_SIZE);
+}
+
 /** Sends a request to a RADIUS server and waits for the reply
  *
  * @param rh a handle to parsed configuration
@@ -861,6 +930,34 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	if (result != OK_RC) {
 		memset(secret, '\0', sizeof(secret));
 		goto cleanup;
+	}
+
+	/* Per draft-ietf-radext-deprecating-radius, Message-Authenticator MUST
+	 * be the first attribute in Access-Request responses to prevent MD5
+	 * prefix attacks (BLAST RADIUS). Not required for Accounting-Response. */
+	if (type == AUTH) {
+		if (length > 0 && recv_buffer[AUTH_HDR_LEN] == PW_MESSAGE_AUTHENTICATOR &&
+		    rc_avpair_get(data->receive_pairs, PW_MESSAGE_AUTHENTICATOR, 0)) {
+
+			if (validate_message_authenticator(data->receive_pairs, recv_buffer, length, secret, vector)) {
+				rc_log(LOG_ERR,
+				       "rc_send_server: recvfrom: %s:%d: received attribute Message-Authenticator is incorrect",
+				       server_name, data->svc_port);
+				memset(secret, '\0', sizeof(secret));
+				result = ERROR_RC;
+				goto cleanup;
+			}
+		} else {
+			p = rc_conf_str(rh, "require-message-authenticator");
+			if (p == NULL || (strcasecmp(p, "false") != 0 && strcasecmp(p, "no") != 0)) {
+				rc_log(LOG_ERR,
+				       "rc_send_server: recvfrom: %s:%d: required attribute Message-Authenticator is missing or not first",
+				       server_name, data->svc_port);
+				memset(secret, '\0', sizeof(secret));
+				result = ERROR_RC;
+				goto cleanup;
+			}
+		}
 	}
 
 	memset(secret, '\0', sizeof(secret));

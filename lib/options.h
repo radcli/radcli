@@ -35,6 +35,7 @@ static OPTION config_options_default[] = {
 {"namespace",		OT_STR, ST_UNDEF, NULL}, 
 {"use-public-addr",	OT_STR, ST_UNDEF, NULL},
 {"tls-verify-hostname",	OT_STR, ST_UNDEF, NULL},
+{"require-message-authenticator", OT_STR, ST_UNDEF, NULL}, /* default: required; set "no" for legacy servers */
 {"tls-ca-file",		OT_STR, ST_UNDEF, NULL},
 {"tls-cert-file",	OT_STR, ST_UNDEF, NULL},
 {"tls-key-file",	OT_STR, ST_UNDEF, NULL},
