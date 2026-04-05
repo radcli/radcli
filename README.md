@@ -30,7 +30,7 @@ radiusclient-ng and freeradius-client.
 ## Documentation
 
 Documentation and examples are available at:
-http://radcli.github.io/radcli/
+https://radcli.github.io/radcli/
 
 ## Compilation
 
@@ -56,5 +56,5 @@ https://github.com/radcli/radcli/issues
 
 ## Web Site
 
-The web site http://radcli.github.io/radcli is the primary web-site for
+The web site https://radcli.github.io/radcli is the primary web-site for
 radcli and is auto-generated via the 'make web' rule.
