@@ -72,3 +72,9 @@ bindaddr	*
 
 # To enable verbose debugging messages in syslog, enable the following
 #clientdebug 1
+
+# Require the Message-Authenticator attribute in received responses.
+# Mandated by draft-ietf-radext-deprecating-radius as a mitigation for
+# CVE-2024-3596 (BLAST RADIUS). Enabled by default; set to 'no' only
+# when communicating with legacy servers that do not send this attribute.
+#require-message-authenticator	no

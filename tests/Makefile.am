@@ -15,13 +15,16 @@ EXTRA_DIST = radiusclient-ipv6.conf servers-ipv6 \
 	raddb-tcp/access_challenge raddb-tcp/access_reject \
 	raddb-tcp/accounting_response raddb-tcp/acct_users raddb-tcp/ca.pem \
 	raddb-tcp/cert-rsa.pem raddb-tcp/clients.conf raddb-tcp/key-rsa.pem \
-	raddb-tcp/radiusd.conf raddb-tcp/users ns.sh
+	raddb-tcp/radiusd.conf raddb-tcp/users \
+	radius-server.py \
+	common.sh \
+	ns.sh
 
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = ../lib/libradcli.la
 
-dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh
-TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh
+dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh
+TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh
 check_PROGRAMS =
 
 if ENABLE_GNUTLS

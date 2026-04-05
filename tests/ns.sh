@@ -20,6 +20,8 @@
 
 srcdir=${srcdir:-.}
 
+. ${srcdir}/common.sh
+
 PATH=${PATH}:/usr/sbin
 IP=$(which ip)
 RADIUSD=$(which radiusd)
@@ -28,7 +30,7 @@ if test -z "${RADIUSD}";then
 	RADIUSD=$(which freeradius)
 fi 
 
-if test -z "${RADIUSD}";then
+if test -z "${RADIUSD}" && test -z "${NO_RADIUSD}";then
 	echo "This test requires radiusd"
 	exit 77
 fi
@@ -48,27 +50,6 @@ if test "$(uname -s)" != Linux;then
 	echo "This test must be run on Linux"
 	exit 77
 fi
-
-have_port_finder() {
-	for file in $(which ss 2> /dev/null) /*bin/ss /usr/*bin/ss /usr/local/*bin/ss;do
-		if test -x "$file";then
-			PFCMD="$file";return 0
-		fi
-	done
-
-	if test -z "$PFCMD";then
-	for file in $(which netstat 2> /dev/null) /bin/netstat /usr/bin/netstat /usr/local/bin/netstat;do
-		if test -x "$file";then
-			PFCMD="$file";return 0
-		fi
-	done
-	fi
-
-	if test -z "$PFCMD";then
-		echo "neither ss nor netstat found"
-		exit 1
-	fi
-}
 
 check_if_port_listening() {
 	local PORT="$1"
@@ -182,12 +163,14 @@ if test -z "${RADDB_DIR}";then
 	RADDB_DIR="raddb"
 fi
 
-set -e
-echo ${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout
-${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout 2>&1 &
-RADIUSPID=$!
-set +e
+if test -z "${NO_RADIUSD}"; then
+	set -e
+	echo ${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout
+	${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout 2>&1 &
+	RADIUSPID=$!
+	set +e
 
-wait_for_port 1812
+	wait_for_port 1812
 
-echo "Started radius (${RADDB_DIR})"
+	echo "Started radius (${RADDB_DIR})"
+fi

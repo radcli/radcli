@@ -12,12 +12,34 @@ rc_read_config \-
 );
 .fi
 .SH DESCRIPTION
-.PP 
+.PP
 Read the global config file
-.PP 
+.PP
 This function will load the provided configuration file, and any other files such as the dictionary. This is the most common mode of use of this library. The configuration format is compatible with the radiusclient-ng and freeradius-client formats.
-.PP 
+.PP
 Note: To preserve compatibility with libraries of the same API which don't load the dictionary care is taken not to reload the same filename twice even if instructed to.
+.PP
+The following string options are recognised in the configuration file:
+.TP
+.B serv-type
+Transport protocol; one of \fIudp\fP (default), \fItcp\fP, \fItls\fP, \fIdtls\fP.
+.TP
+.B tls-ca-file
+PEM file of the CA certificate used to verify the server (TLS/DTLS).
+.TP
+.B tls-cert-file
+PEM file of the client certificate (TLS/DTLS).
+.TP
+.B tls-key-file
+PEM file of the client private key (TLS/DTLS).
+.TP
+.B tls-verify-hostname
+Set to \fIfalse\fP to skip TLS server hostname verification (not recommended).
+.TP
+.B require-message-authenticator
+Set to \fIno\fP to accept responses that lack the Message-Authenticator attribute.
+Enabled by default per draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS);
+only disable for legacy servers that do not send this attribute.
 .SH PARAMETERS
 .TP
 .B filename
