@@ -562,6 +562,17 @@ int rc_apply_config(rc_handle *rh)
  * which don't load the dictionary care is taken not to reload the
  * same filename twice even if instructed to.
  *
+ * The following string options are recognised in the configuration file:
+ *  - @b serv-type: transport protocol; one of 'udp' (default), 'tcp', 'tls', 'dtls'.
+ *  - @b tls-ca-file: PEM file of the CA certificate to verify the server (TLS/DTLS).
+ *  - @b tls-cert-file: PEM file of the client certificate (TLS/DTLS).
+ *  - @b tls-key-file: PEM file of the client private key (TLS/DTLS).
+ *  - @b tls-verify-hostname: set to 'false' to skip TLS server hostname verification (not recommended).
+ *  - @b require-message-authenticator: set to 'no' to accept responses that lack the
+ *    Message-Authenticator attribute. Enabled by default per
+ *    draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS); only
+ *    disable for legacy servers that do not send this attribute.
+ *
  * @param filename a name of a file.
  * @return new rc_handle on success, NULL when failure.
  */
