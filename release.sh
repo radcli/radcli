@@ -9,6 +9,13 @@ fi
 version=$1
 tarball="radcli-${version}.tar.gz"
 
+# Ensure we are on the master branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+if test "$current_branch" != "master"; then
+	echo "ERROR: releases must be made from master (current branch: $current_branch)"
+	exit 1
+fi
+
 # Validate configure.ac
 ac_version=$(grep '^AC_INIT' configure.ac | sed 's/.*\[\([0-9.]*\)\].*/\1/')
 if test "$ac_version" != "$version"; then
