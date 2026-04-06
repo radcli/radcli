@@ -6,26 +6,24 @@ jobs:
   # When a new release tag (e.g. 1.4.1) is pushed, open a PR in Fedora dist-git
   - job: propose_downstream
     trigger: release
+    branch: master
     dist_git_branches:
-      - fedora-all
-      - epel8
-      - epel9
+      - fedora-latest
+      - fedora-rawhide
       - epel10
 
   # When a dist-git commit lands (PR merged), trigger a Koji build
   - job: koji_build
     trigger: commit
     dist_git_branches:
-      - fedora-all
-      - epel8
-      - epel9
+      - fedora-latest
+      - fedora-rawhide
       - epel10
 
   # When a Koji build completes, submit a Bodhi update
   - job: bodhi_update
     trigger: koji_build
     dist_git_branches:
-      - fedora-all
-      - epel8
-      - epel9
+      - fedora-latest
+      - fedora-rawhide
       - epel10
