@@ -10,6 +10,21 @@
 
 #include <string.h>
 
+#ifdef HAVE_GNUTLS
+# include <gnutls/gnutls.h>
+#endif
+
+/* Constant-time memory comparison for security-sensitive data.
+ * Uses gnutls_memcmp() when GnuTLS is available, falls back to memcmp(). */
+static inline int rc_memcmp(const void *s1, const void *s2, size_t n)
+{
+#ifdef HAVE_GNUTLS
+	return gnutls_memcmp(s1, s2, n);
+#else
+	return memcmp(s1, s2, n);
+#endif
+}
+
 #ifndef HAVE_STRLCPY
 size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 # define strlcpy rc_strlcpy
