@@ -329,8 +329,8 @@ static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 	}
 #endif
 
-	if (memcmp((char *)reply_digest, (char *)calc_digest,
-		   AUTH_VECTOR_LEN) != 0) {
+	if (rc_memcmp((char *)reply_digest, (char *)calc_digest,
+		      AUTH_VECTOR_LEN) != 0) {
 		rc_log(LOG_ERR,
 		       "rc_check_reply: received invalid reply digest from RADIUS server");
 		return BADRESP_RC;
@@ -495,7 +495,7 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 
 	/* Calculate HMAC-MD5 [RFC2104] hash */
 	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, strlen(secret), digest);
-	return memcmp(received_message_authenticator, digest, MD5_DIGEST_SIZE);
+	return rc_memcmp(received_message_authenticator, digest, MD5_DIGEST_SIZE);
 }
 
 /** Sends a request to a RADIUS server and waits for the reply
