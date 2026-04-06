@@ -66,7 +66,7 @@ nas-identifier my-nas-id
 authserver  127.0.0.1:${PORT}
 acctserver  127.0.0.1:${PORT}
 servers     ./servers-temp$PID
-dictionary  ../etc/dictionary
+dictionary  ${srcdir}/../etc/dictionary
 default_realm
 radius_timeout  5
 radius_retries  1

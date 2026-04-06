@@ -58,4 +58,5 @@ update-doc: stamp_mans
 	diff -u $(srcdir)/doc.mk tmp-$@ || mv tmp-$@ doc.mk
 	rm -f tmp-$@
 
-dist-hook: update-doc
+dist-hook:
+	@if test "$(srcdir)" = "."; then $(MAKE) $(AM_MAKEFLAGS) update-doc; fi

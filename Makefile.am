@@ -64,5 +64,6 @@ html.upload: .html.stamp
 dist-hook: compare-exported abi-check
 
 CLEANFILES = *~
+DISTCLEANFILES = stamp-h
 
 .PHONY: web html.upload .html.stamp

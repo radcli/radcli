@@ -39,7 +39,15 @@ int main(int argc, char **argv)
 	int checks;
 	int ret, prev;
 
-	if ((rh = rc_read_config("radiusclient.conf")) == NULL) {
+	{
+		const char *sd = getenv("srcdir");
+		if (sd && chdir(sd) != 0) {
+			fprintf(stderr, "%s: cannot chdir to srcdir: %s\n", argv[0], sd);
+			exit(1);
+		}
+		rh = rc_read_config("radiusclient.conf");
+	}
+	if (rh == NULL) {
 		fprintf(stderr, "%s: error opening radius configuration file\n", argv[0]);
 		exit(1);
 	}
