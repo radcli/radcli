@@ -1,5 +1,6 @@
 # https://packit.dev/docs/configuration
 downstream_package_name: radcli
+specfile_path: fedora/radcli.spec
 
 jobs:
   # When a new release tag (e.g. 1.4.1) is pushed, open a PR in Fedora dist-git
