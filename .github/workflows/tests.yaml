@@ -101,14 +101,16 @@ jobs:
             - name: ABI check
               run: |
                   make abi-check
-            - name: Simulate dist
+            - name: Distcheck
               run: |
                   touch doc/stamp_mans
-                  make ABI_SKIP=1 dist
+                  make ABI_SKIP=1 distcheck
             - name: Upload artifacts
               if: failure()
               uses: actions/upload-artifact@v4
               with:
                   name: test-suite log (tests)
-                  path: tests/test-suite.log
+                  path: |
+                      tests/test-suite.log
+                      radcli-*/_build/sub/tests/test-suite.log
                   retention-days: 5
