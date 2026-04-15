@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2015, Nikos Mavrogiannopoulos.  All rights reserved.
+ * Copyright (c) 2014-2026, Nikos Mavrogiannopoulos.  All rights reserved.
  * Copyright (c) 2015, Red Hat, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -226,12 +226,21 @@ static int cert_verify_callback(gnutls_session_t session)
 static void deinit_session(tls_int_st *ses)
 {
 	if (ses->init != 0) {
+		int ret;
 		ses->init = 0;
+		if (ses->session) {
+			/* Send close_notify before closing the socket so the peer
+			 * receives a proper TLS/DTLS shutdown alert. */
+			if (ses->sockfd != -1) {
+				do {
+					ret = gnutls_bye(ses->session, GNUTLS_SHUT_WR);
+				} while (ret == GNUTLS_E_INTERRUPTED);
+			}
+			gnutls_deinit(ses->session);
+		}
 		pthread_mutex_destroy(&ses->lock);
 		if (ses->sockfd != -1)
 			close(ses->sockfd);
-		if (ses->session)
-			gnutls_deinit(ses->session);
 	}
 }
 
@@ -739,6 +748,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 			gnutls_psk_free_client_credentials(st->psk_cred);
 	}
 	free(st);
+	rh->so.ptr = NULL;
 	if (ns != NULL) {
 		if(-1 == rc_reset_netns(&ns_def_hdl))
 		rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
