@@ -23,22 +23,26 @@ EXTRA_DIST = radiusclient-ipv6.conf servers-ipv6 \
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = ../lib/libradcli.la
 
-dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh
+dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh close-notify-tests.sh
 TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh
 check_PROGRAMS =
 
 if ENABLE_GNUTLS
 ctests = avpair dict dict-add
 
-TESTS += tls-tests.sh tls-idle-restart-tests.sh $(ctests)
+TESTS += tls-tests.sh tls-idle-restart-tests.sh close-notify-tests.sh $(ctests)
 
-check_PROGRAMS += tls-restart tls-idle-restart $(ctests)
+check_PROGRAMS += tls-restart tls-idle-restart close-notify-server $(ctests)
 
 tls_restart_SOURCES = tls-restart.c
 tls_restart_LDADD = ../src/libtools.a ../lib/libradcli.la
 
 tls_idle_restart_SOURCES = tls-idle-restart.c
 tls_idle_restart_LDADD = ../src/libtools.a ../lib/libradcli.la
+
+close_notify_server_SOURCES = close-notify-server.c
+close_notify_server_LDADD = $(LIBGNUTLS_LIBS)
+close_notify_server_CFLAGS = $(LIBGNUTLS_CFLAGS)
 endif
 
 

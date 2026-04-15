@@ -52,6 +52,7 @@ int
 main(int argc, char **argv)
 {
     int i, nas_port, ch, acct, server, ecount, firstline, theend;
+    int ret;
     void *rh;
     size_t len;
     VALUE_PAIR *send;
@@ -141,7 +142,8 @@ main(int argc, char **argv)
 
     if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary")) != 0) {
         fprintf(stderr, "error reading radius dictionary\n");
-        exit(2);
+        ret = 2;
+        goto exit;
     }
 
     if (server == 0) {
@@ -149,17 +151,22 @@ main(int argc, char **argv)
         for (i = 0; i < argc; i++) {
             if (rc_avpair_parse(rh, argv[i], &send) < 0) {
                 fprintf(stderr, "%s: can't parse AV pair\n", argv[i]);
-                exit(3);
+                rc_avpair_free(send);
+                ret = 3;
+                goto exit;
             }
         }
         if (eap_len > 0) {
 
             if (rc_avpair_add(rh, &send, PW_EAP_MESSAGE, eap_msg, eap_len, 0) == NULL) {
                 fprintf(stderr, "Can't add EAP-Message AV pair\n");
-                exit(3);
+                rc_avpair_free(send);
+                ret = 3;
+                goto exit;
             }
         }
-        exit(process(rh, send, acct, nas_port, info));
+        ret = process(rh, send, acct, nas_port, info);
+        goto exit;
     }
     while (1 == 1) {
         send = NULL;
@@ -204,7 +211,11 @@ main(int argc, char **argv)
 		if (cp == NULL || len == 0)
             break;
     }
-    exit(0);
+    ret = 0;
+
+ exit:
+    rc_destroy(rh);
+    exit(ret);
 }
 
 int

@@ -1,3 +1,7 @@
+* Version 1.5.1 (unreleased)
+- Close the TLS and DTLS sessions using an alert (#127)
+
+
 * Version 1.5.0 (released 2026-04-06)
 - Send Message-Authenticator message unconditionally (#107)
 - Validate the Message-Authenticator attribute in received responses.
