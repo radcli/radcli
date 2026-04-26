@@ -1,5 +1,8 @@
 * Version 1.5.1 (unreleased)
 - Close the TLS and DTLS sessions using an alert (#127)
+- Enforce the RFC 2865 packet size limit (4096 bytes) when packing
+  outbound attributes, preventing a stack buffer overflow if a caller
+  supplies more attributes than fit in a valid RADIUS packet.
 - The dictionary file is no longer required when using standard RADIUS
   attributes. RFC 2865/2866/2867/2868/2869/3162/3576/4675/4818/4849/6911
   attributes are now built into the library; the 'dictionary' config option
