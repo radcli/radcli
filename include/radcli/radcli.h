@@ -50,6 +50,7 @@ extern "C" {
 #define AUTH_ID_LEN		64
 
 #define RC_BUFFER_LEN		8192
+#define RC_MAX_PACKET_LEN	4096 /* RFC 2865: maximum RADIUS packet size */
 
 #define RC_NAME_LENGTH		64
 

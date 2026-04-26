@@ -77,3 +77,4 @@ po/
 tests/close-notify-server
 .html.stamp
 doc/stamp_html
+tests/pack
