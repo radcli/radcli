@@ -82,5 +82,26 @@ extern unsigned int radcli_debug;
 
 #define		DEBUG(args...)	if(radcli_debug) rc_log(args)
 
+/* Bounded packet-write cursor enforcing the RFC 2865 §3 size limit.
+ * RC_BUFFER_LEN = 2 × RC_MAX_PACKET_LEN, so staying within the protocol limit
+ * also prevents the send_buffer from overflowing. */
+typedef struct {
+	uint8_t *ptr;
+	uint8_t *end;
+} pkt_buf;
+
+static inline int pb_putbyte(pkt_buf *pb, uint8_t v) {
+	if (pb->ptr >= pb->end) return -1;
+	*pb->ptr++ = v;
+	return 0;
+}
+
+static inline int pb_put_bytes(pkt_buf *pb, const void *src, int n) {
+	if (n < 0 || pb->ptr + n > pb->end) return -1;
+	memcpy(pb->ptr, src, n);
+	pb->ptr += n;
+	return 0;
+}
+
 #endif /* UTIL_H */
 

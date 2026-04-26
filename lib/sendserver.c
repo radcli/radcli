@@ -48,52 +48,51 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
  * @param vp a pointer to a VALUE_PAIR.
  * @param secret the secret used by the server.
  * @param auth a pointer to AUTH_HDR.
- * @return The number of octets packed.
+ * @param max_len maximum total packet length in bytes (header + attributes);
+ *        callers must subtract any bytes appended after this call (e.g. 18
+ *        bytes for Message-Authenticator on auth requests).
+ * @return The number of octets packed, or -1 if any attribute value exceeds
+ *         253 bytes or the packet would exceed max_len.
  */
-static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
+int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 {
 	int length, i, pc, padded_length;
-	int total_length = 0;
 	size_t secretlen;
 	uint32_t lvalue, vendor;
 	unsigned char passbuf[RC_MAX(AUTH_PASS_LEN, CHAP_VALUE_LENGTH)];
 	unsigned char md5buf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN];
-	unsigned char *buf, *vector, *vsa_length_ptr;
+	unsigned char *vector;
+	pkt_buf pb;
+	uint8_t *attr_start, *attr_len_ptr, *vsa_len_ptr;
 
-	buf = auth->data;
+	pb.ptr = auth->data;
+	pb.end = (uint8_t *)auth + max_len;
 
 	while (vp != NULL) {
-		vsa_length_ptr = NULL;
+		vsa_len_ptr = NULL;
+
 		if (VENDOR(vp->attribute) != 0) {
-			*buf++ = PW_VENDOR_SPECIFIC;
-			vsa_length_ptr = buf;
-			*buf++ = 6;
+			if (pb_putbyte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
+			vsa_len_ptr = pb.ptr;
+			if (pb_putbyte(&pb, 6) < 0) goto too_large;
 			vendor = htonl(VENDOR(vp->attribute));
-			memcpy(buf, &vendor, sizeof(uint32_t));
-			buf += 4;
-			total_length += 6;
+			if (pb_put_bytes(&pb, &vendor, sizeof(uint32_t)) < 0) goto too_large;
 		}
-		*buf++ = (vp->attribute & 0xff);
+
+		attr_start = pb.ptr;
+		if (pb_putbyte(&pb, vp->attribute & 0xff) < 0) goto too_large;
+		attr_len_ptr = pb.ptr;
+		if (pb_putbyte(&pb, 2) < 0) goto too_large;  /* placeholder; patched below */
 
 		switch (vp->attribute) {
 		case PW_USER_PASSWORD:
-
-			/* Encrypt the password */
-
-			/* Chop off password at AUTH_PASS_LEN */
 			length = vp->lvalue;
 			if (length > AUTH_PASS_LEN)
 				length = AUTH_PASS_LEN;
-
-			/* Calculate the padded length */
 			padded_length =
-			    (length +
-			     (AUTH_VECTOR_LEN - 1)) & ~(AUTH_VECTOR_LEN - 1);
+			    (length + (AUTH_VECTOR_LEN - 1)) & ~(AUTH_VECTOR_LEN - 1);
 
-			/* Record the attribute length */
-			*buf++ = padded_length + 2;
-			if (vsa_length_ptr != NULL)
-				*vsa_length_ptr += padded_length + 2;
+			if (pb.ptr + padded_length > pb.end) goto too_large;
 
 			/* Pad the password with zeros */
 			memset((char *)passbuf, '\0', AUTH_PASS_LEN);
@@ -107,63 +106,37 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 				/* Build hash input: secret || vector */
 				memcpy(md5buf, secret, secretlen);
 				memcpy(md5buf + secretlen, vector, AUTH_VECTOR_LEN);
-				rc_md5_calc(buf, md5buf,
-					    secretlen + AUTH_VECTOR_LEN);
+				rc_md5_calc(pb.ptr, md5buf, secretlen + AUTH_VECTOR_LEN);
 
 				/* Remember the start of the digest */
-				vector = buf;
+				vector = pb.ptr;
 
 				/* Xor the password into the MD5 digest */
-				for (pc = i; pc < (i + AUTH_VECTOR_LEN); pc++) {
-					*buf++ ^= passbuf[pc];
-				}
+				for (pc = i; pc < (i + AUTH_VECTOR_LEN); pc++)
+					*pb.ptr++ ^= passbuf[pc];
 			}
-
-			total_length += padded_length + 2;
-
 			break;
+
 		default:
 			switch (vp->type) {
 			case PW_TYPE_STRING:
-				length = vp->lvalue;
-				*buf++ = length + 2;
-				if (vsa_length_ptr != NULL)
-					*vsa_length_ptr += length + 2;
-				memcpy(buf, vp->strvalue, (size_t) length);
-				buf += length;
-				total_length += length + 2;
+			case PW_TYPE_IPV6PREFIX:
+				if ((int)vp->lvalue > 253) goto too_large; /* RFC 2865: max attr value */
+				if (pb_put_bytes(&pb, vp->strvalue, (int)vp->lvalue) < 0)
+					goto too_large;
 				break;
 
 			case PW_TYPE_IPV6ADDR:
-				length = 16;
-				*buf++ = length + 2;
-				if (vsa_length_ptr != NULL)
-					*vsa_length_ptr += length + 2;
-				memcpy(buf, vp->strvalue, (size_t) length);
-				buf += length;
-				total_length += length + 2;
-				break;
-
-			case PW_TYPE_IPV6PREFIX:
-				length = vp->lvalue;
-				*buf++ = length + 2;
-				if (vsa_length_ptr != NULL)
-					*vsa_length_ptr += length + 2;
-				memcpy(buf, vp->strvalue, (size_t) length);
-				buf += length;
-				total_length += length + 2;
+				if (pb_put_bytes(&pb, vp->strvalue, 16) < 0)
+					goto too_large;
 				break;
 
 			case PW_TYPE_INTEGER:
 			case PW_TYPE_IPADDR:
 			case PW_TYPE_DATE:
-				*buf++ = sizeof(uint32_t) + 2;
-				if (vsa_length_ptr != NULL)
-					*vsa_length_ptr += sizeof(uint32_t) + 2;
 				lvalue = htonl(vp->lvalue);
-				memcpy(buf, (char *)&lvalue, sizeof(uint32_t));
-				buf += sizeof(uint32_t);
-				total_length += sizeof(uint32_t) + 2;
+				if (pb_put_bytes(&pb, &lvalue, sizeof(uint32_t)) < 0)
+					goto too_large;
 				break;
 
 			default:
@@ -171,9 +144,19 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 			}
 			break;
 		}
+
+		/* Patch back lengths: attr_len = type(1) + len(1) + value */
+		*attr_len_ptr = (uint8_t)(pb.ptr - attr_start);
+		if (vsa_len_ptr != NULL)
+			*vsa_len_ptr += *attr_len_ptr;
+
 		vp = vp->next;
 	}
-	return total_length;
+	return (int)(pb.ptr - auth->data);
+
+too_large:
+	rc_log(LOG_ERR, "rc_pack_list: attribute value too large or packet would exceed %d bytes", max_len);
+	return -1;
 }
 
 /** Appends a string to the provided buffer
@@ -720,8 +703,12 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 
 	if (data->code == PW_ACCOUNTING_REQUEST) {
 		server_type = "acct";
-		total_length =
-		    rc_pack_list(data->send_pairs, secret, auth) + AUTH_HDR_LEN;
+		total_length = rc_pack_list(data->send_pairs, secret, auth, RC_MAX_PACKET_LEN);
+		if (total_length < 0) {
+			result = ERROR_RC;
+			goto cleanup;
+		}
+		total_length += AUTH_HDR_LEN;
 
 		tlen = htons((unsigned short)total_length);
 		memcpy(&auth->length, &tlen, sizeof(uint16_t));
@@ -736,8 +723,14 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		rc_random_vector(vector);
 		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
 
-		total_length =
-		    rc_pack_list(data->send_pairs, secret, auth) + AUTH_HDR_LEN;
+		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below) */
+		total_length = rc_pack_list(data->send_pairs, secret, auth,
+					    RC_MAX_PACKET_LEN - (2 + MD5_DIGEST_SIZE));
+		if (total_length < 0) {
+			result = ERROR_RC;
+			goto cleanup;
+		}
+		total_length += AUTH_HDR_LEN;
 
 		total_length = add_msg_auth_attr(rh, secret, auth, total_length);
 
