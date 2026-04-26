@@ -16,7 +16,7 @@ sbindir = @sbindir@
 pkgsysconfdir = @pkgsysconfdir@
 pkgsysconf_DATA = radiusclient.conf radiusclient-tls.conf
 
-DICTIONARIES = dictionary dictionary.ascend dictionary.compat dictionary.merit dictionary.microsoft dictionary.roaringpenguin dictionary.sip
+DICTIONARIES = dictionary
 
 sharedir = $(datadir)/@PACKAGE@
 share_DATA = $(DICTIONARIES)
