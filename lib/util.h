@@ -10,6 +10,10 @@
 
 #include <string.h>
 
+/* Asserts must never be compiled out in security-sensitive parsing code. */
+#undef NDEBUG
+#include <assert.h>
+
 #ifdef HAVE_GNUTLS
 # include <gnutls/gnutls.h>
 #endif
@@ -81,6 +85,103 @@ int rc_reset_netns(int *prev_ns_handle);
 extern unsigned int radcli_debug;
 
 #define		DEBUG(args...)	if(radcli_debug) rc_log(args)
+
+/* sk_buff-style packet buffer.
+ *
+ *  head ──► +──────────────────+
+ *           │  RADIUS header   │  (pre-filled by caller for outgoing packets)
+ *  data ──► +──────────────────+  read/parse cursor
+ *           │  attribute data  │
+ *  tail ──► +──────────────────+  write cursor
+ *           │   tailroom       │
+ *   end ──► +──────────────────+  hard capacity limit (never moves)
+ *
+ * head and end are set once at initialisation and never modified.
+ * tail advances on writes; data advances on reads/parses.
+ *   pb_written() == tail - head  (total bytes built, incl. header)
+ *   pb_len()     == tail - data  (unread/unconsumed bytes)
+ *   pb_tailroom()== end  - tail  (free write space)
+ */
+typedef struct {
+	uint8_t *head;  /* immutable: start of raw buffer                    */
+	uint8_t *data;  /* read/parse cursor: start of unconsumed data        */
+	uint8_t *tail;  /* write cursor: end of written data                  */
+	uint8_t *end;   /* immutable: hard capacity limit                     */
+} pkt_buf;
+
+/* --- init ---------------------------------------------------------------- */
+
+/* Write mode: head/data/tail all start at buf; end = buf + cap. */
+static inline void pb_init(pkt_buf *pb, void *buf, size_t cap)
+{
+	pb->head = pb->data = pb->tail = (uint8_t *)buf;
+	pb->end  = pb->head + cap;
+}
+
+/* Read mode: head/data = buf; tail = buf + len (data already received);
+ * end = buf + cap. */
+static inline void pb_init_read(pkt_buf *pb, void *buf, size_t len, size_t cap)
+{
+	pb->head = pb->data = (uint8_t *)buf;
+	pb->tail = pb->head + len;
+	pb->end  = pb->head + cap;
+}
+
+/* --- measurement --------------------------------------------------------- */
+
+static inline size_t pb_written(const pkt_buf *pb)  /* total bytes head..tail */
+	{ return (size_t)(pb->tail - pb->head); }
+
+static inline size_t pb_len(const pkt_buf *pb)      /* unread bytes data..tail */
+	{ return (size_t)(pb->tail - pb->data); }
+
+static inline size_t pb_tailroom(const pkt_buf *pb) /* free bytes tail..end */
+	{ return (size_t)(pb->end - pb->tail); }
+
+/* --- write helpers (advance tail) ---------------------------------------- */
+
+static inline int pb_put_byte(pkt_buf *pb, uint8_t v)
+{
+	if (pb->tail >= pb->end) return -1;
+	*pb->tail++ = v;
+	return 0;
+}
+
+static inline int pb_put_bytes(pkt_buf *pb, const void *src, int n)
+{
+	if (n < 0 || pb->tail + n > pb->end) return -1;
+	memcpy(pb->tail, src, n);
+	pb->tail += n;
+	return 0;
+}
+
+/* Reserve n bytes at tail; return pointer to the reserved region, or NULL on
+ * overflow.  The caller patches the content after writing surrounding data. */
+static inline uint8_t *pb_put_reserve(pkt_buf *pb, int n)
+{
+	if (n <= 0 || pb->tail + n > pb->end) return NULL;
+	uint8_t *p = pb->tail;
+	pb->tail += n;
+	return p;
+}
+
+/* --- read/parse helpers (advance data) ----------------------------------- */
+
+/* Consume n bytes from the front.  Returns -1 if fewer than n bytes remain. */
+static inline int pb_pull(pkt_buf *pb, int n)
+{
+	if (n < 0 || pb->data + n > pb->tail) return -1;
+	pb->data += n;
+	return 0;
+}
+
+/* Peek at one byte at data[offset] without advancing.  Returns -1 on OOB. */
+static inline int pb_peek_byte(const pkt_buf *pb, int offset, uint8_t *out)
+{
+	if (offset < 0 || pb->data + offset >= pb->tail) return -1;
+	*out = pb->data[offset];
+	return 0;
+}
 
 #endif /* UTIL_H */
 

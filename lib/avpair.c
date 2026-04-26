@@ -271,159 +271,193 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pva
  * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
  * @return value_pair list or NULL on failure.
  */
-VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair, unsigned char const *ptr,
-			  int length, uint32_t vendorspec)
+/* Returns 0 on success (decoded list in *out, may be NULL if all attrs skipped),
+ * -1 on hard error (*out undefined, incoming pair list already freed). */
+static int rc_avpair_gen2(rc_handle const *rh, VALUE_PAIR *pair,
+			  pkt_buf *pb, uint32_t vendorspec,
+			  VALUE_PAIR **out)
 {
-	uint64_t attribute;
+	VALUE_PAIR *head = pair;
+	VALUE_PAIR **tail = &head;
+	const uint8_t *attr_data, *ptr;
 	int attrlen, x_len;
-	unsigned char const *x_ptr;
+	const unsigned char *x_ptr;
+	uint64_t attribute;
 	uint32_t lvalue;
 	DICT_ATTR *attr;
 	VALUE_PAIR *rpair;
 	char buffer[(AUTH_STRING_LEN * 2) + 1];
-	/* For hex string conversion. */
 	char hex[3];
 
-	if (length < 2) {
-		rc_log(LOG_ERR, "rc_avpair_gen: received attribute with "
-		    "invalid length");
-		goto shithappens;
+	/* Advance tail to end of the initial list so we append in wire order */
+	while (*tail != NULL)
+		tail = &(*tail)->next;
+
+	while (pb_len(pb) > 0) {
+		if (pb_len(pb) < 2) {
+			rc_log(LOG_ERR, "rc_avpair_gen: received attribute with "
+			    "invalid length");
+			goto error;
+		}
+		attrlen = pb->data[1];
+		if (attrlen < 2 || (size_t)attrlen > pb_len(pb)) {
+			rc_log(LOG_ERR, "rc_avpair_gen: received attribute with "
+			    "invalid length");
+			goto error;
+		}
+
+		attr_data = pb->data;
+		assert(pb_pull(pb, attrlen) == 0);
+
+		attribute = RADCLI_VENDOR_ATTR_SET(attr_data[0], vendorspec);
+		ptr = attr_data + 2;
+		attrlen -= 2;
+
+		/* VSA */
+		if (attribute == PW_VENDOR_SPECIFIC) {
+			if (attrlen < 4) {
+				rc_log(LOG_ERR, "rc_avpair_gen: received VSA "
+				    "attribute with invalid length");
+				continue;
+			}
+			memcpy(&lvalue, ptr, 4);
+			lvalue = ntohl(lvalue);
+			if (rc_dict_getvend(rh, lvalue) == NULL) {
+				rc_log(LOG_WARNING, "rc_avpair_gen: received VSA "
+				    "attribute with unknown Vendor-Id %d", lvalue);
+				continue;
+			}
+			/* Process VSA sub-attributes; append results to tail */
+			{
+				pkt_buf vsa_pb;
+				VALUE_PAIR *vsa_list = NULL;
+				pb_init_read(&vsa_pb,
+					     (void *)(uintptr_t)(ptr + 4),
+					     attrlen - 4, attrlen - 4);
+				if (rc_avpair_gen2(rh, NULL, &vsa_pb, lvalue,
+						   &vsa_list) < 0)
+					goto error;
+				/* vsa_list may be NULL if all sub-attrs skipped */
+				if (vsa_list != NULL) {
+					*tail = vsa_list;
+					while (*tail != NULL)
+						tail = &(*tail)->next;
+				}
+			}
+			continue;
+		}
+
+		/* Normal attribute */
+		attr = rc_dict_getattr(rh, attribute);
+		if (attr == NULL) {
+			buffer[0] = '\0';
+			x_ptr = ptr;
+			for (x_len = attrlen; x_len > 0; x_len--, x_ptr++) {
+				snprintf(hex, sizeof(hex), "%2.2X", x_ptr[0]);
+				strcat(buffer, hex);
+			}
+			if (vendorspec == 0) {
+				rc_log(LOG_WARNING, "rc_avpair_gen: received "
+				    "unknown attribute %d of length %d: 0x%s",
+				    (unsigned)attribute, attrlen + 2, buffer);
+			} else {
+				rc_log(LOG_WARNING, "rc_avpair_gen: received "
+				    "unknown VSA attribute %u, vendor %u of "
+				    "length %d: 0x%s", (unsigned)ATTRID(attribute),
+				    (unsigned)VENDOR(attribute), attrlen + 2, buffer);
+			}
+			continue;
+		}
+
+		rpair = calloc(1, sizeof(*rpair));
+		if (rpair == NULL) {
+			rc_log(LOG_CRIT, "rc_avpair_gen: out of memory");
+			goto error;
+		}
+		rpair->next = NULL;
+		strlcpy(rpair->name, attr->name, sizeof(rpair->name));
+		rpair->attribute = attr->value;
+		rpair->type = attr->type;
+
+		switch (attr->type) {
+		case PW_TYPE_STRING:
+			assert(attrlen <= AUTH_STRING_LEN); /* wire: uint8_t − 2 ≤ 253 */
+			memcpy(rpair->strvalue, (char *)ptr, (size_t)attrlen);
+			rpair->strvalue[attrlen] = '\0';
+			rpair->lvalue = attrlen;
+			break;
+		case PW_TYPE_INTEGER:
+		case PW_TYPE_IPADDR:
+			if (attrlen != 4) {
+				rc_log(LOG_ERR, "rc_avpair_gen: received "
+				    "INTEGER/IPADDR attribute with invalid length");
+				free(rpair);
+				continue;
+			}
+			memcpy((char *)&lvalue, (char *)ptr, 4);
+			rpair->lvalue = ntohl(lvalue);
+			break;
+		case PW_TYPE_IPV6ADDR:
+			if (attrlen != 16) {
+				rc_log(LOG_ERR, "rc_avpair_gen: received IPV6ADDR"
+				    " attribute with invalid length");
+				free(rpair);
+				continue;
+			}
+			memcpy(rpair->strvalue, (char *)ptr, 16);
+			rpair->lvalue = attrlen;
+			break;
+		case PW_TYPE_IPV6PREFIX:
+			if (attrlen > 18 || attrlen < 2) {
+				rc_log(LOG_ERR, "rc_avpair_gen: received IPV6PREFIX"
+				    " attribute with invalid length: %d", attrlen);
+				free(rpair);
+				continue;
+			}
+			memcpy(rpair->strvalue, (char *)ptr, attrlen);
+			rpair->lvalue = attrlen;
+			break;
+		case PW_TYPE_DATE:
+			if (attrlen != 4) {
+				rc_log(LOG_ERR, "rc_avpair_gen: received DATE "
+				    "attribute with invalid length");
+				free(rpair);
+				continue;
+			}
+			memcpy((char *)&lvalue, (char *)ptr, 4);
+			rpair->lvalue = ntohl(lvalue);
+			break;
+		default:
+			rc_log(LOG_WARNING, "rc_avpair_gen: %s has unknown type",
+			    attr->name);
+			free(rpair);
+			continue;
+		}
+
+		*tail = rpair;
+		tail = &rpair->next;
 	}
-	attrlen = ptr[1];
-	if (length < attrlen || attrlen < 2) {
-		rc_log(LOG_ERR, "rc_avpair_gen: received attribute with "
-		    "invalid length");
-		goto shithappens;
-	}
 
-	/* Advance to the next attribute and process recursively */
-	if (length != attrlen) {
-		pair = rc_avpair_gen(rh, pair, ptr + attrlen, length - attrlen,
-		    vendorspec);
-	}
+	*out = head;
+	return 0;
 
-	/* Actual processing */
-	attribute = RADCLI_VENDOR_ATTR_SET(ptr[0], vendorspec);
-	ptr += 2;
-	attrlen -= 2;
+error:
+	rc_avpair_free(head);
+	return -1;
+}
 
-	/* VSA */
-	if (attribute == PW_VENDOR_SPECIFIC) {
-		if (attrlen < 4) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received VSA "
-			    "attribute with invalid length");
-			goto skipit;
-		}
-		memcpy(&lvalue, ptr, 4);
-		vendorspec = ntohl(lvalue);
-		if (rc_dict_getvend(rh, vendorspec) == NULL) {
-			/* Warn and skip over the unknown VSA */
-			rc_log(LOG_WARNING, "rc_avpair_gen: received VSA "
-			    "attribute with unknown Vendor-Id %d", vendorspec);
-			goto skipit;
-		}
-		/* Process recursively */
-		return rc_avpair_gen(rh, pair, ptr + 4, attrlen - 4,
-		    vendorspec);
-	}
-
-	/* Normal */
-	attr = rc_dict_getattr(rh, attribute);
-	if (attr == NULL) {
-		buffer[0] = '\0';	/* Initial length. */
-		x_ptr = ptr;
-		for (x_len = attrlen; x_len > 0; x_len--, x_ptr++) {
-			snprintf(hex, sizeof(hex), "%2.2X", x_ptr[0]);
-			strcat(buffer, hex);
-		}
-		if (vendorspec == 0) {
-			rc_log(LOG_WARNING, "rc_avpair_gen: received "
-			    "unknown attribute %d of length %d: 0x%s",
-			    (unsigned)attribute, attrlen + 2, buffer);
-		} else {
-			rc_log(LOG_WARNING, "rc_avpair_gen: received "
-			    "unknown VSA attribute %u, vendor %u of "
-			    "length %d: 0x%s", (unsigned)ATTRID(attribute),
-			    (unsigned)VENDOR(attribute), attrlen + 2, buffer);
-		}
-		goto skipit;
-	}
-	rpair = calloc(1, sizeof(*rpair));
-	if (rpair == NULL) {
-		rc_log(LOG_CRIT, "rc_avpair_gen: out of memory");
-		goto shithappens;
-	}
-
-	/* Insert this new pair at the beginning of the list */
-	rpair->next = pair;
-	pair = rpair;
-	strlcpy(pair->name, attr->name, sizeof(pair->name));
-	pair->attribute = attr->value;
-	pair->type = attr->type;
-
-	switch (attr->type) {
-	case PW_TYPE_STRING:
-		memcpy(pair->strvalue, (char *)ptr, (size_t)attrlen);
-		pair->strvalue[attrlen] = '\0';
-		pair->lvalue = attrlen;
-		break;
-
-	case PW_TYPE_INTEGER:
-		if (attrlen != 4) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received INT "
-			    "attribute with invalid length");
-			goto skipit;
-		}
-	case PW_TYPE_IPADDR:
-		if (attrlen != 4) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received IPADDR"
-			    " attribute with invalid length");
-			goto skipit;
-		}
-		memcpy((char *)&lvalue, (char *)ptr, 4);
-		pair->lvalue = ntohl(lvalue);
-		break;
-	case PW_TYPE_IPV6ADDR:
-		if (attrlen != 16) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received IPV6ADDR"
-			    " attribute with invalid length");
-			goto skipit;
-		}
-		memcpy(pair->strvalue, (char *)ptr, 16);
-		pair->lvalue = attrlen;
-		break;
-	case PW_TYPE_IPV6PREFIX:
-		if (attrlen > 18 || attrlen < 2) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received IPV6PREFIX"
-			    " attribute with invalid length: %d", attrlen);
-			goto skipit;
-		}
-		memcpy(pair->strvalue, (char *)ptr, attrlen);
-		pair->lvalue = attrlen;
-		break;
-	case PW_TYPE_DATE:
-		if (attrlen != 4) {
-			rc_log(LOG_ERR, "rc_avpair_gen: received DATE "
-			    "attribute with invalid length");
-			goto skipit;
-		}
-
-	default:
-		rc_log(LOG_WARNING, "rc_avpair_gen: %s has unknown type",
-		    attr->name);
-		goto skipit;
-	}
-
-skipit:
-	return pair;
-
-shithappens:
-	while (pair != NULL) {
-		rpair = pair->next;
-		free(pair);
-		pair = rpair;
-	}
-	return NULL;
+VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair,
+			  unsigned char const *ptr, int length,
+			  uint32_t vendorspec)
+{
+	pkt_buf pb;
+	VALUE_PAIR *out = NULL;
+	if (length <= 0)
+		return pair;
+	pb_init_read(&pb, (void *)ptr, (size_t)length, (size_t)length);
+	if (rc_avpair_gen2(rh, pair, &pb, vendorspec, &out) < 0)
+		return NULL;
+	return out;
 }
 
 /** Find the first attribute value-pair (which matches the given attribute) from the specified value-pair list

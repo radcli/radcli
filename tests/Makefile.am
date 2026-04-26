@@ -25,12 +25,12 @@ EXTRA_DIST = radiusclient-ipv6.conf servers-ipv6 \
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = ../lib/libradcli.la
 
-dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh close-notify-tests.sh
-TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh
+dist_check_SCRIPTS = basic-tests.sh ipv6-tests.sh tls-tests.sh tls-idle-restart-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh close-notify-tests.sh malformed-packet-tests.sh
+TESTS = basic-tests.sh ipv6-tests.sh failover-tests.sh tcp-tests.sh eap-tests.sh no-server-file-tests.sh reject-tests.sh skip-unknown-vsa.sh namespace-tests.sh radembedded-tests.sh radembedded-dict-tests.sh ipv6-non-temp-addr-tests.sh msg-auth-tests.sh malformed-packet-tests.sh
 check_PROGRAMS =
 
 if ENABLE_GNUTLS
-ctests = avpair dict dict-add
+ctests = avpair dict dict-add pack
 
 TESTS += tls-tests.sh tls-idle-restart-tests.sh close-notify-tests.sh $(ctests)
 
@@ -45,6 +45,11 @@ tls_idle_restart_LDADD = ../src/libtools.a ../lib/libradcli.la
 close_notify_server_SOURCES = close-notify-server.c
 close_notify_server_LDADD = $(LIBGNUTLS_LIBS)
 close_notify_server_CFLAGS = $(LIBGNUTLS_CFLAGS)
+
+# Link pack directly against the static archive so the non-exported
+# rc_pack_list symbol (not in radcli.map) is accessible for unit testing.
+pack_SOURCES = pack.c
+pack_LDADD = ../lib/.libs/libradcli.a $(LIBGNUTLS_LIBS) -lnettle
 endif
 
 

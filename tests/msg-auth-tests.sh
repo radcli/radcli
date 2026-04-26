@@ -12,6 +12,7 @@ echo " 2. Client accepts if require-msg-auth = no"
 echo " 3. Client rejects response with wrong MA"
 echo " 4. Client rejects MA that is correct but not first"
 echo " 5. Client accepts response with correct MA"
+echo " 6. Client rejects wrong MA even when not first (require-MA disabled)"
 echo "==================================================="
 
 if ! python3 -c '' 2>/dev/null; then
@@ -120,6 +121,16 @@ if test $? != 0; then
 	echo "[ FAIL ] Expected Framed-Protocol = 'PPP' in response"
 	exit 1
 fi
+
+# Test 6: MA present with wrong value, placed after other attrs (not first).
+# validate_message_authenticator must be called even when MA is not first.
+# require-message-authenticator=no so the position check doesn't fire first.
+stop_server
+start_server wrong-not-first
+run_test "Reject response with wrong MA even when not first (require-MA disabled)" \
+	"../src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
+	expect_fail || exit 1
+stop_server
 
 echo ""
 exit 0
