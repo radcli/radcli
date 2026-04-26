@@ -71,9 +71,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "%d: small list should pack; got %d\n", __LINE__, n);
 		exit(1);
 	}
-	/* 3 integer attrs × (type(1)+len(1)+val(4)) = 18 bytes */
-	if (n != 18) {
-		fprintf(stderr, "%d: expected 18 bytes, got %d\n", __LINE__, n);
+	/* 3 integer attrs × (type(1)+len(1)+val(4)) = 18 attr bytes + 20 header = 38 */
+	if (n != 38) {
+		fprintf(stderr, "%d: expected 38 bytes, got %d\n", __LINE__, n);
 		exit(1);
 	}
 	rc_avpair_free(vp);
@@ -138,12 +138,12 @@ int main(int argc, char **argv)
 		vp = NULL;
 		for (i = 0; i < 20; i++)
 			rc_avpair_add(rh, &vp, PW_NAS_IDENTIFIER, val201, sizeof(val201), 0);
-		/* 20 × (2 + 201) = 20 × 203 = 4060 attribute bytes */
+		/* 20 × (2 + 201) = 4060 attr bytes + 20 header = 4080 total */
 
 		memset(buf, 0, sizeof(buf));
 		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
-		if (n != 4060) {
-			fprintf(stderr, "%d: accounting limit: expected 4060, got %d\n",
+		if (n != 4080) {
+			fprintf(stderr, "%d: accounting limit: expected 4080, got %d\n",
 				__LINE__, n);
 			exit(1);
 		}

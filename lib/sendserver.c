@@ -65,24 +65,28 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 	pkt_buf pb;
 	uint8_t *attr_start, *attr_len_ptr, *vsa_len_ptr;
 
-	pb.ptr = auth->data;
-	pb.end = (uint8_t *)auth + max_len;
+	/* head = start of RADIUS packet; tail starts after the fixed header;
+	 * pb_written() will return the total packet length (header + attrs). */
+	pb.head = (uint8_t *)auth;
+	pb.data = (uint8_t *)auth;
+	pb.tail = auth->data;
+	pb.end  = (uint8_t *)auth + max_len;
 
 	while (vp != NULL) {
 		vsa_len_ptr = NULL;
 
 		if (VENDOR(vp->attribute) != 0) {
-			if (pb_putbyte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
-			vsa_len_ptr = pb.ptr;
-			if (pb_putbyte(&pb, 6) < 0) goto too_large;
+			if (pb_put_byte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
+			vsa_len_ptr = pb.tail;
+			if (pb_put_byte(&pb, 6) < 0) goto too_large;
 			vendor = htonl(VENDOR(vp->attribute));
 			if (pb_put_bytes(&pb, &vendor, sizeof(uint32_t)) < 0) goto too_large;
 		}
 
-		attr_start = pb.ptr;
-		if (pb_putbyte(&pb, vp->attribute & 0xff) < 0) goto too_large;
-		attr_len_ptr = pb.ptr;
-		if (pb_putbyte(&pb, 2) < 0) goto too_large;  /* placeholder; patched below */
+		attr_start = pb.tail;
+		if (pb_put_byte(&pb, vp->attribute & 0xff) < 0) goto too_large;
+		attr_len_ptr = pb.tail;
+		if (pb_put_byte(&pb, 2) < 0) goto too_large;  /* placeholder; patched below */
 
 		switch (vp->attribute) {
 		case PW_USER_PASSWORD:
@@ -92,7 +96,7 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 			padded_length =
 			    (length + (AUTH_VECTOR_LEN - 1)) & ~(AUTH_VECTOR_LEN - 1);
 
-			if (pb.ptr + padded_length > pb.end) goto too_large;
+			if (pb.tail + padded_length > pb.end) goto too_large;
 
 			/* Pad the password with zeros */
 			memset((char *)passbuf, '\0', AUTH_PASS_LEN);
@@ -106,14 +110,14 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 				/* Build hash input: secret || vector */
 				memcpy(md5buf, secret, secretlen);
 				memcpy(md5buf + secretlen, vector, AUTH_VECTOR_LEN);
-				rc_md5_calc(pb.ptr, md5buf, secretlen + AUTH_VECTOR_LEN);
+				rc_md5_calc(pb.tail, md5buf, secretlen + AUTH_VECTOR_LEN);
 
 				/* Remember the start of the digest */
-				vector = pb.ptr;
+				vector = pb.tail;
 
 				/* Xor the password into the MD5 digest */
 				for (pc = i; pc < (i + AUTH_VECTOR_LEN); pc++)
-					*pb.ptr++ ^= passbuf[pc];
+					*pb.tail++ ^= passbuf[pc];
 			}
 			break;
 
@@ -146,13 +150,13 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 		}
 
 		/* Patch back lengths: attr_len = type(1) + len(1) + value */
-		*attr_len_ptr = (uint8_t)(pb.ptr - attr_start);
+		*attr_len_ptr = (uint8_t)(pb.tail - attr_start);
 		if (vsa_len_ptr != NULL)
 			*vsa_len_ptr += *attr_len_ptr;
 
 		vp = vp->next;
 	}
-	return (int)(pb.ptr - auth->data);
+	return (int)pb_written(&pb);  /* total packet bytes: AUTH_HDR_LEN + attrs */
 
 too_large:
 	rc_log(LOG_ERR, "rc_pack_list: attribute value too large or packet would exceed %d bytes", max_len);
@@ -429,8 +433,7 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 					  const unsigned char *req_auth)
 {
 	uint8_t verify_buffer[RC_BUFFER_LEN];
-	uint8_t *idx = verify_buffer + AUTH_HDR_LEN;
-	const uint8_t *verify_end = verify_buffer + sizeof(verify_buffer);
+	pkt_buf vb;
 	const char *received_message_authenticator = NULL;
 	uint8_t digest[MD5_DIGEST_SIZE];
 	unsigned attr_len;
@@ -444,6 +447,7 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 	 * per RFC 3579 §3.2, and clear the Message-Authenticator value */
 	memcpy(verify_buffer, recv_buffer, AUTH_HDR_LEN + length);
 	memcpy(verify_buffer + 4, req_auth, AUTH_VECTOR_LEN);
+	pb_init_read(&vb, verify_buffer + AUTH_HDR_LEN, length, length);
 	for (; vp != NULL; vp = vp->next) {
 		if (vp->type == PW_TYPE_INTEGER || vp->type == PW_TYPE_DATE ||
 		    vp->type == PW_TYPE_IPADDR) {
@@ -453,11 +457,11 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 		}
 
 		/* type (1) + length (1) + value */
-		if (idx + 2 + attr_len > verify_end) {
+		if (pb_len(&vb) < 2 + attr_len) {
 			rc_log(LOG_ERR, "%s: attribute overflows verification buffer", __func__);
 			return -1;
 		}
-		idx += 2;
+		assert(pb_pull(&vb, 2) == 0);
 
 		if (vp->attribute == PW_MESSAGE_AUTHENTICATOR) {
 			if (vp->lvalue != MD5_DIGEST_SIZE) {
@@ -465,11 +469,11 @@ static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_bu
 				       __func__, vp->lvalue);
 				return -1;
 			}
-			memset(idx, '\0', MD5_DIGEST_SIZE);
+			memset(vb.data, '\0', MD5_DIGEST_SIZE);
 			received_message_authenticator = vp->strvalue;
 			break;
 		} else {
-			idx += attr_len;
+			assert(pb_pull(&vb, attr_len) == 0);
 		}
 	}
 
@@ -514,8 +518,9 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	unsigned char vector[AUTH_VECTOR_LEN];
 	uint8_t recv_buffer[RC_BUFFER_LEN];
 	uint8_t send_buffer[RC_BUFFER_LEN];
-	uint8_t *attr;
 	uint16_t tlen;
+	pkt_buf rb;
+	uint8_t attr_type, attr_len;
 	int retries;
 	VALUE_PAIR *vp;
 	struct pollfd pfd;
@@ -708,7 +713,6 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = ERROR_RC;
 			goto cleanup;
 		}
-		total_length += AUTH_HDR_LEN;
 
 		tlen = htons((unsigned short)total_length);
 		memcpy(&auth->length, &tlen, sizeof(uint16_t));
@@ -730,7 +734,6 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = ERROR_RC;
 			goto cleanup;
 		}
-		total_length += AUTH_HDR_LEN;
 
 		total_length = add_msg_auth_attr(rh, secret, auth, total_length);
 
@@ -875,9 +878,20 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	/*
 	 *      Verify that it's a valid RADIUS packet before doing ANYTHING with it.
 	 */
-	attr = recv_buffer + AUTH_HDR_LEN;
-	while (attr < (recv_buffer + length)) {
-		if (attr[0] == 0) {
+	pb_init_read(&rb, recv_buffer, length, RC_BUFFER_LEN);
+	assert(pb_pull(&rb, AUTH_HDR_LEN) == 0);
+	while (pb_len(&rb) > 0) {
+		if (pb_peek_byte(&rb, 0, &attr_type) < 0 ||
+		    pb_peek_byte(&rb, 1, &attr_len)  < 0) {
+			rc_log(LOG_ERR,
+			       "rc_send_server: recvfrom: %s:%d: truncated attribute",
+			       server_name, data->svc_port);
+			SCLOSE(sockfd);
+			memset(secret, '\0', sizeof(secret));
+			result = ERROR_RC;
+			goto cleanup;
+		}
+		if (attr_type == 0) {
 			rc_log(LOG_ERR,
 			       "rc_send_server: recvfrom: %s:%d: attribute zero is invalid",
 			       server_name, data->svc_port);
@@ -886,8 +900,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = ERROR_RC;
 			goto cleanup;
 		}
-
-		if (attr[1] < 2) {
+		if (attr_len < 2) {
 			rc_log(LOG_ERR,
 			       "rc_send_server: recvfrom: %s:%d: attribute length is too small",
 			       server_name, data->svc_port);
@@ -896,8 +909,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = ERROR_RC;
 			goto cleanup;
 		}
-
-		if ((attr + attr[1]) > (recv_buffer + length)) {
+		if (attr_len > pb_len(&rb)) {
 			rc_log(LOG_ERR,
 			       "rc_send_server: recvfrom: %s:%d: attribute overflows the packet",
 			       server_name, data->svc_port);
@@ -906,8 +918,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = ERROR_RC;
 			goto cleanup;
 		}
-
-		attr += attr[1];
+		assert(pb_pull(&rb, attr_len) == 0);
 	}
 
 	length = ntohs(recv_auth->length) - AUTH_HDR_LEN;
