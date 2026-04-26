@@ -1,4 +1,5 @@
 # Build products
+lib/dict_rfc_gen.h
 src/radstatus
 src/radlogin
 src/radiusclient
@@ -74,3 +75,5 @@ m4/po.m4
 m4/progtest.m4
 po/
 tests/close-notify-server
+.html.stamp
+doc/stamp_html
