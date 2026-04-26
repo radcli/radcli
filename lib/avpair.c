@@ -140,7 +140,10 @@ int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len)
 		case PW_TYPE_STRING:
 			if (len == -1)
 				len = (uint32_t)strlen((char const *)pval);
-			if (len > AUTH_STRING_LEN) {
+			/* Vendor-specific attributes use additionally 6 bytes of envelope
+			 * (4 vendor-id + 1 sub-type + 1 sub-length) thus reduce the AUTH_STRING_LEN
+			 * (253-byte value) to 247. */
+			if (len > (int)(VENDOR(vp->attribute) ? (AUTH_STRING_LEN - VSA_HDR_LEN) : (AUTH_STRING_LEN))) {
 		        	rc_log(LOG_ERR, "rc_avpair_assign: bad attribute length");
 		        	return -1;
 			}

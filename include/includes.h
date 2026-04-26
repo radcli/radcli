@@ -159,6 +159,11 @@ int sigprocmask (int, sigset_t *, sigset_t *);
 
 #define GETSTR_LENGTH		128	//!< must be bigger than AUTH_PASS_LEN.
 
+/* Overhead consumed by the VSA envelope inside a RADIUS attribute:
+ * vendor-id(4) + sub-attr-type(1) + sub-attr-length(1) = 6 bytes.
+ * A VSA value may be at most AUTH_STRING_LEN - VSA_HDR_LEN bytes long. */
+#define VSA_HDR_LEN		6
+
 typedef struct pw_auth_hdr
 {
 	uint8_t		code;

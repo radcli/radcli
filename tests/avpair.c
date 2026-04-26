@@ -267,6 +267,51 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	rc_avpair_free(send);
+
+	/* VSA length boundary: Agent-Circuit-Id (DSL-Forum vendor 3561, attr 1).
+	 * Max VSA string = AUTH_STRING_LEN - VSA_HDR_LEN = 247 bytes. */
+	{
+		char buf[254];
+		VALUE_PAIR *vp_vsa;
+
+		memset(buf, 'A', sizeof(buf));
+
+		/* 247 bytes: must succeed */
+		vp_vsa = NULL;
+		vp_vsa = rc_avpair_add(rh, &vp_vsa, 1, buf, 247, 3561);
+		if (vp_vsa == NULL) {
+			fprintf(stderr, "%d: VSA assign of 247 bytes failed (expected success)\n", __LINE__);
+			exit(1);
+		}
+		rc_avpair_free(vp_vsa);
+
+		/* 248 bytes: must fail */
+		vp_vsa = NULL;
+		vp_vsa = rc_avpair_add(rh, &vp_vsa, 1, buf, 248, 3561);
+		if (vp_vsa != NULL) {
+			fprintf(stderr, "%d: VSA assign of 248 bytes succeeded (expected failure)\n", __LINE__);
+			rc_avpair_free(vp_vsa);
+			exit(1);
+		}
+
+		/* Standard attr: 253 bytes must succeed, 254 must fail */
+		vp_vsa = NULL;
+		vp_vsa = rc_avpair_add(rh, &vp_vsa, PW_USER_NAME, buf, 253, 0);
+		if (vp_vsa == NULL) {
+			fprintf(stderr, "%d: standard attr assign of 253 bytes failed (expected success)\n", __LINE__);
+			exit(1);
+		}
+		rc_avpair_free(vp_vsa);
+
+		vp_vsa = NULL;
+		vp_vsa = rc_avpair_add(rh, &vp_vsa, PW_USER_NAME, buf, 254, 0);
+		if (vp_vsa != NULL) {
+			fprintf(stderr, "%d: standard attr assign of 254 bytes succeeded (expected failure)\n", __LINE__);
+			rc_avpair_free(vp_vsa);
+			exit(1);
+		}
+	}
+
 	rc_destroy(rh);
 
 	return 0;
