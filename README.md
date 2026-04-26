@@ -47,6 +47,29 @@ For adding new features or extending functionality in addition to the code,
 please also submit a test program which verifies the correctness of operation.
 See `tests/` and `.travis.yml` for the existing test suite.
 
+## AI Assistance Policy
+
+AI tool use is assumed and does not require disclosure. What matters is human
+accountability: every line you submit is your responsibility, regardless of how
+it was generated. Reviewers will hold you accountable as the author.
+
+**If you use AI assistance:**
+
+- Follow the guidance in [`AGENTS.md`](AGENTS.md) for all AI-assisted work.
+- External contributors should load the `radcli-contributor` persona
+  (`contrib/ai/personas/radcli-contributor.md`) before starting.
+- Maintainers doing AI-assisted review or development should load the
+  `radcli-core-dev` persona (`contrib/ai/personas/radcli-core-dev.md`).
+
+**Review calibration:** Reviewers may ask how a contribution was developed if it
+raises quality questions. Be prepared to explain your approach. Submissions that
+show signs of unchecked generation — hallucinated API calls, missing tests, style
+inconsistencies — may be returned with a request for additional work rather than
+an inline review.
+
+**Not acceptable:** Submitting code you cannot explain or defend. Own your patch.
+
+
 
 ## Bug reporting
 
