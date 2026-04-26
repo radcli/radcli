@@ -10,7 +10,12 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-EXTRA_DIST = radcli.map.in radcli.pc.in
+EXTRA_DIST = radcli.map.in radcli.pc.in gen-dict.awk
+
+BUILT_SOURCES = dict_rfc_gen.h
+
+dict_rfc_gen.h: $(top_srcdir)/etc/dictionary $(srcdir)/gen-dict.awk
+	$(AWK) -f $(srcdir)/gen-dict.awk $(top_srcdir)/etc/dictionary > $@
 
 RC_LOG_FACILITY = @RC_LOG_FACILITY@
 LIBVERSION = @LIBVERSION@
@@ -18,7 +23,7 @@ LIBVERSION = @LIBVERSION@
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_builddir) $(CRYPTO_CFLAGS) -Wall
 DEFS = @DEFS@ -DRC_LOG_FACILITY=$(RC_LOG_FACILITY)
 
-CLEANFILES = *~
+CLEANFILES = *~ dict_rfc_gen.h
 
 # Pkg-config script.
 pkgconfigdir = $(libdir)/pkgconfig

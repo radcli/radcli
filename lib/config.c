@@ -25,6 +25,7 @@
 #include <options.h>
 #include "util.h"
 #include "tls.h"
+#include "dict_rfc_gen.h"
 
 #ifndef TRUE
 #define TRUE  1
@@ -696,6 +697,15 @@ rc_handle *rc_read_config(char const *filename)
                 }
         }
 
+	/* Always load the built-in RFC 2865/2866/2869 dictionary first so that
+	 * applications need not ship a dictionary file for standard attributes. */
+	if (rc_read_dictionary_from_buffer(rh, rc_rfc_dictionary,
+	                                   sizeof(rc_rfc_dictionary) - 1) != 0) {
+		rc_log(LOG_CRIT, "rc_read_config: failed to load built-in RFC dictionary");
+		rc_destroy(rh);
+		return NULL;
+	}
+
 	p = rc_conf_str(rh, "dictionary");
 	if (p != NULL) {
 		if (rc_read_dictionary(rh, p) != 0) {
@@ -703,8 +713,6 @@ rc_handle *rc_read_config(char const *filename)
 			rc_destroy(rh);
 			return NULL;
 		}
-	} else {
-		rc_log(LOG_INFO, "rc_read_config: no dictionary was specified");
 	}
 
 	return rh;
@@ -803,11 +811,6 @@ int rc_test_config(rc_handle *rh, char const *filename)
 		/* it is allowed not to have acct servers */
 		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
 			rc_log(LOG_DEBUG,"%s: no acctserver specified", filename);
-	}
-	if (!rc_conf_str(rh, "dictionary"))
-	{
-		rc_log(LOG_ERR,"%s: no dictionary specified", filename);
-		return -1;
 	}
 
 	if (rc_conf_int(rh, "radius_timeout") <= 0)

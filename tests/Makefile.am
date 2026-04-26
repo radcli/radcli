@@ -18,7 +18,9 @@ EXTRA_DIST = radiusclient-ipv6.conf servers-ipv6 \
 	raddb-tcp/radiusd.conf raddb-tcp/users \
 	radius-server.py \
 	common.sh \
-	ns.sh
+	ns.sh \
+	dictionaries/dictionary.microsoft \
+	dictionaries/dictionary.roaringpenguin
 
 AM_CPPFLAGS = -I$(srcdir) -I$(top_srcdir)/include -I$(top_srcdir)/src -I$(top_builddir)
 LDADD = ../lib/libradcli.la

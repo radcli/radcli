@@ -1,5 +1,23 @@
 * Version 1.5.1 (unreleased)
 - Close the TLS and DTLS sessions using an alert (#127)
+- The dictionary file is no longer required when using standard RADIUS
+  attributes. RFC 2865/2866/2867/2868/2869/3162/3576/4675/4818/4849/6911
+  attributes are now built into the library; the 'dictionary' config option
+  is now needed only for vendor-specific attributes.
+- Compatibility notes on renamed attributes (apps using numeric PW_* constants
+  are unaffected in all cases):
+  - Attribute 2: the old Cistron dictionary used "Password"; the correct RFC 2865
+    name is "User-Password". The legacy alias "Password" is retained so existing
+    string-based lookups continue to work.
+  - Attribute 5: the old Cistron dictionary used "NAS-Port-Id"; the correct RFC
+    2865 name is "NAS-Port". No alias is possible because "NAS-Port-Id" is the
+    canonical RFC 2869 name for attribute 87. Applications that reference
+    attribute 5 by string must be updated to use "NAS-Port".
+  - Attribute 87: the old Cistron dictionary used "NAS-Port-Id-String"; the
+    correct RFC 2869 name is "NAS-Port-Id". The legacy alias "NAS-Port-Id-String"
+    is retained.
+- Replaced the old Cistron-era dictionary with a new one compiled from the
+  relevant IETF RFCs.
 
 
 * Version 1.5.0 (released 2026-04-06)

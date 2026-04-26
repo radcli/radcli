@@ -72,7 +72,7 @@ echo "   should be processed."
 
 # Create a dictionary with support for microsoft VSAs only
 cp ../etc/dictionary ${DICT_FILE}
-echo '$'INCLUDE ../etc/dictionary.microsoft >> ${DICT_FILE}
+echo '$'INCLUDE ${srcdir}/dictionaries/dictionary.microsoft >> ${DICT_FILE}
 
 # Create a radius-client configuration file
 cat <<-EOF >> ${CONF_FILE}
@@ -127,7 +127,7 @@ auth "microsoft only" user-known-vsa-last check_ms_present
 auth "microsoft only" user-unknown-vsa-last check_ms_present
 
 # Add support for Roaring Penguin VSAs
-echo '$'INCLUDE ../etc/dictionary.roaringpenguin >> ${DICT_FILE}
+echo '$'INCLUDE ${srcdir}/dictionaries/dictionary.roaringpenguin >> ${DICT_FILE}
 
 auth "microsoft+roaring-penguin" user-known-vsa-last check_ms_present check_rp_present
 auth "microsoft+roaring-penguin" user-unknown-vsa-last check_ms_present check_rp_present
