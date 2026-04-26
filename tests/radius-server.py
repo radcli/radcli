@@ -134,8 +134,8 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal'):
     if msg_auth_mode == 'absent':
         attrs = reply_attrs
         ma_offset = None
-    elif msg_auth_mode == 'not-first':
-        # MA is valid but placed after the other attributes (not first)
+    elif msg_auth_mode in ('not-first', 'wrong-not-first'):
+        # MA placed after the other attributes (not first)
         ma_placeholder = build_ma_attr()   # 18 bytes, value = 00..0
         attrs = reply_attrs + ma_placeholder
         # MA value starts at: header(20) + len(reply_attrs) + type(1) + len(1)
@@ -190,7 +190,7 @@ def main():
     parser.add_argument('--port', type=int, default=1812)
     parser.add_argument('--secret', default='testing123')
     parser.add_argument('--msg-auth', dest='msg_auth',
-                        choices=['correct', 'absent', 'wrong', 'not-first'],
+                        choices=['correct', 'absent', 'wrong', 'not-first', 'wrong-not-first'],
                         default='correct')
     parser.add_argument('--attrs', dest='attrs',
                         choices=['normal', 'malformed-type-zero', 'malformed-len-one',

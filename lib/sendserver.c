@@ -428,62 +428,54 @@ static int add_msg_auth_attr(rc_handle * rh, char * secret,
  *   Authenticator in the Authenticator field, not the Response Authenticator)
  * @return zero on success, other values for failure
  */
-static int validate_message_authenticator(VALUE_PAIR *vp, const uint8_t *recv_buffer,
-					  const size_t length, const char *secret,
+static int validate_message_authenticator(const uint8_t *recv_buffer,
+					  size_t length, const char *secret,
 					  const unsigned char *req_auth)
 {
 	uint8_t verify_buffer[RC_BUFFER_LEN];
 	pkt_buf vb;
-	const char *received_message_authenticator = NULL;
+	uint8_t ma_copy[MD5_DIGEST_SIZE];
 	uint8_t digest[MD5_DIGEST_SIZE];
-	unsigned attr_len;
+	uint8_t attr_type, attr_len;
+	int ma_found = 0;
 
 	if (AUTH_HDR_LEN + length > sizeof(verify_buffer)) {
 		rc_log(LOG_ERR, "%s: packet too large for verification buffer", __func__);
 		return -1;
 	}
 
-	/* Copy the original packet, then substitute the Request Authenticator
-	 * per RFC 3579 §3.2, and clear the Message-Authenticator value */
+	/* Copy the packet, substitute the Request Authenticator per RFC 3579 §3.2,
+	 * and zero the Message-Authenticator value before computing HMAC-MD5. */
 	memcpy(verify_buffer, recv_buffer, AUTH_HDR_LEN + length);
 	memcpy(verify_buffer + 4, req_auth, AUTH_VECTOR_LEN);
 	pb_init_read(&vb, verify_buffer + AUTH_HDR_LEN, length, length);
-	for (; vp != NULL; vp = vp->next) {
-		if (vp->type == PW_TYPE_INTEGER || vp->type == PW_TYPE_DATE ||
-		    vp->type == PW_TYPE_IPADDR) {
-			attr_len = 4;
-		} else {
-			attr_len = vp->lvalue;
-		}
 
-		/* type (1) + length (1) + value */
-		if (pb_len(&vb) < 2 + attr_len) {
-			rc_log(LOG_ERR, "%s: attribute overflows verification buffer", __func__);
-			return -1;
-		}
-		assert(pb_pull(&vb, 2) == 0);
+	while (pb_len(&vb) >= 2) {
+		attr_type = vb.data[0];
+		attr_len  = vb.data[1];
+		if (attr_len < 2 || (size_t)attr_len > pb_len(&vb))
+			break;  /* malformed; already rejected by upstream attr-loop */
 
-		if (vp->attribute == PW_MESSAGE_AUTHENTICATOR) {
-			if (vp->lvalue != MD5_DIGEST_SIZE) {
+		if (attr_type == PW_MESSAGE_AUTHENTICATOR) {
+			if (attr_len != 2 + MD5_DIGEST_SIZE) {
 				rc_log(LOG_ERR, "%s: Message-Authenticator has wrong length %u",
-				       __func__, vp->lvalue);
+				       __func__, (unsigned)(attr_len - 2));
 				return -1;
 			}
-			memset(vb.data, '\0', MD5_DIGEST_SIZE);
-			received_message_authenticator = vp->strvalue;
+			/* Save original value before zeroing in the verification copy */
+			memcpy(ma_copy, vb.data + 2, MD5_DIGEST_SIZE);
+			memset(vb.data + 2, '\0', MD5_DIGEST_SIZE);
+			ma_found = 1;
 			break;
-		} else {
-			assert(pb_pull(&vb, attr_len) == 0);
 		}
+		assert(pb_pull(&vb, attr_len) == 0);
 	}
 
-	if (received_message_authenticator == NULL) {
+	if (!ma_found)
 		return -1;
-	}
 
-	/* Calculate HMAC-MD5 [RFC2104] hash */
 	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, strlen(secret), digest);
-	return rc_memcmp(received_message_authenticator, digest, MD5_DIGEST_SIZE);
+	return rc_memcmp(ma_copy, digest, MD5_DIGEST_SIZE);
 }
 
 /** Sends a request to a RADIUS server and waits for the reply
@@ -940,10 +932,10 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	 * be the first attribute in Access-Request responses to prevent MD5
 	 * prefix attacks (BLAST RADIUS). Not required for Accounting-Response. */
 	if (type == AUTH) {
-		if (length > 0 && recv_buffer[AUTH_HDR_LEN] == PW_MESSAGE_AUTHENTICATOR &&
-		    rc_avpair_get(data->receive_pairs, PW_MESSAGE_AUTHENTICATOR, 0)) {
-
-			if (validate_message_authenticator(data->receive_pairs, recv_buffer, length, secret, vector)) {
+		/* Verify MA whenever present, regardless of position.
+		 * An incorrect MA always causes rejection. */
+		if (rc_avpair_get(data->receive_pairs, PW_MESSAGE_AUTHENTICATOR, 0)) {
+			if (validate_message_authenticator(recv_buffer, length, secret, vector)) {
 				rc_log(LOG_ERR,
 				       "rc_send_server: recvfrom: %s:%d: received attribute Message-Authenticator is incorrect",
 				       server_name, data->svc_port);
@@ -951,7 +943,11 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 				result = ERROR_RC;
 				goto cleanup;
 			}
-		} else {
+		}
+
+		/* Enforce BLAST RADIUS: MA must also be the first attribute. */
+		if (length == 0 ||
+		    recv_buffer[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
 			p = rc_conf_str(rh, "require-message-authenticator");
 			if (p == NULL || (strcasecmp(p, "false") != 0 && strcasecmp(p, "no") != 0)) {
 				rc_log(LOG_ERR,
