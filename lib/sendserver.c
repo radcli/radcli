@@ -57,7 +57,7 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 	size_t secretlen;
 	uint32_t lvalue, vendor;
 	unsigned char passbuf[RC_MAX(AUTH_PASS_LEN, CHAP_VALUE_LENGTH)];
-	unsigned char md5buf[256];
+	unsigned char md5buf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN];
 	unsigned char *buf, *vector, *vsa_length_ptr;
 
 	buf = auth->data;
@@ -100,12 +100,13 @@ static int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth)
 			memcpy((char *)passbuf, vp->strvalue, (size_t) length);
 
 			secretlen = strlen(secret);
+			if (secretlen > MAX_SECRET_LENGTH)
+				secretlen = MAX_SECRET_LENGTH;
 			vector = (unsigned char *)auth->vector;
 			for (i = 0; i < padded_length; i += AUTH_VECTOR_LEN) {
-				/* Calculate the MD5 digest */
-				strcpy((char *)md5buf, secret);
-				memcpy((char *)md5buf + secretlen, vector,
-				       AUTH_VECTOR_LEN);
+				/* Build hash input: secret || vector */
+				memcpy(md5buf, secret, secretlen);
+				memcpy(md5buf + secretlen, vector, AUTH_VECTOR_LEN);
 				rc_md5_calc(buf, md5buf,
 					    secretlen + AUTH_VECTOR_LEN);
 
@@ -564,7 +565,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		}    
 	} else {
 		if (data->secret != NULL) {
-			strlcpy(secret, data->secret, MAX_SECRET_LENGTH);
+			strlcpy(secret, data->secret, sizeof(secret));
 		}
 		/*
 		   else
@@ -585,8 +586,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 
 	if (sfuncs->static_secret) {
 		/* any static secret set in sfuncs overrides the configured */
-		strlcpy(secret, sfuncs->static_secret,
-			MAX_SECRET_LENGTH);
+		strlcpy(secret, sfuncs->static_secret, sizeof(secret));
 	}
 
 	if (sfuncs->lock) {
