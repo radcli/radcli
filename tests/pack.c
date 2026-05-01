@@ -157,6 +157,54 @@ int main(int argc, char **argv)
 		rc_avpair_free(vp);
 	}
 
+	/* Test 5: positive — VSA string at the exact max (247 bytes) packs correctly.
+	 * Outer RADIUS attr: type(1)+len(1)+vendor(4)+sub-type(1)+sub-len(1)+value(247) = 255.
+	 * Expected total: AUTH_HDR_LEN(20) + 255 = 275. */
+	{
+		char val247[247];
+		VALUE_PAIR *p;
+		memset(val247, 'D', sizeof(val247));
+		vp = NULL;
+		/* DSL-Forum vendor 3561, sub-attr 1 (Agent-Circuit-Id) */
+		p = rc_avpair_add(rh, &vp, 1, val247, sizeof(val247), 3561);
+		if (!p) {
+			fprintf(stderr, "%d: VSA setup of 247 bytes failed\n", __LINE__);
+			exit(1);
+		}
+		memset(buf, 0, sizeof(buf));
+		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		if (n != 275) {
+			fprintf(stderr, "%d: VSA 247 bytes: expected 275, got %d\n",
+				__LINE__, n);
+			exit(1);
+		}
+		rc_avpair_free(vp);
+	}
+
+	/* Test 6: negative — VSA string with lvalue = 248 (one over the VSA limit) must
+	 * be rejected by rc_pack_list even though the rc_avpair_assign guard was bypassed.
+	 * Without the max_vlen check this would silently wrap the 1-byte outer length field. */
+	{
+		char val247[247];
+		VALUE_PAIR *p;
+		memset(val247, 'E', sizeof(val247));
+		vp = NULL;
+		p = rc_avpair_add(rh, &vp, 1, val247, sizeof(val247), 3561);
+		if (!p) {
+			fprintf(stderr, "%d: VSA setup for test 6 failed\n", __LINE__);
+			exit(1);
+		}
+		p->lvalue = 248;  /* bypass API guard — simulate direct struct access */
+		memset(buf, 0, sizeof(buf));
+		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		if (n != -1) {
+			fprintf(stderr, "%d: VSA lvalue=248 should return -1; got %d\n",
+				__LINE__, n);
+			exit(1);
+		}
+		rc_avpair_free(vp);
+	}
+
 	rc_destroy(rh);
 	return 0;
 }

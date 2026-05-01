@@ -73,8 +73,10 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 
 	while (vp != NULL) {
 		vsa_len_ptr = NULL;
+		unsigned max_vlen = AUTH_STRING_LEN;        /* 253: RFC 2865 per-attribute value limit */
 
 		if (VENDOR(vp->attribute) != 0) {
+			max_vlen = AUTH_STRING_LEN - VSA_HDR_LEN; /* 247: VSA envelope consumes 6 bytes */
 			if (pb_put_byte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
 			vsa_len_ptr = pb.tail;
 			if (pb_put_byte(&pb, 6) < 0) goto too_large;
@@ -124,7 +126,7 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 			switch (vp->type) {
 			case PW_TYPE_STRING:
 			case PW_TYPE_IPV6PREFIX:
-				if ((int)vp->lvalue > 253) goto too_large; /* RFC 2865: max attr value */
+				if (vp->lvalue > max_vlen) goto too_large;
 				if (pb_put_bytes(&pb, vp->strvalue, (int)vp->lvalue) < 0)
 					goto too_large;
 				break;
