@@ -37,10 +37,10 @@ TESTS += tls-tests.sh tls-idle-restart-tests.sh close-notify-tests.sh $(ctests)
 check_PROGRAMS += tls-restart tls-idle-restart close-notify-server $(ctests)
 
 tls_restart_SOURCES = tls-restart.c
-tls_restart_LDADD = ../src/libtools.a ../lib/libradcli.la
+tls_restart_LDADD = ../lib/libradcli.la
 
 tls_idle_restart_SOURCES = tls-idle-restart.c
-tls_idle_restart_LDADD = ../src/libtools.a ../lib/libradcli.la
+tls_idle_restart_LDADD = ../lib/libradcli.la
 
 close_notify_server_SOURCES = close-notify-server.c
 close_notify_server_LDADD = $(LIBGNUTLS_LIBS)
