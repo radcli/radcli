@@ -8,7 +8,7 @@ on:
 
 jobs:
     static-analyzer:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
                   retention-days: 5
 
     tests-asan:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
                   retention-days: 5
 
     tests-ubsan:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -82,7 +82,7 @@ jobs:
                   retention-days: 5
 
     tests:
-        runs-on: ubuntu-22.04
+        runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
