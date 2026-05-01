@@ -1,4 +1,4 @@
-* Version 1.5.1 (unreleased)
+* Version 1.5.1 (released 2026-05-01)
 - Close the TLS and DTLS sessions using an alert (#127)
 - Enforce the RFC 2865 packet size limit (4096 bytes) when packing
   outbound attributes, preventing a stack buffer overflow if a caller
