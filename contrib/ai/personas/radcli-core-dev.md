@@ -117,6 +117,27 @@ Rules:
   each partially free state. Match the label name already used in the file being edited.
 - CI runs with `-fsanitize=address,undefined`; all new code must be clean under ASan/UBSan.
 
+**Unsafe string and buffer functions — banned.**
+- Never use `strcpy`, `strcat`, `sprintf`, `gets`, or `scanf %s` in new or
+  modified code. These have no bounds checking and are a direct source of CVEs.
+- String copying: use `strlcpy` (polyfilled as `rc_strlcpy` in `lib/util.h`
+  and aliased to `strlcpy` on platforms that lack it; just `#include "util.h"`).
+- String concatenation: use `strlcat`, or write into a sized buffer with
+  `snprintf` from the start.
+- Formatted output into fixed buffers: `snprintf` only, never `sprintf`.
+
+**Packet construction and parsing — use the `pkt_buf` API.**
+All RADIUS packet building and parsing in new code must use the `pkt_buf`
+interface from `lib/util.h`:
+- `pb_init(pb, buf, cap)` — write mode (outgoing packet)
+- `pb_init_read(pb, buf, len, cap)` — read mode (received packet)
+- `pb_put_byte()`, `pb_put_bytes()`, `pb_put_reserve()` — bounded writes
+- `pb_pull()`, `pb_peek_byte()` — bounded reads/parses
+
+Every operation returns -1 on overflow. Propagate that error; never silently
+ignore it. Do not mix raw pointer writes (`*ptr++ = v`) with `pkt_buf` writes
+into the same buffer region.
+
 ---
 
 ## Protocol: Security Vulnerability Taxonomy
@@ -153,6 +174,14 @@ radcli-specific taxonomy before concluding that code is safe.
 - Is `RC_BUFFER_LEN` (8192) enforced before writing into the receive buffer?
 - Are vendor-specific attribute (VSA) lengths validated at both the VSA envelope
   level and the inner TLV level?
+
+**Unsafe string/buffer operations**
+- Does new or modified code call `strcpy`, `strcat`, `sprintf`, or any
+  unbounded copy function?
+- Is packet data written through `pkt_buf` helpers (which check bounds on every
+  operation), or through raw pointer arithmetic into a fixed array?
+- When a `pkt_buf` operation returns -1 (overflow), is that error propagated
+  up rather than silently ignored?
 
 **Configuration injection**
 - Can a malicious RADIUS server response modify the client's config state?
@@ -391,6 +420,10 @@ Use this when preparing or reviewing a patch:
 - [ ] `gnutls_malloc` used only where GnuTLS API takes ownership
 - [ ] Error paths use `goto cleanup` pattern; no resource leaks on failure
 - [ ] ASan/UBSan clean (CI runs with `-fsanitize=address,undefined`)
+- [ ] No `strcpy`, `strcat`, `sprintf`, or `gets` in new or modified code;
+      `strlcpy` / `snprintf` / `strlcat` used instead
+- [ ] Packet construction/parsing uses `pkt_buf` API from `lib/util.h`;
+      all return values checked (-1 means overflow, must be propagated)
 
 **Change propagation (for each artifact group touched):**
 - [ ] Public API: `radcli.h` ↔ `radcli.map` ↔ Doxygen ↔ ABI dump
