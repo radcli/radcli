@@ -118,6 +118,32 @@ jobs:
                       radcli-*/_build/sub/tests/test-suite.log
                   retention-days: 5
 
+    tests-msan:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq clang freeradius python3
+            - name: Compile with MemorySanitizer
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  CC=clang CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O1" \
+                    ./configure --without-tls --without-nettle
+                  make -j $(nproc)
+            - name: Test
+              run: |
+                  sudo make check
+            - name: Upload artifacts
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-suite log (msan)
+                  path: tests/test-suite.log
+                  retention-days: 5
+
     tests-notls:
         runs-on: ubuntu-24.04
         steps:
