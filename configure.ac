@@ -134,25 +134,6 @@ then
 	)
 fi
 
-AC_MSG_CHECKING([for getentropy])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([
-          #include <unistd.h>],[
-                  getentropy(0, 0);
-                 ])],
-                 [AC_MSG_RESULT(yes)
-                  AC_DEFINE([HAVE_GETENTROPY], 1, [Enable the OpenBSD getentropy function])
-                  enable_getrandom=getentropy],
-                 [AC_MSG_RESULT(no)])
-
-AC_MSG_CHECKING([for /dev/urandom])
-if test -c /dev/urandom
-then
-	AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_DEV_URANDOM)
-else
-	AC_MSG_RESULT(no)
-fi
-
 REQUIRES_PRIVATE="Requires.private: "
 
 AC_ARG_WITH([tls], [AS_HELP_STRING([--without-tls],
@@ -230,8 +211,6 @@ AC_ARG_WITH(facility,
 AC_SUBST(RC_SECURE_PATH)
 AC_SUBST(RC_LOG_FACILITY)
 
-AH_OUTPUT([HAVE_DEV_URANDOM], [/* does /dev/urandom exist ? */
-#undef HAVE_DEV_URANDOM])
 AH_OUTPUT([HAVE_SHADOW_PASSWORDS], [/* shadow password support */
 #undef HAVE_SHADOW_PASSWORDS])
 AH_OUTPUT([HAVE_STRUCT_UTSNAME_DOMAINNAME], [/*struct utsname has domainname field */

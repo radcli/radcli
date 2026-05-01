@@ -31,7 +31,7 @@
 
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
-static void rc_random_vector(unsigned char *);
+static void rc_random_vector(unsigned char[AUTH_VECTOR_LEN]);
 static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
 			  unsigned char);
 
@@ -284,55 +284,15 @@ static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
  *
  * @param vector a buffer with at least %AUTH_VECTOR_LEN bytes.
  */
-static void rc_random_vector(unsigned char *vector)
+static void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN])
 {
-	int randno;
-	int i;
 #if defined(HAVE_GNUTLS)
-	if (gnutls_rnd(GNUTLS_RND_NONCE, vector, AUTH_VECTOR_LEN) >= 0) {
-		return;
-	}
-#elif defined(HAVE_GETENTROPY)
-	if (getentropy(vector, AUTH_VECTOR_LEN) >= 0) {
-		return;
-	}			/* else fall through */
-#elif defined(HAVE_DEV_URANDOM)
-	int fd;
-
-/* well, I added this to increase the security for user passwords.
-   we use /dev/urandom here, as /dev/random might block and we don't
-   need that much randomness. BTW, great idea, Ted!     -lf, 03/18/95	*/
-
-	if ((fd = open(_PATH_DEV_URANDOM, O_RDONLY)) >= 0) {
-		unsigned char *pos;
-		int readcount;
-
-		i = AUTH_VECTOR_LEN;
-		pos = vector;
-		while (i > 0) {
-			readcount = read(fd, (char *)pos, i);
-			if (readcount >= 0) {
-				pos += readcount;
-				i -= readcount;
-			} else {
-				if (errno != EINTR && errno != EAGAIN)
-					goto fallback;
-			}
-		}
-
-		close(fd);
-		return;
-	}			/* else fall through */
- fallback:
+	int ret = gnutls_rnd(GNUTLS_RND_NONCE, vector, AUTH_VECTOR_LEN);
+	assert(ret >= 0);
+#else
+	int ret = getentropy(vector, AUTH_VECTOR_LEN);
+	assert(ret == 0);
 #endif
-	for (i = 0; i < AUTH_VECTOR_LEN;) {
-		randno = random();
-		memcpy((char *)vector, (char *)&randno, sizeof(int));
-		vector += sizeof(int);
-		i += sizeof(int);
-	}
-
-	return;
 }
 
 /** @} */
