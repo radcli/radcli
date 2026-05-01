@@ -1,4 +1,4 @@
-![Tests](https://github.com/radcli/radcli/workflows/Tests/badge.svg?branch=master)
+![Tests](https://github.com/radcli/radcli/actions/workflows/tests.yaml/badge.svg?branch=master)
 
 # The radcli library
 
