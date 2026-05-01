@@ -707,8 +707,11 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 			{
 
 				case PW_TYPE_STRING:
-				strcpy (pair->strvalue, valstr);
-				pair->lvalue = (uint32_t)strlen(valstr);
+				if (rc_avpair_assign(pair, valstr, strlen(valstr)) < 0) {
+					rc_log(LOG_ERR, "rc_avpair_parse: string value too long");
+					free(pair);
+					return -1;
+				}
 				break;
 
 				case PW_TYPE_INTEGER:
