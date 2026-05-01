@@ -115,19 +115,6 @@
 #include <arpa/inet.h>
 #endif
 
-#if defined(HAVE_SIGNAL_H)
-# include <signal.h>
-#endif
-#if defined(HAVE_SYS_SIGNAL_H)
-# include <sys/signal.h>
-#endif
-
-#ifdef NEED_SIG_PROTOTYPES
-int sigemptyset(sigset_t *);
-int sigaddset(sigset_t *, int);
-int sigprocmask (int, sigset_t *, sigset_t *);
-#endif
-
 #if HAVE_GETOPT_H
 # include <getopt.h>
 #endif
