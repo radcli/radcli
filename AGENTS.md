@@ -76,7 +76,7 @@ cd tests && srcdir=../tests ../tests/tls-tests.sh
 
 Tests use Linux network namespaces (`tests/ns.sh`) to create isolated client/server namespaces with veth pairs. Tests skip (exit 77) when not run as root, or when `radiusd`/`freeradius` is absent. TLS tests (`tls-tests.sh`, `tls-idle-restart-tests.sh`, `close-notify-tests.sh`) also need port 2083 to be ready and only build/run when GnuTLS is enabled.
 
-The full set of shell test scripts: `basic-tests.sh`, `ipv6-tests.sh`, `tls-tests.sh`, `tls-idle-restart-tests.sh`, `failover-tests.sh`, `tcp-tests.sh`, `eap-tests.sh`, `no-server-file-tests.sh`, `reject-tests.sh`, `skip-unknown-vsa.sh`, `namespace-tests.sh`, `radembedded-tests.sh`, `radembedded-dict-tests.sh`, `ipv6-non-temp-addr-tests.sh`, `msg-auth-tests.sh`, `close-notify-tests.sh`.
+Shell test scripts are in `tests/`; see `tests/*.sh` for the full list.
 
 ### ABI checks
 
@@ -120,7 +120,7 @@ All network I/O goes through `rh->so` function pointers, set by `rc_apply_config
 
 ### Dictionary
 
-Loaded from the `dictionary` config option. Attribute names map to numeric IDs via `DICT_ATTR` / `DICT_VALUE` / `DICT_VENDOR` linked lists hanging off `rc_handle`. Vendor-specific attributes use PEN-scoped IDs via `VENDOR_BIT_SIZE`. Dictionary files are installed to `$(datadir)/radcli/`; the bundled set is in `etc/`.
+Loaded from the `dictionary` config option. Attribute names map to numeric IDs via `DICT_ATTR` / `DICT_VALUE` / `DICT_VENDOR` linked lists hanging off `rc_handle`. Vendor-specific attributes use PEN-scoped IDs via `VENDOR_BIT_SIZE`. The dictionary is compiled into the library as a C string literal (generated from `etc/dictionary` at build time); applications that use only RFC-defined attributes need not ship a dictionary file. A custom dictionary can still be specified via the `dictionary` config option to extend or override the built-in one.
 
 ### ABI stability
 
@@ -128,11 +128,13 @@ Exported symbols are controlled by `lib/radcli.map`. When adding public function
 
 ## CI
 
-Four jobs run on every push (`.github/workflows/tests.yaml`):
+Six jobs run on every push (`.github/workflows/tests.yaml`):
 - **static-analyzer** — clang static analysis (`scan-build`)
 - **tests-asan** — build + `sudo make check` with `-fsanitize=address`
 - **tests-ubsan** — build + `sudo make check` with `-fsanitize=undefined,...`
-- **tests** — standard build, `sudo make check`, `make abi-check`, `make distcheck`
+- **tests** — standard build, `sudo make check`, `make abi-check`, `make compare-exported`, `make distcheck`
+- **tests-msan** — clang build + `sudo make check` with `-fsanitize=memory` (`--without-tls --without-nettle` to avoid uninstrumented external libs)
+- **tests-notls** — build + `sudo make check` with `--without-tls`
 
 ## Coding conventions
 

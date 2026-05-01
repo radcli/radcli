@@ -45,7 +45,7 @@ dnf install -y autoconf libtool automake nettle-devel gnutls-devel gettext-devel
 
 For adding new features or extending functionality in addition to the code,
 please also submit a test program which verifies the correctness of operation.
-See `tests/` and `.travis.yml` for the existing test suite.
+See `tests/` and `.github/workflows` for the existing test suite.
 
 ## AI Assistance Policy
 
