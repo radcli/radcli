@@ -45,7 +45,6 @@ AC_PROG_LN_S
 
 gl_LD_VERSION_SCRIPT
 
-dnl HAVE_SHADOW_PASSWORDS
 AC_MSG_CHECKING(whether to enable legacy library compatibility)
 AC_ARG_ENABLE(legacy-compat,
 [  --enable-legacy-compat  Enable compatibility mode with radiusclient-ng and freeradius-client],
@@ -97,9 +96,7 @@ AC_STRUCT_TM
 
 dnl Checks for library functions.
 AC_FUNC_MEMCMP
-AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
-AC_FUNC_ALLOCA
 AC_REPLACE_FUNCS(strdup strerror strcasecmp)
 AC_CHECK_FUNCS(fcntl uname gethostname sysinfo getdomainname)
 AC_CHECK_FUNCS(random rand snprintf vsnprintf strlcpy)
@@ -115,24 +112,6 @@ AC_CHECK_FUNCS(clock_gettime, [], [
     REST_LIBS="$REST_LIBS -lrt"
   ])
 ])
-
-if test "$ac_cv_func_uname" = 'yes' && test "$cross_compiling" = 'no'
-then
-	AC_MSG_CHECKING([for field domainname in struct utsname])
-	AC_TRY_RUN([
-	#include <sys/utsname.h>
-
-	int main(int argc, char **argv)
-	{
-		struct utsname uts;
-		uts.domainname[0] = '\0';
-	}
-	],
-	AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_STRUCT_UTSNAME_DOMAINNAME),
-	AC_MSG_RESULT(no)
-	)
-fi
 
 REQUIRES_PRIVATE="Requires.private: "
 
@@ -211,12 +190,6 @@ AC_ARG_WITH(facility,
 AC_SUBST(RC_SECURE_PATH)
 AC_SUBST(RC_LOG_FACILITY)
 
-AH_OUTPUT([HAVE_SHADOW_PASSWORDS], [/* shadow password support */
-#undef HAVE_SHADOW_PASSWORDS])
-AH_OUTPUT([HAVE_STRUCT_UTSNAME_DOMAINNAME], [/*struct utsname has domainname field */
-#undef HAVE_STRUCT_UTSNAME_DOMAINNAME])
-AH_OUTPUT([NEED_SIG_PROTOTYPES], [/* do you need the sig* prototypes ? */
-#undef NEED_SIG_PROTOTYPES])
 AH_OUTPUT([PACKAGE], [
 #undef PACKAGE])
 AH_OUTPUT([VERSION], [
