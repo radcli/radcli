@@ -34,7 +34,6 @@
 #include <errno.h>
 
 #include <radcli/radcli.h>
-#include <common.h>
 
 #define BUF_LEN 4096
 
@@ -44,9 +43,9 @@ int main(int argc, char **argv)
 {
 	int i, nas_port, ch, acct, server, ecount, firstline, theend;
 	void *rh;
-	size_t len;
+	size_t len, gl_size = 0;
 	VALUE_PAIR *send;
-	char *rc_conf, *cp;
+	char *rc_conf, *cp = NULL;
 	char lbuf[4096];
 
 	rc_conf = "";
@@ -106,8 +105,10 @@ int main(int argc, char **argv)
 		firstline = 1;
 		acct = 0;
 		do {
-			len = 0;
-			cp = rc_fgetln(stdin, &len);
+			{
+				ssize_t _n = getline(&cp, &gl_size, stdin);
+				len = (_n > 0) ? (size_t)_n : 0;
+			}
 			theend = 1;
 			if (cp != NULL && len > 0) {
 				if (firstline != 0) {
