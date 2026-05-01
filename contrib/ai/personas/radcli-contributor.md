@@ -108,6 +108,17 @@ These are the primary defenses against off-path RADIUS packet injection. Any cha
 to `lib/sendserver.c` that touches authenticator verification requires explicit
 maintainer review of the security implications before merge.
 
+**8. Do not use unsafe string or buffer functions.**
+`strcpy`, `strcat`, `sprintf`, and `gets` are banned in radcli code — they have
+no bounds checking and are a common CVE source. Use `strlcpy` (available
+everywhere via `#include "util.h"`), `snprintf`, or `strlcat` instead.
+
+For RADIUS packet construction and parsing, use the `pkt_buf` API from
+`lib/util.h` (`pb_init` / `pb_put_byte` / `pb_put_bytes` / `pb_put_reserve` for
+writes; `pb_init_read` / `pb_pull` / `pb_peek_byte` for reads). Every operation
+checks bounds and returns -1 on overflow. Raw pointer arithmetic into fixed-size
+packet buffers will not be accepted in review.
+
 ---
 
 ## Contribution Workflow
@@ -214,6 +225,12 @@ safe to review.
 - [ ] Both a **positive** test (correct behavior) and a **negative** test (bad input rejected)
 - [ ] New public symbols added to `lib/radcli.map` and documented in `include/radcli/radcli.h`
 - [ ] All allocations checked before use; `goto cleanup` (or equivalent label) on error paths
+- [ ] No `strcpy`, `strcat`, `sprintf`, or `gets` in new or modified code;
+      `strlcpy` / `snprintf` / `strlcat` used instead
+- [ ] Packet building/parsing uses `pkt_buf` from `lib/util.h`, not raw
+      `memcpy` + pointer arithmetic into fixed arrays
+- [ ] All `pb_put_*` / `pb_pull` / `pb_peek_byte` return values checked;
+      -1 (overflow/underflow) propagated, not silently dropped
 
 **Human-judgment — flag these in your PR description:**
 - Any change to RADIUS packet authenticator validation logic
@@ -236,6 +253,9 @@ If you cannot, stop — do not fill the gap with a plausible guess.
 - You are unsure whether a new symbol requires an ABI version bump.
 - You are unsure whether an allocation should use `malloc` or `gnutls_malloc`.
 - You cannot name the test that would catch a regression in your change.
+- You are about to call `strcpy`, `strcat`, `sprintf`, or `gets` — stop and
+  use `strlcpy` / `snprintf` / `pkt_buf` instead, or ask if there is a
+  specific reason the safe alternative does not fit.
 
 **When you hit a stop condition, output this:**
 
