@@ -3,6 +3,13 @@
 - Enforce the RFC 2865 packet size limit (4096 bytes) when packing
   outbound attributes, preventing a stack buffer overflow if a caller
   supplies more attributes than fit in a valid RADIUS packet.
+  rc_pack_list() now returns -1 for packets that would exceed 4096 bytes;
+  previously oversized packets were silently truncated.
+- Compatibility: rc_avpair_gen() now appends decoded attributes to the
+  tail of the supplied VALUE_PAIR list instead of prepending them to the
+  head. Callers that pass a non-NULL 'pair' and rely on insertion order
+  (e.g. newest-first iteration, or rc_avpair_get() returning the most
+  recently decoded value on duplicate attributes) must be updated.
 - The dictionary file is no longer required when using standard RADIUS
   attributes. RFC 2865/2866/2867/2868/2869/3162/3576/4675/4818/4849/6911
   attributes are now built into the library; the 'dictionary' config option
