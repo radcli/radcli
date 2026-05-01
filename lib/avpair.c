@@ -785,11 +785,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 				tm->tm_min = 0;
 				tm->tm_sec = 0;
 				rc_str2tm (valstr, tm);
-#ifdef TIMELOCAL
-				pair->lvalue = (uint32_t) timelocal (tm);
-#else	/* TIMELOCAL */
 				pair->lvalue = (uint32_t) mktime (tm);
-#endif	/* TIMELOCAL */
 				break;
 
 				default:
