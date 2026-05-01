@@ -18,6 +18,11 @@
 # include <gnutls/gnutls.h>
 #endif
 
+/* __has_feature is a Clang built-in; provide a no-op fallback for GCC. */
+#ifndef __has_feature
+# define __has_feature(x) 0
+#endif
+
 /* Constant-time memory comparison for security-sensitive data.
  * Uses gnutls_memcmp() when GnuTLS is available, falls back to memcmp(). */
 static inline int rc_memcmp(const void *s1, const void *s2, size_t n)
@@ -29,7 +34,10 @@ static inline int rc_memcmp(const void *s1, const void *s2, size_t n)
 #endif
 }
 
-#ifndef HAVE_STRLCPY
+/* Use rc_strlcpy when there is no system strlcpy, or when compiling under MSan:
+ * glibc's strlcpy has no MSan interceptor so it leaves shadow bits unset. */
+#if !defined(HAVE_STRLCPY) || __has_feature(memory_sanitizer)
+# define RC_NEED_STRLCPY 1
 size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 # define strlcpy rc_strlcpy
 #endif

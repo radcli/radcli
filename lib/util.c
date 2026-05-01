@@ -120,7 +120,7 @@ rc_mksid (void)
  * Copyright 2006  The FreeRADIUS server project
  */
 
-#ifndef HAVE_STRLCPY
+#ifdef RC_NEED_STRLCPY
 
 /*-
  * Copy src to string dst of size siz.  At most siz-1 characters
@@ -153,7 +153,7 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
     return(s - src - 1);    /* count does not include NUL */
 }
 
-#endif
+#endif /* RC_NEED_STRLCPY */
 
 /** Set the network namespace for the current thread (or process - if single threaded).
  *
