@@ -699,7 +699,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 				}
 				return -1;
 			}
-			strcpy (pair->name, attr->name);
+			strlcpy (pair->name, attr->name, sizeof(pair->name));
 			pair->attribute = attr->value;
 			pair->type = attr->type;
 

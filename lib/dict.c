@@ -294,7 +294,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
-			strcpy (attr->name, namestr);
+			strlcpy (attr->name, namestr, sizeof(attr->name));
 			attr->type = type;
 
 			if (dvend != NULL) {
@@ -353,8 +353,8 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
-			strcpy (dval->attrname, attrstr);
-			strcpy (dval->name, namestr);
+			strlcpy (dval->attrname, attrstr, sizeof(dval->attrname));
+			strlcpy (dval->name, namestr, sizeof(dval->name));
 			dval->value = value;
 
 			/* Insert it into the list */
@@ -449,7 +449,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
 				return -1;
 			}
-			strcpy (dvend->vendorname, attrstr);
+			strlcpy (dvend->vendorname, attrstr, sizeof(dvend->vendorname));
 			dvend->vendorpec = value;
 
 			/* Insert it into the list */

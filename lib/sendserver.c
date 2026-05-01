@@ -536,7 +536,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	}
 	if ((vp = rc_avpair_get(data->send_pairs, PW_SERVICE_TYPE, 0)) &&
 	    (vp->lvalue == PW_ADMINISTRATIVE)) {
-		strcpy(secret, MGMT_POLL_SECRET);
+		strlcpy(secret, MGMT_POLL_SECRET, sizeof(secret));
 		auth_addr =
 		    rc_getaddrinfo(server_name,
 				   type == AUTH ? PW_AI_AUTH : PW_AI_ACCT);
