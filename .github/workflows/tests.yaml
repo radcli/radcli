@@ -39,11 +39,11 @@ jobs:
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev libasan5 python3
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3
             - name: Compile with address sanitizer
               run: |
                   touch config.rpath && autoreconf -fvi
-                  LDFLAGS="-lasan" CFLAGS="-fsanitize=address -g -O2" ./configure --with-tls
+                  CFLAGS="-fsanitize=address -g -O2" ./configure --with-tls
                   make -j $(nproc)
             - name: Test
               run: |
@@ -101,6 +101,9 @@ jobs:
             - name: ABI check
               run: |
                   make abi-check
+            - name: Compare exported symbols
+              run: |
+                  make compare-exported
             - name: Distcheck
               run: |
                   touch doc/stamp_mans
@@ -113,4 +116,29 @@ jobs:
                   path: |
                       tests/test-suite.log
                       radcli-*/_build/sub/tests/test-suite.log
+                  retention-days: 5
+
+    tests-notls:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq gcc freeradius python3
+            - name: Compile without TLS
+              run: |
+                  touch config.rpath && autoreconf -fvi
+                  CFLAGS="-O2 -g -Wall -Wno-cpp -Werror" ./configure --without-tls
+                  make -j $(nproc)
+            - name: Test
+              run: |
+                  sudo make check
+            - name: Upload artifacts
+              if: failure()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-suite log (notls)
+                  path: tests/test-suite.log
                   retention-days: 5
