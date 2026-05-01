@@ -32,10 +32,11 @@ acctserver	localhost:2083
 # be stored in "psk:username:hexkey" format.
 #servers	@pkgsysconfdir@/servers-tls
 
-# Dictionary of allowed attributes and values. That depends
-# heavily on the features of your server. A default dictionary
-# is installed in @sharedir@/dictionary
-dictionary	@pkgsysconfdir@/dictionary
+# Dictionary of vendor-specific attributes. Standard RFC 2865/2866/2869
+# attributes are built into the library and do not require this option.
+# Only set this if your server uses vendor-specific attributes (VSAs)
+# not covered by the built-in dictionary.
+#dictionary	@pkgsysconfdir@/dictionary
 
 # default authentication realm to append to all usernames if no
 # realm was explicitly specified by the user

@@ -554,16 +554,21 @@ int rc_apply_config(rc_handle *rh)
 
 /** Read the global config file
  *
- * This function will load the provided configuration file, and
- * any other files such as the dictionary. This is the most common
- * mode of use of this library. The configuration format is compatible
- * with the radiusclient-ng and freeradius-client formats.
+ * This function will load the provided configuration file. This is
+ * the most common mode of use of this library. The configuration
+ * format is compatible with the radiusclient-ng and freeradius-client
+ * formats.
+ *
+ * Standard RFC 2865/2866/2869 attributes are built into the library;
+ * the @b dictionary config option is only needed for vendor-specific
+ * attributes not covered by the built-in set.
  *
  * Note: To preserve compatibility with libraries of the same API
  * which don't load the dictionary care is taken not to reload the
  * same filename twice even if instructed to.
  *
  * The following string options are recognised in the configuration file:
+ *  - @b dictionary: (optional) path to a file of vendor-specific attributes.
  *  - @b serv-type: transport protocol; one of 'udp' (default), 'tcp', 'tls', 'dtls'.
  *  - @b tls-ca-file: PEM file of the CA certificate to verify the server (TLS/DTLS).
  *  - @b tls-cert-file: PEM file of the client certificate (TLS/DTLS).
