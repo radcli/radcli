@@ -52,8 +52,7 @@ eap {
 	# a User-Name attribute in an Access-Accept, it copies one
 	# more byte than it should.
 	#
-	# We can work around it by configurably adding an extra
-	# zero byte.
+	# We can work around it by adding an extra zero byte.
 	#
 	cisco_accounting_username_bug = no
 
