@@ -30,7 +30,7 @@ srcdir="${srcdir:-.}"
 
 echo "***********************************************"
 echo "The test sends a basic EAP message and expects "
-echo "an Acess-Challenge response. The test does not "
+echo "an Access-Challenge response. The test does not "
 echo "go beyond this point as there is no real EAP   "
 echo "service capable of handling a full EAP request "
 echo "***********************************************"

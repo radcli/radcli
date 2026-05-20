@@ -22,7 +22,7 @@
 /*- Returns a struct addrinfo from a host name or address in textual notation.
  *
  * @param host the name of the host
- * @param flags should be a combinations of PW_AI flags
+ * @param flags should be a combination of PW_AI flags
  * @return address which should be deallocated using freeaddrinfo() or NULL on failure
  -*/
 struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags)
