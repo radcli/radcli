@@ -158,25 +158,41 @@ int process(void *rh, VALUE_PAIR * send, int acct, int nas_port)
 	char buf[BUF_LEN];
 	int i, fd;
 
-	fd = rc_tls_fd(rh);
-	if (fd >= 0) {
-		if (dup(fd) == -1) {
-			fprintf(stderr, "tls-restart: dup failed %s", strerror(errno));
-			return 1; 
-		}
-		close(fd);
-	}
-
 	received = NULL;
 	if (acct == 0) {
+		/* First auth establishes the TLS session (eagerly or lazily). */
 		i = rc_auth(rh, nas_port, send, &received, msg);
 		if (i != OK_RC) {
-			fprintf(stderr, "tls-restart: error sending 1 (ok)\n");
+			fprintf(stderr, "tls-restart: error sending 1\n");
+			rc_avpair_free(received);
+			return 1;
+		}
+		rc_avpair_free(received);
+		received = NULL;
+
+		/* Close the fd underneath GnuTLS to simulate a broken session. */
+		fd = rc_tls_fd(rh);
+		if (fd >= 0) {
+			if (dup(fd) == -1) {
+				fprintf(stderr, "tls-restart: dup failed %s\n", strerror(errno));
+				return 1;
+			}
+			close(fd);
 		}
 
+		/* This auth will fail because the fd was closed; it arms
+		 * need_restart so the following attempt can reconnect. */
+		i = rc_auth(rh, nas_port, send, &received, msg);
+		rc_avpair_free(received);
+		received = NULL;
+		if (i != OK_RC) {
+			fprintf(stderr, "tls-restart: error sending 2 (ok)\n");
+		}
+
+		/* This auth must succeed via reconnection. */
 		i = rc_auth(rh, nas_port, send, &received, msg);
 		if (i != OK_RC) {
-			fprintf(stderr, "tls-restart: error sending 2\n");
+			fprintf(stderr, "tls-restart: error sending 3\n");
 			exit(2);
 		}
 		if (received != NULL) {
