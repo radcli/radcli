@@ -79,6 +79,10 @@ static int restart_session(rc_handle *rh, tls_st *st);
 static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	tls_st *st = ptr;
+	if (st->ctx.need_restart != 0) {
+		if (restart_session(st->rh, st) < 0)
+			return -1;
+	}
 	return st->ctx.sockfd;
 }
 
@@ -719,11 +723,13 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 		}
 	}
 
-	ret = init_session(rh, &st->ctx, hostname, port, &our_sockaddr, 0, flags);
-	if (ret < 0) {
-		ret = -1;
-		goto cleanup;
-	}
+	/* Defer TCP connect + TLS handshake to first use.
+	 * tls_sendto() checks need_restart != 0 and calls restart_session(),
+	 * which calls init_session() with these stored parameters. */
+	strlcpy(st->ctx.hostname, hostname, sizeof(st->ctx.hostname));
+	st->ctx.port = port;
+	memcpy(&st->ctx.our_sockaddr, &our_sockaddr, sizeof(our_sockaddr));
+	st->ctx.need_restart = 1;
 
 	rh->so.get_fd = tls_get_fd;
 	rh->so.get_active_fd = tls_get_active_fd;
@@ -734,6 +740,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	if (ns != NULL) {
 		if(-1 == rc_reset_netns(&ns_def_hdl)) {
 			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+			ret = -1;
 			goto cleanup;
 		}
 	}

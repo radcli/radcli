@@ -1,3 +1,8 @@
+* Version 1.5.2 (unreleased)
+- tls: defer TCP connect and TLS handshake to first use. This addresses
+  the issue of radcli connecting to TLS server during rc_read_config().
+
+
 * Version 1.5.1 (released 2026-05-01)
 - Close the TLS and DTLS sessions using an alert (#127)
 - Enforce the RFC 2865 packet size limit (4096 bytes) when packing
