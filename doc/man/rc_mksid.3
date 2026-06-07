@@ -13,14 +13,20 @@ rc_mksid \-
 .fi
 .SH DESCRIPTION
 .PP 
-Generates a "unique" string. Added only for API compatibility with older versions. Don't use.
+Generate a "unique" session-ID string
+.PP 
+This function is retained only for source compatibility with freeradius-client and radiusclient-ng. It returns a pointer to a static non-reentrant buffer that is overwritten on each call, making it unsafe in multi-threaded applications. Use snprintf into your own buffer instead: 
+.PP 
+charsid[15];
+.PP 
+snprintf(sid,sizeof(sid),"%08lX%04X",(unsignedlong)time(NULL),getpid());
 .SH RETURN VALUE
 .PP
-a pointer to a very unique string. Subsequent calls will overwrite the string. 
+pointer to a static buffer containing the ID string; overwritten by subsequent calls. 
 .SH SEE ALSO
 .PP
 .nh
 .ad l
-\fIrc_setdebug\fP(3)
+radcli.h(3)
 .ad
 .hy

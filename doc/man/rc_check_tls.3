@@ -13,11 +13,9 @@ rc_check_tls \-
 .fi
 .SH DESCRIPTION
 .PP 
-Check established TLS/DTLS channels for operation
+Check established TLS/DTLS channels for operation and reconnect if needed
 .PP 
-This function will check whether the channel(s) established for TLS or DTLS are operational, and will re-establish the channel if necessary. If this function fails then the TLS or DTLS state should be considered as disconnected. It must be called at a time when the sessions are not in usage (e.g., in a different thread).
-.PP 
-Note: It is recommended to run this function periodically if you have a DTLS channel since an undetected server reset may result to a black hole behavior of the server.
+Probes the TLS or DTLS session with a TLS heartbeat and reconnects if the session is dead. Must be called when no other thread is using the session (e.g., from a dedicated watchdog thread that holds the lock).
 .SH PARAMETERS
 .TP
 .B rh
@@ -25,7 +23,7 @@ a handle to parsed configuration
 
 .SH RETURN VALUE
 .PP
-0 on success, -1 on error 
+0 on success or when TLS/DTLS is not in use, -1 if the session could not be re-established 
 .SH SEE ALSO
 .PP
 .nh

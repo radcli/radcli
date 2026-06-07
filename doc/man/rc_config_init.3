@@ -13,19 +13,33 @@ rc_config_init \-
 .fi
 .SH DESCRIPTION
 .PP 
-Initialise a configuration structure
+Initialise a configuration structure for programmatic configuration
 .PP 
-Initialize the configuration structure from an external program. For use when not running a standalone client that reads from a config file.
+Use this when you want to configure radcli from code rather than from a file. The full call sequence is:
 .PP 
-The provided handled must have been allocated using rc_new().
+rc_handle*rh=rc_new();
+.PP 
+rh=rc_config_init(rh);
+.PP 
+rc_add_config(rh,"authserver","radius.example.com:1812:sharedsecret",
+.PP 
+__FILE__,__LINE__);
+.PP 
+rc_add_config(rh,"serv-type","udp",__FILE__,__LINE__);
+.PP 
+rc_apply_config(rh);
+.PP 
+//rhisnowreadyforrc_auth()/rc_acct()
+.PP 
+The provided handle must have been allocated with rc_new(). Call rc_apply_config() after all rc_add_config() calls to activate the configuration and initialise the transport.
 .SH PARAMETERS
 .TP
 .B rh
-a handle to parsed configuration. 
+a handle allocated by rc_new(). 
 
 .SH RETURN VALUE
 .PP
-rc_handle on success, NULL on failure. 
+rh on success, NULL on failure (rh is freed on failure). 
 .SH SEE ALSO
 .PP
 .nh

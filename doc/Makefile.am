@@ -44,6 +44,13 @@ stamp_mans: ../include/radcli/radcli.h
 	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/group__tls-api.xml
 	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/group__misc-api.xml
 	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/radcli_8h.xml
+	PUBFUNCS="$$(cat $(top_srcdir)/include/radcli/radcli.h | \
+		$(top_srcdir)/doc/scripts/getfuncs.pl | sort -u)"; \
+	for f in man/*.3; do \
+		base="$$(basename $$f .3)"; \
+		[ "$$base" = "radcli.h" ] && continue; \
+		echo "$$PUBFUNCS" | grep -qx "$$base" || rm -f "$$f"; \
+	done
 	perl $(top_srcdir)/doc/scripts/gen-radcli-h-man.pl \
 	    $(top_srcdir)/include/radcli/radcli.h \
 	    $(top_srcdir)/lib/radcli.map \

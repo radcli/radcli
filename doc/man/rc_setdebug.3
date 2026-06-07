@@ -5,17 +5,26 @@
 rc_setdebug \- 
 .SH SYNOPSIS
 .nf
-.B #include <radcli/radcli.h>
+.B #include <radcli/>
 .sp
 \fBvoid rc_setdebug\fP(
     \fBint      \fP\fIdebug\fP
 );
 .fi
 .SH DESCRIPTION
+.PP 
+Set debug logging level
+.PP 
+Prefer setting clientdebug in the configuration file (rc_read_config()) or rc_add_config(). Using this function bypasses the config file and is retained only for source compatibility with freeradius-client and radiusclient-ng.
+.SH PARAMETERS
+.TP
+.B debug
+debug level; 0 disables debug output, positive values enable it. 
+
 .SH SEE ALSO
 .PP
 .nh
 .ad l
-\fIrc_mksid\fP(3)
+\fIrc_get_srcaddr\fP(3), \fIrc_getport\fP(3), \fIrc_openlog\fP(3), \fIrc_own_hostname\fP(3)
 .ad
 .hy

@@ -13,18 +13,18 @@ rc_openlog \-
 .fi
 .SH DESCRIPTION
 .PP 
-Opens system log
+Open the system log for radcli messages
 .PP 
-This function is a wrapper over openlog() in systems which support it. Don't call it if you already call openlog().
+New code should call openlog(3) directly. radcli emits all messages via syslog(3); opening the log with your application's own ident and facility before the first radcli call is sufficient. This function is a thin wrapper around openlog() retained for source compatibility with freeradius-client and radiusclient-ng.
 .SH PARAMETERS
 .TP
 .B ident
-the name of the program. 
+program name passed to openlog(3). 
 
 .SH SEE ALSO
 .PP
 .nh
 .ad l
-\fIrc_get_srcaddr\fP(3), \fIrc_getport\fP(3), \fIrc_own_hostname\fP(3)
+\fIrc_get_srcaddr\fP(3), \fIrc_getport\fP(3), \fIrc_own_hostname\fP(3), \fIrc_setdebug\fP(3)
 .ad
 .hy

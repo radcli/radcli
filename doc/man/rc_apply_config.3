@@ -13,9 +13,13 @@ rc_apply_config \-
 .fi
 .SH DESCRIPTION
 .PP 
-Applies and initializes any parameters from the radcli configuration
+Apply configuration and initialise the transport
 .PP 
-When no configuration file is provided and the configuration is provided via rc_add_config(), radcli requires the call of this function in order to initialize items for the connection.
+Must be called after all rc_add_config() calls when using programmatic configuration (i.e., without a config file). Initialises the transport selected by the serv-type option, including the TLS/DTLS handshake for TLS and DTLS transports.
+.PP 
+rc_read_config() calls this internally; do not call it again after rc_read_config().
+.PP 
+See rc_config_init() for the full programmatic usage example.
 .SH PARAMETERS
 .TP
 .B rh
@@ -23,7 +27,7 @@ a handle to parsed configuration.
 
 .SH RETURN VALUE
 .PP
-0 on success, -1 when failure. 
+0 on success, -1 on failure. 
 .SH SEE ALSO
 .PP
 .nh

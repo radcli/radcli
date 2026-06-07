@@ -16,12 +16,39 @@ rc_avpair_gen \-
 );
 .fi
 .SH DESCRIPTION
+.PP 
+Decode a raw RADIUS attribute buffer into a VALUE_PAIR list
+.PP 
+This is a low-level function retained for ABI compatibility with freeradius-client and radiusclient-ng. Application code should not call it directly; build requests with rc_avpair_add() and send them with rc_auth() or rc_acct(), which handle wire encoding and decoding internally.
+.PP 
+Decodes the attribute/value region of a received RADIUS packet (the bytes that follow the 20-byte fixed header) into a linked list of VALUE_PAIR structures. Unknown attributes are logged and skipped; they are not a hard error.
+.SH PARAMETERS
+.TP
+.B rh
+a handle to parsed configuration (used for dictionary lookups). 
+
+.TP
+.B pair
+optional existing VALUE_PAIR list to append decoded attributes to; pass NULL to start a fresh list. 
+
+.TP
+.B ptr
+pointer to the start of the attribute data region. 
+
+.TP
+.B length
+number of bytes in the attribute region. 
+
+.TP
+.B vendorspec
+vendor PEN when decoding a vendor-specific sub-attribute block; pass 0 for top-level packet attributes. 
+
 .SH STRUCTURES
 .SS ""
 .PP
 .sp
 .PP 
-Avoid using this structure directly. Use the rc_avpair_get_ functions. 
+Avoid using this structure directly. Use rc_avpair_get_uint32() for integer/IPv4/date values, rc_avpair_get_in6() for IPv6 addresses and prefixes, rc_avpair_get_raw() for string/binary values, and rc_avpair_get_attr() to read the attribute type and ID. To iterate the list use rc_avpair_next(). Free the entire list with rc_avpair_free(). 
 .sp
 .RS
 .nf
@@ -38,6 +65,9 @@ struct rc_value_pair {
 \fP
 .fi
 .RE
+.SH RETURN VALUE
+.PP
+head of the (possibly extended) VALUE_PAIR list, or NULL on a hard decode error (malformed length field, allocation failure). 
 .SH SEE ALSO
 .PP
 .nh

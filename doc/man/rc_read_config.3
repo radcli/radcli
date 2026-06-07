@@ -15,21 +15,29 @@ rc_read_config \-
 .PP 
 Read the global config file
 .PP 
-This function will load the provided configuration file. This is the most common mode of use of this library. The configuration format is compatible with the radiusclient-ng and freeradius-client formats.
+This is the primary way to initialise radcli. Loads the configuration file, initialises the transport (including TLS/DTLS handshake when applicable), and returns an opaque handle for use in subsequent calls. The format is compatible with radiusclient-ng and freeradius-client.
 .PP 
-Standard RFC 2865/2866/2869 attributes are built into the library; the dictionary config option is only needed for vendor-specific attributes not covered by the built-in set.
+Standard RFC 2865/2866/2869 attributes are built into the library; the dictionary option is only needed for vendor-specific attributes.
 .PP 
-Note: To preserve compatibility with libraries of the same API which don't load the dictionary care is taken not to reload the same filename twice even if instructed to.
+Recognised configuration options:
 .PP 
-require-message-authenticator: set to 'no' to accept responses that lack the Message-Authenticator attribute. Enabled by default per draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS); only disable for legacy servers that do not send this attribute.
+acctserver: accounting server; same format as authserver.
+.PP 
+namespace: Linux network namespace name to use for socket operations.
+.PP 
+tls-verify-hostname: set to false to skip server hostname verification (not recommended).
+.PP 
+require-message-authenticator: set to no to accept responses that lack the Message-Authenticator attribute. Enabled by default per draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS); only disable for legacy servers that predate RFC 3579.
+.PP 
+clientdebug: debug verbosity level (integer; 0 = off).
 .SH PARAMETERS
 .TP
 .B filename
-a name of a file. 
+path to the configuration file. 
 
 .SH RETURN VALUE
 .PP
-new rc_handle on success, NULL when failure. 
+new rc_handle on success, NULL on failure. 
 .SH SEE ALSO
 .PP
 .nh
