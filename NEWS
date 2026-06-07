@@ -1,4 +1,4 @@
-* Version 1.5.2 (unreleased)
+* Version 1.5.2 (released 2026-06-07)
 - tls: defer TCP connect and TLS handshake to first use. This addresses
   the issue of radcli connecting to TLS server during rc_read_config().
 
