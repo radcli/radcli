@@ -1,7 +1,7 @@
 /*
- * radembedded_dict.c - a sample c program showing how to embed the 
- * configuration of a radius client, using the RADIUS Client Library 
- * without an external configuration file and external dictionary file.
+ * radembedded_dict.c - a sample program showing how to embed the configuration
+ * of a RADIUS client using radcli without an external configuration file or
+ * dictionary file.
  */
 
 #include <stdlib.h>

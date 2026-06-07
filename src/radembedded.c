@@ -1,6 +1,6 @@
 /*
- * radembedded.c - a sample c program showing how to embed the configuration of a radius
- * client, using the FreeRADIUS Client Library without an external configuration file.
+ * radembedded.c - a sample program showing how to embed the configuration of a
+ * RADIUS client using radcli without an external configuration file.
  */
 
 #include <stdlib.h>
@@ -131,32 +131,44 @@ main (int argc, char **argv)
 	if (rc_avpair_add(rh, &send, PW_ACCT_STATUS_TYPE, &status_type, -1, 0) == NULL)
 	{
 		printf("ERROR: Failed adding Acct-Status-Type: to %d\n", status_type);
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		exit(1);
 	}
 	if (rc_avpair_add(rh, &send, PW_ACCT_SESSION_ID, myuuid, -1, 0) == NULL)
 	{
 		printf("ERROR: Failed adding Acct-Session-ID: to %s\n", myuuid);
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		exit(1);
 	}
 	if (rc_avpair_add(rh, &send, PW_USER_NAME, username, -1, 0) == NULL)
 	{
 		printf("ERROR: Failed adding User-Name: to %s\n", username);
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		exit(1);
 	}
 	if (rc_avpair_add(rh, &send, PW_CALLED_STATION_ID, callto, -1, 0) == NULL)
 	{
 		printf("ERROR: Failed adding Called-Station-ID: to %s\n", callto);
-        exit(1);
+		rc_avpair_free(send);
+		rc_destroy(rh);
+		exit(1);
 	}
 	if (rc_avpair_add(rh, &send, PW_CALLING_STATION_ID, callfrom, -1, 0) == NULL)
 	{
 		printf("ERROR: Failed adding Calling-Station-ID: to %s\n", callfrom);
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		exit(1);
 	}
-	/* Initialize socket related info in RADIUS Handle */
+	/* Initialise the transport (must be called after all rc_add_config calls) */
 	if (rc_apply_config(rh) == -1)
 	{
-		printf("ERROR: Failed to update Radius handle socket info");
+		printf("ERROR: Failed to initialise transport\n");
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		exit(1);
 	}
 
