@@ -474,7 +474,11 @@ typedef enum rc_send_status {
 # define AUTH_STRING_LEN		253	 /* maximum of 253 */
 
 /** \struct rc_value_pair
- * Avoid using this structure directly. Use the rc_avpair_get_ functions.
+ * Avoid using this structure directly. Use rc_avpair_get_uint32() for
+ * integer/IPv4/date values, rc_avpair_get_in6() for IPv6 addresses and
+ * prefixes, rc_avpair_get_raw() for string/binary values, and
+ * rc_avpair_get_attr() to read the attribute type and ID.  To iterate the
+ * list use rc_avpair_next().  Free the entire list with rc_avpair_free().
  */
 typedef struct rc_value_pair
 {
@@ -489,7 +493,8 @@ typedef struct rc_value_pair
 
 /** \struct send_data
  * Avoid using this structure directly; it is included for backwards
- * compatibility only. Several of its fields have been deprecated.
+ * compatibility only.  Use rc_auth() or rc_acct() for authentication and
+ * accounting requests.  Several of its fields have been deprecated.
  */
 typedef struct send_data
 {
@@ -507,6 +512,15 @@ typedef struct send_data
 #define AUTH_VECTOR_LEN		16
 
 struct rc_aaa_ctx_st;
+/** Opaque context returned by rc_aaa_ctx() after a successful request.
+ *
+ * Captures the shared secret and the request authenticator vector
+ * (AUTH_VECTOR_LEN bytes) that were used in the last request.  These can be
+ * retrieved with rc_aaa_ctx_get_secret() and rc_aaa_ctx_get_vector().
+ *
+ * Pass NULL for the @p ctx argument to rc_aaa_ctx() if this information is not
+ * needed.  When a context is no longer needed, free it with rc_aaa_ctx_free().
+ */
 typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 #ifndef RC_MIN
@@ -525,31 +539,58 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 /** @} */
 
 /*!\mainpage
- * \section Introduction
+ * \section intro_sec Introduction
  *
- * RADIUS stands for Remote Authentication Dial In User Service
- * and is a protocol for carrying authentication, authorization,
- * and configuration information between a Network Access Server
- * (NAS) which desires to authenticate its links and a shared
- * Authentication Server.  The protocol originally was designed
- * by the terminal server manufacturer Livingston for use with
- * their Portmaster series of terminal servers.  Since then it
- * has been implemented by a lot of other vendors and it is also
- * on it's way to become a Internet Standard.
+ * radcli is a C library for adding RADIUS authentication and accounting to an
+ * application in roughly 50 lines of code.  All server addresses, credentials,
+ * and transport choices (UDP, TCP, TLS, DTLS) live in a single configuration
+ * file; the calling application needs no transport-specific code.
  *
- * This library implements the needed standards for the client side
- * of the protocol, in a way the minimum configuration and modification
- * is needed for the clients. The approach is to rely on a small
- * external radius configuration file, read using rc_read_config(),
- * and then using rc_auth() or rc_acct() to communicate with the server.
- * Configuration options (like using TLS or so) are then set when
- * parsing the file, simplifying application configuration and administration.
+ * \section quickstart_sec Quick start
  *
- * Alternative operation without a configuration file is also possible, see
- * rc_add_config() and rc_apply_config().
+ * The normal call sequence is three steps:
  *
- * Check radexample.c for a functional example.
+ * 1. **Load configuration** — parses the config file and initialises the transport:
+ *    @code
+ *    rc_handle *rh = rc_read_config("/etc/radiusclient/radiusclient.conf");
+ *    @endcode
  *
+ * 2. **Build an attribute list** — attach the attributes you want to send:
+ *    @code
+ *    VALUE_PAIR *send = NULL;
+ *    rc_avpair_add(rh, &send, PW_USER_NAME,     username, -1, 0);
+ *    rc_avpair_add(rh, &send, PW_USER_PASSWORD, password, -1, 0);
+ *    @endcode
+ *
+ * 3. **Send the request** — rc_auth() handles retries, failover, and response
+ *    validation automatically:
+ *    @code
+ *    VALUE_PAIR *received = NULL;
+ *    int result = rc_auth(rh, 0, send, &received, NULL);
+ *    // result == OK_RC on success
+ *    rc_avpair_free(send);
+ *    rc_avpair_free(received);
+ *    rc_destroy(rh);
+ *    @endcode
+ *
+ * The transport is selected entirely in the config file (@c serv-type = udp,
+ * tcp, tls, or dtls); no code changes are required to switch.  TLS and DTLS
+ * additionally require certificate or PSK credentials to be set in the config
+ * file (@c tls-ca-file, @c tls-cert-file, @c tls-key-file).  See radexample.c
+ * for a complete compilable example.
+ *
+ * \section nofile_sec Operation without a config file
+ *
+ * Programmatic configuration (without a file) is also possible using
+ * rc_new(), rc_config_init(), rc_add_config(), and rc_apply_config().
+ *
+ * \section background_sec Background
+ *
+ * RADIUS (Remote Authentication Dial In User Service, RFC 2865/2866) is a
+ * protocol for carrying authentication, authorisation, and accounting
+ * information between a Network Access Server and a shared Authentication
+ * Server.  radcli implements the client side, and is source-compatible with
+ * freeradius-client and radiusclient-ng.
  */
 
 /** \example radexample.c

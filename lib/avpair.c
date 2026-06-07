@@ -443,6 +443,28 @@ error:
 	return -1;
 }
 
+/** Decode a raw RADIUS attribute buffer into a VALUE_PAIR list
+ *
+ * @note This is a low-level function retained for ABI compatibility with
+ * freeradius-client and radiusclient-ng.  Application code should not call it
+ * directly; build requests with rc_avpair_add() and send them with rc_auth()
+ * or rc_acct(), which handle wire encoding and decoding internally.
+ *
+ * Decodes the attribute/value region of a received RADIUS packet (the bytes
+ * that follow the 20-byte fixed header) into a linked list of VALUE_PAIR
+ * structures.  Unknown attributes are logged and skipped; they are not a hard
+ * error.
+ *
+ * @param rh a handle to parsed configuration (used for dictionary lookups).
+ * @param pair optional existing VALUE_PAIR list to append decoded attributes
+ *   to; pass NULL to start a fresh list.
+ * @param ptr pointer to the start of the attribute data region.
+ * @param length number of bytes in the attribute region.
+ * @param vendorspec vendor PEN when decoding a vendor-specific sub-attribute
+ *   block; pass 0 for top-level packet attributes.
+ * @return head of the (possibly extended) VALUE_PAIR list, or NULL on a hard
+ *   decode error (malformed length field, allocation failure).
+ */
 VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair,
 			  unsigned char const *ptr, int length,
 			  uint32_t vendorspec)

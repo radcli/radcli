@@ -85,10 +85,19 @@ double rc_getmtime(void)
 #endif
 }
 
-/** Generates a "unique" string. Added only for API compatibility with older versions. Don't use.
+/** Generate a "unique" session-ID string
  *
- * @return a pointer to a very unique string. Subsequent calls will overwrite the string.
+ * @deprecated This function is retained only for source compatibility with
+ * freeradius-client and radiusclient-ng.  It returns a pointer to a static
+ * non-reentrant buffer that is overwritten on each call, making it unsafe in
+ * multi-threaded applications.  Use @c snprintf into your own buffer instead:
+ * @code
+ * char sid[15];
+ * snprintf(sid, sizeof(sid), "%08lX%04X", (unsigned long)time(NULL), getpid());
+ * @endcode
  *
+ * @return pointer to a static buffer containing the ID string; overwritten by
+ *   subsequent calls.
  */
 char *
 rc_mksid (void)

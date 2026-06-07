@@ -337,15 +337,27 @@ int rc_add_config(rc_handle *rh, char const *option_name, char const *option_val
 	return 0;
 }
 
-/** Initialise a configuration structure
+/** Initialise a configuration structure for programmatic configuration
  *
- * Initialize the configuration structure from an external program.  For use when not
- * running a standalone client that reads from a config file.
+ * Use this when you want to configure radcli from code rather than from a
+ * file.  The full call sequence is:
  *
- * The provided handled must have been allocated using rc_new().
+ * @code
+ * rc_handle *rh = rc_new();
+ * rh = rc_config_init(rh);
+ * rc_add_config(rh, "authserver", "radius.example.com:1812:sharedsecret",
+ *               __FILE__, __LINE__);
+ * rc_add_config(rh, "serv-type", "udp", __FILE__, __LINE__);
+ * rc_apply_config(rh);
+ * // rh is now ready for rc_auth() / rc_acct()
+ * @endcode
  *
- * @param rh a handle to parsed configuration.
- * @return rc_handle on success, NULL on failure.
+ * The provided handle must have been allocated with rc_new().
+ * Call rc_apply_config() after all rc_add_config() calls to activate the
+ * configuration and initialise the transport.
+ *
+ * @param rh a handle allocated by rc_new().
+ * @return @p rh on success, NULL on failure (rh is freed on failure).
  */
 rc_handle *rc_config_init(rc_handle *rh)
 {
@@ -489,14 +501,20 @@ static int set_addr(struct sockaddr_storage *ss, const char *ip)
 	return 0;
 }
 
-/** Applies and initializes any parameters from the radcli configuration
+/** Apply configuration and initialise the transport
  *
- * When no configuration file is provided and the configuration
- * is provided via rc_add_config(), radcli requires the call of this function
- * in order to initialize items for the connection.
+ * Must be called after all rc_add_config() calls when using programmatic
+ * configuration (i.e., without a config file).  Initialises the transport
+ * selected by the @c serv-type option, including the TLS/DTLS handshake
+ * for TLS and DTLS transports.
+ *
+ * @note rc_read_config() calls this internally; do not call it again after
+ * rc_read_config().
+ *
+ * See rc_config_init() for the full programmatic usage example.
  *
  * @param rh a handle to parsed configuration.
- * @return 0 on success, -1 when failure.
+ * @return 0 on success, -1 on failure.
  */
 int rc_apply_config(rc_handle *rh)
 {
@@ -554,33 +572,48 @@ int rc_apply_config(rc_handle *rh)
 
 /** Read the global config file
  *
- * This function will load the provided configuration file. This is
- * the most common mode of use of this library. The configuration
- * format is compatible with the radiusclient-ng and freeradius-client
- * formats.
+ * This is the primary way to initialise radcli.  Loads the configuration
+ * file, initialises the transport (including TLS/DTLS handshake when
+ * applicable), and returns an opaque handle for use in subsequent calls.
+ * The format is compatible with radiusclient-ng and freeradius-client.
  *
  * Standard RFC 2865/2866/2869 attributes are built into the library;
- * the @b dictionary config option is only needed for vendor-specific
- * attributes not covered by the built-in set.
+ * the @b dictionary option is only needed for vendor-specific attributes.
  *
- * Note: To preserve compatibility with libraries of the same API
- * which don't load the dictionary care is taken not to reload the
- * same filename twice even if instructed to.
+ * Recognised configuration options:
  *
- * The following string options are recognised in the configuration file:
- *  - @b dictionary: (optional) path to a file of vendor-specific attributes.
- *  - @b serv-type: transport protocol; one of 'udp' (default), 'tcp', 'tls', 'dtls'.
- *  - @b tls-ca-file: PEM file of the CA certificate to verify the server (TLS/DTLS).
- *  - @b tls-cert-file: PEM file of the client certificate (TLS/DTLS).
- *  - @b tls-key-file: PEM file of the client private key (TLS/DTLS).
- *  - @b tls-verify-hostname: set to 'false' to skip TLS server hostname verification (not recommended).
- *  - @b require-message-authenticator: set to 'no' to accept responses that lack the
- *    Message-Authenticator attribute. Enabled by default per
- *    draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS); only
- *    disable for legacy servers that do not send this attribute.
+ * **Server address:**
+ *  - @b authserver: authentication server; format is
+ *    @c host[:port[:secret]] (may be repeated for failover, comma-separated).
+ *  - @b acctserver: accounting server; same format as @b authserver.
  *
- * @param filename a name of a file.
- * @return new rc_handle on success, NULL when failure.
+ * **Transport:**
+ *  - @b serv-type: one of @c udp (default), @c tcp, @c tls, @c dtls.
+ *  - @b namespace: Linux network namespace name to use for socket operations.
+ *
+ * **TLS/DTLS credentials** (required when @b serv-type is @c tls or @c dtls):
+ *  - @b tls-ca-file: PEM file of the CA certificate used to verify the server.
+ *  - @b tls-cert-file: PEM file of the client certificate.
+ *  - @b tls-key-file: PEM file of the client private key.
+ *  - @b tls-verify-hostname: set to @c false to skip server hostname
+ *    verification (not recommended).
+ *
+ * **Security:**
+ *  - @b require-message-authenticator: set to @c no to accept responses that
+ *    lack the Message-Authenticator attribute.  Enabled by default per
+ *    draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS);
+ *    only disable for legacy servers that predate RFC 3579.
+ *
+ * **Tuning:**
+ *  - @b radius_timeout: request timeout in seconds (integer, default 3).
+ *  - @b radius_retries: number of retries per server (integer, default 3).
+ *  - @b nas-ip: source IP address to bind to when sending requests.
+ *  - @b nas-identifier: NAS-Identifier string sent in requests.
+ *  - @b dictionary: path to an additional attribute dictionary file.
+ *  - @b clientdebug: debug verbosity level (integer; 0 = off).
+ *
+ * @param filename path to the configuration file.
+ * @return new rc_handle on success, NULL on failure.
  */
 rc_handle *rc_read_config(char const *filename)
 {

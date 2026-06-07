@@ -29,6 +29,10 @@ static unsigned char rc_get_id()
 
 /** Build a skeleton RADIUS request using information from the config file
  *
+ * @note This is a low-level helper used internally by rc_aaa_ctx_server().
+ * Normal applications should call rc_auth() or rc_acct() instead of
+ * constructing SEND_DATA directly.
+ *
  * @param rh a handle to parsed configuration.
  * @param data a pointer to a SEND_DATA structure.
  * @param code one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
@@ -50,22 +54,29 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
 	data->code = code;
 }
 
-/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a server.
- * This function keeps its state in ctx after a successful operation. It can be deallocated using
- * rc_aaa_ctx_free().
+/** Builds an authentication/accounting request and submits it to a server, optionally returning context
+ *
+ * Selects the server list from configuration (authserver or acctserver
+ * depending on @p request_type and transport), sends the request with
+ * automatic retry and server failover, and returns the server's response.
+ *
+ * @note Use rc_auth() or rc_acct() when no context is needed (they call this
+ * with @p ctx set to NULL).  Pass a non-NULL @p ctx only when you need to
+ * inspect the secret and vector used in the request afterwards.
  *
  * @param rh a handle to parsed configuration.
- * @param ctx if non-NULL it will contain the context of the request; Its initial value should be NULL and it must be released using rc_aaa_ctx_free().
- * @param nas_port the physical NAS port number to use (may be zero).
- * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
- * @param received an allocated array of received values.
- * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
- *	PW_REPLY_MESSAGE received.
- * @param add_nas_port this should be zero; if non-zero it will include PW_NAS_PORT in sent pairs.
- * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
- * @return received value_pairs in received, messages from the server in
- *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
- *  received, negative on failure as return value.
+ * @param ctx if non-NULL, receives an allocated RC_AAA_CTX on success; the
+ *   caller must free it with rc_aaa_ctx_free().  Pass NULL if not needed.
+ * @param nas_port the physical NAS port number to include (may be zero).
+ * @param send VALUE_PAIR list of attributes to send (e.g., PW_USER_NAME).
+ * @param received on success, receives the server's reply VALUE_PAIR list;
+ *   the caller must free it with rc_avpair_free().
+ * @param msg if non-NULL, must point to a buffer of PW_MAX_MSG_SIZE bytes;
+ *   will contain the concatenation of any PW_REPLY_MESSAGE attributes received.
+ * @param add_nas_port if non-zero, PW_NAS_PORT is added to the sent pairs.
+ * @param request_type one of the standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
+ * @return OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge,
+ *   REJECT_RC (2) on Access-Reject, or a negative error code on failure.
  */
 int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t nas_port,
 	       VALUE_PAIR * send, VALUE_PAIR ** received, char *msg,
@@ -90,23 +101,29 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t nas_port,
 				 add_nas_port, request_type);
 }
 
-/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a specified server.
- * This function keeps its state in ctx after a successful operation. It can be deallocated using
- * rc_aaa_ctx_free().
+/** Builds an authentication/accounting request and submits it to a specific server
+ *
+ * Like rc_aaa_ctx() but sends to @p aaaserver instead of the server list from
+ * the configuration.  Use this when the caller has already selected the server
+ * (e.g., in proxy scenarios).
  *
  * @param rh a handle to parsed configuration.
- * @param ctx if non-NULL it will contain the context of the request; Its initial value should be NULL and it must be released using rc_aaa_ctx_free().
- * @param aaaserver a non-NULL SERVER to send the message to.
- * @param nas_port the physical NAS port number to use (may be zero).
- * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
- * @param received an allocated array of received values.
- * @param msg must be an array of PW_MAX_MSG_SIZE or NULL; will contain the concatenation of any
- *	PW_REPLY_MESSAGE received.
- * @param add_nas_port this should be zero; if non-zero it will include PW_NAS_PORT in sent pairs.
- * @param request_type one of standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
- * @return received value_pairs in received, messages from the server in
- *  msg and OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge
- *  received, negative on failure as return value.
+ * @param ctx if non-NULL, receives an allocated RC_AAA_CTX on success; the
+ *   caller must free it with rc_aaa_ctx_free().  Pass NULL if not needed.
+ * @param aaaserver a non-NULL SERVER describing the target server(s).
+ * @param type AUTH to use the authentication port, ACCT for the accounting
+ *   port.  Under TLS/DTLS only AUTH is valid (both auth and acct share the
+ *   same TLS connection to the authserver).
+ * @param nas_port the physical NAS port number to include (may be zero).
+ * @param send VALUE_PAIR list of attributes to send (e.g., PW_USER_NAME).
+ * @param received on success, receives the server's reply VALUE_PAIR list;
+ *   the caller must free it with rc_avpair_free().
+ * @param msg if non-NULL, must point to a buffer of PW_MAX_MSG_SIZE bytes;
+ *   will contain the concatenation of any PW_REPLY_MESSAGE attributes received.
+ * @param add_nas_port if non-zero, PW_NAS_PORT is added to the sent pairs.
+ * @param request_type one of the standard RADIUS codes (e.g., PW_ACCESS_REQUEST).
+ * @return OK_RC (0) on success, CHALLENGE_RC (3) on Access-Challenge,
+ *   REJECT_RC (2) on Access-Reject, or a negative error code on failure.
  */
 int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 		      rc_type type,

@@ -8,7 +8,7 @@
 
 #include	<config.h>
 #include	<stdio.h>
-#include	<string.h>
+#include	<syslog.h>
 #include	<radcli/radcli.h>
 
 int
@@ -17,39 +17,45 @@ main (int argc, char **argv)
 	int             result;
 	char		username[128];
 	char            passwd[AUTH_PASS_LEN + 1];
-	VALUE_PAIR 	*send, *received;
+	VALUE_PAIR 	*send = NULL, *received = NULL;
 	uint32_t	service;
 	rc_handle	*rh;
 
-	/* Not needed if you already used openlog() */
-	rc_openlog("my-prog-name");
+	/* openlog() sets the syslog identity used by radcli's internal messages */
+	openlog("my-prog-name", LOG_PID, LOG_DAEMON);
 
 	if ((rh = rc_read_config(RC_CONFIG_FILE)) == NULL)
 		return ERROR_RC;
 
-	strcpy(username, "my-username");
-	strcpy(passwd, "my-password");
-
-	send = NULL;
+	snprintf(username, sizeof(username), "my-username");
+	snprintf(passwd,   sizeof(passwd),   "my-password");
 
 	/*
 	 * Fill in User-Name
 	 */
-	if (rc_avpair_add(rh, &send, PW_USER_NAME, username, -1, 0) == NULL)
+	if (rc_avpair_add(rh, &send, PW_USER_NAME, username, -1, 0) == NULL) {
+		rc_destroy(rh);
 		return ERROR_RC;
+	}
 
 	/*
 	 * Fill in User-Password
 	 */
-	if (rc_avpair_add(rh, &send, PW_USER_PASSWORD, passwd, -1, 0) == NULL)
+	if (rc_avpair_add(rh, &send, PW_USER_PASSWORD, passwd, -1, 0) == NULL) {
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		return ERROR_RC;
+	}
 
 	/*
 	 * Fill in Service-Type
 	 */
 	service = PW_AUTHENTICATE_ONLY;
-	if (rc_avpair_add(rh, &send, PW_SERVICE_TYPE, &service, -1, 0) == NULL)
+	if (rc_avpair_add(rh, &send, PW_SERVICE_TYPE, &service, -1, 0) == NULL) {
+		rc_avpair_free(send);
+		rc_destroy(rh);
 		return ERROR_RC;
+	}
 
 	result = rc_auth(rh, 0, send, &received, NULL);
 
@@ -65,11 +71,15 @@ main (int argc, char **argv)
 			if (rc_avpair_tostr(rh, vp, name, sizeof(name), value, sizeof(value)) == 0) {
 				fprintf(stderr, "%s:\t%s\n", name, value);
 			}
-			vp = vp->next;
+			vp = rc_avpair_next(vp);
 		}
 	} else {
 		fprintf(stderr, "\"%s\" RADIUS Authentication failure (RC=%i)\n", username, result);
 	}
+
+	rc_avpair_free(send);
+	rc_avpair_free(received);
+	rc_destroy(rh);
 
 	return result;
 }

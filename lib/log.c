@@ -13,25 +13,43 @@
 
 unsigned int radcli_debug = 0;
 
+/**
+ * @defgroup misc-api Miscellaneous API
+ * @brief Miscellaneous functions
+ *
+ * All radcli error and informational messages are emitted via syslog(3)
+ * (facility @c LOG_DAEMON by default).  An application controls where those
+ * messages go by calling openlog(3) with its own ident and facility before
+ * making any radcli calls.  The rc_openlog() and rc_setdebug() functions
+ * below are kept for source compatibility with older code; new code should
+ * use openlog(3) and the @c clientdebug config option directly.
+ *
+ * @{
+ */
+
+/** Set debug logging level
+ *
+ * @deprecated Prefer setting @c clientdebug in the configuration file
+ * (rc_read_config()) or rc_add_config().  Using this function bypasses the
+ * config file and is retained only for source compatibility with
+ * freeradius-client and radiusclient-ng.
+ *
+ * @param debug debug level; 0 disables debug output, positive values enable it.
+ */
 void rc_setdebug(int debug)
 {
   radcli_debug = debug;
 }
 
-/**
- * @defgroup misc-api Miscellaneous API
- * @brief Miscellaneous functions
+/** Open the system log for radcli messages
  *
- * @{
- */
-
-/** Opens system log
+ * @deprecated New code should call openlog(3) directly.  radcli emits all
+ * messages via syslog(3); opening the log with your application's own ident
+ * and facility before the first radcli call is sufficient.  This function is
+ * a thin wrapper around openlog() retained for source compatibility with
+ * freeradius-client and radiusclient-ng.
  *
- * This function is a wrapper over openlog() in
- * systems which support it. Don't call it if you already
- * call openlog().
- *
- * @param ident the name of the program.
+ * @param ident program name passed to openlog(3).
  */
 void rc_openlog(char const *ident)
 {

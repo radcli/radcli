@@ -472,21 +472,23 @@ int rc_tls_fd(rc_handle * rh)
 	return -1;
 }
 
-/** Check established TLS/DTLS channels for operation
+/** Check established TLS/DTLS channels for operation and reconnect if needed
  *
- * This function will check whether the channel(s) established
- * for TLS or DTLS are operational, and will re-establish the channel
- * if necessary. If this function fails then  the TLS or DTLS state 
- * should be considered as disconnected.
- * It must be called at a time when the sessions are not in usage
- * (e.g., in a different thread).
+ * Probes the TLS or DTLS session with a TLS heartbeat and reconnects if the
+ * session is dead.  Must be called when no other thread is using the session
+ * (e.g., from a dedicated watchdog thread that holds the lock).
  *
- * Note: It is recommended to run this function periodically if you
- * have a DTLS channel since an undetected server reset may
- * result to a black hole behavior of the server.
+ * @note It is recommended not to use this function.  The TLS heartbeat
+ * extension (RFC 6520) has been disabled or removed by default in many
+ * implementations following the Heartbleed vulnerability (CVE-2014-0160), and
+ * may not be supported by the server.  Prefer relying on the built-in
+ * auto-detection: a dead session is detected transparently on the next
+ * rc_auth() or rc_acct() call, which reconnects automatically before sending
+ * the request.
  *
  * @param rh a handle to parsed configuration
- * @return 0 on success, -1 on error
+ * @return 0 on success or when TLS/DTLS is not in use, -1 if the session
+ *   could not be re-established
  */
 int rc_check_tls(rc_handle * rh)
 {
