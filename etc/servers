@@ -1,10 +1,9 @@
-## Server Name or Client/Server pair		Key		
-## ----------------				---------------
+## Server hostname			Shared secret
+## ----------------			---------------
 #
-#portmaster.elemental.net			hardlyasecret
-#portmaster2.elemental.net			donttellanyone
+#portmaster.elemental.net		hardlyasecret
+#portmaster2.elemental.net		donttellanyone
 #
-## uncomment the following line for simple testing of radlogin
-## with freeradius-server
+## Uncomment for simple testing with a local freeradius server:
 #
-#localhost/localhost				testing123
+#localhost				testing123
