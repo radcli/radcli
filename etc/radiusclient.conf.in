@@ -27,9 +27,10 @@ authserver 	localhost
 #
 acctserver 	localhost
 
-# File holding shared secrets used for the communication
-# between the RADIUS client and server. When multiple
-# server
+# File holding shared secrets used for the communication between the RADIUS
+# client and server, in "hostname  secret" format (one entry per line).
+# This is only consulted when the secret is not specified inline in the
+# authserver/acctserver option (using the host:port:secret syntax).
 servers		@pkgsysconfdir@/servers
 
 # Dictionary of vendor-specific attributes. Standard RFC 2865/2866/2869
@@ -38,19 +39,19 @@ servers		@pkgsysconfdir@/servers
 # not covered by the built-in dictionary.
 #dictionary	@pkgsysconfdir@/dictionary
 
-# default authentication realm to append to all usernames if no
-# realm was explicitly specified by the user
-# the radiusd directly form Livingston doesn't use any realms, so leave
-# it blank then
+# Default authentication realm appended to usernames that contain no realm.
+# Leave blank to send usernames as-is.
 default_realm
 
-# time to wait for a reply from the RADIUS server
+# Time in seconds to wait for a reply from the RADIUS server.
+# Note: total wait time before failing is radius_timeout × radius_retries.
 radius_timeout	10
 
-# resend request this many times before trying the next server
+# Number of times to resend a request to a server before trying the next one.
 radius_retries	3
 
-# local address from which radius packets have to be sent
+# Local address from which RADIUS packets are sent.
+# Use * to let the OS choose the source address (recommended).
 bindaddr	*
 
 # Transport Protocol Support

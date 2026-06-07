@@ -8,29 +8,16 @@
 #nas-ip 	10.100.5.3
 #nas-ip		::1
 
-# RADIUS server to use for authentication requests.
-# optionally you can specify a the port number on which is remote
-# RADIUS listens separated by a colon from the hostname. if
-# no port is specified /etc/services is consulted of the radius
-# service. if this fails also a compiled in default is used.
-# For IPv6 addresses use the '[IPv6]:port' format, or
-# simply '[IPv6]'. You may specify more than a single server
-# in a comma-separated list.
+# RADIUS server to use for authentication and accounting requests.
+# Specify as host:port. For IPv6 use '[IPv6]:port'.
+# You may specify more than one server in a comma-separated list for failover.
 #
 authserver	localhost:2083
 #authserver	127.1.1.1:9999,172.17.0.1
 
-# For DTLS with PSK authentication, the following format is valid:
-#authserver	localhost:2083:psk@username@hexkey
-
-# In TLS/DTLS the acct server directive is ignored.
-#
-acctserver	localhost:2083
-
-# file holding PSKs used for the communication
-# between the RADIUS client and server. They should
-# be stored in "psk:username:hexkey" format.
-#servers	@pkgsysconfdir@/servers-tls
+# Under TLS/DTLS, both authentication and accounting traffic share the same
+# connection to authserver; this acctserver directive is ignored.
+#acctserver	localhost:2083
 
 # Dictionary of vendor-specific attributes. Standard RFC 2865/2866/2869
 # attributes are built into the library and do not require this option.
@@ -38,24 +25,24 @@ acctserver	localhost:2083
 # not covered by the built-in dictionary.
 #dictionary	@pkgsysconfdir@/dictionary
 
-# default authentication realm to append to all usernames if no
-# realm was explicitly specified by the user
-# the radiusd directly form Livingston doesn't use any realms, so leave
-# it blank then
+# Default authentication realm appended to usernames that contain no realm.
+# Leave blank to send usernames as-is.
 default_realm
 
-# time to wait for a reply from the RADIUS server
+# Time in seconds to wait for a reply from the RADIUS server.
+# Note: total wait time before failing is radius_timeout × radius_retries.
 radius_timeout	10
 
-# resend request this many times before trying the next server
+# Number of times to resend a request to a server before trying the next one.
 radius_retries	3
 
-# local address from which radius packets have to be sent
+# Local address from which RADIUS packets are sent.
+# Use * to let the OS choose the source address (recommended).
 bindaddr	*
 
-# Namespace in which all sockets of Radcli are to be opened. This is effectively same as the 
+# Namespace in which all sockets of Radcli are to be opened. This is effectively same as the
 # Radcli existing on that namespace.
-# If commented out, the default existing Namespace will be used.                                    
+# If commented out, the default existing Namespace will be used.
 #namespace   namespace-name
 
 # Support for IPv6 non-temporary address support. This is an IPv6-only option
@@ -66,26 +53,40 @@ bindaddr	*
 # sent.
 #use-public-addr	true
 
+# ---------------------------------------------------------------------------
 # TLS/DTLS settings
+# ---------------------------------------------------------------------------
 
-# Transport Protocol Support
-# Available options - 'tcp', 'udp', 'tls' and 'dtls'. 
-# If commented out, udp will be used.
-# TLS and DTLS authentication can be used with PSK keys or X.509 certificate 
-# authentication (see below).
+# Transport protocol: 'tls' for RADIUS/TLS over TCP (RFC 6614), or
+# 'dtls' for RADIUS/DTLS over UDP (RFC 7360).
 serv-type	tls
 
-# The CA certificate to be used to verify the server's certificate.
-# Does not need to be set if we are using PSK (pre-shared keys).
-tls-ca-file	@pkgsysconfdir@/ca.pem
+# --- Authentication: choose one of the two options below ---
 
-# Our certificate and key files. These identify this NAS to the
-# radius servers. They don't need to be set if using PSK.
+# Option 1 (recommended): X.509 certificate authentication.
+# This is the standard method supported by most TLS-capable RADIUS servers
+# (e.g. FreeRADIUS, radsecproxy). Provide the CA certificate that signed the
+# server's certificate, and client certificate/key files to identify this NAS.
+tls-ca-file	@pkgsysconfdir@/ca.pem
 tls-cert-file	@pkgsysconfdir@/cert.pem
 tls-key-file	@pkgsysconfdir@/key.pem
 
-# Used for debugging purposed. It will disable hostname verification
-# on the connected host. Not recommended to be enabled.
+# Option 2: Pre-Shared Key (PSK) authentication.
+# Use only if your server explicitly supports PSK (RFC 6614 §2.3).
+# PSK is uncommon; if in doubt, use Option 1 above.
+# When using PSK: remove the tls-cert-file/tls-key-file lines
+# above and use one of the following instead:
+#
+# Inline in the authserver line (replaces the authserver entry above):
+#authserver	localhost:2083:psk@username@hexkey
+#
+# Or via a credentials file (one entry per line: hostname  psk:user:hexkey):
+#servers	@pkgsysconfdir@/servers-tls
+
+# ---------------------------------------------------------------------------
+
+# Disable TLS server hostname verification. For debugging only;
+# do not use in production.
 #tls-verify-hostname	false
 
 # Require the Message-Authenticator attribute in received responses.
