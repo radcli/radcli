@@ -487,7 +487,11 @@ typedef struct rc_value_pair
 	char		   pad[32];			//!< unused pad
 } VALUE_PAIR;
 
-typedef struct send_data /* Used to pass information to sendserver() function */
+/** \struct send_data
+ * Avoid using this structure directly; it is included for backwards
+ * compatibility only. Several of its fields have been deprecated.
+ */
+typedef struct send_data
 {
 	uint8_t        code;		//!< RADIUS packet code.
 	uint8_t        seq_nbr;		//!< Packet sequence number.

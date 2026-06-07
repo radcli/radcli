@@ -32,7 +32,7 @@ APIMANS += man/radcli.h.3
 CLEANFILES = *~
 DISTCLEANFILES = stamp_mans stamp_html
 
-EXTRA_DIST = Doxyfile.in scripts/getfuncs.pl scripts/getfuncs-map.pl doc.mk
+EXTRA_DIST = Doxyfile.in scripts/getfuncs.pl scripts/getfuncs-map.pl scripts/gen-radcli-h-man.pl scripts/fix-seealso.pl doc.mk
 
 dist_man_MANS = $(APIMANS)
 
@@ -40,7 +40,21 @@ $(APIMANS):
 
 stamp_mans: ../include/radcli/radcli.h
 	doxygen Doxyfile
-	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library'  --out man --novalidate xml/radcli_8h.xml
+	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/group__radcli-api.xml
+	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/group__tls-api.xml
+	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/group__misc-api.xml
+	doxy2man -i radcli/ --short-pkg radcli --pkg 'Radius client library' --out man --novalidate --nosummary xml/radcli_8h.xml
+	perl $(top_srcdir)/doc/scripts/gen-radcli-h-man.pl \
+	    $(top_srcdir)/include/radcli/radcli.h \
+	    $(top_srcdir)/lib/radcli.map \
+	    xml/radcli_8h.xml \
+	    xml/group__radcli-api.xml \
+	    xml/group__tls-api.xml \
+	    xml/group__misc-api.xml > man/radcli.h.3
+	perl $(top_srcdir)/doc/scripts/fix-seealso.pl \
+	    $(top_srcdir)/include/radcli/radcli.h \
+	    $(top_srcdir)/lib/radcli.map \
+	    man/
 	echo > $@
 
 stamp_html: ../include/radcli/radcli.h
