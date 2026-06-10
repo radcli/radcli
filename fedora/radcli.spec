@@ -1,6 +1,6 @@
 Summary: RADIUS protocol client library
 Name: radcli
-Version: 1.5.0
+Version: 1.5.2
 Release: %autorelease
 
 #Breakdown of licenses. Under MIT license:
@@ -55,7 +55,7 @@ sed -i -e 's|sys_lib_dlsearch_path_spec="[^"]\+|& %{_libdir}|g' configure
 
 %build
 autoreconf -fvi
-%configure --disable-static --disable-rpath --with-nettle --with-tls --enable-legacy-compat
+%configure --disable-rpath --with-nettle --with-tls --enable-legacy-compat
 make %{?_smp_mflags}
 
 %check
@@ -64,6 +64,7 @@ make %{?_smp_mflags} check
 %install
 make DESTDIR=%{buildroot} install
 rm -f %{buildroot}%{_libdir}/*.la
+rm -f %{buildroot}%{_libdir}/*.a
 
 # these should be removed once the utils subpackage is on
 
@@ -87,12 +88,6 @@ cp -p %{buildroot}%{_datadir}/%{name}/dictionary %{buildroot}%{_sysconfdir}/%{na
 
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/dictionary
-%{_datadir}/%{name}/dictionary.roaringpenguin
-%{_datadir}/%{name}/dictionary.microsoft
-%{_datadir}/%{name}/dictionary.ascend
-%{_datadir}/%{name}/dictionary.compat
-%{_datadir}/%{name}/dictionary.merit
-%{_datadir}/%{name}/dictionary.sip
 
 %files devel
 
