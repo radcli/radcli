@@ -592,6 +592,11 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
  * file (@c tls-ca-file, @c tls-cert-file, @c tls-key-file).  See radexample.c
  * for a complete compilable example.
  *
+ * For accounting requests that must not block (e.g. sending Accounting-Stop
+ * for open sessions while an application is shutting down), use
+ * rc_acct_async() instead of rc_acct(): it addresses every configured
+ * accounting server without waiting for a reply.
+ *
  * \section nofile_sec Operation without a config file
  *
  * Programmatic configuration (without a file) is also possible using
@@ -657,6 +662,27 @@ int rc_auth(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send,
 int rc_auth_proxy(rc_handle *rh, VALUE_PAIR *send, VALUE_PAIR **received, char *msg);
 int rc_acct(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send);
 int rc_acct_proxy(rc_handle *rh, VALUE_PAIR *send);
+
+/** Sends an accounting request to every configured accounting server without waiting for a reply
+ *
+ * Selects the server list the same way rc_acct() does (acctserver, or
+ * authserver under TLS/DTLS). Unlike rc_acct()/rc_aaa(), which stop at the
+ * first server that replies and fail over to the next only after a
+ * timeout, this sends to *every* configured server unconditionally, since
+ * there is no reply to judge success or failure by. Intended for
+ * best-effort notifications such as an Accounting-Stop sent while an
+ * application is shutting down and cannot afford to block.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param client_port the physical NAS port number to include (may be zero).
+ * @param send VALUE_PAIR list of attributes to send; NAS-Port and
+ *  Acct-Delay-Time are filled in as with rc_acct().
+ * @return OK_RC (0) if the packet was handed to the socket layer for at
+ *  least one server, ERROR_RC if no accounting servers are configured or
+ *  the send failed for all of them.
+ */
+int rc_acct_async(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send);
+
 int rc_check(rc_handle *rh, char *host, char *secret, unsigned short port, char *msg);
 
 int rc_aaa(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send, VALUE_PAIR **received,

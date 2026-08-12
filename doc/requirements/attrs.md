@@ -365,12 +365,15 @@ it.
 *or* `request_type != PW_ACCOUNTING_REQUEST`, and the `"acctserver"` list
 otherwise (plain accounting request over UDP/TCP), then forward to
 `rc_aaa_ctx_server()`. It MUST return `ERROR_RC` if the selected list is
-empty/unconfigured (`rc_conf_srv()` returns `NULL`).
+empty/unconfigured (`rc_conf_srv()` returns `NULL`). This selection logic is
+factored into the internal helper `rc_select_aaa_server()`, shared verbatim
+by `rc_aaa_ctx()` and `rc_acct_async()` (`REQ-ATTR-NET-030`) — both MUST
+apply the identical authserver/acctserver rule, not divergent copies.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:83-104
+**Source:** lib/buildreq.c:69-85 (`rc_select_aaa_server`), lib/buildreq.c:166-179 (`rc_aaa_ctx`)
 **Acceptance:** [NET] unit, local — with `so_type == RC_SOCKET_TLS`, an accounting-type request still selects `authserver`; with `so_type == RC_SOCKET_UDP`, it selects `acctserver`; with no `acctserver` configured, `rc_acct()` returns `ERROR_RC` before any packet is built.
-**Links:** REQ-NET-* (transport type / TLS-DTLS shared-port behavior, net.md)
+**Links:** REQ-NET-* (transport type / TLS-DTLS shared-port behavior, net.md), REQ-ATTR-NET-030
 
 ### REQ-ATTR-NET-023 — rc_aaa_ctx_server auto-fills NAS-Port and seeds Acct-Delay-Time before its retry loop
 
@@ -383,12 +386,14 @@ the creation time as `start_time` if absent, or, if the caller already
 supplied one, computing `start_time` by subtracting the *existing* pair's
 value from the current time so that later delay computation is consistent
 whether or not the caller pre-seeded the field. Both happen once, before the
-per-server retry loop begins.
+per-server retry loop begins. This fill logic is factored into the internal
+helper `rc_fill_acct_pairs()`, shared verbatim by `rc_aaa_ctx_server()` and
+`rc_aaa_ctx_server_async()` (`REQ-ATTR-NET-030`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:150-177
+**Source:** lib/buildreq.c:102-140 (`rc_fill_acct_pairs`), lib/buildreq.c:222-224 (call site in `rc_aaa_ctx_server`)
 **Acceptance:** [NET] unit, local — an accounting request with no `PW_NAS_PORT`/`PW_ACCT_DELAY_TIME` gets both added; one with a caller-supplied `PW_NAS_PORT` keeps the caller's value; one with a caller-supplied non-zero `PW_ACCT_DELAY_TIME` does not get a second such pair added.
-**Links:** REQ-ATTR-NET-024
+**Links:** REQ-ATTR-NET-024, REQ-ATTR-NET-030
 
 ### REQ-ATTR-NET-024 — Acct-Delay-Time is recomputed on every retransmission attempt
 
@@ -491,6 +496,40 @@ bound the write to a smaller caller buffer.
 **Source:** include/radcli/radcli.h:70 (`PW_MAX_MSG_SIZE`), 655-667 (declarations); lib/buildreq.c:76, 123, 226, 248, 270, 318 (Doxygen `@param msg` notes: "must point to a buffer of PW_MAX_MSG_SIZE bytes"); all `msg` parameters passed through unchanged to `rc_send_server`/`rc_send_server_ctx`
 **Acceptance:** [NET][SEC] code-review — every call site passing a non-NULL `msg` allocates it as `char msg[PW_MAX_MSG_SIZE]` or equivalent; flagged as a precondition, not independently enforced by this document's functions (no length is passed in, so a too-small buffer cannot be detected here — see `net.md` for the write itself).
 **Links:** REQ-NET-* (msg write, net.md)
+
+### REQ-ATTR-NET-030 — rc_acct_async addresses every configured accounting server unconditionally, without waiting for or judging any reply
+
+**Requirement:** `rc_acct_async()` MUST select the server list via
+`rc_select_aaa_server()` (the same authserver/acctserver rule as
+`REQ-ATTR-NET-022`) and MUST return `ERROR_RC` if none is configured. It
+MUST then fill `PW_NAS_PORT`/`PW_ACCT_DELAY_TIME` via `rc_fill_acct_pairs()`
+(`REQ-ATTR-NET-023`, with `add_nas_port` fixed at `1`) and, for *every*
+index in `aaaserver->name[]`/`port[]`/`secret[]` in order, recompute
+`Acct-Delay-Time` (`REQ-ATTR-NET-024`'s per-attempt recompute rule) and call
+`rc_buildreq()` + `rc_send_server_ctx(..., no_wait=1)` — the fire-and-forget
+mode of `REQ-NET-NET-017`. Unlike `rc_aaa_ctx_server()` (`REQ-ATTR-NET-025`),
+it MUST NOT stop after the first successful send: every configured server is
+contacted regardless of the per-server result, since a `no_wait` send has no
+reply to distinguish "delivered" from "accepted." It MUST count a server as
+reached only when the per-server result is `OK_RC` (per `REQ-NET-NET-017`,
+`no_wait` never yields `TIMEOUT_RC`), and MUST return `OK_RC` overall if at
+least one server was reached, `ERROR_RC` only if every server's send failed
+outright.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/buildreq.c:373-420 (`rc_aaa_ctx_server_async`), lib/buildreq.c:440-449
+(`rc_acct_async`)
+**Acceptance:** [NET] unit, local — a 2-server `acctserver` list with the first
+unreachable and the second reachable yields `OK_RC` and the second server MUST still be
+contacted even though it comes after the first send returned a terminal state; a config
+with no `acctserver` (and no TLS/DTLS `authserver` fallback trigger) returns `ERROR_RC`
+before any packet is built. `tests/acct-async-tests.sh` — end-to-end via
+`src/radiusclient -A`, asserting completion in well under `radius_timeout` against an
+unreachable first server, i.e. no blocking failover wait (contrast with
+`REQ-ATTR-NET-025`'s blocking failover for `rc_acct()`).
+**Links:** REQ-ATTR-NET-022, REQ-ATTR-NET-023, REQ-ATTR-NET-024, REQ-ATTR-NET-025 (the
+blocking counterpart this deliberately does not follow), REQ-NET-NET-017 (net.md; the
+`timeout=0` transport contract this depends on)
 
 ---
 

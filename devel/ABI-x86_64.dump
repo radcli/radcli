@@ -12,6 +12,7 @@
     <elf-symbol name='rc_aaa_ctx_get_vector' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_aaa_ctx_server' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_acct' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+    <elf-symbol name='rc_acct_async' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_acct_proxy' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_add_config' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_apply_config' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
@@ -70,6 +71,7 @@
     <elf-symbol name='rc_tls_fd' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
   </elf-function-symbols>
   <undefined-elf-function-symbols>
+    <elf-symbol name='__assert_fail' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='__ctype_b_loc' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='__cxa_finalize' type='func-type' binding='weak-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='__errno_location' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
@@ -95,6 +97,7 @@
     <elf-symbol name='gmtime_r' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_alert_get' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_alert_get_name' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
+    <elf-symbol name='gnutls_bye' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_certificate_allocate_credentials' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_certificate_free_credentials' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_certificate_set_verify_function' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
@@ -113,6 +116,7 @@
     <elf-symbol name='gnutls_heartbeat_enable' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_heartbeat_ping' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_init' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
+    <elf-symbol name='gnutls_memcmp' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_priority_set_direct' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_psk_allocate_client_credentials' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='gnutls_psk_free_client_credentials' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
@@ -158,10 +162,8 @@
     <elf-symbol name='sprintf' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='srandom' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strcasecmp' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strcat' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strchr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strcmp' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strcpy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strcspn' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strdup' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
     <elf-symbol name='strerror' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
@@ -250,9 +252,9 @@
         <var-decl name='tm_zone' type-id='type-id-2' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='21' column='1'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='DICT_ATTR' type-id='type-id-13' size-in-bits='768' filepath='../include/radcli/radcli.h' line='439' column='1' id='type-id-14'/>
-    <typedef-decl name='DICT_VALUE' type-id='type-id-15' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='447' column='1' id='type-id-16'/>
-    <typedef-decl name='DICT_VENDOR' type-id='type-id-17' size-in-bits='640' filepath='../include/radcli/radcli.h' line='454' column='1' id='type-id-18'/>
+    <typedef-decl name='DICT_ATTR' type-id='type-id-13' size-in-bits='768' filepath='../include/radcli/radcli.h' line='440' column='1' id='type-id-14'/>
+    <typedef-decl name='DICT_VALUE' type-id='type-id-15' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='448' column='1' id='type-id-16'/>
+    <typedef-decl name='DICT_VENDOR' type-id='type-id-17' size-in-bits='640' filepath='../include/radcli/radcli.h' line='455' column='1' id='type-id-18'/>
     <typedef-decl name='__time_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='160' column='1' hash='b119fe0931d2ee10' id='type-id-19'/>
     <typedef-decl name='in_addr_t' type-id='type-id-20' size-in-bits='32' filepath='/usr/include/netinet/in.h' line='30' column='1' hash='e66b43f97c38e87a' id='type-id-9'/>
     <typedef-decl name='time_t' type-id='type-id-19' size-in-bits='64' filepath='/usr/include/bits/types/time_t.h' line='10' column='1' hash='b119fe0931d2ee10' id='type-id-21'/>
@@ -310,7 +312,7 @@
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='rc_avpair_next' mangled-name='rc_avpair_next' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='112' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_next@@RADCLI_10' hash='452119daab2eac4c'>
-      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='450' column='1'/>
+      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='506' column='1'/>
       <return type-id='type-id-53'/>
     </function-decl>
     <function-decl name='rc_avpair_assign' mangled-name='rc_avpair_assign' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='135' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_assign@@RADCLI_10' hash='cdddf26064be7c2c'>
@@ -319,85 +321,85 @@
       <parameter type-id='type-id-11' name='len' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='135' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_new' mangled-name='rc_avpair_new' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_new@@RADCLI_10' hash='bd8dad0450d8ba6c'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1'/>
-      <parameter type-id='type-id-20' name='attrid' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1'/>
-      <parameter type-id='type-id-3' name='pval' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1'/>
-      <parameter type-id='type-id-11' name='len' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1'/>
-      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='193' column='1'/>
+    <function-decl name='rc_avpair_new' mangled-name='rc_avpair_new' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_new@@RADCLI_10' hash='bd8dad0450d8ba6c'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1'/>
+      <parameter type-id='type-id-20' name='attrid' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1'/>
+      <parameter type-id='type-id-3' name='pval' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1'/>
+      <parameter type-id='type-id-11' name='len' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1'/>
+      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='196' column='1'/>
       <return type-id='type-id-53'/>
     </function-decl>
-    <function-decl name='rc_avpair_gen' mangled-name='rc_avpair_gen' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='271' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_gen@@RADCLI_10' hash='f151ba58f34057b2'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='271' column='1'/>
-      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='271' column='1'/>
-      <parameter type-id='type-id-54' name='ptr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='271' column='1'/>
-      <parameter type-id='type-id-11' name='length' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='272' column='1'/>
-      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='272' column='1'/>
+    <function-decl name='rc_avpair_gen' mangled-name='rc_avpair_gen' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='468' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_gen@@RADCLI_10' hash='f151ba58f34057b2'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='468' column='1'/>
+      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='468' column='1'/>
+      <parameter type-id='type-id-54' name='ptr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='469' column='1'/>
+      <parameter type-id='type-id-11' name='length' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='469' column='1'/>
+      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='470' column='1'/>
       <return type-id='type-id-53'/>
     </function-decl>
-    <function-decl name='rc_avpair_get' mangled-name='rc_avpair_get' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='433' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get@@RADCLI_10' hash='a300cfa616e69187'>
-      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='433' column='1'/>
-      <parameter type-id='type-id-20' name='attrid' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='433' column='1'/>
-      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='433' column='1'/>
+    <function-decl name='rc_avpair_get' mangled-name='rc_avpair_get' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='489' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get@@RADCLI_10' hash='a300cfa616e69187'>
+      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='489' column='1'/>
+      <parameter type-id='type-id-20' name='attrid' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='489' column='1'/>
+      <parameter type-id='type-id-20' name='vendorspec' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='489' column='1'/>
       <return type-id='type-id-53'/>
     </function-decl>
-    <function-decl name='rc_avpair_copy' mangled-name='rc_avpair_copy' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='450' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_copy@@RADCLI_10' hash='452119daab2eac4c'>
-      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='450' column='1'/>
+    <function-decl name='rc_avpair_copy' mangled-name='rc_avpair_copy' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='506' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_copy@@RADCLI_10' hash='452119daab2eac4c'>
+      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='506' column='1'/>
       <return type-id='type-id-53'/>
     </function-decl>
-    <function-decl name='rc_avpair_insert' mangled-name='rc_avpair_insert' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='485' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_insert@@RADCLI_10' hash='ff43e876a395514d'>
-      <parameter type-id='type-id-52' name='a' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='485' column='1'/>
-      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='485' column='1'/>
-      <parameter type-id='type-id-53' name='b' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='485' column='1'/>
+    <function-decl name='rc_avpair_insert' mangled-name='rc_avpair_insert' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='541' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_insert@@RADCLI_10' hash='ff43e876a395514d'>
+      <parameter type-id='type-id-52' name='a' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='541' column='1'/>
+      <parameter type-id='type-id-53' name='p' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='541' column='1'/>
+      <parameter type-id='type-id-53' name='b' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='541' column='1'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_avpair_free' mangled-name='rc_avpair_free' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='537' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_free@@RADCLI_10' hash='a635386af7ae3ebb'>
-      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='537' column='1'/>
+    <function-decl name='rc_avpair_free' mangled-name='rc_avpair_free' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='593' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_free@@RADCLI_10' hash='a635386af7ae3ebb'>
+      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='593' column='1'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_avpair_parse' mangled-name='rc_avpair_parse' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='601' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_parse@@RADCLI_10' hash='ef52961ee11ac67f'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='601' column='1'/>
-      <parameter type-id='type-id-2' name='buffer' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='601' column='1'/>
-      <parameter type-id='type-id-52' name='first_pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='601' column='1'/>
+    <function-decl name='rc_avpair_parse' mangled-name='rc_avpair_parse' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='657' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_parse@@RADCLI_10' hash='ef52961ee11ac67f'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='657' column='1'/>
+      <parameter type-id='type-id-2' name='buffer' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='657' column='1'/>
+      <parameter type-id='type-id-52' name='first_pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='657' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_tostr' mangled-name='rc_avpair_tostr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_tostr@@RADCLI_10' hash='91b85d32d5c9a49d'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
-      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
-      <parameter type-id='type-id-30' name='name' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
-      <parameter type-id='type-id-11' name='ln' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
-      <parameter type-id='type-id-30' name='value' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
-      <parameter type-id='type-id-11' name='lv' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='831' column='1'/>
+    <function-decl name='rc_avpair_tostr' mangled-name='rc_avpair_tostr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_tostr@@RADCLI_10' hash='91b85d32d5c9a49d'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
+      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
+      <parameter type-id='type-id-30' name='name' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
+      <parameter type-id='type-id-11' name='ln' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
+      <parameter type-id='type-id-30' name='value' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
+      <parameter type-id='type-id-11' name='lv' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='886' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_log' mangled-name='rc_avpair_log' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='952' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_log@@RADCLI_10' hash='9059a9be3701b246'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='952' column='1'/>
-      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='952' column='1'/>
-      <parameter type-id='type-id-30' name='buf' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='952' column='1'/>
-      <parameter type-id='type-id-55' name='buf_len' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='952' column='1'/>
+    <function-decl name='rc_avpair_log' mangled-name='rc_avpair_log' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1007' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_log@@RADCLI_10' hash='9059a9be3701b246'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1007' column='1'/>
+      <parameter type-id='type-id-53' name='pair' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1007' column='1'/>
+      <parameter type-id='type-id-30' name='buf' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1007' column='1'/>
+      <parameter type-id='type-id-55' name='buf_len' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1007' column='1'/>
       <return type-id='type-id-30'/>
     </function-decl>
-    <function-decl name='rc_avpair_get_uint32' mangled-name='rc_avpair_get_uint32' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='982' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_uint32@@RADCLI_10' hash='3af697f6f27bbe92'>
-      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='982' column='1'/>
-      <parameter type-id='type-id-46' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='982' column='1'/>
+    <function-decl name='rc_avpair_get_uint32' mangled-name='rc_avpair_get_uint32' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1037' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_uint32@@RADCLI_10' hash='3af697f6f27bbe92'>
+      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1037' column='1'/>
+      <parameter type-id='type-id-46' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1037' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_get_in6' mangled-name='rc_avpair_get_in6' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1003' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_in6@@RADCLI_10' hash='b48e148031b30d19'>
-      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1003' column='1'/>
-      <parameter type-id='type-id-42' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1003' column='1'/>
-      <parameter type-id='type-id-48' name='prefix' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1003' column='1'/>
+    <function-decl name='rc_avpair_get_in6' mangled-name='rc_avpair_get_in6' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1058' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_in6@@RADCLI_10' hash='b48e148031b30d19'>
+      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1058' column='1'/>
+      <parameter type-id='type-id-42' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1058' column='1'/>
+      <parameter type-id='type-id-48' name='prefix' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1058' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_get_raw' mangled-name='rc_avpair_get_raw' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1035' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_raw@@RADCLI_10' hash='f28c95ee7b0e5443'>
-      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1035' column='1'/>
-      <parameter type-id='type-id-31' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1035' column='1'/>
-      <parameter type-id='type-id-48' name='res_size' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1035' column='1'/>
+    <function-decl name='rc_avpair_get_raw' mangled-name='rc_avpair_get_raw' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1090' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_raw@@RADCLI_10' hash='f28c95ee7b0e5443'>
+      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1090' column='1'/>
+      <parameter type-id='type-id-31' name='res' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1090' column='1'/>
+      <parameter type-id='type-id-48' name='res_size' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1090' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_avpair_get_attr' mangled-name='rc_avpair_get_attr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1055' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_attr@@RADCLI_10' hash='81652d0d54e9c92a'>
-      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1055' column='1'/>
-      <parameter type-id='type-id-48' name='type' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1055' column='1'/>
-      <parameter type-id='type-id-48' name='id' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1055' column='1'/>
+    <function-decl name='rc_avpair_get_attr' mangled-name='rc_avpair_get_attr' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1110' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_attr@@RADCLI_10' hash='81652d0d54e9c92a'>
+      <parameter type-id='type-id-53' name='vp' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1110' column='1'/>
+      <parameter type-id='type-id-48' name='type' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1110' column='1'/>
+      <parameter type-id='type-id-48' name='id' filepath='/home/nmav/projects/radcli/lib/avpair.c' line='1110' column='1'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='inet_ntoa' filepath='/usr/include/arpa/inet.h' line='53' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='inet_ntoa' hash='02a096d257a5e00d'>
@@ -416,6 +418,13 @@
       <parameter type-id='type-id-57'/>
       <parameter type-id='type-id-58'/>
       <return type-id='type-id-2'/>
+    </function-decl>
+    <function-decl name='__assert_fail' filepath='/usr/include/assert.h' line='67' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__assert_fail' hash='f20e7a25b596c040'>
+      <parameter type-id='type-id-2'/>
+      <parameter type-id='type-id-2'/>
+      <parameter type-id='type-id-47'/>
+      <parameter type-id='type-id-2'/>
+      <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='__ctype_b_loc' filepath='/usr/include/ctype.h' line='79' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__ctype_b_loc' hash='2d54aef0745cb1f9'>
       <return type-id='type-id-41'/>
@@ -462,16 +471,6 @@
       <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-23'/>
       <return type-id='type-id-3'/>
-    </function-decl>
-    <function-decl name='strcpy' filepath='/usr/include/string.h' line='141' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strcpy' hash='d2c49d83b30fb50c'>
-      <parameter type-id='type-id-30'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-30'/>
-    </function-decl>
-    <function-decl name='strcat' filepath='/usr/include/string.h' line='149' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strcat' hash='d2c49d83b30fb50c'>
-      <parameter type-id='type-id-30'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-30'/>
     </function-decl>
     <function-decl name='strchr' filepath='/usr/include/string.h' line='246' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strchr' hash='1b0d39e45ce45198'>
       <parameter type-id='type-id-2'/>
@@ -547,7 +546,7 @@
     <array-type-def dimensions='1' type-id='type-id-74' size-in-bits='512' hash='f8859bc464d8cd16' id='type-id-75'>
       <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-23' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-61'/>
     </array-type-def>
-    <enum-decl name='rc_attr_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='115' column='1' hash='d5b96d74a4f35e62' id='type-id-76'>
+    <enum-decl name='rc_attr_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='116' column='1' hash='d5b96d74a4f35e62' id='type-id-76'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='PW_TYPE_STRING' value='0'/>
       <enumerator name='PW_TYPE_INTEGER' value='1'/>
@@ -557,7 +556,7 @@
       <enumerator name='PW_TYPE_IPV6PREFIX' value='5'/>
       <enumerator name='PW_TYPE_MAX' value='6'/>
     </enum-decl>
-    <enum-decl name='rc_standard_codes' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='127' column='1' hash='e41dfe5328868d85' id='type-id-78'>
+    <enum-decl name='rc_standard_codes' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='128' column='1' hash='e41dfe5328868d85' id='type-id-78'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='PW_ACCESS_REQUEST' value='1'/>
       <enumerator name='PW_ACCESS_ACCEPT' value='2'/>
@@ -573,191 +572,191 @@
       <enumerator name='PW_STATUS_SERVER' value='12'/>
       <enumerator name='PW_STATUS_CLIENT' value='13'/>
     </enum-decl>
-    <enum-decl name='rc_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='69' column='1' hash='27d67a40aa4b9efa' id='type-id-79'>
+    <enum-decl name='rc_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='70' column='1' hash='27d67a40aa4b9efa' id='type-id-79'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='AUTH' value='0'/>
       <enumerator name='ACCT' value='1'/>
     </enum-decl>
     <type-decl name='int' size-in-bits='32' hash='09d17c08f594edc7' id='type-id-11'/>
     <type-decl name='long int' size-in-bits='64' hash='b119fe0931d2ee10#2' id='type-id-12'/>
-    <class-decl name='dict_attr' is-struct='yes' visibility='default' size-in-bits='768' filepath='../include/radcli/radcli.h' line='433' column='1' hash='e01c5fd639f87215' id='type-id-13'>
+    <class-decl name='dict_attr' is-struct='yes' visibility='default' size-in-bits='768' filepath='../include/radcli/radcli.h' line='434' column='1' hash='e01c5fd639f87215' id='type-id-13'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='435' column='1'/>
+        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='436' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='value' type-id='type-id-80' visibility='default' filepath='../include/radcli/radcli.h' line='436' column='1'/>
+        <var-decl name='value' type-id='type-id-80' visibility='default' filepath='../include/radcli/radcli.h' line='437' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='640'>
-        <var-decl name='type' type-id='type-id-81' visibility='default' filepath='../include/radcli/radcli.h' line='437' column='1'/>
+        <var-decl name='type' type-id='type-id-81' visibility='default' filepath='../include/radcli/radcli.h' line='438' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='next' type-id='type-id-82' visibility='default' filepath='../include/radcli/radcli.h' line='438' column='1'/>
+        <var-decl name='next' type-id='type-id-82' visibility='default' filepath='../include/radcli/radcli.h' line='439' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='dict_value' is-struct='yes' visibility='default' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='441' column='1' hash='74a2158e844e121a' id='type-id-15'>
+    <class-decl name='dict_value' is-struct='yes' visibility='default' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='442' column='1' hash='74a2158e844e121a' id='type-id-15'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrname' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='443' column='1'/>
+        <var-decl name='attrname' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='444' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='444' column='1'/>
+        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='445' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='1056'>
-        <var-decl name='value' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='445' column='1'/>
+        <var-decl name='value' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='446' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='next' type-id='type-id-83' visibility='default' filepath='../include/radcli/radcli.h' line='446' column='1'/>
+        <var-decl name='next' type-id='type-id-83' visibility='default' filepath='../include/radcli/radcli.h' line='447' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='dict_vendor' is-struct='yes' visibility='default' size-in-bits='640' filepath='../include/radcli/radcli.h' line='449' column='1' hash='7d643bf1c351ebed' id='type-id-17'>
+    <class-decl name='dict_vendor' is-struct='yes' visibility='default' size-in-bits='640' filepath='../include/radcli/radcli.h' line='450' column='1' hash='7d643bf1c351ebed' id='type-id-17'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='vendorname' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='451' column='1'/>
+        <var-decl name='vendorname' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='452' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='544'>
-        <var-decl name='vendorpec' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='452' column='1'/>
+        <var-decl name='vendorpec' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='453' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='next' type-id='type-id-84' visibility='default' filepath='../include/radcli/radcli.h' line='453' column='1'/>
+        <var-decl name='next' type-id='type-id-84' visibility='default' filepath='../include/radcli/radcli.h' line='454' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' size-in-bits='2184' filepath='../include/includes.h' line='214' column='1' hash='68ea9703fcbff041' id='type-id-85'>
+    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' size-in-bits='2184' filepath='../include/includes.h' line='206' column='1' hash='68ea9703fcbff041' id='type-id-85'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='secret' type-id='type-id-68' visibility='default' filepath='../include/includes.h' line='216' column='1'/>
+        <var-decl name='secret' type-id='type-id-68' visibility='default' filepath='../include/includes.h' line='208' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2056'>
-        <var-decl name='request_vector' type-id='type-id-25' visibility='default' filepath='../include/includes.h' line='217' column='1'/>
+        <var-decl name='request_vector' type-id='type-id-25' visibility='default' filepath='../include/includes.h' line='209' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='rc_conf' is-struct='yes' visibility='default' size-in-bits='3136' filepath='../include/includes.h' line='192' column='1' hash='49880ab9f1e09a29' id='type-id-86'>
+    <class-decl name='rc_conf' is-struct='yes' visibility='default' size-in-bits='3136' filepath='../include/includes.h' line='184' column='1' hash='49880ab9f1e09a29' id='type-id-86'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='config_options' type-id='type-id-87' visibility='default' filepath='../include/includes.h' line='194' column='1'/>
+        <var-decl name='config_options' type-id='type-id-87' visibility='default' filepath='../include/includes.h' line='186' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='nas_addr' type-id='type-id-88' visibility='default' filepath='../include/includes.h' line='195' column='1'/>
+        <var-decl name='nas_addr' type-id='type-id-88' visibility='default' filepath='../include/includes.h' line='187' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='nas_addr_set' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='196' column='1'/>
+        <var-decl name='nas_addr_set' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='188' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='1152'>
-        <var-decl name='own_bind_addr' type-id='type-id-88' visibility='default' filepath='../include/includes.h' line='198' column='1'/>
+        <var-decl name='own_bind_addr' type-id='type-id-88' visibility='default' filepath='../include/includes.h' line='190' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2176'>
-        <var-decl name='own_bind_addr_set' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='199' column='1'/>
+        <var-decl name='own_bind_addr_set' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='191' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2240'>
-        <var-decl name='first_dict_read' type-id='type-id-30' visibility='default' filepath='../include/includes.h' line='204' column='1'/>
+        <var-decl name='first_dict_read' type-id='type-id-30' visibility='default' filepath='../include/includes.h' line='196' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2304'>
-        <var-decl name='dictionary_attributes' type-id='type-id-82' visibility='default' filepath='../include/includes.h' line='205' column='1'/>
+        <var-decl name='dictionary_attributes' type-id='type-id-82' visibility='default' filepath='../include/includes.h' line='197' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2368'>
-        <var-decl name='dictionary_values' type-id='type-id-83' visibility='default' filepath='../include/includes.h' line='206' column='1'/>
+        <var-decl name='dictionary_values' type-id='type-id-83' visibility='default' filepath='../include/includes.h' line='198' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2432'>
-        <var-decl name='dictionary_vendors' type-id='type-id-84' visibility='default' filepath='../include/includes.h' line='207' column='1'/>
+        <var-decl name='dictionary_vendors' type-id='type-id-84' visibility='default' filepath='../include/includes.h' line='199' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2496'>
-        <var-decl name='so' type-id='type-id-89' visibility='default' filepath='../include/includes.h' line='209' column='1'/>
+        <var-decl name='so' type-id='type-id-89' visibility='default' filepath='../include/includes.h' line='201' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='3072'>
-        <var-decl name='so_type' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='210' column='1'/>
+        <var-decl name='so_type' type-id='type-id-47' visibility='default' filepath='../include/includes.h' line='202' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='rc_sockets_override' is-struct='yes' visibility='default' size-in-bits='576' filepath='../include/includes.h' line='175' column='1' hash='ef4426f46565aa5d' id='type-id-90'>
+    <class-decl name='rc_sockets_override' is-struct='yes' visibility='default' size-in-bits='576' filepath='../include/includes.h' line='167' column='1' hash='ef4426f46565aa5d' id='type-id-90'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ptr' type-id='type-id-3' visibility='default' filepath='../include/includes.h' line='176' column='1'/>
+        <var-decl name='ptr' type-id='type-id-3' visibility='default' filepath='../include/includes.h' line='168' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='static_secret' type-id='type-id-2' visibility='default' filepath='../include/includes.h' line='177' column='1'/>
+        <var-decl name='static_secret' type-id='type-id-2' visibility='default' filepath='../include/includes.h' line='169' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='get_fd' type-id='type-id-91' visibility='default' filepath='../include/includes.h' line='178' column='1'/>
+        <var-decl name='get_fd' type-id='type-id-91' visibility='default' filepath='../include/includes.h' line='170' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='get_active_fd' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='182' column='1'/>
+        <var-decl name='get_active_fd' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='174' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='close_fd' type-id='type-id-93' visibility='default' filepath='../include/includes.h' line='183' column='1'/>
+        <var-decl name='close_fd' type-id='type-id-93' visibility='default' filepath='../include/includes.h' line='175' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='sendto' type-id='type-id-94' visibility='default' filepath='../include/includes.h' line='184' column='1'/>
+        <var-decl name='sendto' type-id='type-id-94' visibility='default' filepath='../include/includes.h' line='176' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='recvfrom' type-id='type-id-95' visibility='default' filepath='../include/includes.h' line='186' column='1'/>
+        <var-decl name='recvfrom' type-id='type-id-95' visibility='default' filepath='../include/includes.h' line='178' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='448'>
-        <var-decl name='lock' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='188' column='1'/>
+        <var-decl name='lock' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='180' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='512'>
-        <var-decl name='unlock' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='189' column='1'/>
+        <var-decl name='unlock' type-id='type-id-92' visibility='default' filepath='../include/includes.h' line='181' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='rc_value_pair' is-struct='yes' visibility='default' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='478' column='1' hash='20c4c7a71c281e48' id='type-id-96'>
+    <class-decl name='rc_value_pair' is-struct='yes' visibility='default' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='483' column='1' hash='20c4c7a71c281e48' id='type-id-96'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='480' column='1'/>
+        <var-decl name='name' type-id='type-id-72' visibility='default' filepath='../include/radcli/radcli.h' line='485' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='attribute' type-id='type-id-80' visibility='default' filepath='../include/radcli/radcli.h' line='481' column='1'/>
+        <var-decl name='attribute' type-id='type-id-80' visibility='default' filepath='../include/radcli/radcli.h' line='486' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='640'>
-        <var-decl name='type' type-id='type-id-81' visibility='default' filepath='../include/radcli/radcli.h' line='482' column='1'/>
+        <var-decl name='type' type-id='type-id-81' visibility='default' filepath='../include/radcli/radcli.h' line='487' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='672'>
-        <var-decl name='lvalue' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='483' column='1'/>
+        <var-decl name='lvalue' type-id='type-id-20' visibility='default' filepath='../include/radcli/radcli.h' line='488' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='strvalue' type-id='type-id-66' visibility='default' filepath='../include/radcli/radcli.h' line='484' column='1'/>
+        <var-decl name='strvalue' type-id='type-id-66' visibility='default' filepath='../include/radcli/radcli.h' line='489' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2752'>
-        <var-decl name='next' type-id='type-id-97' visibility='default' filepath='../include/radcli/radcli.h' line='485' column='1'/>
+        <var-decl name='next' type-id='type-id-97' visibility='default' filepath='../include/radcli/radcli.h' line='490' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='2816'>
-        <var-decl name='pad' type-id='type-id-70' visibility='default' filepath='../include/radcli/radcli.h' line='486' column='1'/>
+        <var-decl name='pad' type-id='type-id-70' visibility='default' filepath='../include/radcli/radcli.h' line='491' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='send_data' is-struct='yes' visibility='default' size-in-bits='448' filepath='../include/radcli/radcli.h' line='489' column='1' hash='ed01b9ce36055e2c' id='type-id-98'>
+    <class-decl name='send_data' is-struct='yes' visibility='default' size-in-bits='448' filepath='../include/radcli/radcli.h' line='499' column='1' hash='ed01b9ce36055e2c' id='type-id-98'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='code' type-id='type-id-99' visibility='default' filepath='../include/radcli/radcli.h' line='491' column='1'/>
+        <var-decl name='code' type-id='type-id-99' visibility='default' filepath='../include/radcli/radcli.h' line='501' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='8'>
-        <var-decl name='seq_nbr' type-id='type-id-99' visibility='default' filepath='../include/radcli/radcli.h' line='492' column='1'/>
+        <var-decl name='seq_nbr' type-id='type-id-99' visibility='default' filepath='../include/radcli/radcli.h' line='502' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='server' type-id='type-id-30' visibility='default' filepath='../include/radcli/radcli.h' line='493' column='1'/>
+        <var-decl name='server' type-id='type-id-30' visibility='default' filepath='../include/radcli/radcli.h' line='503' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='svc_port' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='494' column='1'/>
+        <var-decl name='svc_port' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='504' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='secret' type-id='type-id-30' visibility='default' filepath='../include/radcli/radcli.h' line='495' column='1'/>
+        <var-decl name='secret' type-id='type-id-30' visibility='default' filepath='../include/radcli/radcli.h' line='505' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='timeout' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='496' column='1'/>
+        <var-decl name='timeout' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='506' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='288'>
-        <var-decl name='retries' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='497' column='1'/>
+        <var-decl name='retries' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='507' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='send_pairs' type-id='type-id-53' visibility='default' filepath='../include/radcli/radcli.h' line='498' column='1'/>
+        <var-decl name='send_pairs' type-id='type-id-53' visibility='default' filepath='../include/radcli/radcli.h' line='508' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='receive_pairs' type-id='type-id-53' visibility='default' filepath='../include/radcli/radcli.h' line='499' column='1'/>
+        <var-decl name='receive_pairs' type-id='type-id-53' visibility='default' filepath='../include/radcli/radcli.h' line='509' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='90' column='1' hash='a17cce6752d91333' id='type-id-100'>
+    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='91' column='1' hash='a17cce6752d91333' id='type-id-100'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='max' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='91' column='1'/>
+        <var-decl name='max' type-id='type-id-11' visibility='default' filepath='../include/radcli/radcli.h' line='92' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='name' type-id='type-id-60' visibility='default' filepath='../include/radcli/radcli.h' line='92' column='1'/>
+        <var-decl name='name' type-id='type-id-60' visibility='default' filepath='../include/radcli/radcli.h' line='93' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='port' type-id='type-id-26' visibility='default' filepath='../include/radcli/radcli.h' line='93' column='1'/>
+        <var-decl name='port' type-id='type-id-26' visibility='default' filepath='../include/radcli/radcli.h' line='94' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='secret' type-id='type-id-60' visibility='default' filepath='../include/radcli/radcli.h' line='94' column='1'/>
+        <var-decl name='secret' type-id='type-id-60' visibility='default' filepath='../include/radcli/radcli.h' line='95' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='1216'>
-        <var-decl name='deadtime_ends' type-id='type-id-75' visibility='default' filepath='../include/radcli/radcli.h' line='95' column='1'/>
+        <var-decl name='deadtime_ends' type-id='type-id-75' visibility='default' filepath='../include/radcli/radcli.h' line='96' column='1'/>
       </data-member>
     </class-decl>
     <class-decl name='sockaddr' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/socket.h' line='184' column='1' hash='17b889f8dd08e00f' id='type-id-101'>
@@ -779,21 +778,21 @@
         <var-decl name='__ss_align' type-id='type-id-23' visibility='default' filepath='/usr/include/bits/socket.h' line='201' column='1'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='RC_AAA_CTX' type-id='type-id-85' size-in-bits='2184' filepath='../include/radcli/radcli.h' line='505' column='1' id='type-id-103'/>
-    <typedef-decl name='SEND_DATA' type-id='type-id-98' size-in-bits='448' filepath='../include/radcli/radcli.h' line='500' column='1' id='type-id-104'/>
-    <typedef-decl name='SERVER' type-id='type-id-100' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='96' column='1' id='type-id-105'/>
-    <typedef-decl name='VALUE_PAIR' type-id='type-id-96' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='487' column='1' id='type-id-106'/>
+    <typedef-decl name='RC_AAA_CTX' type-id='type-id-85' size-in-bits='2184' filepath='../include/radcli/radcli.h' line='524' column='1' id='type-id-103'/>
+    <typedef-decl name='SEND_DATA' type-id='type-id-98' size-in-bits='448' filepath='../include/radcli/radcli.h' line='510' column='1' id='type-id-104'/>
+    <typedef-decl name='SERVER' type-id='type-id-100' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='97' column='1' id='type-id-105'/>
+    <typedef-decl name='VALUE_PAIR' type-id='type-id-96' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='492' column='1' id='type-id-106'/>
     <typedef-decl name='__socklen_t' type-id='type-id-47' size-in-bits='32' filepath='/usr/include/bits/types.h' line='210' column='1' hash='e66b43f97c38e87a' id='type-id-107'/>
     <typedef-decl name='__ssize_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='194' column='1' hash='b119fe0931d2ee10' id='type-id-108'/>
     <typedef-decl name='__uint16_t' type-id='type-id-38' size-in-bits='16' filepath='/usr/include/bits/types.h' line='40' column='1' hash='d7723bb93a30b11d' id='type-id-109'/>
     <typedef-decl name='__uint32_t' type-id='type-id-47' size-in-bits='32' filepath='/usr/include/bits/types.h' line='42' column='1' hash='e66b43f97c38e87a' id='type-id-110'/>
     <typedef-decl name='__uint64_t' type-id='type-id-23' size-in-bits='64' filepath='/usr/include/bits/types.h' line='45' column='1' hash='8fdc5eea2983a729' id='type-id-111'/>
     <typedef-decl name='__uint8_t' type-id='type-id-112' size-in-bits='8' filepath='/usr/include/bits/types.h' line='38' column='1' hash='6ebac62b3366db68' id='type-id-113'/>
-    <typedef-decl name='rc_attr_type' type-id='type-id-76' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='123' column='1' hash='d5b96d74a4f35e62' id='type-id-81'/>
-    <typedef-decl name='rc_handle' type-id='type-id-86' size-in-bits='3136' filepath='../include/radcli/radcli.h' line='84' column='1' id='type-id-114'/>
-    <typedef-decl name='rc_sockets_override' type-id='type-id-90' size-in-bits='576' filepath='../include/includes.h' line='190' column='1' id='type-id-89'/>
-    <typedef-decl name='rc_standard_codes' type-id='type-id-78' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='141' column='1' hash='e41dfe5328868d85' id='type-id-115'/>
-    <typedef-decl name='rc_type' type-id='type-id-79' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='72' column='1' hash='27d67a40aa4b9efa' id='type-id-116'/>
+    <typedef-decl name='rc_attr_type' type-id='type-id-76' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='124' column='1' hash='d5b96d74a4f35e62' id='type-id-81'/>
+    <typedef-decl name='rc_handle' type-id='type-id-86' size-in-bits='3136' filepath='../include/radcli/radcli.h' line='85' column='1' id='type-id-114'/>
+    <typedef-decl name='rc_sockets_override' type-id='type-id-90' size-in-bits='576' filepath='../include/includes.h' line='182' column='1' id='type-id-89'/>
+    <typedef-decl name='rc_standard_codes' type-id='type-id-78' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='142' column='1' hash='e41dfe5328868d85' id='type-id-115'/>
+    <typedef-decl name='rc_type' type-id='type-id-79' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='73' column='1' hash='27d67a40aa4b9efa' id='type-id-116'/>
     <typedef-decl name='sa_family_t' type-id='type-id-38' size-in-bits='16' filepath='/usr/include/bits/sockaddr.h' line='28' column='1' hash='d7723bb93a30b11d' id='type-id-102'/>
     <typedef-decl name='size_t' type-id='type-id-23' size-in-bits='64' filepath='/usr/lib/gcc/x86_64-redhat-linux/15/include/stddef.h' line='229' column='1' hash='8fdc5eea2983a729' id='type-id-55'/>
     <typedef-decl name='socklen_t' type-id='type-id-107' size-in-bits='32' filepath='/usr/include/bits/socket.h' line='33' column='1' hash='e66b43f97c38e87a' id='type-id-58'/>
@@ -853,83 +852,89 @@
         <var-decl name='val' type-id='type-id-3' visibility='default' filepath='./options.h' line='26' column='1'/>
       </data-member>
     </class-decl>
-    <function-decl name='rc_buildreq' mangled-name='rc_buildreq' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='41' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_buildreq@@RADCLI_10' hash='7cfd40833daf367f'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='41' column='1'/>
-      <parameter type-id='type-id-121' name='data' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='41' column='1'/>
-      <parameter type-id='type-id-11' name='code' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='41' column='1'/>
-      <parameter type-id='type-id-30' name='server' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='41' column='1'/>
-      <parameter type-id='type-id-38' name='port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='42' column='1'/>
-      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='42' column='1'/>
-      <parameter type-id='type-id-11' name='timeout' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='42' column='1'/>
-      <parameter type-id='type-id-11' name='retries' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='42' column='1'/>
+    <function-decl name='rc_buildreq' mangled-name='rc_buildreq' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='45' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_buildreq@@RADCLI_10' hash='7cfd40833daf367f'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='45' column='1'/>
+      <parameter type-id='type-id-121' name='data' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='45' column='1'/>
+      <parameter type-id='type-id-11' name='code' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='45' column='1'/>
+      <parameter type-id='type-id-30' name='server' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='45' column='1'/>
+      <parameter type-id='type-id-38' name='port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='46' column='1'/>
+      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='46' column='1'/>
+      <parameter type-id='type-id-11' name='timeout' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='46' column='1'/>
+      <parameter type-id='type-id-11' name='retries' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='46' column='1'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_aaa_ctx' mangled-name='rc_aaa_ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='70' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx@@RADCLI_10' hash='1340f48c31fa6120'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='70' column='1'/>
-      <parameter type-id='type-id-120' name='ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='70' column='1'/>
-      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='70' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='71' column='1'/>
-      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='71' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='71' column='1'/>
-      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='72' column='1'/>
-      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='72' column='1'/>
+    <function-decl name='rc_aaa_ctx' mangled-name='rc_aaa_ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='164' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx@@RADCLI_10' hash='1340f48c31fa6120'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='164' column='1'/>
+      <parameter type-id='type-id-120' name='ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='164' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='164' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='165' column='1'/>
+      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='165' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='165' column='1'/>
+      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='166' column='1'/>
+      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='166' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_aaa_ctx_server' mangled-name='rc_aaa_ctx_server' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='111' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_server@@RADCLI_10' hash='263fed8cea076c4f'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='111' column='1'/>
-      <parameter type-id='type-id-120' name='ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='111' column='1'/>
-      <parameter type-id='type-id-122' name='aaaserver' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='111' column='1'/>
-      <parameter type-id='type-id-116' name='type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='112' column='1'/>
-      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='113' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='114' column='1'/>
-      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='114' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='115' column='1'/>
-      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='115' column='1'/>
-      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='116' column='1'/>
+    <function-decl name='rc_aaa_ctx_server' mangled-name='rc_aaa_ctx_server' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='203' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_server@@RADCLI_10' hash='263fed8cea076c4f'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='203' column='1'/>
+      <parameter type-id='type-id-120' name='ctx' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='203' column='1'/>
+      <parameter type-id='type-id-122' name='aaaserver' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='203' column='1'/>
+      <parameter type-id='type-id-116' name='type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='204' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='205' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='206' column='1'/>
+      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='206' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='207' column='1'/>
+      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='207' column='1'/>
+      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='208' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_aaa' mangled-name='rc_aaa' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='215' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa@@RADCLI_10' hash='0bd54b12dc7fab85'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='215' column='1'/>
-      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='215' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='215' column='1'/>
-      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='216' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='216' column='1'/>
-      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='216' column='1'/>
-      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='217' column='1'/>
+    <function-decl name='rc_aaa' mangled-name='rc_aaa' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='281' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa@@RADCLI_10' hash='0bd54b12dc7fab85'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='281' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='281' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='281' column='1'/>
+      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='282' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='282' column='1'/>
+      <parameter type-id='type-id-11' name='add_nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='282' column='1'/>
+      <parameter type-id='type-id-115' name='request_type' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='283' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_auth' mangled-name='rc_auth' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='235' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth@@RADCLI_10' hash='b653c9a88b550ab8'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='235' column='1'/>
-      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='235' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='235' column='1'/>
-      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='236' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='236' column='1'/>
+    <function-decl name='rc_auth' mangled-name='rc_auth' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='301' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth@@RADCLI_10' hash='b653c9a88b550ab8'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='301' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='301' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='301' column='1'/>
+      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='302' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='302' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_auth_proxy' mangled-name='rc_auth_proxy' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='257' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth_proxy@@RADCLI_10' hash='fa41cd0d1cfcedb5'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='257' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='257' column='1'/>
-      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='257' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='258' column='1'/>
+    <function-decl name='rc_auth_proxy' mangled-name='rc_auth_proxy' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='323' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth_proxy@@RADCLI_10' hash='fa41cd0d1cfcedb5'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='323' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='323' column='1'/>
+      <parameter type-id='type-id-52' name='received' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='323' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='324' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_acct' mangled-name='rc_acct' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='274' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct@@RADCLI_10' hash='43c292fd0273b7a9'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='274' column='1'/>
-      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='274' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='274' column='1'/>
+    <function-decl name='rc_acct' mangled-name='rc_acct' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='340' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct@@RADCLI_10' hash='43c292fd0273b7a9'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_acct_proxy' mangled-name='rc_acct_proxy' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='287' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_proxy@@RADCLI_10' hash='512e428547b00817'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='287' column='1'/>
-      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='287' column='1'/>
+    <function-decl name='rc_acct_proxy' mangled-name='rc_acct_proxy' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='353' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_proxy@@RADCLI_10' hash='512e428547b00817'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='353' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='353' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_check' mangled-name='rc_check' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='303' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check@@RADCLI_10' hash='b1df0502a05212bb'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='303' column='1'/>
-      <parameter type-id='type-id-30' name='host' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='303' column='1'/>
-      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='303' column='1'/>
-      <parameter type-id='type-id-38' name='port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='303' column='1'/>
-      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='304' column='1'/>
+    <function-decl name='rc_acct_async' mangled-name='rc_acct_async' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_async@@RADCLI_10' hash='43c292fd0273b7a9'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
+      <parameter type-id='type-id-20' name='nas_port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
+      <parameter type-id='type-id-53' name='send' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='438' column='1'/>
+      <return type-id='type-id-11'/>
+    </function-decl>
+    <function-decl name='rc_check' mangled-name='rc_check' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='459' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check@@RADCLI_10' hash='b1df0502a05212bb'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='459' column='1'/>
+      <parameter type-id='type-id-30' name='host' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='459' column='1'/>
+      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='459' column='1'/>
+      <parameter type-id='type-id-38' name='port' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='459' column='1'/>
+      <parameter type-id='type-id-30' name='msg' filepath='/home/nmav/projects/radcli/lib/buildreq.c' line='460' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='random' filepath='/usr/include/stdlib.h' line='521' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='random' hash='52c0efb08d2aa513'>
@@ -982,7 +987,7 @@
     <array-type-def dimensions='1' type-id='type-id-59' size-in-bits='64' hash='e1c8b625c73024c4' id='type-id-141'>
       <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-23' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-61'/>
     </array-type-def>
-    <enum-decl name='rc_socket_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='100' column='1' hash='3abaa96b612ae129' id='type-id-142'>
+    <enum-decl name='rc_socket_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='101' column='1' hash='3abaa96b612ae129' id='type-id-142'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='RC_SOCKET_UDP' value='0'/>
       <enumerator name='RC_SOCKET_TLS' value='1'/>
@@ -1107,7 +1112,7 @@
     <typedef-decl name='__off64_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='153' column='1' hash='b119fe0931d2ee10' id='type-id-149'/>
     <typedef-decl name='__off_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='152' column='1' hash='b119fe0931d2ee10' id='type-id-147'/>
     <typedef-decl name='__pid_t' type-id='type-id-11' size-in-bits='32' filepath='/usr/include/bits/types.h' line='154' column='1' hash='09d17c08f594edc7' id='type-id-156'/>
-    <typedef-decl name='rc_socket_type' type-id='type-id-142' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='105' column='1' hash='3abaa96b612ae129' id='type-id-157'/>
+    <typedef-decl name='rc_socket_type' type-id='type-id-142' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='106' column='1' hash='3abaa96b612ae129' id='type-id-157'/>
     <pointer-type-def type-id='type-id-154' size-in-bits='64' hash='4cdc26b379a5c62d' id='type-id-158'/>
     <qualified-type-def type-id='type-id-158' restrict='yes' hash='6a2cf982d0fba87f' id='type-id-159'/>
     <pointer-type-def type-id='type-id-144' size-in-bits='64' hash='071f36dcbe00ad00' id='type-id-146'/>
@@ -1126,67 +1131,67 @@
     <class-decl name='_IO_marker' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-164'/>
     <class-decl name='_IO_wide_data' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-165'/>
     <qualified-type-def type-id='type-id-3' restrict='yes' id='type-id-166'/>
-    <function-decl name='rc_add_config' mangled-name='rc_add_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_add_config@@RADCLI_10' hash='9555b6198352d410'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1'/>
-      <parameter type-id='type-id-2' name='option_name' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1'/>
-      <parameter type-id='type-id-2' name='option_val' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1'/>
-      <parameter type-id='type-id-2' name='source' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1'/>
-      <parameter type-id='type-id-11' name='line' filepath='/home/nmav/projects/radcli/lib/config.c' line='294' column='1'/>
+    <function-decl name='rc_add_config' mangled-name='rc_add_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_add_config@@RADCLI_10' hash='9555b6198352d410'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1'/>
+      <parameter type-id='type-id-2' name='option_name' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1'/>
+      <parameter type-id='type-id-2' name='option_val' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1'/>
+      <parameter type-id='type-id-2' name='source' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1'/>
+      <parameter type-id='type-id-11' name='line' filepath='/home/nmav/projects/radcli/lib/config.c' line='295' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_config_init' mangled-name='rc_config_init' filepath='/home/nmav/projects/radcli/lib/config.c' line='349' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_init@@RADCLI_10' hash='301447e85753c583'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='349' column='1'/>
+    <function-decl name='rc_config_init' mangled-name='rc_config_init' filepath='/home/nmav/projects/radcli/lib/config.c' line='362' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_init@@RADCLI_10' hash='301447e85753c583'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='362' column='1'/>
       <return type-id='type-id-130'/>
     </function-decl>
-    <function-decl name='rc_apply_config' mangled-name='rc_apply_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='500' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_apply_config@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='500' column='1'/>
+    <function-decl name='rc_apply_config' mangled-name='rc_apply_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='519' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_apply_config@@RADCLI_10' hash='b6704dc70a55ac3c'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='519' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_read_config' mangled-name='rc_read_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='568' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_config@@RADCLI_10' hash='f1bd4031c3a977ce'>
-      <parameter type-id='type-id-2' name='filename' filepath='/home/nmav/projects/radcli/lib/config.c' line='568' column='1'/>
+    <function-decl name='rc_read_config' mangled-name='rc_read_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='618' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_config@@RADCLI_10' hash='f1bd4031c3a977ce'>
+      <parameter type-id='type-id-2' name='filename' filepath='/home/nmav/projects/radcli/lib/config.c' line='618' column='1'/>
       <return type-id='type-id-130'/>
     </function-decl>
-    <function-decl name='rc_conf_str' mangled-name='rc_conf_str' filepath='/home/nmav/projects/radcli/lib/config.c' line='708' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_str@@RADCLI_10' hash='57390266c6026cfb'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='708' column='1'/>
-      <parameter type-id='type-id-2' name='optname' filepath='/home/nmav/projects/radcli/lib/config.c' line='708' column='1'/>
+    <function-decl name='rc_conf_str' mangled-name='rc_conf_str' filepath='/home/nmav/projects/radcli/lib/config.c' line='765' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_str@@RADCLI_10' hash='57390266c6026cfb'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='765' column='1'/>
+      <parameter type-id='type-id-2' name='optname' filepath='/home/nmav/projects/radcli/lib/config.c' line='765' column='1'/>
       <return type-id='type-id-30'/>
     </function-decl>
-    <function-decl name='rc_conf_int' mangled-name='rc_conf_int' filepath='/home/nmav/projects/radcli/lib/config.c' line='747' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int@@RADCLI_10' hash='1b4b3bdd6142682c'>
+    <function-decl name='rc_conf_int' mangled-name='rc_conf_int' filepath='/home/nmav/projects/radcli/lib/config.c' line='804' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int@@RADCLI_10' hash='1b4b3bdd6142682c'>
       <parameter type-id='type-id-51'/>
       <parameter type-id='type-id-2'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_conf_srv' mangled-name='rc_conf_srv' filepath='/home/nmav/projects/radcli/lib/config.c' line='758' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_srv@@RADCLI_10' hash='222e9258b4d6fde1'>
+    <function-decl name='rc_conf_srv' mangled-name='rc_conf_srv' filepath='/home/nmav/projects/radcli/lib/config.c' line='815' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_srv@@RADCLI_10' hash='222e9258b4d6fde1'>
       <parameter type-id='type-id-51'/>
       <parameter type-id='type-id-2'/>
       <return type-id='type-id-122'/>
     </function-decl>
-    <function-decl name='rc_test_config' mangled-name='rc_test_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='778' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_test_config@@RADCLI_10' hash='b8839c8a7cbb371f'>
+    <function-decl name='rc_test_config' mangled-name='rc_test_config' filepath='/home/nmav/projects/radcli/lib/config.c' line='835' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_test_config@@RADCLI_10' hash='b8839c8a7cbb371f'>
       <parameter type-id='type-id-130'/>
       <parameter type-id='type-id-2'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_find_server_addr' mangled-name='rc_find_server_addr' filepath='/home/nmav/projects/radcli/lib/config.c' line='912' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_find_server_addr@@RADCLI_10' hash='45aa6cd92a689c8d'>
-      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='912' column='1'/>
-      <parameter type-id='type-id-2' name='server_name' filepath='/home/nmav/projects/radcli/lib/config.c' line='912' column='1'/>
-      <parameter type-id='type-id-167' name='info' filepath='/home/nmav/projects/radcli/lib/config.c' line='913' column='1'/>
-      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/config.c' line='913' column='1'/>
-      <parameter type-id='type-id-116' name='type' filepath='/home/nmav/projects/radcli/lib/config.c' line='913' column='1'/>
+    <function-decl name='rc_find_server_addr' mangled-name='rc_find_server_addr' filepath='/home/nmav/projects/radcli/lib/config.c' line='964' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_find_server_addr@@RADCLI_10' hash='45aa6cd92a689c8d'>
+      <parameter type-id='type-id-51' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='964' column='1'/>
+      <parameter type-id='type-id-2' name='server_name' filepath='/home/nmav/projects/radcli/lib/config.c' line='964' column='1'/>
+      <parameter type-id='type-id-167' name='info' filepath='/home/nmav/projects/radcli/lib/config.c' line='965' column='1'/>
+      <parameter type-id='type-id-30' name='secret' filepath='/home/nmav/projects/radcli/lib/config.c' line='965' column='1'/>
+      <parameter type-id='type-id-116' name='type' filepath='/home/nmav/projects/radcli/lib/config.c' line='965' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_config_free' mangled-name='rc_config_free' filepath='/home/nmav/projects/radcli/lib/config.c' line='1062' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_free@@RADCLI_10' hash='353ae88bca3393cc'>
+    <function-decl name='rc_config_free' mangled-name='rc_config_free' filepath='/home/nmav/projects/radcli/lib/config.c' line='1114' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_free@@RADCLI_10' hash='353ae88bca3393cc'>
       <parameter type-id='type-id-130'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_new' mangled-name='rc_new' filepath='/home/nmav/projects/radcli/lib/config.c' line='1096' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_new@@RADCLI_10' hash='353ae88bca3393cc'>
+    <function-decl name='rc_new' mangled-name='rc_new' filepath='/home/nmav/projects/radcli/lib/config.c' line='1148' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_new@@RADCLI_10' hash='353ae88bca3393cc'>
       <return type-id='type-id-130'/>
     </function-decl>
-    <function-decl name='rc_destroy' mangled-name='rc_destroy' filepath='/home/nmav/projects/radcli/lib/config.c' line='1127' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_destroy@@RADCLI_10' hash='353ae88bca3393cc'>
+    <function-decl name='rc_destroy' mangled-name='rc_destroy' filepath='/home/nmav/projects/radcli/lib/config.c' line='1179' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_destroy@@RADCLI_10' hash='353ae88bca3393cc'>
       <parameter type-id='type-id-130'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_get_socket_type' mangled-name='rc_get_socket_type' filepath='/home/nmav/projects/radcli/lib/config.c' line='1151' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_socket_type@@RADCLI_10' hash='6854e817773e3e1d'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='1151' column='1'/>
+    <function-decl name='rc_get_socket_type' mangled-name='rc_get_socket_type' filepath='/home/nmav/projects/radcli/lib/config.c' line='1203' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_socket_type@@RADCLI_10' hash='6854e817773e3e1d'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='1203' column='1'/>
       <return type-id='type-id-157'/>
     </function-decl>
     <function-decl name='__errno_location' filepath='/usr/include/errno.h' line='37' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__errno_location' hash='c0e4f5f42afc96e0'>
@@ -1333,9 +1338,9 @@
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='rc_read_dictionary_from_buffer' mangled-name='rc_read_dictionary_from_buffer' filepath='/home/nmav/projects/radcli/lib/dict.c' line='507' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_dictionary_from_buffer@@RADCLI_10' hash='3d29dfbe20b2165a'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/dict.c' line='507' column='1'/>
-      <parameter type-id='type-id-2' name='buf' filepath='/home/nmav/projects/radcli/lib/dict.c' line='507' column='1'/>
-      <parameter type-id='type-id-55' name='size' filepath='/home/nmav/projects/radcli/lib/dict.c' line='507' column='1'/>
+      <parameter type-id='type-id-130'/>
+      <parameter type-id='type-id-2'/>
+      <parameter type-id='type-id-55'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='rc_dict_getattr' mangled-name='rc_dict_getattr' filepath='/home/nmav/projects/radcli/lib/dict.c' line='532' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getattr@@RADCLI_10' hash='9e8ae7c8fe5cb1c6'>
@@ -1456,12 +1461,12 @@
     </function-decl>
   </abi-instr>
   <abi-instr address-size='64' path='log.c' comp-dir-path='/home/nmav/projects/radcli/lib' language='LANG_C11'>
-    <function-decl name='rc_setdebug' mangled-name='rc_setdebug' filepath='/home/nmav/projects/radcli/lib/log.c' line='16' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_setdebug@@RADCLI_10' hash='388da3fa973fde78'>
+    <function-decl name='rc_setdebug' mangled-name='rc_setdebug' filepath='/home/nmav/projects/radcli/lib/log.c' line='39' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_setdebug@@RADCLI_10' hash='388da3fa973fde78'>
       <parameter type-id='type-id-11'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='rc_openlog' mangled-name='rc_openlog' filepath='/home/nmav/projects/radcli/lib/log.c' line='36' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_openlog@@RADCLI_10' hash='53885bde0aa65efe'>
-      <parameter type-id='type-id-2' name='ident' filepath='/home/nmav/projects/radcli/lib/log.c' line='36' column='1'/>
+    <function-decl name='rc_openlog' mangled-name='rc_openlog' filepath='/home/nmav/projects/radcli/lib/log.c' line='54' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_openlog@@RADCLI_10' hash='53885bde0aa65efe'>
+      <parameter type-id='type-id-2' name='ident' filepath='/home/nmav/projects/radcli/lib/log.c' line='54' column='1'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='openlog' filepath='/usr/include/sys/syslog.h' line='181' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='openlog' hash='9e3d92cc5a49119c'>
@@ -1595,7 +1600,7 @@
     <pointer-type-def type-id='type-id-99' size-in-bits='64' hash='24d8cca8965ce13e' id='type-id-182'/>
     <pointer-type-def type-id='type-id-112' size-in-bits='64' hash='f0221758ecf0c0cb' id='type-id-186'/>
     <qualified-type-def type-id='type-id-3' restrict='yes' id='type-id-196'/>
-    <function-decl name='rc_send_server' mangled-name='rc_send_server' filepath='/home/nmav/projects/radcli/lib/sendserver.c' line='232' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_send_server@@RADCLI_10' hash='659156f6be7b3111'>
+    <function-decl name='rc_send_server' mangled-name='rc_send_server' filepath='/home/nmav/projects/radcli/lib/sendserver.c' line='221' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_send_server@@RADCLI_10' hash='659156f6be7b3111'>
       <parameter type-id='type-id-130'/>
       <parameter type-id='type-id-121'/>
       <parameter type-id='type-id-30'/>
@@ -1604,6 +1609,12 @@
     </function-decl>
     <function-decl name='gnutls_rnd' filepath='/usr/include/gnutls/crypto.h' line='190' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_rnd' hash='4ed095a3e8727273'>
       <parameter type-id='type-id-190'/>
+      <parameter type-id='type-id-3'/>
+      <parameter type-id='type-id-55'/>
+      <return type-id='type-id-11'/>
+    </function-decl>
+    <function-decl name='gnutls_memcmp' filepath='/usr/include/gnutls/gnutls.h' line='2321' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_memcmp' hash='b6a97d07f8261bc0'>
+      <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-55'/>
       <return type-id='type-id-11'/>
@@ -1684,7 +1695,12 @@
       <enumerator name='GNUTLS_CRT_RAWPK' value='3'/>
       <enumerator name='GNUTLS_CRT_MAX' value='3'/>
     </enum-decl>
-    <enum-decl name='gnutls_credentials_type_t' naming-typedef-id='type-id-204' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='287' column='1' hash='7be2a490e9a7a839' id='type-id-205'>
+    <enum-decl name='gnutls_close_request_t' naming-typedef-id='type-id-204' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='791' column='1' hash='66c82e28899d26fa' id='type-id-205'>
+      <underlying-type type-id='type-id-77'/>
+      <enumerator name='GNUTLS_SHUT_RDWR' value='0'/>
+      <enumerator name='GNUTLS_SHUT_WR' value='1'/>
+    </enum-decl>
+    <enum-decl name='gnutls_credentials_type_t' naming-typedef-id='type-id-206' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='287' column='1' hash='7be2a490e9a7a839' id='type-id-207'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='GNUTLS_CRD_CERTIFICATE' value='1'/>
       <enumerator name='GNUTLS_CRD_ANON' value='2'/>
@@ -1692,30 +1708,30 @@
       <enumerator name='GNUTLS_CRD_PSK' value='4'/>
       <enumerator name='GNUTLS_CRD_IA' value='5'/>
     </enum-decl>
-    <enum-decl name='gnutls_psk_key_flags' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='2595' column='1' hash='ec9c286850994608' id='type-id-206'>
+    <enum-decl name='gnutls_psk_key_flags' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='2595' column='1' hash='ec9c286850994608' id='type-id-208'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='GNUTLS_PSK_KEY_RAW' value='0'/>
       <enumerator name='GNUTLS_PSK_KEY_HEX' value='1'/>
       <enumerator name='GNUTLS_PSK_KEY_EXT' value='2'/>
     </enum-decl>
-    <enum-decl name='gnutls_server_name_type_t' naming-typedef-id='type-id-207' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='1628' column='1' hash='c8633d71e0b702a6' id='type-id-208'>
+    <enum-decl name='gnutls_server_name_type_t' naming-typedef-id='type-id-209' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='1628' column='1' hash='c8633d71e0b702a6' id='type-id-210'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='GNUTLS_NAME_DNS' value='1'/>
     </enum-decl>
-    <enum-decl name='gnutls_x509_crt_fmt_t' naming-typedef-id='type-id-209' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='856' column='1' hash='2a90723ab146748b' id='type-id-210'>
+    <enum-decl name='gnutls_x509_crt_fmt_t' naming-typedef-id='type-id-211' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='856' column='1' hash='2a90723ab146748b' id='type-id-212'>
       <underlying-type type-id='type-id-77'/>
       <enumerator name='GNUTLS_X509_FMT_DER' value='0'/>
       <enumerator name='GNUTLS_X509_FMT_PEM' value='1'/>
     </enum-decl>
-    <class-decl name='__pthread_internal_list' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/thread-shared-types.h' line='51' column='1' hash='5bcfb7f1ab39fa47' id='type-id-211'>
+    <class-decl name='__pthread_internal_list' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/thread-shared-types.h' line='51' column='1' hash='5bcfb7f1ab39fa47' id='type-id-213'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='__prev' type-id='type-id-212' visibility='default' filepath='/usr/include/bits/thread-shared-types.h' line='53' column='1'/>
+        <var-decl name='__prev' type-id='type-id-214' visibility='default' filepath='/usr/include/bits/thread-shared-types.h' line='53' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='__next' type-id='type-id-212' visibility='default' filepath='/usr/include/bits/thread-shared-types.h' line='54' column='1'/>
+        <var-decl name='__next' type-id='type-id-214' visibility='default' filepath='/usr/include/bits/thread-shared-types.h' line='54' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='__pthread_mutex_s' is-struct='yes' visibility='default' size-in-bits='320' filepath='/usr/include/bits/struct_mutex.h' line='22' column='1' hash='765d7e157ef2ec37' id='type-id-213'>
+    <class-decl name='__pthread_mutex_s' is-struct='yes' visibility='default' size-in-bits='320' filepath='/usr/include/bits/struct_mutex.h' line='22' column='1' hash='765d7e157ef2ec37' id='type-id-215'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='__lock' type-id='type-id-11' visibility='default' filepath='/usr/include/bits/struct_mutex.h' line='24' column='1'/>
       </data-member>
@@ -1738,10 +1754,10 @@
         <var-decl name='__elision' type-id='type-id-188' visibility='default' filepath='/usr/include/bits/struct_mutex.h' line='35' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='__list' type-id='type-id-214' visibility='default' filepath='/usr/include/bits/struct_mutex.h' line='36' column='1'/>
+        <var-decl name='__list' type-id='type-id-216' visibility='default' filepath='/usr/include/bits/struct_mutex.h' line='36' column='1'/>
       </data-member>
     </class-decl>
-    <class-decl name='gnutls_datum_t' is-struct='yes' naming-typedef-id='type-id-215' visibility='default' size-in-bits='128' filepath='/usr/include/gnutls/gnutls.h' line='1291' column='1' hash='bb81b3b569018715' id='type-id-216'>
+    <class-decl name='gnutls_datum_t' is-struct='yes' naming-typedef-id='type-id-217' visibility='default' size-in-bits='128' filepath='/usr/include/gnutls/gnutls.h' line='1291' column='1' hash='bb81b3b569018715' id='type-id-218'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='data' type-id='type-id-186' visibility='default' filepath='/usr/include/gnutls/gnutls.h' line='1292' column='1'/>
       </data-member>
@@ -1749,21 +1765,22 @@
         <var-decl name='size' type-id='type-id-47' visibility='default' filepath='/usr/include/gnutls/gnutls.h' line='1293' column='1'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='__pthread_list_t' type-id='type-id-211' size-in-bits='128' filepath='/usr/include/bits/thread-shared-types.h' line='55' column='1' id='type-id-214'/>
+    <typedef-decl name='__pthread_list_t' type-id='type-id-213' size-in-bits='128' filepath='/usr/include/bits/thread-shared-types.h' line='55' column='1' id='type-id-216'/>
     <typedef-decl name='gnutls_alert_description_t' type-id='type-id-201' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='648' column='1' hash='e194d6870a33c76f' id='type-id-200'/>
     <typedef-decl name='gnutls_certificate_type_t' type-id='type-id-203' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='847' column='1' hash='0b0e0e9affa9ae45' id='type-id-202'/>
-    <typedef-decl name='gnutls_certificate_verify_function' type-id='type-id-217' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='1868' column='1' id='type-id-218'/>
-    <typedef-decl name='gnutls_credentials_type_t' type-id='type-id-205' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='293' column='1' hash='7be2a490e9a7a839' id='type-id-204'/>
-    <typedef-decl name='gnutls_datum_t' type-id='type-id-216' size-in-bits='128' filepath='/usr/include/gnutls/gnutls.h' line='1294' column='1' id='type-id-215'/>
-    <typedef-decl name='gnutls_free_function' type-id='type-id-219' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2300' column='1' hash='fd7a63c0c6c822c4' id='type-id-220'/>
-    <typedef-decl name='gnutls_psk_key_flags' type-id='type-id-206' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='2599' column='1' hash='ec9c286850994608' id='type-id-221'/>
-    <typedef-decl name='gnutls_server_name_type_t' type-id='type-id-208' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='1630' column='1' hash='c8633d71e0b702a6' id='type-id-207'/>
-    <typedef-decl name='gnutls_x509_crt_fmt_t' type-id='type-id-210' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='859' column='1' hash='2a90723ab146748b' id='type-id-209'/>
-    <typedef-decl name='pthread_mutex_t' type-id='type-id-222' size-in-bits='320' filepath='/usr/include/bits/pthreadtypes.h' line='72' column='1' id='type-id-223'/>
-    <typedef-decl name='pthread_mutexattr_t' type-id='type-id-224' size-in-bits='32' filepath='/usr/include/bits/pthreadtypes.h' line='36' column='1' id='type-id-225'/>
-    <union-decl name='pthread_mutex_t' naming-typedef-id='type-id-223' visibility='default' size-in-bits='320' filepath='/usr/include/bits/pthreadtypes.h' line='67' column='1' hash='8e3e5ddbcaed875f' id='type-id-222'>
+    <typedef-decl name='gnutls_certificate_verify_function' type-id='type-id-219' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='1868' column='1' id='type-id-220'/>
+    <typedef-decl name='gnutls_close_request_t' type-id='type-id-205' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='794' column='1' hash='66c82e28899d26fa' id='type-id-204'/>
+    <typedef-decl name='gnutls_credentials_type_t' type-id='type-id-207' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='293' column='1' hash='7be2a490e9a7a839' id='type-id-206'/>
+    <typedef-decl name='gnutls_datum_t' type-id='type-id-218' size-in-bits='128' filepath='/usr/include/gnutls/gnutls.h' line='1294' column='1' id='type-id-217'/>
+    <typedef-decl name='gnutls_free_function' type-id='type-id-221' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2300' column='1' hash='fd7a63c0c6c822c4' id='type-id-222'/>
+    <typedef-decl name='gnutls_psk_key_flags' type-id='type-id-208' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='2599' column='1' hash='ec9c286850994608' id='type-id-223'/>
+    <typedef-decl name='gnutls_server_name_type_t' type-id='type-id-210' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='1630' column='1' hash='c8633d71e0b702a6' id='type-id-209'/>
+    <typedef-decl name='gnutls_x509_crt_fmt_t' type-id='type-id-212' size-in-bits='32' alignment-in-bits='32' filepath='/usr/include/gnutls/gnutls.h' line='859' column='1' hash='2a90723ab146748b' id='type-id-211'/>
+    <typedef-decl name='pthread_mutex_t' type-id='type-id-224' size-in-bits='320' filepath='/usr/include/bits/pthreadtypes.h' line='72' column='1' id='type-id-225'/>
+    <typedef-decl name='pthread_mutexattr_t' type-id='type-id-226' size-in-bits='32' filepath='/usr/include/bits/pthreadtypes.h' line='36' column='1' id='type-id-227'/>
+    <union-decl name='pthread_mutex_t' naming-typedef-id='type-id-225' visibility='default' size-in-bits='320' filepath='/usr/include/bits/pthreadtypes.h' line='67' column='1' hash='8e3e5ddbcaed875f' id='type-id-224'>
       <data-member access='public'>
-        <var-decl name='__data' type-id='type-id-213' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='69' column='1'/>
+        <var-decl name='__data' type-id='type-id-215' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='69' column='1'/>
       </data-member>
       <data-member access='public'>
         <var-decl name='__size' type-id='type-id-197' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='70' column='1'/>
@@ -1772,7 +1789,7 @@
         <var-decl name='__align' type-id='type-id-12' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='71' column='1'/>
       </data-member>
     </union-decl>
-    <union-decl name='pthread_mutexattr_t' naming-typedef-id='type-id-225' visibility='default' size-in-bits='32' filepath='/usr/include/bits/pthreadtypes.h' line='32' column='1' hash='9efcb016ff95e817' id='type-id-224'>
+    <union-decl name='pthread_mutexattr_t' naming-typedef-id='type-id-227' visibility='default' size-in-bits='32' filepath='/usr/include/bits/pthreadtypes.h' line='32' column='1' hash='9efcb016ff95e817' id='type-id-226'>
       <data-member access='public'>
         <var-decl name='__size' type-id='type-id-199' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='34' column='1'/>
       </data-member>
@@ -1780,60 +1797,65 @@
         <var-decl name='__align' type-id='type-id-11' visibility='default' filepath='/usr/include/bits/pthreadtypes.h' line='35' column='1'/>
       </data-member>
     </union-decl>
-    <pointer-type-def type-id='type-id-211' size-in-bits='64' hash='b83eb2deac70d470' id='type-id-212'/>
-    <pointer-type-def type-id='type-id-2' size-in-bits='64' hash='cea1d4b0943594a3' id='type-id-226'/>
-    <qualified-type-def type-id='type-id-215' const='yes' hash='5a80acf2d0fea502' id='type-id-227'/>
-    <pointer-type-def type-id='type-id-227' size-in-bits='64' hash='4064e3b112d2436b' id='type-id-228'/>
-    <qualified-type-def type-id='type-id-225' const='yes' hash='c2459df9f244e03e' id='type-id-229'/>
-    <pointer-type-def type-id='type-id-229' size-in-bits='64' hash='27684f07d936e645' id='type-id-230'/>
-    <pointer-type-def type-id='type-id-218' size-in-bits='64' hash='642bec7be6092e76' id='type-id-231'/>
-    <pointer-type-def type-id='type-id-215' size-in-bits='64' hash='4c6f5948093ff053' id='type-id-232'/>
-    <pointer-type-def type-id='type-id-223' size-in-bits='64' hash='8f341987365c3f23' id='type-id-233'/>
-    <pointer-type-def type-id='type-id-5' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-219'/>
-    <pointer-type-def type-id='type-id-234' size-in-bits='64' id='type-id-235'/>
+    <pointer-type-def type-id='type-id-213' size-in-bits='64' hash='b83eb2deac70d470' id='type-id-214'/>
+    <pointer-type-def type-id='type-id-2' size-in-bits='64' hash='cea1d4b0943594a3' id='type-id-228'/>
+    <qualified-type-def type-id='type-id-217' const='yes' hash='5a80acf2d0fea502' id='type-id-229'/>
+    <pointer-type-def type-id='type-id-229' size-in-bits='64' hash='4064e3b112d2436b' id='type-id-230'/>
+    <qualified-type-def type-id='type-id-227' const='yes' hash='c2459df9f244e03e' id='type-id-231'/>
+    <pointer-type-def type-id='type-id-231' size-in-bits='64' hash='27684f07d936e645' id='type-id-232'/>
+    <pointer-type-def type-id='type-id-220' size-in-bits='64' hash='642bec7be6092e76' id='type-id-233'/>
+    <pointer-type-def type-id='type-id-217' size-in-bits='64' hash='4c6f5948093ff053' id='type-id-234'/>
+    <pointer-type-def type-id='type-id-225' size-in-bits='64' hash='8f341987365c3f23' id='type-id-235'/>
+    <pointer-type-def type-id='type-id-5' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-221'/>
     <pointer-type-def type-id='type-id-236' size-in-bits='64' id='type-id-237'/>
     <pointer-type-def type-id='type-id-238' size-in-bits='64' id='type-id-239'/>
     <pointer-type-def type-id='type-id-240' size-in-bits='64' id='type-id-241'/>
     <pointer-type-def type-id='type-id-242' size-in-bits='64' id='type-id-243'/>
     <pointer-type-def type-id='type-id-244' size-in-bits='64' id='type-id-245'/>
-    <class-decl name='gnutls_certificate_credentials_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-234'/>
-    <class-decl name='gnutls_psk_client_credentials_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-238'/>
-    <class-decl name='gnutls_session_int' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-242'/>
-    <function-decl name='rc_tls_fd' mangled-name='rc_tls_fd' filepath='/home/nmav/projects/radcli/lib/tls.c' line='447' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_tls_fd@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='500' column='1'/>
+    <pointer-type-def type-id='type-id-246' size-in-bits='64' id='type-id-247'/>
+    <class-decl name='gnutls_certificate_credentials_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-236'/>
+    <class-decl name='gnutls_psk_client_credentials_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-240'/>
+    <class-decl name='gnutls_session_int' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-244'/>
+    <function-decl name='rc_tls_fd' mangled-name='rc_tls_fd' filepath='/home/nmav/projects/radcli/lib/tls.c' line='460' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_tls_fd@@RADCLI_10' hash='b6704dc70a55ac3c'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='519' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='rc_check_tls' mangled-name='rc_check_tls' filepath='/home/nmav/projects/radcli/lib/tls.c' line='478' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check_tls@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='500' column='1'/>
+    <function-decl name='rc_check_tls' mangled-name='rc_check_tls' filepath='/home/nmav/projects/radcli/lib/tls.c' line='493' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check_tls@@RADCLI_10' hash='b6704dc70a55ac3c'>
+      <parameter type-id='type-id-130' name='rh' filepath='/home/nmav/projects/radcli/lib/config.c' line='519' column='1'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_dtls_set_timeouts' filepath='/usr/include/gnutls/dtls.h' line='38' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_dtls_set_timeouts' hash='0389e499374a3f97'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-47'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <typedef-decl name='gnutls_session_t' type-id='type-id-243' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='1279' column='1' id='type-id-244'/>
+    <typedef-decl name='gnutls_session_t' type-id='type-id-245' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='1279' column='1' id='type-id-246'/>
     <function-decl name='gnutls_init' filepath='/usr/include/gnutls/gnutls.h' line='1315' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_init' hash='6668baab5275d4c5'>
-      <parameter type-id='type-id-245'/>
+      <parameter type-id='type-id-247'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_deinit' filepath='/usr/include/gnutls/gnutls.h' line='1316' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_deinit' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-4'/>
     </function-decl>
+    <function-decl name='gnutls_bye' filepath='/usr/include/gnutls/gnutls.h' line='1319' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_bye' hash='9e6f687ba3f286ef'>
+      <parameter type-id='type-id-246'/>
+      <parameter type-id='type-id-204'/>
+      <return type-id='type-id-11'/>
+    </function-decl>
     <function-decl name='gnutls_handshake' filepath='/usr/include/gnutls/gnutls.h' line='1321' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_handshake' hash='388da3fa973fde78'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_handshake_set_timeout' filepath='/usr/include/gnutls/gnutls.h' line='1327' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_handshake_set_timeout' hash='2bb88322482ae81c'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_alert_get' filepath='/usr/include/gnutls/gnutls.h' line='1335' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_alert_get' hash='392ddd37575e20d5'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-200'/>
     </function-decl>
     <function-decl name='gnutls_alert_get_name' filepath='/usr/include/gnutls/gnutls.h' line='1339' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_alert_get_name' hash='154b5031065dfc5f'>
@@ -1841,7 +1863,7 @@
       <return type-id='type-id-2'/>
     </function-decl>
     <function-decl name='gnutls_certificate_type_get' filepath='/usr/include/gnutls/gnutls.h' line='1370' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_type_get' hash='1b2bdb637dcf0fd4'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-202'/>
     </function-decl>
     <function-decl name='gnutls_error_is_fatal' filepath='/usr/include/gnutls/gnutls.h' line='1497' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_error_is_fatal' hash='d628501fd2223339'>
@@ -1853,165 +1875,165 @@
       <return type-id='type-id-2'/>
     </function-decl>
     <function-decl name='gnutls_heartbeat_ping' filepath='/usr/include/gnutls/gnutls.h' line='1519' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_heartbeat_ping' hash='64b268c2afc86ade'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-47'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_record_send' filepath='/usr/include/gnutls/gnutls.h' line='1548' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_record_send' hash='c013aa17bfe204e4'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-55'/>
       <return type-id='type-id-117'/>
     </function-decl>
     <function-decl name='gnutls_record_recv' filepath='/usr/include/gnutls/gnutls.h' line='1557' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_record_recv' hash='c013aa17bfe204e4'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-55'/>
       <return type-id='type-id-117'/>
     </function-decl>
     <function-decl name='gnutls_server_name_set' filepath='/usr/include/gnutls/gnutls.h' line='1632' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_server_name_set' hash='3cf77f0af9b7637f'>
-      <parameter type-id='type-id-244'/>
-      <parameter type-id='type-id-207'/>
+      <parameter type-id='type-id-246'/>
+      <parameter type-id='type-id-209'/>
       <parameter type-id='type-id-3'/>
       <parameter type-id='type-id-55'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_heartbeat_enable' filepath='/usr/include/gnutls/gnutls.h' line='1649' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_heartbeat_enable' hash='2bb88322482ae81c'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_priority_set_direct' filepath='/usr/include/gnutls/gnutls.h' line='1808' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_priority_set_direct' hash='881d31261d7717c8'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-226'/>
+      <parameter type-id='type-id-228'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_set_default_priority' filepath='/usr/include/gnutls/gnutls.h' line='1834' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_set_default_priority' hash='388da3fa973fde78'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_credentials_set' filepath='/usr/include/gnutls/gnutls.h' line='2019' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_credentials_set' hash='d5d85d8c61c04744'>
-      <parameter type-id='type-id-244'/>
-      <parameter type-id='type-id-204'/>
+      <parameter type-id='type-id-246'/>
+      <parameter type-id='type-id-206'/>
       <parameter type-id='type-id-3'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <typedef-decl name='gnutls_certificate_credentials_t' type-id='type-id-235' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2052' column='1' id='type-id-236'/>
+    <typedef-decl name='gnutls_certificate_credentials_t' type-id='type-id-237' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2052' column='1' id='type-id-238'/>
     <function-decl name='gnutls_certificate_free_credentials' filepath='/usr/include/gnutls/gnutls.h' line='2081' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_free_credentials' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-236'/>
+      <parameter type-id='type-id-238'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_certificate_allocate_credentials' filepath='/usr/include/gnutls/gnutls.h' line='2082' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_allocate_credentials' hash='388da3fa973fde78'>
-      <parameter type-id='type-id-237'/>
+      <parameter type-id='type-id-239'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_certificate_set_x509_trust_file' filepath='/usr/include/gnutls/gnutls.h' line='2137' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_set_x509_trust_file' hash='b5123cd0f9c430fe'>
-      <parameter type-id='type-id-236'/>
+      <parameter type-id='type-id-238'/>
       <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-209'/>
+      <parameter type-id='type-id-211'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_certificate_set_x509_key_file' filepath='/usr/include/gnutls/gnutls.h' line='2155' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_set_x509_key_file' hash='42d85191e9454b9d'>
-      <parameter type-id='type-id-236'/>
+      <parameter type-id='type-id-238'/>
       <parameter type-id='type-id-2'/>
       <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-209'/>
+      <parameter type-id='type-id-211'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <var-decl name='gnutls_free' type-id='type-id-220' visibility='default' filepath='/usr/include/gnutls/gnutls.h' line='2309' column='1' elf-symbol-id='gnutls_free'/>
+    <var-decl name='gnutls_free' type-id='type-id-222' visibility='default' filepath='/usr/include/gnutls/gnutls.h' line='2309' column='1' elf-symbol-id='gnutls_free'/>
     <function-decl name='gnutls_transport_set_int2' filepath='/usr/include/gnutls/gnutls.h' line='2407' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_transport_set_int2' hash='d628501fd2223339'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-11'/>
       <parameter type-id='type-id-11'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_session_set_ptr' filepath='/usr/include/gnutls/gnutls.h' line='2441' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_session_set_ptr' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-3'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_session_get_ptr' filepath='/usr/include/gnutls/gnutls.h' line='2442' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_session_get_ptr' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-244'/>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-3'/>
     </function-decl>
-    <typedef-decl name='gnutls_psk_client_credentials_t' type-id='type-id-239' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2585' column='1' id='type-id-240'/>
+    <typedef-decl name='gnutls_psk_client_credentials_t' type-id='type-id-241' size-in-bits='64' filepath='/usr/include/gnutls/gnutls.h' line='2585' column='1' id='type-id-242'/>
     <function-decl name='gnutls_psk_free_client_credentials' filepath='/usr/include/gnutls/gnutls.h' line='2601' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_psk_free_client_credentials' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-240'/>
+      <parameter type-id='type-id-242'/>
       <return type-id='type-id-4'/>
     </function-decl>
     <function-decl name='gnutls_psk_allocate_client_credentials' filepath='/usr/include/gnutls/gnutls.h' line='2602' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_psk_allocate_client_credentials' hash='388da3fa973fde78'>
-      <parameter type-id='type-id-241'/>
+      <parameter type-id='type-id-243'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='gnutls_psk_set_client_credentials' filepath='/usr/include/gnutls/gnutls.h' line='2606' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_psk_set_client_credentials' hash='625f70f9fc878b8a'>
-      <parameter type-id='type-id-240'/>
+      <parameter type-id='type-id-242'/>
       <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-228'/>
-      <parameter type-id='type-id-221'/>
+      <parameter type-id='type-id-230'/>
+      <parameter type-id='type-id-223'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='gnutls_certificate_set_verify_function' filepath='/usr/include/gnutls/gnutls.h' line='2802' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_set_verify_function' hash='aa9f0d16bd44ff10'>
-      <parameter type-id='type-id-236'/>
-      <parameter type-id='type-id-231'/>
+    <function-decl name='gnutls_certificate_set_verify_function' filepath='/usr/include/gnutls/gnutls.h' line='2804' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_set_verify_function' hash='aa9f0d16bd44ff10'>
+      <parameter type-id='type-id-238'/>
+      <parameter type-id='type-id-233'/>
       <return type-id='type-id-4'/>
     </function-decl>
-    <function-decl name='gnutls_certificate_verify_peers2' filepath='/usr/include/gnutls/gnutls.h' line='2822' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verify_peers2' hash='cd648ea08204a733'>
-      <parameter type-id='type-id-244'/>
+    <function-decl name='gnutls_certificate_verify_peers2' filepath='/usr/include/gnutls/gnutls.h' line='2824' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verify_peers2' hash='cd648ea08204a733'>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-48'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='gnutls_certificate_verify_peers3' filepath='/usr/include/gnutls/gnutls.h' line='2824' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verify_peers3' hash='bb41a3ada991dc33'>
-      <parameter type-id='type-id-244'/>
+    <function-decl name='gnutls_certificate_verify_peers3' filepath='/usr/include/gnutls/gnutls.h' line='2826' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verify_peers3' hash='bb41a3ada991dc33'>
+      <parameter type-id='type-id-246'/>
       <parameter type-id='type-id-2'/>
       <parameter type-id='type-id-48'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-decl name='gnutls_certificate_verification_status_print' filepath='/usr/include/gnutls/gnutls.h' line='2833' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verification_status_print' hash='fa2b6a117920810f'>
+    <function-decl name='gnutls_certificate_verification_status_print' filepath='/usr/include/gnutls/gnutls.h' line='2835' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gnutls_certificate_verification_status_print' hash='fa2b6a117920810f'>
       <parameter type-id='type-id-47'/>
       <parameter type-id='type-id-202'/>
-      <parameter type-id='type-id-232'/>
+      <parameter type-id='type-id-234'/>
       <parameter type-id='type-id-47'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='pthread_mutex_init' filepath='/usr/include/pthread.h' line='781' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='pthread_mutex_init' hash='f616842fe991fad1'>
-      <parameter type-id='type-id-233'/>
-      <parameter type-id='type-id-230'/>
+      <parameter type-id='type-id-235'/>
+      <parameter type-id='type-id-232'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='pthread_mutex_destroy' filepath='/usr/include/pthread.h' line='786' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='pthread_mutex_destroy' hash='0e581935b984ff36'>
-      <parameter type-id='type-id-233'/>
+      <parameter type-id='type-id-235'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='pthread_mutex_lock' filepath='/usr/include/pthread.h' line='794' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='pthread_mutex_lock' hash='0e581935b984ff36'>
-      <parameter type-id='type-id-233'/>
+      <parameter type-id='type-id-235'/>
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='pthread_mutex_unlock' filepath='/usr/include/pthread.h' line='835' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='pthread_mutex_unlock' hash='0e581935b984ff36'>
-      <parameter type-id='type-id-233'/>
+      <parameter type-id='type-id-235'/>
       <return type-id='type-id-11'/>
     </function-decl>
-    <function-type size-in-bits='64' hash='388da3fa973fde78' id='type-id-217'>
-      <parameter type-id='type-id-244'/>
+    <function-type size-in-bits='64' hash='388da3fa973fde78' id='type-id-219'>
+      <parameter type-id='type-id-246'/>
       <return type-id='type-id-11'/>
     </function-type>
   </abi-instr>
   <abi-instr address-size='64' path='util.c' comp-dir-path='/home/nmav/projects/radcli/lib' language='LANG_C11'>
-    <class-decl name='timespec' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/types/struct_timespec.h' line='11' column='1' hash='7451f9a3207df4f1' id='type-id-246'>
+    <class-decl name='timespec' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/types/struct_timespec.h' line='11' column='1' hash='7451f9a3207df4f1' id='type-id-248'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='tv_sec' type-id='type-id-19' visibility='default' filepath='/usr/include/bits/types/struct_timespec.h' line='16' column='1'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='tv_nsec' type-id='type-id-247' visibility='default' filepath='/usr/include/bits/types/struct_timespec.h' line='21' column='1'/>
+        <var-decl name='tv_nsec' type-id='type-id-249' visibility='default' filepath='/usr/include/bits/types/struct_timespec.h' line='21' column='1'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='__clockid_t' type-id='type-id-11' size-in-bits='32' filepath='/usr/include/bits/types.h' line='169' column='1' hash='09d17c08f594edc7' id='type-id-248'/>
-    <typedef-decl name='__syscall_slong_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='197' column='1' hash='b119fe0931d2ee10' id='type-id-247'/>
-    <typedef-decl name='clockid_t' type-id='type-id-248' size-in-bits='32' filepath='/usr/include/bits/types/clockid_t.h' line='7' column='1' hash='09d17c08f594edc7' id='type-id-249'/>
-    <pointer-type-def type-id='type-id-246' size-in-bits='64' hash='abfdebaa4180c5b7' id='type-id-250'/>
-    <function-decl name='rc_mksid' mangled-name='rc_mksid' filepath='/home/nmav/projects/radcli/lib/util.c' line='94' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_mksid@@RADCLI_10' hash='02a096d257a5e00d'>
+    <typedef-decl name='__clockid_t' type-id='type-id-11' size-in-bits='32' filepath='/usr/include/bits/types.h' line='169' column='1' hash='09d17c08f594edc7' id='type-id-250'/>
+    <typedef-decl name='__syscall_slong_t' type-id='type-id-12' size-in-bits='64' filepath='/usr/include/bits/types.h' line='197' column='1' hash='b119fe0931d2ee10' id='type-id-249'/>
+    <typedef-decl name='clockid_t' type-id='type-id-250' size-in-bits='32' filepath='/usr/include/bits/types/clockid_t.h' line='7' column='1' hash='09d17c08f594edc7' id='type-id-251'/>
+    <pointer-type-def type-id='type-id-248' size-in-bits='64' hash='abfdebaa4180c5b7' id='type-id-252'/>
+    <function-decl name='rc_mksid' mangled-name='rc_mksid' filepath='/home/nmav/projects/radcli/lib/util.c' line='103' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_mksid@@RADCLI_10' hash='02a096d257a5e00d'>
       <return type-id='type-id-30'/>
     </function-decl>
     <function-decl name='setns' filepath='/usr/include/bits/sched.h' line='145' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='setns' hash='a9fd86e6e981c3b5'>
@@ -2026,8 +2048,8 @@
       <return type-id='type-id-11'/>
     </function-decl>
     <function-decl name='clock_gettime' filepath='/usr/include/time.h' line='288' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='clock_gettime' hash='abb4abf77092cad6'>
-      <parameter type-id='type-id-249'/>
-      <parameter type-id='type-id-250'/>
+      <parameter type-id='type-id-251'/>
+      <parameter type-id='type-id-252'/>
       <return type-id='type-id-11'/>
     </function-decl>
   </abi-instr>

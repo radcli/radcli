@@ -210,6 +210,6 @@ struct rc_aaa_ctx_st
 };
 
 int rc_send_server_ctx (rc_handle *rh, RC_AAA_CTX **ctx, SEND_DATA *data,
-                        char *msg, rc_type type);
+                        char *msg, rc_type type, int no_wait);
 
 #endif

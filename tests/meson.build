@@ -5,8 +5,8 @@ test_env.set('top_builddir', meson.project_build_root())
 test_env.set('srcdir', meson.current_source_dir())
 
 shell_tests = [
-  'basic-tests.sh', 'ipv6-tests.sh', 'failover-tests.sh', 'tcp-tests.sh',
-  'eap-tests.sh', 'no-server-file-tests.sh', 'reject-tests.sh',
+  'basic-tests.sh', 'ipv6-tests.sh', 'failover-tests.sh', 'acct-async-tests.sh',
+  'tcp-tests.sh', 'eap-tests.sh', 'no-server-file-tests.sh', 'reject-tests.sh',
   'skip-unknown-vsa.sh', 'namespace-tests.sh', 'radembedded-tests.sh',
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
   'msg-auth-tests.sh', 'malformed-packet-tests.sh',

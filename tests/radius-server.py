@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Minimal RADIUS server for testing Message-Authenticator handling.
+# Minimal RADIUS server for testing Message-Authenticator handling and
+# Accounting-Request delivery, without root or a real freeradius/radiusd.
 # Sends Access-Accept responses with configurable Message-Authenticator:
 #   correct  - valid HMAC-MD5 (per RFC 3579), placed first per BLAST RADIUS spec
 #   absent   - no Message-Authenticator attribute in the response
 #   wrong    - attribute present (first) but value is all-zeros (deliberately incorrect)
+# Accounting-Requests get an empty Accounting-Response (no Message-Authenticator
+# handling, per REQ-NET-SEC-008).
 #
 # Usage:
 #   python3 radius-server.py [--port 1812] [--secret testing123] \
-#                            [--msg-auth correct|absent|wrong]
+#                            [--msg-auth correct|absent|wrong] [--no-reply]
+#
+# --no-reply logs every received Access-/Accounting-Request (proving it was
+# delivered) but never sends a response -- used to test a client's
+# non-blocking/fire-and-forget path (see acct-async-tests.sh) without relying
+# on an unreachable-host timeout.
 #
 # --transport tls speaks RADIUS/TLS (RFC 6614) instead of plain UDP: the same
 # Access-Accept packet bytes are framed over a TLS-wrapped TCP stream instead
@@ -26,8 +34,10 @@ import ssl
 import struct
 
 # RADIUS codes
-ACCESS_REQUEST = 1
-ACCESS_ACCEPT  = 2
+ACCESS_REQUEST      = 1
+ACCESS_ACCEPT       = 2
+ACCOUNTING_REQUEST  = 4
+ACCOUNTING_RESPONSE = 5
 
 # Attribute types
 ATTR_SERVICE_TYPE        = 6   # value 2 = Framed-User
@@ -122,10 +132,13 @@ def compute_hmac_md5(packet, secret):
     """HMAC-MD5 over the full packet (MA value must already be zeroed)."""
     return hmac.new(secret.encode(), packet, hashlib.md5).digest()
 
-def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal'):
+def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=False):
     """
-    Parse an Access-Request and build an Access-Accept response.
-    Returns the response bytes, or None if the packet is not an Access-Request.
+    Parse an Access-Request or Accounting-Request and build the matching
+    reply. Returns the response bytes, or None if the packet's code is not
+    recognized or --no-reply was requested (the packet is still logged as
+    received either way -- see the print() below -- it is simply not
+    answered, e.g. to test a non-blocking/fire-and-forget client path).
     """
     if len(data) < 20:
         return None
@@ -133,8 +146,22 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal'):
     code, ident, _pkt_len = struct.unpack('!BBH', data[:4])
     req_auth = data[4:20]
 
-    if code != ACCESS_REQUEST:
+    if code not in (ACCESS_REQUEST, ACCOUNTING_REQUEST):
         return None
+
+    code_name = 'Access-Request' if code == ACCESS_REQUEST else 'Accounting-Request'
+    print(f"radius-server: received {code_name} id={ident}", flush=True)
+
+    if no_reply:
+        return None
+
+    if code == ACCOUNTING_REQUEST:
+        # No Message-Authenticator handling for accounting (REQ-NET-SEC-008);
+        # an empty Accounting-Response is enough to exercise the reply path.
+        total_len = 20
+        resp_auth = compute_response_authenticator(
+            ACCOUNTING_RESPONSE, ident, total_len, req_auth, b'', secret)
+        return struct.pack('!BBH', ACCOUNTING_RESPONSE, ident, total_len) + resp_auth
 
     # Build attribute payload.  Per draft-ietf-radext-deprecating-radius,
     # Message-Authenticator MUST be the first attribute in the response.
@@ -179,16 +206,16 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal'):
 
     return packet
 
-def run(port, secret, msg_auth_mode, attrs_mode='normal'):
+def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('0.0.0.0', port))
-    print(f"radius-server: listening on port {port}, msg-auth={msg_auth_mode}, attrs={attrs_mode}",
-          flush=True)
+    print(f"radius-server: listening on port {port}, msg-auth={msg_auth_mode}, "
+          f"attrs={attrs_mode}, no-reply={no_reply}", flush=True)
 
     while True:
         data, addr = sock.recvfrom(4096)
-        response = handle_packet(data, secret, msg_auth_mode, attrs_mode)
+        response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply)
         if response is not None:
             sock.sendto(response, addr)
 
@@ -271,14 +298,20 @@ def main():
     parser.add_argument('--transport', choices=['udp', 'tls'], default='udp')
     parser.add_argument('--tls-cert', help='PEM certificate file (required for --transport tls)')
     parser.add_argument('--tls-key', help='PEM private key file (required for --transport tls)')
+    parser.add_argument('--no-reply', action='store_true',
+                        help='Log each received Access-/Accounting-Request but send no response '
+                             '(models a slow/unresponsive accounting server for testing a '
+                             'non-blocking client path). UDP transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
+        if args.no_reply:
+            parser.error('--no-reply is only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
-        run(args.port, args.secret, args.msg_auth, args.attrs)
+        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply)
 
 if __name__ == '__main__':
     main()
