@@ -38,3 +38,4 @@ tests/close-notify-server
 .html.stamp
 doc/stamp_html
 tests/pack
+tests/__pycache__/

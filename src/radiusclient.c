@@ -42,7 +42,9 @@ static void
 usage(void)
 {
 
-    fprintf(stderr, "usage: radiusclient [-D] [-f config_file] [-p nas_port] [-i] [-e hex-bytes] [-s | [-a] a1=v1 [a2=v2[...[aN=vN]...]]]\n");
+    fprintf(stderr, "usage: radiusclient [-D] [-f config_file] [-p nas_port] [-i] [-e hex-bytes] [-s | [-a|-A] a1=v1 [a2=v2[...[aN=vN]...]]]\n");
+    fprintf(stderr, "       -a - Send an accounting request and wait for the reply.\n");
+    fprintf(stderr, "       -A - Send an accounting request to every configured server without waiting for a reply (rc_acct_async()).\n");
     fprintf(stderr, "       -e hex-bytes - Specify an EAP message with colon-separated hex bytes. Ex. -e 2:0:0:9:1:74:65:73:74\n");
     exit(1);
 }
@@ -67,7 +69,7 @@ main(int argc, char **argv)
 
     acct = 0;
     server = 0;
-    while ((ch = getopt(argc, argv, "Daf:p:sie:")) != -1) {
+    while ((ch = getopt(argc, argv, "DaAf:p:sie:")) != -1) {
         switch (ch) {
         case 'D':
           debug = 1;
@@ -82,6 +84,10 @@ main(int argc, char **argv)
 
         case 'a':
             acct = 1;
+            break;
+
+        case 'A':
+            acct = 2;
             break;
 
         case 's':
@@ -180,7 +186,9 @@ main(int argc, char **argv)
             theend = 1;
             if (cp != NULL && len > 0) {
                 if (firstline != 0) {
-                    if (len >= 4 && memcmp(cp, "ACCT", 4) == 0)
+                    if (len >= 10 && memcmp(cp, "ACCT-ASYNC", 10) == 0)
+                        acct = 2;
+                    else if (len >= 4 && memcmp(cp, "ACCT", 4) == 0)
                         acct = 1;
                     firstline = 0;
                     theend = 0;
@@ -247,8 +255,10 @@ process(void *rh, VALUE_PAIR *send, int acct, int nas_port, int send_info)
 	    }
 	    rc_aaa_ctx_free(ctx);
         }
-    } else {
+    } else if (acct == 1) {
         i = rc_acct(rh, nas_port, send);
+    } else {
+        i = rc_acct_async(rh, nas_port, send);
     }
 
     return (i == OK_RC) || (i == CHALLENGE_RC) ? 0 : 1;

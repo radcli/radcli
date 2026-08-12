@@ -230,7 +230,7 @@ static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
  */
 int rc_send_server(rc_handle * rh, SEND_DATA * data, char *msg, rc_type type)
 {
-	return rc_send_server_ctx(rh, NULL, data, msg, type);
+	return rc_send_server_ctx(rh, NULL, data, msg, type, 0);
 }
 
 /* Verify items in returned packet
@@ -407,16 +407,21 @@ static int validate_message_authenticator(const uint8_t *recv_buffer,
  *
  * @param rh a handle to parsed configuration
  * @param ctx if non-NULL it will contain the context of sent request; It must be released using rc_aaa_ctx_free().
- * @param data a pointer to a SEND_DATA structure
+ * @param data a pointer to a SEND_DATA structure.
  * @param msg must be an array of %PW_MAX_MSG_SIZE or NULL; will contain the concatenation of
  *	any %PW_REPLY_MESSAGE received.
  * @param type must be %AUTH or %ACCT
+ * @param no_wait if non-zero, the request is transmitted once and this
+ *  function returns OK_RC immediately without waiting for or expecting a
+ *  reply; @c data->timeout and @c data->retries are not consulted in that
+ *  case. Used by rc_acct_async() for best-effort, non-blocking
+ *  notifications. TIMEOUT_RC is never returned when @p no_wait is set.
  * @return OK_RC (0) on success, CHALLENGE_RC when an Access-Challenge
- *  response is received, TIMEOUT_RC on timeout REJECT_RC on access reject,
+ *  response is received, TIMEOUT_RC on timeout, REJECT_RC on access reject,
  *  or negative on failure as return value.
  */
 int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
-		       char *msg, rc_type type)
+		       char *msg, rc_type type, int no_wait)
 {
 	int sockfd = -1;
 	AUTH_HDR *auth, *recv_auth;
@@ -685,6 +690,21 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
 			rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__,
 			       strerror(errno));
+			goto cleanup;
+		}
+
+		if (no_wait) {
+			/* Fire-and-forget: no reply to wait for, so close the
+			 * socket and capture the request's own secret/vector
+			 * (REQ-NET-TEARDOWN-001, REQ-NET-SEC-009) right here,
+			 * instead of falling through to the receive/switch
+			 * path below that expects a parsed response. */
+			SCLOSE(sockfd);
+			result = populate_ctx(ctx, secret, vector);
+			memset(secret, '\0', sizeof(secret));
+			if (result != OK_RC)
+				goto cleanup;
+			result = OK_RC;
 			goto cleanup;
 		}
 

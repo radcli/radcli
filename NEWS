@@ -12,6 +12,12 @@
   buffer-space estimate assumed a fixed 32-byte name field while names
   can be up to 64 bytes, and the unbounded sprintf() wrote past the
   caller-supplied buffer.
+- Added rc_acct_async(): sends an accounting request to every configured
+  accounting server without waiting for a reply, for best-effort
+  notifications (e.g. an Accounting-Stop sent while an application is
+  shutting down and cannot afford to block on network I/O). Unlike
+  rc_acct(), which stops at the first server that replies, this addresses
+  all configured servers unconditionally.
 
 
 * Version 1.5.2 (released 2026-06-07)

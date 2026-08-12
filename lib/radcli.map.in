@@ -25,6 +25,7 @@ RADCLI_@LIBMAJOR@
 	rc_auth_proxy;
 	rc_acct;
 	rc_acct_proxy;
+	rc_acct_async;
 	rc_check;
 	rc_aaa;
 	rc_aaa_ctx;

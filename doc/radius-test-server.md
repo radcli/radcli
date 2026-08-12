@@ -1,24 +1,46 @@
 # RADIUS test server (`tests/radius-server.py`)
 
 A minimal RADIUS server written in Python 3 (stdlib only) used by the test suite
-to craft responses that a real server such as FreeRADIUS would not produce.
-Currently used by `tests/msg-auth-tests.sh` to test Message-Authenticator handling.
+to craft responses that a real server such as FreeRADIUS would not produce, and
+to exercise client behavior (delivery, non-blocking sends) without root or a
+real `radiusd`/`freeradius` in `PATH`. Currently used by:
+
+- `tests/msg-auth-tests.sh` — Message-Authenticator handling (Access-Request/Accept)
+- `tests/acct-async-tests.sh` — `rc_acct_async()` delivery and non-blocking return
+  (Accounting-Request/Response, `--no-reply`)
 
 ## Invocation
 
 ```
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
-                               [--msg-auth correct|absent|wrong]
+                               [--msg-auth correct|absent|wrong] [--no-reply]
 ```
 
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--port` | 1812 | UDP port to listen on |
 | `--secret` | `testing123` | Shared secret (must match the client config) |
-| `--msg-auth` | `correct` | How to handle the Message-Authenticator attribute in the reply |
+| `--msg-auth` | `correct` | How to handle the Message-Authenticator attribute in an Access-Accept reply (ignored for Accounting-Request) |
+| `--no-reply` | off | Log every received Access-/Accounting-Request but send no response (UDP transport only) |
 
-The server accepts one UDP packet at a time, sends one reply, and loops forever.
-It exits when killed (SIGTERM/SIGKILL).
+The server accepts one UDP packet at a time and, unless `--no-reply` is given,
+sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
+recognized request (Access-Request or Accounting-Request) is logged to stdout
+as `radius-server: received <Access-Request|Accounting-Request> id=<N>` as soon
+as it's parsed — regardless of `--no-reply` — so a test can grep the server's
+captured output to prove a packet was actually delivered, not just that the
+client returned successfully.
+
+### Accounting-Request handling
+
+An Accounting-Request (code 4) gets an empty Accounting-Response (code 5) with
+a correctly computed Response Authenticator — `--msg-auth` does not apply, since
+Message-Authenticator enforcement is Access-only (`REQ-NET-SEC-008`). Combined
+with `--no-reply`, this lets a test model an accounting server that receives
+requests but never (or slowly) answers, to verify a client's non-blocking send
+path — see `tests/acct-async-tests.sh` for how it drives two such servers to
+verify both that `rc_acct_async()` returns promptly and that every configured
+server was actually reached.
 
 ---
 
@@ -214,6 +236,12 @@ in `handle_packet`.
 
 **New `--msg-auth` mode**: add a choice to the `argparse` definition and a
 corresponding branch after the `packet` assembly in `handle_packet`.
+
+**Model a non-responsive or slow server**: use `--no-reply` (`handle_packet`
+returns `None` right after logging receipt, before building any response) to
+test a client's non-blocking/fire-and-forget path, or add a `time.sleep()`
+before the `sock.sendto()` in `run()` to test a slow-but-eventually-replying
+server instead.
 
 **Inspect the incoming request**: the raw request bytes are in `data`; the
 attributes start at `data[20:]` and can be walked with a `while` loop reading

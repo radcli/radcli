@@ -300,6 +300,35 @@ found), enforcement of this requirement is code-review only.
 `init_session()` call goes through this path), REQ-NET-TEARDOWN-004 (the same `tmps`/
 `restart_session()` pairing — covers failure-path safety, not initial-state correctness)
 
+### REQ-NET-NET-017 — `rc_send_server_ctx()`'s `no_wait` parameter is an explicit fire-and-forget mode: transmit once and return `OK_RC` without waiting for a reply, never `TIMEOUT_RC`
+
+**Requirement:** `rc_send_server_ctx()` (internal-only: declared in `include/includes.h`, not
+`include/radcli/radcli.h`/`lib/radcli.map.in`, so its signature carries no ABI obligation) takes
+an explicit `int no_wait` parameter rather than inferring fire-and-forget mode from
+`data->timeout == 0`. When `no_wait` is non-zero, immediately after the single `sendto()` call
+succeeds the function MUST close the socket, capture the request's own secret/vector into `*ctx`
+if non-NULL (`populate_ctx()`, mirroring the normal path's teardown obligations —
+`REQ-NET-TEARDOWN-001`, `REQ-NET-SEC-009`), and return `OK_RC` — it MUST NOT enter the
+`poll()`/retry-budget loop (`REQ-NET-NET-009`) at all, and MUST NOT consult or require any
+particular value of `data->timeout`/`data->retries`. Because the retry/poll loop that produces
+`TIMEOUT_RC` is structurally unreachable when `no_wait` is set, `TIMEOUT_RC` MUST NOT be returned
+under `no_wait` — the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
+(`ERROR_RC`/`NETUNREACH_RC`), preserving `REQ-NET-ERR-001`'s single, unconditional meaning for
+`TIMEOUT_RC` everywhere else in the function.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/sendserver.c:423-424 (`no_wait` parameter), lib/sendserver.c:696-708 (early
+`SCLOSE`/`populate_ctx`/`OK_RC` branch, taken before the retry/poll loop at 710-736 that produces
+`TIMEOUT_RC`); lib/buildreq.c:392-411 (`rc_aaa_ctx_server_async()` calling `rc_send_server_ctx(rh,
+NULL, &data, NULL, type, 1)` and treating only `OK_RC` as per-server success)
+**Acceptance:** [NET] unit, local — calling `rc_send_server_ctx()` with `no_wait=1` against an
+unreachable server returns `OK_RC` (not `TIMEOUT_RC`) without a `poll()` call blocking
+(measurable: wall-clock duration of the call is well under any nonzero timeout value), regardless
+of the `data->timeout`/`data->retries` values passed; `tests/acct-async-tests.sh` exercises this
+end-to-end via `rc_acct_async()`, asserting completion in well under `radius_timeout`.
+**Links:** REQ-NET-NET-009, REQ-NET-ERR-001, REQ-ATTR-NET-030 (attrs.md; the `rc_acct_async()`
+caller contract)
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling
@@ -595,6 +624,8 @@ callers.
 **Acceptance:** [ERR] code-review — every `return`/`goto cleanup` path in
 `rc_send_server_ctx()` assigns `result` from the enumerated set before falling through to
 `return result`.
+**Links:** REQ-NET-NET-017 (the `no_wait` fire-and-forget mode holds to this same contract,
+without exception — `no_wait` never produces `TIMEOUT_RC`)
 
 ### REQ-NET-ERR-002 — A reply whose declared RADIUS length is outside [20, 4096] is rejected before any further parsing
 
