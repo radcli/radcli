@@ -48,6 +48,7 @@
 #include <gnutls/dtls.h>
 #include <pthread.h>
 #include <time.h>
+#include <poll.h>
 
 #define DEFAULT_DTLS_SECRET "radius/dtls"
 #define DEFAULT_TLS_SECRET "radsec"
@@ -98,6 +99,51 @@ static int tls_get_active_fd(void *ptr)
 }
 /// @endcond
 
+/* Used from the GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED retry branches of
+ * tls_sendto()/tls_recvfrom(): GnuTLS requires retrying the record call
+ * with the same arguments once @events is ready on the session fd.
+ * Waits up to the configured radius_timeout, safe against poll() itself
+ * being interrupted by a signal (retried against the same, non-extending
+ * deadline, so neither a signal nor a run of spurious EAGAINs can make
+ * the wait unbounded). On timeout or error, logs, marks the session for
+ * restart and sets errno=EIO.
+ *
+ * Returns 1 if the caller should retry the gnutls_record_*() call, or -1
+ * if it should give up (matching the calling convention of tls_sendto()/
+ * tls_recvfrom() themselves).
+ */
+/// @cond INTERNAL
+static int tls_wait_or_give_up(tls_st *st, short events, const char *what)
+{
+	double start_time = rc_getmtime();
+	int timeout = rc_conf_int(st->rh, "radius_timeout");
+
+	if (timeout <= 0)
+		timeout = 1;
+
+	for (; timeout > 0; timeout -= (int)(rc_getmtime() - start_time)) {
+		struct pollfd pfd = { st->ctx.sockfd, events, 0 };
+		int ret = poll(&pfd, 1, timeout * 1000);
+
+		if (ret > 0)
+			return 1;
+		if (ret == 0)
+			break;
+		if (errno != EINTR) {
+			rc_log(LOG_ERR, "%s: poll: %s", __func__, strerror(errno));
+			goto give_up;
+		}
+		/* poll() itself was interrupted; retry against the same
+		 * deadline rather than treating it as a timeout. */
+	}
+	rc_log(LOG_ERR, "%s: timeout waiting to %s TLS data", __func__, what);
+give_up:
+	errno = EIO;
+	st->ctx.need_restart = 1;
+	return -1;
+}
+/// @endcond
+
 /// @cond INTERNAL
 static ssize_t tls_sendto(void *ptr, int sockfd,
 			   const void *buf, size_t len,
@@ -114,18 +160,23 @@ static ssize_t tls_sendto(void *ptr, int sockfd,
 		}
 	}
 
-	ret = gnutls_record_send(st->ctx.session, buf, len);
-	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-		errno = EINTR;
-		return -1;
-	}
+	for (;;) {
+		ret = gnutls_record_send(st->ctx.session, buf, len);
+		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
+			if (tls_wait_or_give_up(st, POLLOUT, "send") < 0)
+				return -1;
+			continue;
+		}
 
-	if (ret < 0) {
-		rc_log(LOG_ERR, "%s: error in sending: %s", __func__,
-		       gnutls_strerror(ret));
-		errno = EIO;
-		st->ctx.need_restart = 1;
-		return -1;
+		if (ret < 0) {
+			rc_log(LOG_ERR, "%s: error in sending: %s", __func__,
+			       gnutls_strerror(ret));
+			errno = EIO;
+			st->ctx.need_restart = 1;
+			return -1;
+		}
+
+		break;
 	}
 
 	st->ctx.last_msg = time(0);
@@ -160,11 +211,15 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 	tls_st *st = ptr;
 	int ret;
 
-	ret = gnutls_record_recv(st->ctx.session, buf, len);
-	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED ||
-	    ret == GNUTLS_E_HEARTBEAT_PING_RECEIVED || ret == GNUTLS_E_HEARTBEAT_PONG_RECEIVED) {
-		errno = EINTR;
-		return -1;
+	for (;;) {
+		ret = gnutls_record_recv(st->ctx.session, buf, len);
+		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED ||
+		    ret == GNUTLS_E_HEARTBEAT_PING_RECEIVED || ret == GNUTLS_E_HEARTBEAT_PONG_RECEIVED) {
+			if (tls_wait_or_give_up(st, POLLIN, "receive") < 0)
+				return -1;
+			continue;
+		}
+		break;
 	}
 
 	if (ret == GNUTLS_E_WARNING_ALERT_RECEIVED) {
