@@ -48,7 +48,7 @@ sed -e 's|dtls/|'${srcdir}'/dtls/|g' -e 's/localhost/'$ADDRESS'/g' -e 's/servers
 sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >$SERVERSFILE
 
 # Test whether a TLS session will succeed
-${CMDNS1} ../src/radiusclient -D -f $CONFFILE  User-Name=test Password=test >$TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -f $CONFFILE  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1
@@ -76,7 +76,7 @@ if test $? != 0;then
 fi
 
 # Test whether a TLS invalidated session for some reason will reconnect
-${CMDNS1} ./tls-restart -f $CONFFILE  User-Name=test Password=test >$TMPFILE
+${CMDNS1} ${top_builddir}/tests/tls-restart -f $CONFFILE  User-Name=test Password=test >$TMPFILE
 if test $? != 0;then
 	echo "Error in session restart"
 	exit 1

@@ -1,0 +1,14 @@
+option('tls', type: 'feature', value: 'auto',
+       description: 'TLS/DTLS support via GnuTLS')
+option('nettle', type: 'feature', value: 'auto',
+       description: 'Use nettle for MD5/HMAC (bundled fallback otherwise)')
+option('legacy-compat', type: 'boolean', value: false,
+       description: 'Install freeradius-client/radiusclient-ng compat headers and .so symlinks')
+option('static', type: 'boolean', value: false,
+       description: 'Also install a static library (libradcli.a) alongside the shared one')
+option('secure-path', type: 'string', value: '/bin:/usr/bin:/usr/local/bin',
+       description: 'PATH used for exec()-ed helper programs')
+option('facility', type: 'string', value: 'LOG_DAEMON',
+       description: 'Default syslog facility')
+option('docs', type: 'feature', value: 'auto',
+       description: 'Build Doxygen-generated man pages/HTML (requires doxygen and doxy2man)')

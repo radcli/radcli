@@ -30,9 +30,10 @@ srcdir="${srcdir:-.}"
 
 CLI_ADDRESS=10.203.33.1
 ADDRESS=10.203.34.1
-DICT_FILE=skip-unknown-vsa.sh.dictionary
-CONF_FILE=skip-unknown-vsa.sh.conf
-OUTP_FILE=skip-unknown-vsa.sh.out
+PID=$$
+DICT_FILE=skip-unknown-vsa.sh.dictionary.$PID
+CONF_FILE=skip-unknown-vsa.sh.conf.$PID
+OUTP_FILE=skip-unknown-vsa.sh.out.$PID
 
 function finish {
 	rm -f ${OUTP_FILE} ${CONF_FILE} ${DICT_FILE}
@@ -112,7 +113,7 @@ auth() {
 	echo "********************************************************************************"
 	printf "Testing user: \"${user}\" with support for vendors: \"${vendors}\"\n"
 
-	${CMDNS1} ../src/radiusclient -D -i -f ${CONF_FILE}  User-Name=${user} Password=test | tee ${OUTP_FILE}
+	${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f ${CONF_FILE}  User-Name=${user} Password=test | tee ${OUTP_FILE}
 	if test $? != 0;then
 		printf "Error in auth for user: \"${user}\"\n\n"
 		exit 1

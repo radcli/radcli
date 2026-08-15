@@ -11,12 +11,6 @@ tests/dict
 tests/dict-add
 tests/tls-idle-restart
 *.o
-*.lo
-*.la
-lib/.libs
-lib/.deps
-src/.libs
-src/.deps
 etc/radiusclient.conf
 etc/radiusclient-tls.conf
 include/radcli/version.h
@@ -27,6 +21,7 @@ doc/Doxyfile
 doc/stamp_mans
 doc/xml
 doc/html
+doc/man
 doc/doxygen_sqlite3.db
 tests/avpair
 tests/tls-restart
@@ -34,46 +29,11 @@ tests/docker/Dockerfile
 tests/.libs
 tests/*.log
 tests/*.trs
-.deps
-
-# Configure and Automake
-configure
-config.status
-config.cache
-config.log
-config.h
-libtool
-stamp-h*
-Makefile
-Makefile.in
-autom4te.cache/
-compile
-test-driver
-config.rpath
-aclocal.m4
-config.h.in
-config.guess
-config.sub
-depcomp
-install-sh
-ltmain.sh
-missing
 
 # Misc
 *.swp
 *~
 
-ABOUT-NLS
-m4/build-to-host.m4
-m4/gettext.m4
-m4/host-cpu-c-abi.m4
-m4/iconv.m4
-m4/intlmacosx.m4
-m4/libtool.m4
-m4/nls.m4
-m4/po.m4
-m4/progtest.m4
-po/
 tests/close-notify-server
 .html.stamp
 doc/stamp_html

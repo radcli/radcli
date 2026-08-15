@@ -78,7 +78,7 @@ echo "127.0.0.1/127.0.0.1	testing123" >servers-temp$PID
 # Test 1: server sends no Message-Authenticator; default config requires it → must fail
 start_server absent
 run_test "Reject response with absent MA (require on by default)" \
-	"../src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 
 # Test 2: same server (no MA), but require-message-authenticator = no → must succeed
@@ -86,7 +86,7 @@ cp radiusclient-temp$PID.conf radiusclient-no-req$PID.conf
 echo "require-message-authenticator	no" >> radiusclient-no-req$PID.conf
 
 run_test "Accept response with absent MA when require-message-authenticator = no" \
-	"../src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
 	|| exit 1
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
@@ -99,21 +99,21 @@ fi
 stop_server
 start_server wrong
 run_test "Reject response with incorrect MA value" \
-	"../src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 
 # Test 4: server sends a correct MA but not as the first attribute → must fail
 stop_server
 start_server not-first
 run_test "Reject response where MA is correct but not the first attribute" \
-	"../src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 
 # Test 5: server sends a correct MA (first attribute, valid HMAC) → must succeed
 stop_server
 start_server correct
 run_test "Accept response with correct MA (valid HMAC-MD5, first attribute)" \
-	"../src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
 	|| exit 1
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
@@ -128,7 +128,7 @@ fi
 stop_server
 start_server wrong-not-first
 run_test "Reject response with wrong MA even when not first (require-MA disabled)" \
-	"../src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 stop_server
 

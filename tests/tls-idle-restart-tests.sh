@@ -67,7 +67,7 @@ wait_for_port 2083
 
 # Verify TLS connectivity before starting the background client.
 # This ensures rc_init_tls() (called inside rc_read_config) will succeed.
-${CMDNS1} ../src/radiusclient -D -f "$CONFFILE" User-Name=test Password=test \
+${CMDNS1} ${top_builddir}/src/radiusclient -D -f "$CONFFILE" User-Name=test Password=test \
     >/dev/null 2>&1
 if test $? != 0; then
 	echo "Error: initial TLS connectivity check failed"
@@ -76,7 +76,7 @@ fi
 
 # Start the test client in the background; it coordinates with us via
 # flag files in $STATEDIR.
-${CMDNS1} ./tls-idle-restart -f "$CONFFILE" -S "$STATEDIR" \
+${CMDNS1} ${top_builddir}/tests/tls-idle-restart -f "$CONFFILE" -S "$STATEDIR" \
     User-Name=test Password=test &
 TESTPID=$!
 

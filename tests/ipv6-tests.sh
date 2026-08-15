@@ -28,7 +28,7 @@ function finish {
 sed -e 's/::1/'$ADDRESS'/g' -e 's/servers-ipv6-temp/servers-ipv6-temp'$PID'/g' <$srcdir/radiusclient-ipv6.conf >radiusclient-temp$PID.conf
 sed 's/::1/'$ADDRESS'/g' <$srcdir/servers-ipv6 >servers-ipv6-temp$PID
 
-${CMDNS1} ../src/radiusclient -D -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE 
+${CMDNS1} ${top_builddir}/src/radiusclient -D -f radiusclient-temp$PID.conf  User-Name=test6 Password=test >$TMPFILE 
 if test $? != 0;then
 	cat $TMPFILE
 	echo "Error in PAP IPv6 auth"

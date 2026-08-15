@@ -67,8 +67,8 @@ sysctl -w net.ipv6.conf.all.temp_prefered_lft=1
 sleep 2
 
 #radius-client is expected to use the global ipv6 address and not temporary address now
-echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test6 | tee $TMPFILE
-${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test6 Password=test | tee $TMPFILE
+echo ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test6 | tee $TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test6 Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	sysctl -w net.ipv6.conf.all.use_tempaddr=0

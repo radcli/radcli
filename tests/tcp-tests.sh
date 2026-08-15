@@ -51,8 +51,8 @@ sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$src
 echo "serv-type tcp" >> radiusclient-temp$PID.conf
 sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >servers-temp$PID
 
-echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
-${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+echo ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1

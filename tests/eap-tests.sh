@@ -63,8 +63,8 @@ sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >${SERVERS}
 #           Type       = 1       (8-bit)  -> 1 for Identity
 #           Data       = "test"  (string)
 
-echo ../src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
-${CMDNS1} ../src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
+echo ${top_builddir}/src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f ${CONFIG} -e 2:0:0:9:1:74:65:73:74 User-Name=test| tee $TMPFILE
 if test $? != 0;then
 	echo "Error in EAP auth"
 	exit 1

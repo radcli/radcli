@@ -20,7 +20,7 @@ function finish {
 
 . ${srcdir}/ns.sh
 
-${CMDNS1} ../src/radembedded ${ADDRESS}
+${CMDNS1} ${top_builddir}/src/radembedded ${ADDRESS}
 if test $? != 0;then
 	echo "Error in Radembedded handling"
 	exit 1
