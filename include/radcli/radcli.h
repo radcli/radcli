@@ -12,6 +12,10 @@
  *
  */
 
+/** @file radcli.h
+ * @brief Public API of the radcli library.
+ */
+
 #ifndef RADCLI_H
 #define RADCLI_H
 
@@ -431,6 +435,9 @@ enum rc_vendor_attr_roaringpenguin {
 
 /* Server data structures */
 
+/** \struct dict_attr
+ * A dictionary attribute definition (name, numeric ID, type).
+ */
 typedef struct dict_attr
 {
 	char              name[RC_NAME_LENGTH + 1];	//!< attribute name.
@@ -439,6 +446,9 @@ typedef struct dict_attr
 	struct dict_attr *next;
 } DICT_ATTR;
 
+/** \struct dict_value
+ * A named value for a dictionary attribute (e.g. an enumerated integer value).
+ */
 typedef struct dict_value
 {
 	char               attrname[RC_NAME_LENGTH +1];
@@ -447,6 +457,9 @@ typedef struct dict_value
 	struct dict_value *next;
 } DICT_VALUE;
 
+/** \struct dict_vendor
+ * A dictionary vendor definition (name and PEN/vendor ID).
+ */
 typedef struct dict_vendor
 {
 	char               vendorname[RC_NAME_LENGTH +1];

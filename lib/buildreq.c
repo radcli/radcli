@@ -18,16 +18,18 @@
  * @{
  */
 
-/** Generates a random ID
+/* Generates a random ID
  *
  * @return the random ID.
  */
+/// @cond INTERNAL
 static unsigned char rc_get_id()
 {
 	return (unsigned char)(random() & UCHAR_MAX);
 }
+/// @endcond
 
-/** Build a skeleton RADIUS request using information from the config file
+/** @brief Build a skeleton RADIUS request using information from the config file
  *
  * @note This is a low-level helper used internally by rc_aaa_ctx_server().
  * Normal applications should call rc_auth() or rc_acct() instead of
@@ -54,7 +56,7 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
 	data->code = code;
 }
 
-/** Builds an authentication/accounting request and submits it to a server, optionally returning context
+/** @brief Builds an authentication/accounting request and submits it to a server, optionally returning context
  *
  * Selects the server list from configuration (authserver or acctserver
  * depending on @p request_type and transport), sends the request with
@@ -101,7 +103,7 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t nas_port,
 				 add_nas_port, request_type);
 }
 
-/** Builds an authentication/accounting request and submits it to a specific server
+/** @brief Builds an authentication/accounting request and submits it to a specific server
  *
  * Like rc_aaa_ctx() but sends to @p aaaserver instead of the server list from
  * the configuration.  Use this when the caller has already selected the server
@@ -215,7 +217,7 @@ int rc_aaa_ctx_server(rc_handle * rh, RC_AAA_CTX ** ctx, SERVER * aaaserver,
 	return result;
 }
 
-/** Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a server
+/** @brief Builds an authentication/accounting request for port id nas_port with the value_pairs send and submits it to a server
  *
  * @param rh a handle to parsed configuration.
  * @param nas_port the physical NAS port number to use (may be zero).
@@ -237,7 +239,7 @@ int rc_aaa(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send,
 			  add_nas_port, request_type);
 }
 
-/** Builds an authentication request for port id nas_port with the value_pairs send and submits it to a server
+/** @brief Builds an authentication request for port id nas_port with the value_pairs send and submits it to a server
  *
  * @param rh a handle to parsed configuration.
  * @param nas_port the physical NAS port number to use (may be zero).
@@ -257,7 +259,7 @@ int rc_auth(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send,
 		      PW_ACCESS_REQUEST);
 }
 
-/** Builds an authentication request for proxying
+/** @brief Builds an authentication request for proxying
  *
  * Builds an authentication request with the value_pairs send and submits it to a server.
  * Works for a proxy; does not add IP address, and does does not rely on config file.
@@ -277,7 +279,7 @@ int rc_auth_proxy(rc_handle * rh, VALUE_PAIR * send, VALUE_PAIR ** received,
 	return rc_aaa(rh, 0, send, received, msg, 0, PW_ACCESS_REQUEST);
 }
 
-/** Builds an accounting request for port id nas_port with the value_pairs at send
+/** @brief Builds an accounting request for port id nas_port with the value_pairs at send
  *
  * @note NAS-IP-Address, NAS-Port and Acct-Delay-Time get filled in by this function, the rest has to be supplied.
  *
@@ -294,7 +296,7 @@ int rc_acct(rc_handle * rh, uint32_t nas_port, VALUE_PAIR * send)
 		      PW_ACCOUNTING_REQUEST);
 }
 
-/** Builds an accounting request with the value_pairs at send
+/** @brief Builds an accounting request with the value_pairs at send
  *
  * @param rh a handle to parsed configuration.
  * @param send a VALUE_PAIR array of values (e.g., PW_USER_NAME).
@@ -307,7 +309,7 @@ int rc_acct_proxy(rc_handle * rh, VALUE_PAIR * send)
 	return rc_aaa(rh, 0, send, NULL, NULL, 0, PW_ACCOUNTING_REQUEST);
 }
 
-/** Asks the server hostname on the specified port for a status message
+/** @brief Asks the server hostname on the specified port for a status message
  *
  * @param rh a handle to parsed configuration.
  * @param host the name of the server.

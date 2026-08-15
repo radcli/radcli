@@ -32,7 +32,7 @@
 #include <includes.h>
 #include <radcli/radcli.h>
 
-/** Returns the secret available in this context. It is the secret value
+/** @brief Returns the secret available in this context. It is the secret value
  * used in the request.
  *
  * @param ctx a pointer to a RC_AAA_CTX structure.
@@ -43,7 +43,7 @@ const char *rc_aaa_ctx_get_secret (RC_AAA_CTX *ctx)
 	return ctx->secret;
 }
 
-/** Returns a pointer request vector used in the request.
+/** @brief Returns a pointer request vector used in the request.
  * It is of AUTH_VECTOR_LEN size.
  *
  * @param ctx a pointer to a RC_AAA_CTX structure.
@@ -55,7 +55,7 @@ const void *rc_aaa_ctx_get_vector (RC_AAA_CTX *ctx)
 }
 
 
-/** Deinitializes an RC_AAA_CTX structure.
+/** @brief Deinitializes an RC_AAA_CTX structure.
  *
  * @param ctx a pointer to a RC_AAA_CTX structure.
  */

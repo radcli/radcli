@@ -55,7 +55,7 @@ struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags)
  * @{
  */
 
-/** Get the port number for the supplied request type
+/** @brief Get the port number for the supplied request type
  *
  * @param type %AUTH or %ACCT.
  * @return the port number.
@@ -72,7 +72,7 @@ unsigned short rc_getport(int type)
 	}
 }
 
-/** Get the hostname of this machine
+/** @brief Get the hostname of this machine
  *
  * @param hostname will hold the name of the host.
  * @param len the size of hostname.
@@ -110,7 +110,7 @@ int rc_own_hostname(char *hostname, int len)
 	return 0;
 }
 
-/** Find outbound interface address for a given destination
+/** @brief Find outbound interface address for a given destination
  *
  * Given remote address find local address which the system will use as a source address for sending
  * datagrams to that remote address.
@@ -152,7 +152,7 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 	return OK_RC;
 }
 
-/** Find our source address
+/* Find our source address
  *
  * Get the IP address to be used as a source address
  * for sending requests in host order.
@@ -161,6 +161,7 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
  * @param lia the local address to listen to
  *
  **/
+/// @cond INTERNAL
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 {
 	char *txtaddr = rc_conf_str(rh, "bindaddr");
@@ -189,4 +190,5 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 
        return;
 }
+/// @endcond
 /** @} */

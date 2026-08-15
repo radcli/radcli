@@ -31,9 +31,13 @@
 
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
+/// @cond INTERNAL
 static void rc_random_vector(unsigned char[AUTH_VECTOR_LEN]);
+/// @endcond
+/// @cond INTERNAL
 static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
 			  unsigned char);
+/// @endcond
 
 /**
  * @defgroup radcli-api Main API
@@ -42,7 +46,7 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
  * @{
  */
 
-/** Packs an attribute value pair list into a buffer
+/* Packs an attribute value pair list into a buffer
  *
  * @param vp a pointer to a VALUE_PAIR.
  * @param secret the secret used by the server.
@@ -53,6 +57,7 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
  * @return The number of octets packed, or -1 if any attribute value exceeds
  *         253 bytes or the packet would exceed max_len.
  */
+/// @cond INTERNAL
 int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 {
 	int length, i, pc, padded_length;
@@ -163,14 +168,16 @@ too_large:
 	rc_log(LOG_ERR, "rc_pack_list: attribute value too large or packet would exceed %d bytes", max_len);
 	return -1;
 }
+/// @endcond
 
-/** Appends a string to the provided buffer
+/* Appends a string to the provided buffer
  *
  * @param dest the destination buffer.
  * @param max_size the maximum size available in the destination buffer.
  * @param pos the current position in the dest buffer; initially must be zero.
  * @param src the source buffer to append.
  */
+/// @cond INTERNAL
 static void strappend(char *dest, unsigned max_size, int *pos, const char *src)
 {
 	unsigned len = strlen(src) + 1;
@@ -187,8 +194,10 @@ static void strappend(char *dest, unsigned max_size, int *pos, const char *src)
 	*pos += len - 1;
 	return;
 }
+/// @endcond
 
 
+/// @cond INTERNAL
 static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
 			uint8_t vector[AUTH_VECTOR_LEN])
 {
@@ -207,8 +216,9 @@ static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
 	}
 	return OK_RC;
 }
+/// @endcond
 
-/** Sends a request to a RADIUS server and waits for the reply
+/** @brief Sends a request to a RADIUS server and waits for the reply
  *
  * @param rh a handle to parsed configuration
  * @param data a pointer to a SEND_DATA structure
@@ -223,7 +233,7 @@ int rc_send_server(rc_handle * rh, SEND_DATA * data, char *msg, rc_type type)
 	return rc_send_server_ctx(rh, NULL, data, msg, type);
 }
 
-/** Verify items in returned packet
+/* Verify items in returned packet
  *
  * @param auth a pointer to AUTH_HDR.
  * @param bufferlen the available buffer length.
@@ -232,6 +242,7 @@ int rc_send_server(rc_handle * rh, SEND_DATA * data, char *msg, rc_type type)
  * @param seq_nbr a unique sequence number.
  * @return OK_RC upon success, BADRESP_RC if anything looks funny.
  */
+/// @cond INTERNAL
 static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 			  unsigned char const *vector, uint8_t seq_nbr)
 {
@@ -279,11 +290,13 @@ static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 	return OK_RC;
 
 }
+/// @endcond
 
-/** Generates a random vector of AUTH_VECTOR_LEN octets
+/* Generates a random vector of AUTH_VECTOR_LEN octets
  *
  * @param vector a buffer with at least %AUTH_VECTOR_LEN bytes.
  */
+/// @cond INTERNAL
 static void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN])
 {
 #if defined(HAVE_GNUTLS)
@@ -294,6 +307,7 @@ static void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN])
 	assert(ret == 0);
 #endif
 }
+/// @endcond
 
 /** @} */
 
@@ -331,7 +345,6 @@ static int add_msg_auth_attr(rc_handle * rh, char * secret,
 
 /** Validate the Message-Authenticator attribute
  *
- * @param vp The received a/v pairs
  * @param recv_buffer The original packet
  * @param length The length of the attribute data (packet length minus AUTH_HDR_LEN)
  * @param secret The RADIUS secret

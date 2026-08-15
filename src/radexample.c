@@ -6,6 +6,10 @@
  *
  */
 
+/** @file radexample.c
+ * @brief Minimal example of using the radcli library for authentication.
+ */
+
 #include	<config.h>
 #include	<stdio.h>
 #include	<syslog.h>
