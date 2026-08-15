@@ -13,7 +13,9 @@
 
 #ifdef HAVE_NETTLE
 
-#include <nettle/md5-compat.h>
+/* Use nettle's native MD5 interface directly */
+#include <nettle/md5.h>
+typedef struct md5_ctx MD5_CTX;
 
 #else
 

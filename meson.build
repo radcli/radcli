@@ -68,6 +68,24 @@ nettle_dep = dependency('nettle', version: '>=2.4', required: get_option('nettle
 have_nettle = nettle_dep.found()
 conf.set('HAVE_NETTLE', have_nettle ? 1 : false)
 
+# nettle >=3.10 dropped the length argument from fixed-size digest
+# functions (md5_digest(), hmac_md5_digest(), and friends), since
+# truncating a fixed-size digest isn't meaningfully supported. Older
+# nettle still requires it. Both functions changed together as part of
+# the same upstream API revision, so one probe covers both.
+have_digest_length_arg = false
+if have_nettle
+  have_digest_length_arg = cc.compiles('''
+    #include <nettle/md5.h>
+    void f(struct md5_ctx *ctx, uint8_t *out) {
+      md5_digest(ctx, MD5_DIGEST_SIZE, out);
+    }
+    ''',
+    name: 'nettle fixed-digest functions take a length argument',
+    dependencies: nettle_dep)
+endif
+conf.set('HAVE_DIGEST_LENGTH_ARG', have_digest_length_arg ? 1 : false)
+
 requires_private = []
 if have_gnutls
   requires_private += 'gnutls'

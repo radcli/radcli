@@ -27,6 +27,7 @@
 */
 
 #include <string.h>   /* memset() */
+#include "config.h"   /* HAVE_DIGEST_LENGTH_ARG */
 #include "rc-hmac.h"
 
 void hmac_md5_with_nettle(uint8_t *data, size_t  data_len,
@@ -37,6 +38,10 @@ void hmac_md5_with_nettle(uint8_t *data, size_t  data_len,
     memset(digest, 0, MD5_DIGEST_SIZE);
     hmac_md5_set_key(&md5, key_len, key);
     hmac_md5_update(&md5, data_len, data);
+#ifdef HAVE_DIGEST_LENGTH_ARG
     hmac_md5_digest(&md5, MD5_DIGEST_SIZE, digest);
+#else
+    hmac_md5_digest(&md5, digest);
+#endif
 }
 
