@@ -34,12 +34,26 @@ https://radcli.github.io/radcli/
 
 ## Compilation
 
-Run autogen.sh to generate the configure script and makefiles.
+radcli uses [Meson](https://mesonbuild.com/) as its build system.
+
+```
+meson setup build
+ninja -C build
+sudo ninja -C build install
+```
 
 Required dependencies (Fedora/RHEL pkg):
 ```
-dnf install -y autoconf libtool automake nettle-devel gnutls-devel gettext-devel libabigail doxygen doxy2man
+dnf install -y meson ninja-build nettle-devel gnutls-devel libabigail doxygen doxy2man
 ```
+
+Useful `meson setup` options (`-Doption=value`):
+- `-Dtls=disabled` — disable TLS/DTLS (GnuTLS dependency)
+- `-Dnettle=disabled` — disable nettle (falls back to bundled MD5/HMAC)
+- `-Dlegacy-compat=true` — install freeradius-client/radiusclient-ng compat headers and `.so` symlinks
+- `-Ddocs=disabled` — skip Doxygen/doxy2man man page generation
+
+See [`AGENTS.md`](AGENTS.md) for testing, ABI-check, and other maintainer commands.
 
 ## Contributing/Submitting pull requests
 
@@ -80,4 +94,13 @@ https://github.com/radcli/radcli/issues
 ## Web Site
 
 The web site https://radcli.github.io/radcli is the primary web-site for
-radcli and is auto-generated via the 'make web' rule.
+radcli and is generated from the `doc/` Doxygen output and `doc/web/`.
+
+Rebuild and stage the site content with:
+```
+ninja -C build web
+```
+This regenerates the Doxygen HTML and stages `doc/web/` plus the HTML manual
+as a commit ready to publish to the `gh-pages` branch. It does not push;
+review the resulting commit and publish it yourself with the `git push`
+command it prints.

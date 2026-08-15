@@ -15,31 +15,30 @@ radcli is a C library for writing RADIUS clients, designed to enable RADIUS auth
 
 ## Build System
 
-Uses autotools (autoconf/automake/libtool).
+Uses Meson.
 
 ```bash
-# First time setup
-./autogen.sh
-./configure
-
-# Build
-make
+# First time setup + build
+meson setup build
+ninja -C build
 
 # Install
-make install
+ninja -C build install
 
-# Validate distribution tarball (runs abi-check + full test suite)
-make distcheck
+# Validate distribution tarball (also runs compare-exported + abi-check, see below)
+meson dist -C build
 ```
 
 Required Fedora/RHEL dependencies:
 ```
-dnf install -y autoconf libtool automake nettle-devel gnutls-devel gettext-devel libabigail doxygen doxy2man
+dnf install -y meson ninja-build nettle-devel gnutls-devel libabigail doxygen doxy2man
 ```
 
-Key `./configure` options:
-- `--without-tls` — disable TLS/DTLS (GnuTLS dependency)
-- `--enable-legacy-compat` — create symlinks for freeradius-client and radiusclient-ng ABI compatibility
+Key `meson setup` options (`-Doption=value`):
+- `-Dtls=disabled` — disable TLS/DTLS (GnuTLS dependency)
+- `-Dnettle=disabled` — disable nettle (falls back to bundled MD5/HMAC)
+- `-Dlegacy-compat=true` — install freeradius-client/radiusclient-ng compat headers and `.so` symlinks
+- `-Ddocs=disabled` — skip Doxygen/doxy2man man page generation
 
 ## Source Layout
 
@@ -63,27 +62,27 @@ Tests require root (network namespaces) and a running `radiusd` / `freeradius` i
 
 ```bash
 # Run all tests
-make check
+sudo meson test -C build
 
 # Run a single test script manually (from the build directory)
 cd tests && srcdir=../tests ../tests/tls-tests.sh
 
 # Run the C unit tests (these do NOT require root or radiusd)
-./tests/avpair
-./tests/dict
-./tests/dict-add   # only built when GnuTLS is enabled
+./build/tests/avpair
+./build/tests/dict
+./build/tests/dict-add   # only built when GnuTLS is enabled
 ```
 
-Tests use Linux network namespaces (`tests/ns.sh`) to create isolated client/server namespaces with veth pairs. Tests skip (exit 77) when not run as root, or when `radiusd`/`freeradius` is absent. TLS tests (`tls-tests.sh`, `tls-idle-restart-tests.sh`, `close-notify-tests.sh`) also need port 2083 to be ready and only build/run when GnuTLS is enabled.
+Tests use Linux network namespaces (`tests/ns.sh`) to create isolated client/server namespaces with veth pairs. Tests skip (exit 77, reported as SKIP by `meson test`) when not run as root, or when `radiusd`/`freeradius` is absent. TLS tests (`tls-tests.sh`, `tls-idle-restart-tests.sh`, `close-notify-tests.sh`) also need port 2083 to be ready and only build/run when GnuTLS is enabled.
 
 Shell test scripts are in `tests/`; see `tests/*.sh` for the full list.
 
 ### ABI checks
 
 ```bash
-make abi-check    # compare against saved ABI dump
-make abi-dump     # update the reference ABI dump (devel/ABI-x86_64.dump)
-make compare-exported  # verify headers and radcli.map export the same symbols
+ninja -C build abi-check        # compare against saved ABI dump
+ninja -C build abi-dump         # update the reference ABI dump (devel/ABI-x86_64.dump)
+ninja -C build compare-exported # verify headers and radcli.map export the same symbols
 ```
 
 ## Architecture
@@ -124,17 +123,17 @@ Loaded from the `dictionary` config option. Attribute names map to numeric IDs v
 
 ### ABI stability
 
-Exported symbols are controlled by `lib/radcli.map`. When adding public functions, add them to the map **and** update `include/radcli/radcli.h`. Run `make compare-exported` to validate consistency.
+Exported symbols are controlled by `lib/radcli.map`. When adding public functions, add them to the map **and** update `include/radcli/radcli.h`. Run `ninja -C build compare-exported` to validate consistency.
 
 ## CI
 
 Six jobs run on every push (`.github/workflows/tests.yaml`):
 - **static-analyzer** — clang static analysis (`scan-build`)
-- **tests-asan** — build + `sudo make check` with `-fsanitize=address`
-- **tests-ubsan** — build + `sudo make check` with `-fsanitize=undefined,...`
-- **tests** — standard build, `sudo make check`, `make abi-check`, `make compare-exported`, `make distcheck`
-- **tests-msan** — clang build + `sudo make check` with `-fsanitize=memory` (`--without-tls --without-nettle` to avoid uninstrumented external libs)
-- **tests-notls** — build + `sudo make check` with `--without-tls`
+- **tests-asan** — build + `sudo meson test` with `-Db_sanitize=address`
+- **tests-ubsan** — build + `sudo meson test` with `-Db_sanitize=undefined` plus extra sanitizer flags
+- **tests** — standard build, `sudo meson test`, `ninja abi-check`, `ninja compare-exported`, `meson dist`
+- **tests-msan** — clang build + `sudo meson test` with `-Db_sanitize=memory` (`-Dtls=disabled -Dnettle=disabled` to avoid uninstrumented external libs)
+- **tests-notls** — build + `sudo meson test` with `-Dtls=disabled`
 
 ## Coding conventions
 

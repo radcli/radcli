@@ -30,8 +30,8 @@ function finish {
 sed -e 's/localhost/'$ADDRESS'/g' -e 's/servers-temp/servers-temp'$PID'/g' <$srcdir/radiusclient.conf >radiusclient-temp$PID.conf
 sed 's/localhost/'$ADDRESS'/g' <$srcdir/servers >servers-temp$PID
 
-echo ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
-${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
+echo ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=admin Password=admin | tee $TMPFILE
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
 if test $? = 0;then

@@ -11,21 +11,20 @@ jobs:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq clang clang-tools libgnutls28-dev
+                  sudo apt-get install -qq clang clang-tools libgnutls28-dev meson ninja-build
             - name: Configure
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CFLAGS="-O2 -g" scan-build --status-bugs ./configure --with-tls
+                  CFLAGS="-O2 -g" scan-build --status-bugs meson setup build -Dtls=enabled
             - name: Clang analyzer
               run: |
-                  scan-build --status-bugs -o analyzer make -j $(nproc)
+                  scan-build --status-bugs -o analyzer ninja -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: analyzer output
                   path: analyzer/
@@ -35,136 +34,166 @@ jobs:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3 meson ninja-build
             - name: Compile with address sanitizer
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CFLAGS="-fsanitize=address -g -O2" ./configure --with-tls
-                  make -j $(nproc)
+                  meson setup build -Dtls=enabled -Db_sanitize=address -Dc_args="-g -O2"
+                  ninja -C build
             - name: Test
               run: |
-                  sudo make check
+                  sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: test-suite log (asan)
-                  path: tests/test-suite.log
+                  path: build/meson-logs/testlog.txt
                   retention-days: 5
 
     tests-ubsan:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3 meson ninja-build
             - name: Compile with undefined sanitizer
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CFLAGS="-O1 -g -Wno-cpp -Werror -fno-omit-frame-pointer -fsanitize=undefined,bool,alignment,null,enum,bounds-strict,address,leak,nonnull-attribute -fno-sanitize-recover=all -fsanitize-address-use-after-scope" ./configure --with-tls
-                  make -j $(nproc)
+                  meson setup build -Dtls=enabled -Db_sanitize=undefined \
+                    -Dc_args="-O1 -g -Wno-cpp -Werror -fno-omit-frame-pointer -fsanitize=bool,alignment,null,enum,bounds-strict,leak,nonnull-attribute -fno-sanitize-recover=all -fsanitize-address-use-after-scope" \
+                    -Dc_link_args="-fsanitize=bool,alignment,null,enum,bounds-strict,leak,nonnull-attribute"
+                  ninja -C build
             - name: Test
               run: |
-                  sudo make check
+                  sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: test-suite log (ubsan)
-                  path: tests/test-suite.log
+                  path: build/meson-logs/testlog.txt
                   retention-days: 5
 
     tests:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools python3
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools python3 meson ninja-build
             - name: Compile
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CFLAGS="-O2 -g -Wall -Wno-cpp -Werror" ./configure --with-tls
-                  make -j $(nproc)
+                  meson setup build -Dtls=enabled -Dc_args="-O2 -g -Wall -Wno-cpp -Werror"
+                  ninja -C build
             - name: Test
               run: |
-                  sudo make check
+                  sudo meson test -C build
             - name: ABI check
               run: |
-                  make abi-check
+                  ninja -C build abi-check
             - name: Compare exported symbols
               run: |
-                  make compare-exported
-            - name: Distcheck
-              run: |
-                  touch doc/stamp_mans
-                  make ABI_SKIP=1 distcheck
+                  ninja -C build compare-exported
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: test-suite log (tests)
-                  path: |
-                      tests/test-suite.log
-                      radcli-*/_build/sub/tests/test-suite.log
+                  path: build/meson-logs/testlog.txt
+                  retention-days: 5
+
+    # meson dist requires -Ddocs=enabled (see doc/meson.build,
+    # meson-scripts/dist-man-pages.sh): the API man pages are regenerated
+    # fresh and embedded in the release tarball at dist time rather than at
+    # every build, so downstream packagers never need doxygen/doxy2man/perl.
+    # doxy2man isn't apt-packaged for Ubuntu, so it's built from its own
+    # source here, pinned to a specific upstream commit.
+    distcheck:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools \
+                      python3 meson ninja-build doxygen perl \
+                      qt5-qmake qtbase5-dev libqt5xmlpatterns5-dev
+            - name: Build doxy2man
+              run: |
+                  git clone https://github.com/gsauthof/doxy2man.git /tmp/doxy2man
+                  git -C /tmp/doxy2man checkout 5ce113f
+                  qmake -makefile -o /tmp/doxy2man/Makefile /tmp/doxy2man/main.pro
+                  make -C /tmp/doxy2man
+                  sudo install -m 755 /tmp/doxy2man/doxy2man /usr/local/bin/doxy2man
+            - name: Configure
+              run: |
+                  meson setup build -Dtls=enabled -Ddocs=enabled
+            - name: Distcheck
+              run: |
+                  meson dist -C build
+            - name: Upload artifacts
+              if: failure()
+              uses: actions/upload-artifact@v5
+              with:
+                  name: test-suite log (distcheck)
+                  path: build/meson-logs/testlog.txt
                   retention-days: 5
 
     tests-msan:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq clang freeradius python3
+                  sudo apt-get install -qq clang freeradius python3 meson ninja-build
             - name: Compile with MemorySanitizer
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CC=clang CFLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O1" \
-                    ./configure --without-tls --without-nettle
-                  make -j $(nproc)
+                  CC=clang meson setup build -Dtls=disabled -Dnettle=disabled -Db_sanitize=memory \
+                    -Db_lundef=false \
+                    -Dc_args="-fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O1"
+                  ninja -C build
             - name: Test
               run: |
-                  sudo make check
+                  sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: test-suite log (msan)
-                  path: tests/test-suite.log
+                  path: build/meson-logs/testlog.txt
                   retention-days: 5
 
     tests-notls:
         runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
-              uses: actions/checkout@v4
+              uses: actions/checkout@v5
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius python3
+                  sudo apt-get install -qq gcc freeradius python3 meson ninja-build
             - name: Compile without TLS
               run: |
-                  touch config.rpath && autoreconf -fvi
-                  CFLAGS="-O2 -g -Wall -Wno-cpp -Werror" ./configure --without-tls
-                  make -j $(nproc)
+                  meson setup build -Dtls=disabled -Dc_args="-O2 -g -Wall -Wno-cpp -Werror"
+                  ninja -C build
             - name: Test
               run: |
-                  sudo make check
+                  sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v5
               with:
                   name: test-suite log (notls)
-                  path: tests/test-suite.log
+                  path: build/meson-logs/testlog.txt
                   retention-days: 5

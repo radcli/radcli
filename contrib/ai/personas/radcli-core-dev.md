@@ -39,8 +39,8 @@ When reviewing or designing a change, evaluate it against these principles befor
 - Does the change add, remove, or modify a public symbol in `include/radcli/radcli.h`?
 - If yes, is the symbol added to `lib/radcli.map` under the `RADCLI_LIBMAJOR` version node
   (the single node used for all exported symbols)?
-- Has `make compare-exported` been run to verify header/map consistency?
-- Has `make abi-check` been run against the saved dump in `devel/`?
+- Has `ninja -C build compare-exported` been run to verify header/map consistency?
+- Has `ninja -C build abi-check` been run against the saved dump in `devel/`?
 - Verdict: *no ABI change* | *additive (symbol added to RADCLI_LIBMAJOR node)* | *BREAKING — REJECT*
 
 **Design simplicity.**
@@ -61,7 +61,7 @@ the caller.
   GnuTLS utility calls (`gnutls_global_init`, `gnutls_rnd`) may appear in
   `lib/config.c` and `lib/sendserver.c` where they operate independently of
   the session layer — this is acceptable and not a violation.
-- Build: autotools (`configure.ac`, `Makefile.am`); no cmake or meson.
+- Build: Meson (`meson.build`); no cmake or autotools.
 - Verdict per concern: *compliant* | *violation* (state which rule and line)
 
 If any verdict is *needs redesign*, *REJECT*, or *violation*, do not approve the patch.
@@ -264,7 +264,7 @@ walk each group and verify every member is consistent.
 **Group 1 — Public API**
 `include/radcli/radcli.h` symbol ↔ `lib/radcli.map` (`RADCLI_LIBMAJOR` node) ↔
 Doxygen `@param` / `@return` on each function; one `@defgroup` per source file ↔ `devel/ABI-x86_64.dump`
-(update with `make abi-dump` after intentional ABI additions).
+(update with `ninja -C build abi-dump` after intentional ABI additions).
 
 **Group 2 — Transport vtable**
 `rc_sockets_override` struct in `include/radcli/radcli.h` ↔ default implementations
@@ -337,17 +337,17 @@ Write a test that reproduces the bug and confirm it fails *before* applying the 
 An agent that fixes first and tests second cannot prove the test is meaningful.
 
 **Most tests require root and will be skipped locally.**
-Tests exit 77 (autotools SKIP convention) when not run as root or when `radiusd` /
-`freeradius` is not in PATH. A run that shows no failures but many skips is not a
-passing run — it is a partial run.
+Tests exit 77 (SKIP convention, understood natively by `meson test`) when not run as
+root or when `radiusd` / `freeradius` is not in PATH. A run that shows no failures
+but many skips is not a passing run — it is a partial run.
 **Never report "tests pass" when tests were skipped.** Instead report:
 "Tests run locally: [list]. Skipped (require root/radiusd): [list]. Full verification
 requires CI."
 
 **What can be verified locally (without root):**
-- Build: `make`
-- C unit tests that do not start a server: `./tests/avpair`, `./tests/dict`
-- ABI checks: `make abi-check`, `make compare-exported`
+- Build: `meson setup build && ninja -C build`
+- C unit tests that do not start a server: `./build/tests/avpair`, `./build/tests/dict`
+- ABI checks: `ninja -C build abi-check`, `ninja -C build compare-exported`
 
 **What requires root and therefore CI:**
 - Any test that uses Linux network namespaces (`tests/ns.sh`)
@@ -368,10 +368,10 @@ Before declaring any change done, work through this checklist and report which i
 you have verified and which require human action.
 
 **Agent-runnable:**
-1. `make` — the build must succeed with no new warnings (`-Wall` is enforced).
-2. `./tests/avpair && ./tests/dict` — run non-root unit tests and confirm they pass.
-3. `make abi-check` — confirm no unintended ABI change against `devel/ABI-x86_64.dump`.
-4. `make compare-exported` — confirm `include/radcli/radcli.h` and `lib/radcli.map`
+1. `meson setup build && ninja -C build` — the build must succeed with no new warnings (`-Wall` is enforced).
+2. `./build/tests/avpair && ./build/tests/dict` — run non-root unit tests and confirm they pass.
+3. `ninja -C build abi-check` — confirm no unintended ABI change against `devel/ABI-x86_64.dump`.
+4. `ninja -C build compare-exported` — confirm `include/radcli/radcli.h` and `lib/radcli.map`
    export the same symbols.
 
 **Human-judgment required — flag these explicitly:**
@@ -392,7 +392,7 @@ Do not omit any part.
 radcli targets Linux, but also supports BSD and other POSIX systems. When adding
 Linux-specific code (e.g., using `SO_REUSEPORT` or Linux-specific socket options),
 use `#ifdef __linux__` so non-Linux builds continue to compile. GnuTLS availability
-is controlled by `--without-tls` at configure time; all TLS/DTLS code must be
+is controlled by `-Dtls=disabled` at `meson setup` time; all TLS/DTLS code must be
 guarded by `#ifdef HAVE_GNUTLS`.
 
 ---
@@ -404,8 +404,8 @@ Use this when preparing or reviewing a patch:
 **Design principles (see Protocol: Design Review above):**
 - [ ] Locality: feature contained in a bounded set of files; no new cross-cutting helpers
 - [ ] Dependencies: no new external libraries without approved design issue
-- [ ] ABI: new symbols added to `lib/radcli.map`; `make compare-exported` passes; `make abi-check` passes
-- [ ] Canonical tech: standard malloc/free, TLS sessions via `lib/tls.c`, autotools, no OpenSSL
+- [ ] ABI: new symbols added to `lib/radcli.map`; `ninja compare-exported` passes; `ninja abi-check` passes
+- [ ] Canonical tech: standard malloc/free, TLS sessions via `lib/tls.c`, Meson, no OpenSSL
 
 **Code quality:**
 - [ ] C99 dialect throughout; no GNU extensions without justification
@@ -434,7 +434,7 @@ Use this when preparing or reviewing a patch:
 **Testing:**
 - [ ] Positive test case: verifies correct behavior when feature/fix is exercised
 - [ ] Negative test case: verifies correct rejection / error handling on bad input
-- [ ] Test registered in `tests/Makefile.am`
+- [ ] Test registered in `tests/meson.build`
 - [ ] Local test output checked; skipped tests (require root/radiusd) noted
 - [ ] Root-requiring tests deferred to CI; pipeline monitored after push
 

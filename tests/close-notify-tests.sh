@@ -111,7 +111,7 @@ run_close_notify_test() {
 	local frontend_port=${PORT}
 	write_conf "${mode}" "${frontend_port}"
 
-	./close-notify-server ${dtls_flag} \
+	${top_builddir}/tests/close-notify-server ${dtls_flag} \
 		--port "${frontend_port}" \
 		--backend-port "${BEPORT}" \
 		--ca  "${srcdir}/dtls/ca.pem" \
@@ -126,7 +126,7 @@ run_close_notify_test() {
 		return 1
 	}
 
-	../src/radiusclient -D -i \
+	${top_builddir}/src/radiusclient -D -i \
 		-f "conf-${mode}-cn-${PID}" \
 		User-Name=test Password=test >/dev/null
 

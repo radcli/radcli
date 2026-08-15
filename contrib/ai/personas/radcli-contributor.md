@@ -83,7 +83,7 @@ visible through the API) is an ABI change. New symbols must be added to
 `lib/radcli.map` under the `RADCLI_LIBMAJOR` version node (the single node used for
 all exported symbols). Removed or modified symbols are
 **breaking changes** and require maintainer sign-off before any code is written.
-Run `make compare-exported` and `make abi-check` before declaring a change done.
+Run `ninja -C build compare-exported` and `ninja -C build abi-check` before declaring a change done.
 
 **2. Do not use OpenSSL.**
 radcli uses GnuTLS exclusively. Do not introduce any OpenSSL headers, functions,
@@ -156,17 +156,18 @@ packet buffers will not be accepted in review.
 
 Shell tests live in `tests/` and use `tests/ns.sh` for network namespace isolation.
 Start from the existing test most similar to yours rather than writing from scratch.
-Register your test in `tests/Makefile.am`.
+Register your test in `tests/meson.build`.
 
 **Most shell tests require root and will be skipped when run without it.**
-Tests exit 77 (autotools SKIP convention) when not run as root or when `radiusd` /
-`freeradius` is absent from PATH. Before reporting that tests pass, check the output
-for skipped tests. A run with skipped tests is a partial run, not a passing one.
+Tests exit 77 (SKIP convention, understood natively by `meson test`) when not run as
+root or when `radiusd` / `freeradius` is absent from PATH. Before reporting that
+tests pass, check the output for skipped tests. A run with skipped tests is a
+partial run, not a passing one.
 
 What you can verify locally without root:
-- `make` (build only)
-- C unit tests: `./tests/avpair`, `./tests/dict`, `./tests/dict-add`
-- `make abi-check` and `make compare-exported`
+- `meson setup build && ninja -C build` (build only)
+- C unit tests: `./build/tests/avpair`, `./build/tests/dict`, `./build/tests/dict-add`
+- `ninja -C build abi-check` and `ninja -C build compare-exported`
 
 What requires root and will only run fully in CI:
 - Any test that uses network namespaces
@@ -199,7 +200,7 @@ safe to review.
 3. **Maintain formatting.** Match the existing indentation and style of the file.
    Do not reformat lines you did not semantically change.
 
-4. **Build-verify after each logical fix.** `make` must succeed before moving to
+4. **Build-verify after each logical fix.** `ninja -C build` must succeed before moving to
    the next change. Do not accumulate multiple fixes and build once at the end.
 
 5. **Log unmatched patterns.** If you encounter a code pattern that seems related
@@ -216,12 +217,12 @@ safe to review.
 **Agent-runnable — you must verify these:**
 - [ ] Every changed line is independently justifiable — no drive-by refactoring
 - [ ] Original types preserved; no unrelated reformatting
-- [ ] `make` succeeds with no new warnings (`-Wall` is enforced)
+- [ ] `meson setup build && ninja -C build` succeeds with no new warnings (`-Wall` is enforced)
 - [ ] Local tests run; output checked for OK vs SKIP — skipped tests listed in PR description
-- [ ] `make abi-check` passes (no unintended ABI change)
-- [ ] `make compare-exported` passes (header and map in sync)
+- [ ] `ninja -C build abi-check` passes (no unintended ABI change)
+- [ ] `ninja -C build compare-exported` passes (header and map in sync)
 - [ ] Every commit has `Signed-off-by: Your Name <email@example.com>`
-- [ ] New test case added and registered in `tests/Makefile.am`
+- [ ] New test case added and registered in `tests/meson.build`
 - [ ] Both a **positive** test (correct behavior) and a **negative** test (bad input rejected)
 - [ ] New public symbols added to `lib/radcli.map` and documented in `include/radcli/radcli.h`
 - [ ] All allocations checked before use; `goto cleanup` (or equivalent label) on error paths

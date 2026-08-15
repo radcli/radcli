@@ -14,12 +14,10 @@ Release: %autorelease
 License: BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston
 URL: http://radcli.github.io/radcli/
 
-Source0: https://github.com/radcli/radcli/releases/download/%{version}/%{name}-%{version}.tar.gz
-Source1: https://github.com/radcli/radcli/releases/download/%{version}/%{name}-%{version}.tar.gz.sig
+Source0: https://github.com/radcli/radcli/releases/download/%{version}/%{name}-%{version}.tar.xz
+Source1: https://github.com/radcli/radcli/releases/download/%{version}/%{name}-%{version}.tar.xz.sig
 
-BuildRequires: libtool, automake, autoconf
-#BuildRequires: gettext-devel
-BuildRequires: make
+BuildRequires: meson, ninja-build
 BuildRequires: gcc, iproute
 BuildRequires: nettle-devel >= 2.7.1
 BuildRequires: gnutls-devel
@@ -51,20 +49,16 @@ and radiusclient-ng.
 %prep
 %autosetup -p1
 rm -f lib/md5.c
-sed -i -e 's|sys_lib_dlsearch_path_spec="[^"]\+|& %{_libdir}|g' configure
 
 %build
-autoreconf -fvi
-%configure --disable-rpath --with-nettle --with-tls --enable-legacy-compat
-make %{?_smp_mflags}
+%meson -Dnettle=enabled -Dtls=enabled -Dlegacy-compat=true -Ddocs=disabled
+%meson_build
 
 %check
-make %{?_smp_mflags} check
+%meson_test
 
 %install
-make DESTDIR=%{buildroot} install
-rm -f %{buildroot}%{_libdir}/*.la
-rm -f %{buildroot}%{_libdir}/*.a
+%meson_install
 
 # these should be removed once the utils subpackage is on
 

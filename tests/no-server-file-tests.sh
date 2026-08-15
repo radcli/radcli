@@ -68,7 +68,7 @@ radius_retries	1
 bindaddr *
 EOF
 
-${CMDNS1} ../src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
+${CMDNS1} ${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf  User-Name=test Password=test | tee $TMPFILE
 if test $? != 0;then
 	echo "Error in PAP auth"
 	exit 1

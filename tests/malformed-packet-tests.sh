@@ -88,14 +88,14 @@ echo "require-message-authenticator	no" >> radiusclient-noauth$PID.conf
 # Test 1: response contains an attribute with type=0 (forbidden by RFC 2865 §5)
 start_server absent malformed-type-zero
 run_test "Reject response containing a type-0 attribute" \
-	"../src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 stop_server
 
 # Test 2: response contains an attribute whose length byte is 1 (minimum is 2)
 start_server absent malformed-len-one
 run_test "Reject response with attribute length < 2" \
-	"../src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 stop_server
 
@@ -103,7 +103,7 @@ stop_server
 # only carries 7 bytes for it — attr_len > pb_len check fires
 start_server absent malformed-overflow
 run_test "Reject response where attribute length overflows the packet" \
-	"../src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-malformed$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 stop_server
 
@@ -116,7 +116,7 @@ stop_server
 # unknown attrs that rc_avpair_gen2 omits from the list).
 start_server absent unknown-attrs
 run_test "Accept response with unknown attribute types (skipped, rest decoded)" \
-	"../src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
 	|| exit 1
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
@@ -131,7 +131,7 @@ stop_server
 # MA absent for the same reason as test 4.
 start_server absent int-badlen
 run_test "Accept response where an INTEGER attr has wrong length (skipped, rest decoded)" \
-	"../src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
 	|| exit 1
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1
@@ -148,7 +148,7 @@ stop_server
 # must still be decoded.
 start_server absent vsa-unknown-subattrs
 run_test "Accept response with VSA containing only unknown sub-attrs (skipped, rest decoded)" \
-	"../src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-noauth$PID.conf User-Name=test Password=test" \
 	|| exit 1
 
 grep "^Framed-Protocol                  = 'PPP'$" $TMPFILE >/dev/null 2>&1

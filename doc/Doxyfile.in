@@ -758,7 +758,7 @@ WARN_LOGFILE           =
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ../lib/ ../include/radcli/ ../src/radexample.c ../include/radiusclient-ng.h ../include/freeradius-client.h
+INPUT                  = @TOP_SRCDIR@/lib/ @TOP_SRCDIR@/include/radcli/ @TOP_SRCDIR@/src/radexample.c @TOP_SRCDIR@/include/radiusclient-ng.h @TOP_SRCDIR@/include/freeradius-client.h
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -826,7 +826,7 @@ EXCLUDE_SYMBOLS        =
 # that contain example code fragments that are included (see the \include
 # command).
 
-EXAMPLE_PATH           = ../src/ ../etc/
+EXAMPLE_PATH           = @TOP_SRCDIR@/src/ @TOP_SRCDIR@/etc/
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp and
