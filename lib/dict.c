@@ -158,19 +158,20 @@ DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendo
 /// @cond INTERNAL
 static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 {
-	char            dummystr[AUTH_ID_LEN];
 	char            namestr[AUTH_ID_LEN];
 	char            valstr[AUTH_ID_LEN];
 	char            attrstr[AUTH_ID_LEN];
 	char            typestr[AUTH_ID_LEN];
 	char            optstr[AUTH_ID_LEN];
-	char            ifilename[PATH_MAX] = {0};
+	char            ifilename[RC_MAX(1024, PATH_MAX)] = {0};
 	char            *cp;
+	char            *saveptr;
+	char            *tok;
 	int             line_no = 0;
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
 	DICT_VENDOR    *dvend;
-	char            buffer[256];
+	char            buffer[1024];
 	uint32_t        value;
 	int             type;
 	unsigned attr_vendorspec = 0;
@@ -199,17 +200,38 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			*cp = '\0';
 		}
 
-		if (strncmp (buffer, "ATTRIBUTE", 9) == 0)
+		tok = strtok_r(buffer, " \t\r\n", &saveptr);
+		if (tok == NULL)
 		{
-			optstr[0] = '\0';
+			continue;
+		}
+
+		if (strcmp (tok, "ATTRIBUTE") == 0)
+		{
+			char *name_t, *val_t, *type_t, *opt_t;
+
 			/* Read the ATTRIBUTE line */
-			if (sscanf (buffer, "%63s%63s%63s%63s%63s", dummystr, namestr,
-				valstr, typestr, optstr) < 4)
+			name_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			val_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			type_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			opt_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			if (name_t == NULL || val_t == NULL || type_t == NULL)
 			{
-				rc_log(LOG_ERR, 
+				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
+			}
+			strlcpy(namestr, name_t, sizeof(namestr));
+			strlcpy(valstr, val_t, sizeof(valstr));
+			strlcpy(typestr, type_t, sizeof(typestr));
+			if (opt_t != NULL)
+			{
+				strlcpy(optstr, opt_t, sizeof(optstr));
+			}
+			else
+			{
+				optstr[0] = '\0';
 			}
 
 			/*
@@ -308,17 +330,24 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			attr->next = rh->dictionary_attributes;
 			rh->dictionary_attributes = attr;
 		}
-		else if (strncmp (buffer, "VALUE", 5) == 0)
+		else if (strcmp (tok, "VALUE") == 0)
 		{
+			char *attr_t, *name_t, *val_t;
+
 			/* Read the VALUE line */
-			if (sscanf (buffer, "%63s%63s%63s%63s", dummystr, attrstr,
-				    namestr, valstr) != 4)
+			attr_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			name_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			val_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			if (attr_t == NULL || name_t == NULL || val_t == NULL)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value entry on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
+			strlcpy(attrstr, attr_t, sizeof(attrstr));
+			strlcpy(namestr, name_t, sizeof(namestr));
+			strlcpy(valstr, val_t, sizeof(valstr));
 
 			/*
 			 * Validate all entries
@@ -362,24 +391,33 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			dval->next = rh->dictionary_values;
 			rh->dictionary_values = dval;
 		}
-		else if ((filename != NULL) && 
-				(strncmp (buffer, "$INCLUDE", 8) == 0))
+		else if ((filename != NULL) &&
+				(strcmp (tok, "$INCLUDE") == 0))
 		{
-			/* Read the $INCLUDE line */
-			if (sscanf (buffer, "%63s%63s", dummystr, namestr) != 2)
+			char *path_t;
+
+			/* Read the $INCLUDE line. The path token is used directly
+			 * (strtok_r null-terminates it in place in buffer, which is
+			 * large enough for the longest path this parser can see),
+			 * copied into ifilename (RC_MAX(1024, PATH_MAX)-sized) since
+			 * $INCLUDE paths can legitimately be longer than 63 chars. */
+			path_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			if (path_t == NULL)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid include entry on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
-			strncpy(ifilename, namestr, sizeof(ifilename));
+			strlcpy(ifilename, path_t, sizeof(ifilename));
 			/* Append directory if necessary */
-			if (namestr[0] != '/') {
+			if (path_t[0] != '/') {
 				cp = strrchr(filename, '/');
 				if (cp != NULL) {
 					*cp = '\0';
-					snprintf(ifilename, sizeof(ifilename), "%s/%s", filename, namestr);
+					strlcpy(ifilename, filename, sizeof(ifilename));
+					strlcat(ifilename, "/", sizeof(ifilename));
+					strlcat(ifilename, path_t, sizeof(ifilename));
 					*cp = '/';
 				}
 			}
@@ -388,15 +426,18 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				return -1;
 			}
 		}
-		else if (strncmp (buffer, "END-VENDOR", 10) == 0)
+		else if (strcmp (tok, "END-VENDOR") == 0)
 		{
 			attr_vendorspec = 0;
 		}
-		else if (strncmp (buffer, "BEGIN-VENDOR", 12) == 0)
+		else if (strcmp (tok, "BEGIN-VENDOR") == 0)
 		{
 			DICT_VENDOR *v;
+			char *name_t;
+
 			/* Read the vendor name */
-			if (sscanf (buffer+12, "%63s", dummystr) != 1)
+			name_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			if (name_t == NULL)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
@@ -404,26 +445,32 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				return -1;
 			}
 
-			v = rc_dict_findvend(rh, dummystr);
+			v = rc_dict_findvend(rh, name_t);
 			if (v == NULL) {
 				rc_log(LOG_ERR,
 					"rc_dict_init: unknown Vendor %s on line %d of "
-					"dictionary %s", dummystr, line_no, pfilename);
+					"dictionary %s", name_t, line_no, pfilename);
 				return -1;
 			}
 
 			attr_vendorspec = v->vendorpec;
 		}
-		else if (strncmp (buffer, "VENDOR", 6) == 0)
+		else if (strcmp (tok, "VENDOR") == 0)
 		{
-			/* Read the VALUE line */
-			if (sscanf (buffer, "%63s%63s%63s", dummystr, attrstr, valstr) != 3)
+			char *name_t, *val_t;
+
+			/* Read the VENDOR line */
+			name_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			val_t = strtok_r(NULL, " \t\r\n", &saveptr);
+			if (name_t == NULL || val_t == NULL)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
+			strlcpy(attrstr, name_t, sizeof(attrstr));
+			strlcpy(valstr, val_t, sizeof(valstr));
 
 			/* Validate all entries */
 			if (strlen (attrstr) > RC_NAME_LENGTH)
