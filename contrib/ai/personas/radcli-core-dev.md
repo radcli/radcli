@@ -54,6 +54,27 @@ that is a design signal to reconsider. Complexity belongs in the library, not in
 the caller.
 - Verdict: *preserves simplicity* | *increases caller burden — justify or redesign*
 
+**Process-state neutrality.**
+radcli is linked into a caller's process, not run as its own — it must never take
+unilateral ownership of process-wide state the embedding application may also
+depend on, because the library cannot know what else runs in that process.
+Reject (or push to the caller) any change that:
+- Installs or modifies a signal handler (`signal()`, `sigaction()`) — including
+  for `SIGPIPE`. A write to a peer that has reset the connection (e.g. the
+  close-notify `gnutls_bye()` sends when tearing down a session whose server
+  just died) can raise `SIGPIPE`; radcli must not silence it process-wide.
+  That is the calling application's decision (or the test's, for radcli's own
+  test binaries — see `tests/tls-idle-restart.c`'s `signal(SIGPIPE, SIG_IGN)`
+  for the pattern).
+- Calls `fork()`, or spawns a thread on its own initiative — as opposed to
+  simply being safe to call *from* threads the caller creates.
+- Uses `alarm()`, `setitimer()`, or any other global/process-wide timer.
+- Mutates other ambient process state a caller might independently rely on:
+  locale (`setlocale`), umask, current working directory, environment variables.
+- Introduces new library-owned global or `static` mutable state. (`radcli_debug`
+  is a pre-existing, narrowly-scoped exception — not a precedent to extend.)
+- Verdict: *no process-state changes* | *responsibility pushed to caller/test — documented* | *REJECT*
+
 **Canonical technology choices.**
 - Memory: standard `malloc`/`free`; `gnutls_malloc`/`gnutls_free` only where GnuTLS
   API takes ownership of the buffer.
@@ -405,6 +426,9 @@ Use this when preparing or reviewing a patch:
 - [ ] Locality: feature contained in a bounded set of files; no new cross-cutting helpers
 - [ ] Dependencies: no new external libraries without approved design issue
 - [ ] ABI: new symbols added to `lib/radcli.map`; `ninja compare-exported` passes; `ninja abi-check` passes
+- [ ] Process-state neutrality: no signal handlers, `fork()`, library-spawned threads,
+      `alarm()`/timers, or other ambient process-state changes; no new global/`static`
+      mutable state
 - [ ] Canonical tech: standard malloc/free, TLS sessions via `lib/tls.c`, Meson, no OpenSSL
 
 **Code quality:**
