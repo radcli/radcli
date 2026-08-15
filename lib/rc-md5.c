@@ -22,8 +22,18 @@ void rc_md5_calc(unsigned char *output, unsigned char const *input,
 {
 	MD5_CTX	context;
 
+#ifdef HAVE_NETTLE
+	md5_init(&context);
+	md5_update(&context, inlen, input);
+#ifdef HAVE_DIGEST_LENGTH_ARG
+	md5_digest(&context, MD5_DIGEST_SIZE, output);
+#else
+	md5_digest(&context, output);
+#endif
+#else
 	MD5Init(&context);
 	MD5Update(&context, input, inlen);
 	MD5Final(output, &context);
+#endif
 }
 
