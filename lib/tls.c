@@ -60,6 +60,10 @@ typedef struct tls_int_st {
 	gnutls_session_t session;
 	int sockfd;
 	unsigned init;
+	unsigned handshake_done; /* set only once gnutls_handshake() succeeds;
+				  * guards deinit_session()'s gnutls_bye(),
+				  * which is invalid on a session that never
+				  * finished (or started) its handshake. */
 	unsigned need_restart;
 	unsigned skip_hostname_check; /* whether to verify hostname */
 	pthread_mutex_t lock;
@@ -306,8 +310,12 @@ static void deinit_session(tls_int_st *ses)
 		ses->init = 0;
 		if (ses->session) {
 			/* Send close_notify before closing the socket so the peer
-			 * receives a proper TLS/DTLS shutdown alert. */
-			if (ses->sockfd != -1) {
+			 * receives a proper TLS/DTLS shutdown alert. Only valid
+			 * once the handshake actually completed -- e.g. a
+			 * connect() failure leaves an initialized session with
+			 * no negotiated cipher state, and gnutls_bye() on that
+			 * is not meaningful. */
+			if (ses->sockfd != -1 && ses->handshake_done) {
 				do {
 					ret = gnutls_bye(ses->session, GNUTLS_SHUT_WR);
 				} while (ret == GNUTLS_E_INTERRUPTED);
@@ -328,7 +336,7 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 			int timeout,
 			unsigned secflags)
 {
-	int sockfd, ret, e;
+	int sockfd, ret, e, sock_flags;
 	struct addrinfo *info;
 	char *p;
 	unsigned flags = 0;
@@ -337,6 +345,7 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 
 	ses->sockfd = -1;
 	ses->init = 1;
+	ses->handshake_done = 0;
 
 	pthread_mutex_init(&ses->lock, NULL);
 	sockfd = socket(our_sockaddr->ss_family, (secflags&SEC_FLAG_DTLS)?SOCK_DGRAM:SOCK_STREAM, 0);
@@ -461,6 +470,22 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 		goto cleanup;
 	}
 
+	/* Switch to non-blocking mode before the handshake, so that both
+	 * gnutls_handshake() (bounded above via gnutls_handshake_set_timeout()/
+	 * gnutls_dtls_set_timeouts()) and the post-handshake record I/O in
+	 * tls_sendto()/tls_recvfrom() can actually observe GNUTLS_E_AGAIN and
+	 * take the bounded poll()-and-retry path in tls_wait_or_give_up(),
+	 * instead of blocking in the kernel with no timeout at all. */
+	sock_flags = fcntl(sockfd, F_GETFL, 0);
+	if (sock_flags == -1 ||
+	    fcntl(sockfd, F_SETFL, sock_flags | O_NONBLOCK) == -1) {
+		e = errno;
+		ret = -1;
+		rc_log(LOG_CRIT, "%s: cannot set socket non-blocking: %s",
+		       __func__, strerror(e));
+		goto cleanup;
+	}
+
 	rc_log(LOG_DEBUG,
 	       "%s: performing TLS/DTLS handshake with [%s]:%d",
 	       __func__, hostname, port);
@@ -477,6 +502,7 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 		goto cleanup;
 	}
 
+	ses->handshake_done = 1;
 	return 0;
  cleanup:
 	deinit_session(ses);
