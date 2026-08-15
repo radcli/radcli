@@ -24,7 +24,7 @@
 #include <radcli/radcli.h>
 #include "util.h"
 
-/** Add attribute to dictionary
+/** @brief Add attribute to dictionary
  *
  * Does not check if such attribute already exists
  *
@@ -68,7 +68,7 @@ DICT_ATTR *rc_dict_addattr(rc_handle *rh, char const * namestr, uint32_t value, 
 	return attr;
 }
 
-/** Add value to dictionary
+/** @brief Add value to dictionary
  *
  * Does not check if such value already exists
  *
@@ -110,7 +110,7 @@ DICT_VALUE *rc_dict_addval(rc_handle *rh, char const * attrstr, char const * nam
 	return dval;
 }
 
-/** Add vendor to dictionary
+/** @brief Add vendor to dictionary
  *
  * Does not check if such vendor already exists
  *
@@ -145,7 +145,7 @@ DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendo
 	return dvend;
 }
 
-/** Parse the input dictionary-config and initialize the dictionary.
+/* Parse the input dictionary-config and initialize the dictionary.
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
  * Read all VALUES into the dictionary_values list.
@@ -155,6 +155,7 @@ DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendo
  * @param filename the name of the dictionary file.
  * @return 0 on success, -1 on failure.
  */
+/// @cond INTERNAL
 static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 {
 	char            dummystr[AUTH_ID_LEN];
@@ -459,8 +460,9 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	}
 	return 0;
 }
+/// @endcond
 
-/** Initialize the dictionary
+/** @brief Initialize the dictionary
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
  * Read all VALUES into the dictionary_values list.
@@ -494,7 +496,7 @@ int rc_read_dictionary (rc_handle *rh, char const *filename)
 	return ret_val;
 }
 
-/** Initialize the dictionary from Buffer
+/** @brief Initialize the dictionary from Buffer
  *
  * Read all ATTRIBUTES into the dictionary_attributes list.
  * Read all VALUES into the dictionary_values list.
@@ -523,7 +525,7 @@ int rc_read_dictionary_from_buffer (rc_handle *rh, char const *buf, size_t size)
 	return ret_val;
 }
 
-/** Lookup a DICT_ATTR by attribute number
+/** @brief Lookup a DICT_ATTR by attribute number
  *
  * @param rh a handle to parsed configuration.
  * @param attribute the attribute ID.
@@ -545,7 +547,7 @@ DICT_ATTR *rc_dict_getattr(rc_handle const *rh, uint64_t attribute)
 	return NULL;
 }
 
-/** Lookup a DICT_ATTR by its name
+/** @brief Lookup a DICT_ATTR by its name
  *
  * @param rh a handle to parsed configuration.
  * @param attrname the attribute name.
@@ -569,7 +571,7 @@ DICT_ATTR *rc_dict_findattr(rc_handle const *rh, char const *attrname)
 }
 
 
-/** Lookup a DICT_VALUE by its name
+/** @brief Lookup a DICT_VALUE by its name
  *
  * @param rh a handle to parsed configuration.
  * @param valname the value name.
@@ -590,7 +592,7 @@ DICT_VALUE *rc_dict_findval(rc_handle const *rh, char const *valname)
 	return NULL;
 }
 
-/** Lookup a DICT_VENDOR by its name
+/** @brief Lookup a DICT_VENDOR by its name
  *
  * @param rh a handle to parsed configuration.
  * @param vendorname the vendor name.
@@ -606,7 +608,7 @@ DICT_VENDOR *rc_dict_findvend(rc_handle const *rh, char const *vendorname)
 	return NULL;
 }
 
-/** Lookup a DICT_VENDOR by its IANA number
+/** @brief Lookup a DICT_VENDOR by its IANA number
  *
  * @param rh a handle to parsed configuration.
  * @param vendorspec the vendor ID.
@@ -622,7 +624,7 @@ DICT_VENDOR *rc_dict_getvend (rc_handle const *rh, uint32_t vendorspec)
 	return NULL;
 }
 
-/** Get DICT_VALUE based on attribute name and integer value number
+/** @brief Get DICT_VALUE based on attribute name and integer value number
  *
  * @param rh a handle to parsed configuration.
  * @param value the attribute value.
@@ -646,7 +648,7 @@ DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attr
 	return NULL;
 }
 
-/** Frees the allocated dictionary
+/** @brief Frees the allocated dictionary
  *
  * @param rh a handle to parsed configuration.
  */

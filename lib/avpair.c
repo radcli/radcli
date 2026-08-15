@@ -29,7 +29,7 @@
  * @{
  */
 
-/** Adds an attribute-value pair to the given list
+/** @brief Adds an attribute-value pair to the given list
  *
  * See rc_avpair_assign() for the format of the data.
  *
@@ -58,7 +58,7 @@ VALUE_PAIR *rc_avpair_add (rc_handle const *rh, VALUE_PAIR **list, uint32_t attr
 
 }
 
-/** Removes an attribute-value pair from the given list
+/** @brief Removes an attribute-value pair from the given list
  *
  * See rc_avpair_assign() for the format of the data.
  *
@@ -100,7 +100,7 @@ void rc_avpair_remove (VALUE_PAIR **list, uint32_t attrid, uint32_t vendorspec)
 	return;
 }
 
-/** Iterates through the attribute-value pairs
+/** @brief Iterates through the attribute-value pairs
  *
  * The attribute-value are organized in a linked-list, and this
  * function provides a way to iterate them given the first element
@@ -114,7 +114,7 @@ VALUE_PAIR *rc_avpair_next (VALUE_PAIR *t)
 	return t->next;
 }
 
-/** Assigns the given value to an attribute-value pair
+/** @brief Assigns the given value to an attribute-value pair
  *
  * If the value is of type PW_TYPE_STRING it must either be
  * a null terminated string with len set to -1, or raw data
@@ -182,7 +182,7 @@ int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len)
 	return 0;
 }
 
-/** Make a new attribute-value pair with given parameters
+/** @brief Make a new attribute-value pair with given parameters
  *
  * See rc_avpair_assign() for the format of the data.
  *
@@ -260,19 +260,9 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pva
 	return vp;
 }
 
-/** Takes attribute/value pairs from buffer and builds a value_pair list using allocated memory
- *
- * @note Uses recursion.
- *
- * @param rh a handle to parsed configuration.
- * @param pair a pointer to a VALUE_PAIR structure.
- * @param ptr the value (e.g., the actual username).
- * @param length the length of ptr, or -1 if to calculate (in case of strings).
- * @param vendorspec The vendor ID in case of a vendor specific value - 0 otherwise.
- * @return value_pair list or NULL on failure.
- */
 /* Returns 0 on success (decoded list in *out, may be NULL if all attrs skipped),
  * -1 on hard error (*out undefined, incoming pair list already freed). */
+/// @cond INTERNAL
 static int rc_avpair_gen2(rc_handle const *rh, VALUE_PAIR *pair,
 			  pkt_buf *pb, uint32_t vendorspec,
 			  VALUE_PAIR **out)
@@ -442,8 +432,9 @@ error:
 	rc_avpair_free(head);
 	return -1;
 }
+/// @endcond
 
-/** Decode a raw RADIUS attribute buffer into a VALUE_PAIR list
+/** @brief Decode a raw RADIUS attribute buffer into a VALUE_PAIR list
  *
  * @note This is a low-level function retained for ABI compatibility with
  * freeradius-client and radiusclient-ng.  Application code should not call it
@@ -479,7 +470,7 @@ VALUE_PAIR *rc_avpair_gen(rc_handle const *rh, VALUE_PAIR *pair,
 	return out;
 }
 
-/** Find the first attribute value-pair (which matches the given attribute) from the specified value-pair list
+/** @brief Find the first attribute value-pair (which matches the given attribute) from the specified value-pair list
  *
  * @param vp a pointer to a VALUE_PAIR structure.
  * @param attrid The attribute of the pair to find (e.g., PW_USER_NAME).
@@ -497,7 +488,7 @@ VALUE_PAIR *rc_avpair_get (VALUE_PAIR *vp, uint32_t attrid, uint32_t vendorspec)
 	return vp;
 }
 
-/** Return a copy of the existing list "p" ala strdup().
+/** @brief Return a copy of the existing list "p" ala strdup().
  *
  * @param p a pointer to a VALUE_PAIR structure.
  * @return the copy of "p".
@@ -529,7 +520,7 @@ VALUE_PAIR *rc_avpair_copy(VALUE_PAIR *p)
 	return fp;
 }
 
-/** Insert a VALUE_PAIR into a list
+/** @brief Insert a VALUE_PAIR into a list
  *
  * Given the address of an existing list "a" and a pointer to an entry "p" in that list, add the value pair "b" to
  * the "a" list after the "p" entry.  If "p" is NULL, add the value pair "b" to the end of "a".
@@ -586,7 +577,7 @@ void rc_avpair_insert(VALUE_PAIR **a, VALUE_PAIR *p, VALUE_PAIR *b)
 	return;
 }
 
-/** Frees all value_pairs in the list
+/** @brief Frees all value_pairs in the list
  *
  * @param pair a pointer to a VALUE_PAIR structure.
  */
@@ -602,7 +593,7 @@ void rc_avpair_free (VALUE_PAIR *pair)
 	}
 }
 
-/** Copy a data field from the buffer
+/* Copy a data field from the buffer
  *
  * Advance the buffer past the data field. Ensure that no more than len - 1 bytes are copied and that resulting
  * string is terminated with '\0'.
@@ -612,6 +603,7 @@ void rc_avpair_free (VALUE_PAIR *pair)
  * @param stopat characters to which parsing should stop.
  * @param len the maximum length of string.
  */
+/// @cond INTERNAL
 static void rc_fieldcpy(char *string, char const **uptr, char const *stopat, size_t len)
 {
 	char const *ptr, *estring;
@@ -646,8 +638,9 @@ static void rc_fieldcpy(char *string, char const **uptr, char const *stopat, siz
 	*uptr = ptr;
 	return;
 }
+/// @endcond
 
-/** Parses the buffer to extract the attribute-value pairs
+/** @brief Parses the buffer to extract the attribute-value pairs
  *
  * @param rh a handle to parsed configuration.
  * @param buffer the buffer to be parsed.
@@ -873,7 +866,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 	return 0;
 }
 
-/** Translate an av_pair into printable strings
+/** @brief Translate an av_pair into printable strings
  *
  * @param rh a handle to parsed configuration.
  * @param pair a pointer to a VALUE_PAIR structure.
@@ -994,7 +987,7 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 	return 0;
 }
 
-/** Format a sequence of attribute value pairs into a printable string
+/** @brief Format a sequence of attribute value pairs into a printable string
  *
  * The caller should provide a storage buffer and the buffer length.
  *
@@ -1024,7 +1017,7 @@ char *rc_avpair_log(rc_handle const *rh, VALUE_PAIR *pair, char *buf, size_t buf
 	return buf;
 }
 
-/** Get the integer value of the given attribute value-pair
+/** @brief Get the integer value of the given attribute value-pair
  *
  * This function is valid for PW_TYPE_INTEGER, PW_TYPE_IPADDR.
  * PW_TYPE_DATE. In PW_TYPE_IPADDR this value will contain the
@@ -1046,7 +1039,7 @@ int rc_avpair_get_uint32 (VALUE_PAIR *vp, uint32_t *res)
 	}
 }
 
-/** Get the IPv6 address and prefix value of the given attribute value-pair
+/** @brief Get the IPv6 address and prefix value of the given attribute value-pair
  *
  * This function is valid for PW_TYPE_IPV6ADDR, PW_TYPE_IPV6PREFIX.
  *
@@ -1077,7 +1070,7 @@ int rc_avpair_get_in6 (VALUE_PAIR *vp, struct in6_addr *res, unsigned *prefix)
 	return -1;
 }
 
-/** Get the raw value of the given attribute value-pair
+/** @brief Get the raw value of the given attribute value-pair
  *
  * This function is valid for PW_TYPE_STRING, PW_TYPE_IPV6ADDR,
  * PW_TYPE_IPV6PREFIX.
@@ -1101,7 +1094,7 @@ int rc_avpair_get_raw (VALUE_PAIR *vp, char **res, unsigned *res_size)
 	}
 }
 
-/** Get the attribute ID and type of the given attribute value-pair
+/** @brief Get the attribute ID and type of the given attribute value-pair
  *
  * @param vp a pointer to a VALUE_PAIR structure.
  * @param type The attribute type, of type rc_attr_type

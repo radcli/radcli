@@ -27,7 +27,7 @@ unsigned int radcli_debug = 0;
  * @{
  */
 
-/** Set debug logging level
+/** @brief Set debug logging level
  *
  * @deprecated Prefer setting @c clientdebug in the configuration file
  * (rc_read_config()) or rc_add_config().  Using this function bypasses the
@@ -41,7 +41,7 @@ void rc_setdebug(int debug)
   radcli_debug = debug;
 }
 
-/** Open the system log for radcli messages
+/** @brief Open the system log for radcli messages
  *
  * @deprecated New code should call openlog(3) directly.  radcli emits all
  * messages via syslog(3); opening the log with your application's own ident

@@ -74,8 +74,11 @@ typedef struct tls_st {
 	rc_handle *rh; /* a pointer to our owner */
 } tls_st;
 
+/// @cond INTERNAL
 static int restart_session(rc_handle *rh, tls_st *st);
+/// @endcond
 
+/// @cond INTERNAL
 static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	tls_st *st = ptr;
@@ -85,13 +88,17 @@ static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	}
 	return st->ctx.sockfd;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int tls_get_active_fd(void *ptr)
 {
 	tls_st *st = ptr;
 	return st->ctx.sockfd;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static ssize_t tls_sendto(void *ptr, int sockfd,
 			   const void *buf, size_t len,
 			   int flags, const struct sockaddr *dest_addr,
@@ -124,21 +131,27 @@ static ssize_t tls_sendto(void *ptr, int sockfd,
 	st->ctx.last_msg = time(0);
 	return ret;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int tls_lock(void *ptr)
 {
 	tls_st *st = ptr;
 
 	return pthread_mutex_lock(&st->ctx.lock);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int tls_unlock(void *ptr)
 {
 	tls_st *st = ptr;
 
 	return pthread_mutex_unlock(&st->ctx.lock);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static ssize_t tls_recvfrom(void *ptr, int sockfd,
 			     void *buf, size_t len,
 			     int flags, struct sockaddr *src_addr,
@@ -184,10 +197,12 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 	st->ctx.last_msg = time(0);
 	return ret;
 }
+/// @endcond
 
 /* This function will verify the peer's certificate, and check
  * if the hostname matches.
  */
+/// @cond INTERNAL
 static int cert_verify_callback(gnutls_session_t session)
 {
 	unsigned int status;
@@ -226,7 +241,9 @@ static int cert_verify_callback(gnutls_session_t session)
 
 	return 0;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static void deinit_session(tls_int_st *ses)
 {
 	if (ses->init != 0) {
@@ -247,7 +264,9 @@ static void deinit_session(tls_int_st *ses)
 			close(ses->sockfd);
 	}
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int init_session(rc_handle *rh, tls_int_st *ses,
 			const char *hostname, unsigned port,
 			struct sockaddr_storage *our_sockaddr,
@@ -409,11 +428,13 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 	return ret;
 
 }
+/// @endcond
 
 /* The time after the last message was received, that
  * we will try heartbeats */
 #define TIME_ALIVE 120
 
+/// @cond INTERNAL
 static int restart_session(rc_handle *rh, tls_st *st)
 {
 	struct tls_int_st tmps;
@@ -448,8 +469,9 @@ static int restart_session(rc_handle *rh, tls_st *st)
 
 	return 0;
 }
+/// @endcond
 
-/** Returns the file descriptor of the TLS/DTLS session
+/** @brief Returns the file descriptor of the TLS/DTLS session
  *
  * This can also be used as a test for the application to see
  * whether TLS or DTLS are in use.
@@ -472,7 +494,7 @@ int rc_tls_fd(rc_handle * rh)
 	return -1;
 }
 
-/** Check established TLS/DTLS channels for operation and reconnect if needed
+/** @brief Check established TLS/DTLS channels for operation and reconnect if needed
  *
  * Probes the TLS or DTLS session with a TLS heartbeat and reconnects if the
  * session is dead.  Must be called when no other thread is using the session

@@ -85,7 +85,7 @@ double rc_getmtime(void)
 #endif
 }
 
-/** Generate a "unique" session-ID string
+/** @brief Generate a "unique" session-ID string
  *
  * @deprecated This function is retained only for source compatibility with
  * freeradius-client and radiusclient-ng.  It returns a pointer to a static

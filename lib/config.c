@@ -32,15 +32,18 @@
 #define FALSE 0
 #endif
 
+/// @cond INTERNAL
 static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain);
+/// @endcond
 
-/** Find an option in the option list
+/* Find an option in the option list
  *
  * @param rh a handle to parsed configuration.
  * @param optname the name of the option.
  * @param type the option type.
  * @return pointer to option on success, NULL otherwise.
  */
+/// @cond INTERNAL
 static OPTION *find_option(rc_handle const *rh, char const *optname, unsigned int type)
 {
 	int 	i;
@@ -56,8 +59,9 @@ static OPTION *find_option(rc_handle const *rh, char const *optname, unsigned in
 
 	return NULL;
 }
+/// @endcond
 
-/** Set a specific option doing type conversions
+/* Set a specific option doing type conversions
  *
  * @param filename the name of the config file (for logging purposes).
  * @param line the line number in the file.
@@ -65,6 +69,7 @@ static OPTION *find_option(rc_handle const *rh, char const *optname, unsigned in
  * @param p Value.
  * @return 0 on success, -1 on failure.
  */
+/// @cond INTERNAL
 static int set_option_str(char const *filename, int line, OPTION *option, char const *p)
 {
 	if (p) {
@@ -79,7 +84,9 @@ static int set_option_str(char const *filename, int line, OPTION *option, char c
 
 	return 0;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int set_option_int(char const *filename, int line, OPTION *option, char const *p)
 {
 	int *iptr;
@@ -99,7 +106,9 @@ static int set_option_int(char const *filename, int line, OPTION *option, char c
 
 	return 0;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int set_option_srv(char const *filename, int line, OPTION *option, char const *p)
 {
 	SERVER *serv;
@@ -224,7 +233,9 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
         return -1;
 
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int set_option_auo(char const *filename, int line, OPTION *option, char const *p)
 {
 	int *iptr;
@@ -279,8 +290,9 @@ static int set_option_auo(char const *filename, int line, OPTION *option, char c
 	free(p_dupe);
 	return 0;
 }
+/// @endcond
 
-/** Allow a config option to be added to rc_handle from inside a program.
+/** @brief Allow a config option to be added to rc_handle from inside a program.
  *
  * That allows programs to setup a handle without loading a configuration
  * file.
@@ -337,7 +349,7 @@ int rc_add_config(rc_handle *rh, char const *option_name, char const *option_val
 	return 0;
 }
 
-/** Initialise a configuration structure for programmatic configuration
+/** @brief Initialise a configuration structure for programmatic configuration
  *
  * Use this when you want to configure radcli from code rather than from a
  * file.  The full call sequence is:
@@ -401,13 +413,16 @@ rc_handle *rc_config_init(rc_handle *rh)
 	return rh;
 }
 
+/// @cond INTERNAL
 static ssize_t plain_sendto(void *ptr, int sockfd,
 			    const void *buf, size_t len, int flags,
 			    const struct sockaddr *dest_addr, socklen_t addrlen)
 {
 	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static ssize_t plain_tcp_sendto(void *ptr, int sockfd,
 			    const void *buf, size_t len, int flags,
 			    const struct sockaddr *dest_addr, socklen_t addrlen)
@@ -418,19 +433,25 @@ static ssize_t plain_tcp_sendto(void *ptr, int sockfd,
 	}
 	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static ssize_t plain_recvfrom(void *ptr, int sockfd,
 			      void *buf, size_t len, int flags,
 			      struct sockaddr *src_addr, socklen_t * addrlen)
 {
 	return recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static void plain_close_fd(int fd)
 {
 	close(fd);
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	int sockfd;
@@ -451,7 +472,9 @@ static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	}
 	return sockfd;
 }
+/// @endcond
 
+/// @cond INTERNAL
 static int plain_tcp_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	int sockfd;
@@ -472,6 +495,7 @@ static int plain_tcp_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	}
 	return sockfd;
 }
+/// @endcond
 
 static const rc_sockets_override default_socket_funcs = {
 	.get_fd = plain_get_fd,
@@ -487,6 +511,7 @@ static const rc_sockets_override default_tcp_socket_funcs = {
 	.recvfrom = plain_recvfrom
 };
 
+/// @cond INTERNAL
 static int set_addr(struct sockaddr_storage *ss, const char *ip)
 {
 	memset(ss, 0, sizeof(*ss));
@@ -500,8 +525,9 @@ static int set_addr(struct sockaddr_storage *ss, const char *ip)
 	}
 	return 0;
 }
+/// @endcond
 
-/** Apply configuration and initialise the transport
+/** @brief Apply configuration and initialise the transport
  *
  * Must be called after all rc_add_config() calls when using programmatic
  * configuration (i.e., without a config file).  Initialises the transport
@@ -570,7 +596,7 @@ int rc_apply_config(rc_handle *rh)
 
 }
 
-/** Read the global config file
+/** @brief Read the global config file
  *
  * This is the primary way to initialise radcli.  Loads the configuration
  * file, initialises the transport (including TLS/DTLS handshake when
@@ -756,7 +782,7 @@ rc_handle *rc_read_config(char const *filename)
 	return rh;
 }
 
-/** Get the value of a config option
+/** @brief Get the value of a config option
  *
  * @param rh a handle to parsed configuration.
  * @param optname the name of an option.
@@ -782,6 +808,7 @@ char *rc_conf_str(rc_handle const *rh, char const *optname)
  * @param optname the name of an option.
  * @return config option value.
  */
+/// @cond INTERNAL
 static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
 {
 	OPTION *option;
@@ -800,13 +827,20 @@ static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
 		return 0;
 	}
 }
+/// @endcond
 
+/** @brief Get the value of a config option as an integer
+ *
+ * @param rh a handle to parsed configuration.
+ * @param optname the name of an option.
+ * @return config option value, or 0 if not found or not an integer.
+ */
 int rc_conf_int(rc_handle const *rh, char const *optname)
 {
         return rc_conf_int_2(rh, optname, TRUE);
 }
 
-/** Get the value of a config option
+/** @brief Get the value of a config option
  *
  * @param rh a handle to parsed configuration.
  * @param optname the name of an option.
@@ -826,7 +860,7 @@ SERVER *rc_conf_srv(rc_handle const *rh, char const *optname)
 	}
 }
 
-/** Tests the configuration the user supplied
+/** @brief Tests the configuration the user supplied
  *
  * @param rh a handle to parsed configuration.
  * @param filename a name of a configuration file.
@@ -869,12 +903,13 @@ int rc_test_config(rc_handle *rh, char const *filename)
 	return 0;
 }
 
-/** See if info matches hostname
+/* See if info matches hostname
  *
  * @param addr a struct addrinfo
  * @param hostname the name of the host.
  * @return 0 on success, -1 when failure.
  */
+/// @cond INTERNAL
 static int find_match (const struct addrinfo* addr, const struct addrinfo *hostname)
 {
 	const struct addrinfo *ptr, *ptr2;
@@ -898,12 +933,14 @@ static int find_match (const struct addrinfo* addr, const struct addrinfo *hostn
  	}
  	return -1;
 }
+/// @endcond
 
-/** Checks if provided address is local address
+/* Checks if provided address is local address
  *
  * @param addr an %AF_INET or %AF_INET6 address
  * @return 0 if local, 1 if not local, -1 on failure.
  */
+/// @cond INTERNAL
 static int rc_ipaddr_local(const struct sockaddr *addr)
 {
 	int temp_sock, res, serrno;
@@ -929,12 +966,14 @@ static int rc_ipaddr_local(const struct sockaddr *addr)
 		return 1;
 	return -1;
 }
+/// @endcond
 
-/** Checks if provided name refers to ourselves
+/* Checks if provided name refers to ourselves
  *
  * @param info an addrinfo of the host to check
  * @return 0 if yes, 1 if no and -1 on failure.
  */
+/// @cond INTERNAL
 static int rc_is_myname(const struct addrinfo *info)
 {
 	const struct addrinfo *p;
@@ -950,8 +989,9 @@ static int rc_is_myname(const struct addrinfo *info)
  	}
  	return 1;
 }
+/// @endcond
 
-/** Locate a server in the rh config or if not found, check for a servers file
+/** @brief Locate a server in the rh config or if not found, check for a servers file
  *
  * @param rh a handle to parsed configuration.
  * @param server_name the name of the server.
@@ -1102,12 +1142,12 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 }
 
 /**
- * rc_config_free:
+ * @brief Frees allocated config values
+ *
  * @param rh a handle to parsed configuration
  *
- * Free allocated config values. For legacy compatibility
- * reasons this will not release any dictionary entries.
- * To release all memory from the handle use rc_destroy()
+ * For legacy compatibility reasons this will not release any dictionary
+ * entries. To release all memory from the handle use rc_destroy()
  * instead.
  *
  */
@@ -1141,7 +1181,7 @@ void rc_config_free(rc_handle *rh)
 
 static int _initialized = 0;
 
-/** Initialises new Radius Client handle
+/** @brief Initialises new Radius Client handle
  *
  * @return a new rc_handle (free with rc_destroy).
  */
@@ -1172,7 +1212,7 @@ rc_handle *rc_new(void)
 	return rh;
 }
 
-/** Destroys Radius Client handle reclaiming all memory
+/** @brief Destroys Radius Client handle reclaiming all memory
  *
  * @param rh The Radius client handle to free.
  */
@@ -1193,7 +1233,7 @@ void rc_destroy(rc_handle *rh)
 #endif
 }
 
-/** Returns the type of the socket used
+/** @brief Returns the type of the socket used
  *
  * That indicates the type of connection used with the radius
  * server, and can be UDP, TLS or DTLS.
