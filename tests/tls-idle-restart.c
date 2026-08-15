@@ -49,6 +49,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
 #include <radcli/radcli.h>
 
@@ -114,6 +115,14 @@ int main(int argc, char **argv)
 	VALUE_PAIR *send = NULL;
 	int ret;
 	int exit_code = 0;
+
+	/* radcli does not touch process-wide signal disposition itself (that's
+	 * for the application embedding it to decide) -- a write to a peer
+	 * that already reset the connection (e.g. the graceful close_notify
+	 * deinit_session() sends for a session whose server just died) would
+	 * otherwise raise SIGPIPE, whose default disposition kills the
+	 * process outright with no diagnostic output. */
+	signal(SIGPIPE, SIG_IGN);
 
 	while ((ch = getopt(argc, argv, "f:p:S:")) != -1) {
 		switch (ch) {
