@@ -7,7 +7,8 @@ if test -z "$1"; then
 fi
 
 version=$1
-tarball="radcli-${version}.tar.gz"
+builddir="build"
+tarball="radcli-${version}.tar.xz"
 
 # Ensure we are on the master branch
 current_branch=$(git rev-parse --abbrev-ref HEAD)
@@ -16,10 +17,10 @@ if test "$current_branch" != "master"; then
 	exit 1
 fi
 
-# Validate configure.ac
-ac_version=$(grep '^AC_INIT' configure.ac | sed 's/.*\[\([0-9.]*\)\].*/\1/')
-if test "$ac_version" != "$version"; then
-	echo "ERROR: configure.ac has version $ac_version, expected $version"
+# Validate meson.build
+meson_version=$(grep "^  version:" meson.build | sed "s/.*'\([0-9.]*\)'.*/\1/")
+if test "$meson_version" != "$version"; then
+	echo "ERROR: meson.build has version $meson_version, expected $version"
 	exit 1
 fi
 
@@ -34,12 +35,24 @@ if grep -q "^\* Version ${version}.*unreleased" NEWS; then
 	exit 1
 fi
 
-echo "Version checks passed: configure.ac and NEWS both have ${version}"
+echo "Version checks passed: meson.build and NEWS both have ${version}"
 
 # Build and check the tarball
 echo ""
-echo "Running make distcheck..."
-make distcheck
+if ! test -d "${builddir}"; then
+	echo "Setting up ${builddir}..."
+	meson setup "${builddir}"
+fi
+echo "Running meson dist..."
+meson dist -C "${builddir}"
+
+distdir="${builddir}/meson-dist"
+cp "${distdir}/${tarball}" "${tarball}"
+
+# Verify the sha256sum meson generated
+echo ""
+echo "Verifying checksum..."
+(cd "${distdir}" && sha256sum -c "${tarball}.sha256sum")
 
 # Sign
 echo ""
@@ -70,7 +83,8 @@ gh release create "${version}" \
 	--title "${version}" \
 	--notes "${release_notes}" \
 	"${tarball}" \
-	"${tarball}.sig"
+	"${tarball}.sig" \
+	"${distdir}/${tarball}.sha256sum"
 
 echo ""
 echo "Release ${version} is ready."
