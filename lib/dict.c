@@ -156,6 +156,17 @@ DICT_VENDOR *rc_dict_addvend(rc_handle *rh, char const * namestr, uint32_t vendo
  * @return 0 on success, -1 on failure.
  */
 /// @cond INTERNAL
+static int is_unsigned_decimal(char const *s)
+{
+	if (*s == '\0')
+		return 0;
+	for (; *s != '\0'; s++) {
+		if (!isdigit((unsigned char) *s))
+			return 0;
+	}
+	return 1;
+}
+
 static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 {
 	char            namestr[AUTH_ID_LEN];
@@ -249,7 +260,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				optstr[0] = '\0';
 			}
 
-			if (!isdigit (*valstr))
+			if (!is_unsigned_decimal (valstr))
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value on line %d of dictionary %s",
@@ -373,7 +384,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			strlcpy(namestr, name_t, sizeof(namestr));
 			strlcpy(valstr, val_t, sizeof(valstr));
 
-			if (!isdigit (*valstr))
+			if (!is_unsigned_decimal (valstr))
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value on line %d of dictionary %s",
@@ -487,7 +498,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			strlcpy(attrstr, name_t, sizeof(attrstr));
 			strlcpy(valstr, val_t, sizeof(valstr));
 
-			if (!isdigit (*valstr))
+			if (!is_unsigned_decimal (valstr))
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
