@@ -1,4 +1,8 @@
 * Version 1.5.3 (unreleased)
+- Per draft-ietf-radext-deprecating-radius-10 Section 4, no longer require
+  or position-check the Message-Authenticator attribute in responses
+  received over RADIUS/TLS or RADIUS/DTLS; those transports are already
+  integrity-protected.
 - Fix TLS/DTLS server hostname verification being silently disabled
   whenever tls-verify-hostname was explicitly set to anything other
   than the literal string "no". This didn't affect the default config
