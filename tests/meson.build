@@ -38,8 +38,11 @@ if have_gnutls
   pack = executable('pack', 'pack.c',
     include_directories: tests_incdirs, link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
+  config_unit = executable('config-unit', 'config-unit.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
 
-  foreach t : [avpair, dict, dict_add, pack]
+  foreach t : [avpair, dict, dict_add, pack, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

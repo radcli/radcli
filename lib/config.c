@@ -108,6 +108,22 @@ static int set_option_int(char const *filename, int line, OPTION *option, char c
 }
 /// @endcond
 
+/* Frees serv->name[i]/secret[i] for i in [from, to), nulling each pointer
+ * afterwards. Shared by set_option_srv()'s parse-failure cleanup and
+ * rc_config_free(), which both need to release the same per-entry
+ * allocations. */
+static void server_free_entries(SERVER *serv, unsigned from, unsigned to)
+{
+	unsigned i;
+
+	for (i = from; i < to; i++) {
+		free(serv->name[i]);
+		free(serv->secret[i]);
+		serv->name[i] = NULL;
+		serv->secret[i] = NULL;
+	}
+}
+
 /// @cond INTERNAL
 static int set_option_srv(char const *filename, int line, OPTION *option, char const *p)
 {
@@ -118,6 +134,7 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 	char *q;
 	char *s;
 	struct servent *svp;
+	unsigned start_max;
 
 	p_dupe = strdup(p);
 
@@ -136,11 +153,12 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 		}
 		serv->max = 0;
 	}
+	start_max = serv->max;
 
 	p_pointer = strtok_r(p_dupe, ", \t", &p_save);
 
         while(p_pointer != NULL) {
-                if (serv->max > RC_SERVER_MAX) {
+                if (serv->max >= RC_SERVER_MAX) {
                         DEBUG(LOG_ERR, "cannot set more than %d servers", RC_SERVER_MAX);
                         goto fail;
                 }
@@ -228,6 +246,18 @@ static int set_option_srv(char const *filename, int line, OPTION *option, char c
 	return 0;
  fail:
         free(p_dupe);
+        /* Release whatever this call already committed (start_max..max),
+         * plus the in-progress entry's secret if it was parsed before the
+         * failure (name[] is only ever set last, right before max++, so
+         * it never needs freeing here). Without this, a config line that
+         * fails partway through (e.g. more than RC_SERVER_MAX servers)
+         * leaks every entry already parsed. */
+        server_free_entries(serv, start_max, serv->max);
+        serv->max = start_max;
+        if (serv->max < RC_SERVER_MAX) {
+                free(serv->secret[serv->max]);
+                serv->secret[serv->max] = NULL;
+        }
         if (option->val == NULL)
 	        free(serv);
         return -1;
@@ -1153,7 +1183,7 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
  */
 void rc_config_free(rc_handle *rh)
 {
-	int i, j;
+	int i;
 	SERVER *serv;
 
 	if (rh->config_options == NULL)
@@ -1164,10 +1194,7 @@ void rc_config_free(rc_handle *rh)
 			continue;
 		if (rh->config_options[i].type == OT_SRV) {
 			serv = (SERVER *)rh->config_options[i].val;
-			for (j = 0; j < serv->max; j++) {
-				free(serv->name[j]);
-				if(serv->secret[j]) free(serv->secret[j]);
-			}
+			server_free_entries(serv, 0, serv->max);
 			free(serv);
 		} else {
 			free(rh->config_options[i].val);
