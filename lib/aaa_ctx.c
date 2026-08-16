@@ -61,6 +61,8 @@ const void *rc_aaa_ctx_get_vector (RC_AAA_CTX *ctx)
  */
 void rc_aaa_ctx_free (RC_AAA_CTX *ctx)
 {
+	if (ctx != NULL)
+		memset(ctx, '\0', sizeof(*ctx));
 	free(ctx);
 }
 
