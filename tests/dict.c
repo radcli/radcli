@@ -52,6 +52,16 @@ char case_insensitive_dict[] =
 "ATTRIBUTE	Framed-Protocol		7	integer\n"
 "VALUE	Framed-Protocol		PPP	1\n";
 
+/* Malformed numeric fields ("101abc" instead of a pure digit string):
+ * commit 790407f. Each must be rejected, not silently atoi()-truncated. */
+char bad_attr_value_dict[] =
+"ATTRIBUTE	Bad-Attr		101abc	integer\n";
+char bad_value_value_dict[] =
+"ATTRIBUTE	Framed-Protocol		7	integer\n"
+"VALUE	Framed-Protocol		PPP	1x\n";
+char bad_vendor_pec_dict[] =
+"VENDOR          Bogus       18311x     Large\n";
+
 int main(int argc, char **argv)
 {
 	rc_handle 	*rh = NULL;
@@ -204,6 +214,27 @@ int main(int argc, char **argv)
 	}
 
 	rc_dict_free(rh);
+
+	/* Malformed numeric fields must be fully validated, not just their
+	 * first character (isdigit(*valstr) let "101abc" through): commit
+	 * 790407f. One case per ATTRIBUTE value / VALUE value / VENDOR PEC. */
+	ret = rc_read_dictionary_from_buffer(rh, bad_attr_value_dict, sizeof(bad_attr_value_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: ATTRIBUTE with malformed numeric value was accepted\n");
+		exit(1);
+	}
+
+	ret = rc_read_dictionary_from_buffer(rh, bad_value_value_dict, sizeof(bad_value_value_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: VALUE with malformed numeric value was accepted\n");
+		exit(1);
+	}
+
+	ret = rc_read_dictionary_from_buffer(rh, bad_vendor_pec_dict, sizeof(bad_vendor_pec_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: VENDOR with malformed numeric PEC was accepted\n");
+		exit(1);
+	}
 
 	rc_destroy(rh);
 
