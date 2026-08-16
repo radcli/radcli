@@ -41,11 +41,16 @@ char long_name_dict[] =
 "ATTRIBUTE	WISPr-Session-Terminate-End-Of-Day              10	string\n"
 "ATTRIBUTE	Airespace-Real-Time-Bandwidth-Average-Contract-Upstream	56	string\n";
 
-char large_vendor_dict[] = 
+char large_vendor_dict[] =
 "\nVENDOR          Largeone       18311     Large\n"
 "\n"
 "ATTRIBUTE	Digest-Method		1065	string Largeone\n"
 "ATTRIBUTE	LargeOne		17001	string Largeone\n";
+
+/* Case-insensitive attrname match in rc_dict_getval(): commit 1e56a2c */
+char case_insensitive_dict[] =
+"ATTRIBUTE	Framed-Protocol		7	integer\n"
+"VALUE	Framed-Protocol		PPP	1\n";
 
 int main(int argc, char **argv)
 {
@@ -140,6 +145,27 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	assert(ATTRID(attr->value) == 56);
+
+	rc_dict_free(rh);
+
+	/* rc_dict_getval() attrname match must be case-insensitive: commit 1e56a2c */
+	ret = rc_read_dictionary_from_buffer(rh, case_insensitive_dict, sizeof(case_insensitive_dict));
+	if (ret != 0) {
+		fprintf(stderr, "error in %d\n", __LINE__);
+		exit(1);
+	}
+
+	dv = rc_dict_getval(rh, 1, "framed-protocol");
+	if (dv == NULL) {
+		fprintf(stderr, "error: rc_dict_getval() did not match attrname case-insensitively\n");
+		exit(1);
+	}
+
+	dv = rc_dict_getval(rh, 1, "FRAMED-PROTOCOL");
+	if (dv == NULL) {
+		fprintf(stderr, "error: rc_dict_getval() did not match attrname case-insensitively (upper)\n");
+		exit(1);
+	}
 
 	rc_dict_free(rh);
 
