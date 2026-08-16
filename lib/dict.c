@@ -182,18 +182,19 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	DICT_ATTR      *attr;
 	DICT_VALUE     *dval;
 	DICT_VENDOR    *dvend;
-	char            buffer[1024];
+	char            *buffer = NULL;
+	size_t          bufsize = 0;
 	uint32_t        value;
 	int             type;
 	unsigned attr_vendorspec = 0;
 	const char *pfilename = filename;
 
-	if (pfilename == NULL) 
+	if (pfilename == NULL)
 	{
 		pfilename = "memory";
-	}        
+	}
 
-	while (fgets (buffer, sizeof (buffer), dictfd) != NULL)
+	while (getline (&buffer, &bufsize, dictfd) != -1)
 	{
 		line_no++;
 
@@ -231,7 +232,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			/*
 			 * Validate all entries. Length checks must run against the
@@ -245,7 +246,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid name length on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			strlcpy(namestr, name_t, sizeof(namestr));
@@ -265,7 +266,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value on line %d of dictionary %s",
 					line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			value = atoi (valstr);
 
@@ -302,7 +303,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid type on line %d of dictionary %s",
 					line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			dvend = NULL;
@@ -321,7 +322,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 						rc_log(LOG_ERR,
 							"rc_dict_init: unknown Vendor-Id %s on line %d of "
 							"dictionary %s", cp1, line_no, pfilename);
-						return -1;
+						goto error;
 					}
 				}
 			}
@@ -330,7 +331,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			if ((attr = malloc (sizeof (DICT_ATTR))) == NULL)
 			{
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
-				return -1;
+				goto error;
 			}
 			strlcpy (attr->name, namestr, sizeof(attr->name));
 			attr->type = type;
@@ -358,7 +359,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value entry on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			/*
 			 * Validate all entries. Length checks must run against the
@@ -369,7 +370,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			if (strlen (name_t) > RC_NAME_LENGTH)
@@ -377,7 +378,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid name length on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			strlcpy(attrstr, attr_t, sizeof(attrstr));
@@ -389,7 +390,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid value on line %d of dictionary %s",
 					line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			value = atoi (valstr);
 
@@ -397,7 +398,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			if ((dval = malloc (sizeof (DICT_VALUE))) == NULL)
 			{
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
-				return -1;
+				goto error;
 			}
 			strlcpy (dval->attrname, attrstr, sizeof(dval->attrname));
 			strlcpy (dval->name, namestr, sizeof(dval->name));
@@ -423,7 +424,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid include entry on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			strlcpy(ifilename, path_t, sizeof(ifilename));
 			/* Append directory if necessary */
@@ -439,7 +440,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			}
 			if (rc_read_dictionary(rh, ifilename) < 0)
 			{
-				return -1;
+				goto error;
 			}
 		}
 		else if (strcmp (tok, "END-VENDOR") == 0)
@@ -458,7 +459,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			v = rc_dict_findvend(rh, name_t);
@@ -466,7 +467,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: unknown Vendor %s on line %d of "
 					"dictionary %s", name_t, line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			attr_vendorspec = v->vendorpec;
@@ -483,7 +484,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			/* Validate all entries against the original tokens, before
 			 * strlcpy() truncates them below. */
@@ -492,7 +493,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 
 			strlcpy(attrstr, name_t, sizeof(attrstr));
@@ -503,7 +504,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid Vendor-Id on line %d of "
 					"dictionary %s", line_no, pfilename);
-				return -1;
+				goto error;
 			}
 			value = atoi (valstr);
 
@@ -512,7 +513,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			if (dvend == NULL)
 			{
 				rc_log(LOG_CRIT, "rc_dict_init: out of memory");
-				return -1;
+				goto error;
 			}
 			strlcpy (dvend->vendorname, attrstr, sizeof(dvend->vendorname));
 			dvend->vendorpec = value;
@@ -522,7 +523,12 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			rh->dictionary_vendors = dvend;
 		}
 	}
+	free(buffer);
 	return 0;
+
+error:
+	free(buffer);
+	return -1;
 }
 /// @endcond
 

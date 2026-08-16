@@ -1039,7 +1039,8 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 	FILE           *clientfd;
 	char           *h;
 	char           *s;
-	char            buffer[128];
+	char           *buffer = NULL;
+	size_t          bufsize = 0;
 	char            hostnm[AUTH_ID_LEN + 1];
 	char	       *buffer_save;
 	char	       *hostnm_save;
@@ -1088,7 +1089,7 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 			goto fail;
 		}
 
-		while (fgets (buffer, sizeof (buffer), clientfd) != NULL)
+		while (getline (&buffer, &bufsize, clientfd) != -1)
 		{
 			if (*buffer == '#')
 				continue;
@@ -1150,7 +1151,6 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 	}
 	if (result == 0)
 	{
-		memset (buffer, '\0', sizeof (buffer));
 		memset (secret, '\0', MAX_SECRET_LENGTH);
 		rc_log(LOG_ERR, "rc_find_server: couldn't find RADIUS server %s in %s",
 			 server_name, rc_conf_str(rh, "servers"));
@@ -1167,6 +1167,7 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
  cleanup:
  	if (tmpinfo)
  		freeaddrinfo(tmpinfo);
+	free(buffer);
 
 	return result;
 }
