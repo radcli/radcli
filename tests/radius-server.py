@@ -10,11 +10,19 @@
 # Usage:
 #   python3 radius-server.py [--port 1812] [--secret testing123] \
 #                            [--msg-auth correct|absent|wrong]
+#
+# --transport tls speaks RADIUS/TLS (RFC 6614) instead of plain UDP: the same
+# Access-Accept packet bytes are framed over a TLS-wrapped TCP stream instead
+# of individual UDP datagrams, so a test doesn't need a full TLS-capable RADIUS
+# server (freeradius + root + network namespaces) just to exercise the
+# client-side TLS handshake/hostname-verification path (see
+# tls-verify-hostname-tests.sh).
 
 import argparse
 import hashlib
 import hmac
 import socket
+import ssl
 import struct
 
 # RADIUS codes
@@ -184,6 +192,69 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal'):
         if response is not None:
             sock.sendto(response, addr)
 
+def recv_exact(conn, n):
+    """Read exactly n bytes from a stream socket, or return None on EOF."""
+    buf = b''
+    while len(buf) < n:
+        chunk = conn.recv(n - len(buf))
+        if not chunk:
+            return None
+        buf += chunk
+    return buf
+
+def recv_radius_packet(conn):
+    """Read one RADIUS PDU from a stream socket, framed by its own header
+    Length field (RFC 6614 uses no additional TCP-level framing)."""
+    header = recv_exact(conn, 4)
+    if header is None:
+        return None
+    (pkt_len,) = struct.unpack('!H', header[2:4])
+    if pkt_len < 20:
+        return None
+    rest = recv_exact(conn, pkt_len - 4)
+    if rest is None:
+        return None
+    return header + rest
+
+def run_tls(port, secret, msg_auth_mode, tls_cert, tls_key, attrs_mode='normal'):
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(certfile=tls_cert, keyfile=tls_key)
+    # This server only exercises the client's verification of the server's
+    # certificate/hostname; it does not need (and does not request) a client
+    # certificate.
+    ctx.verify_mode = ssl.CERT_NONE
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('0.0.0.0', port))
+    sock.listen(5)
+    print(f"radius-server: listening (TLS) on port {port}, msg-auth={msg_auth_mode}, attrs={attrs_mode}",
+          flush=True)
+
+    while True:
+        conn, addr = sock.accept()
+        try:
+            with ctx.wrap_socket(conn, server_side=True) as tls_conn:
+                while True:
+                    data = recv_radius_packet(tls_conn)
+                    if data is None:
+                        break
+                    response = handle_packet(data, secret, msg_auth_mode, attrs_mode)
+                    if response is not None:
+                        tls_conn.sendall(response)
+        except (ssl.SSLError, OSError) as e:
+            # Expected outcome of the hostname-mismatch tests: the client
+            # aborts the handshake. Depending on how the client tears down
+            # the connection this surfaces either as an SSLError (a TLS
+            # alert was sent) or a plain OSError such as
+            # ConnectionResetError (the client just dropped the TCP
+            # connection) -- either way it must not take the accept loop
+            # down with it, or every later connection would see
+            # "Connection refused" instead of a fresh handshake attempt.
+            print(f"radius-server: connection with {addr} failed: {e}", flush=True)
+        finally:
+            conn.close()
+
 def main():
     parser = argparse.ArgumentParser(
         description='Minimal RADIUS server for Message-Authenticator testing')
@@ -197,8 +268,17 @@ def main():
                                  'malformed-overflow', 'unknown-attrs', 'int-badlen',
                                  'vsa-unknown-subattrs'],
                         default='normal')
+    parser.add_argument('--transport', choices=['udp', 'tls'], default='udp')
+    parser.add_argument('--tls-cert', help='PEM certificate file (required for --transport tls)')
+    parser.add_argument('--tls-key', help='PEM private key file (required for --transport tls)')
     args = parser.parse_args()
-    run(args.port, args.secret, args.msg_auth, args.attrs)
+
+    if args.transport == 'tls':
+        if not args.tls_cert or not args.tls_key:
+            parser.error('--transport tls requires --tls-cert and --tls-key')
+        run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
+    else:
+        run(args.port, args.secret, args.msg_auth, args.attrs)
 
 if __name__ == '__main__':
     main()

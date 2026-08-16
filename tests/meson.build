@@ -13,7 +13,7 @@ shell_tests = [
 ]
 
 if have_gnutls
-  shell_tests += ['tls-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
+  shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
