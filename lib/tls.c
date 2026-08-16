@@ -239,7 +239,7 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 	 * datagram that arrived.  Due to the stream nature of TCP and TLS,
 	 * this does not hold true for RADIUS/TLS packet exchange.",
 	 *
-	 * That is correct in principle but it fails to associate the length with 
+	 * That is correct in principle but it fails to associate the length with
 	 * the TLS record boundaries. Here, when in TLS, we assume that a single TLS
 	 * record holds a single radius packet. It wouldn't make sense anyway to send
 	 * multiple TLS records for a single packet.
@@ -394,7 +394,7 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 	gnutls_heartbeat_enable(ses->session, GNUTLS_HB_LOCAL_ALLOWED_TO_SEND);
 
 	p = rc_conf_str(rh, "tls-verify-hostname");
-	if (p && (strcasecmp(p, "false") == 0 || strcasecmp(p, "no"))) {
+	if (p && (strcasecmp(p, "false") == 0 || strcasecmp(p, "no") == 0)) {
 		ses->skip_hostname_check = 1;
 	}
 
@@ -518,7 +518,8 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 /// @cond INTERNAL
 static int restart_session(rc_handle *rh, tls_st *st)
 {
-	struct tls_int_st tmps;
+	/* init_session() assumes a zeroed struct */
+	struct tls_int_st tmps = { 0 };
 	time_t now = time(0);
 	int ret;
 	int timeout;
