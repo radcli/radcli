@@ -927,8 +927,15 @@ int rc_test_config(rc_handle *rh, char const *filename)
 	srv = rc_conf_srv(rh, "acctserver");
 	if (!srv || !srv->max)
 	{
-		/* it is allowed not to have acct servers */
-		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		/* it is allowed not to have acct servers under TLS/DTLS. rh->so_type
+		 * isn't set until rc_apply_config() below, so check the configured
+		 * serv-type string directly rather than the not-yet-initialized
+		 * transport state. */
+		const char *stype = rc_conf_str(rh, "serv-type");
+		if (stype == NULL)
+			stype = rc_conf_str(rh, "serv-auth-type");
+		if (stype == NULL ||
+		    (strcasecmp(stype, "tls") != 0 && strcasecmp(stype, "dtls") != 0))
 			rc_log(LOG_DEBUG,"%s: no acctserver specified", filename);
 	}
 

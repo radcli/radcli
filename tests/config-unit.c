@@ -220,6 +220,83 @@ static void test_overlong_line_resync(void)
 	rc_destroy(rh);
 }
 
+/* commit 8c4e3ac: "no acctserver specified" must be suppressed for
+ * serv-type tls/dtls, and still logged otherwise. rh->so_type is not set
+ * until rc_apply_config() runs (called internally by rc_read_config() via
+ * rc_test_config()), so the fix reads the "serv-type" string directly
+ * instead. Captured via LOG_PERROR, since rc_log() is plain syslog(). */
+static int run_capturing_stderr(const char *conf, size_t len, char *out, size_t outlen)
+{
+	rc_handle *rh;
+	char *path;
+	int saved_fd, tmp_fd;
+	ssize_t n;
+
+	path = write_conf(conf, len);
+
+	fflush(stderr);
+	saved_fd = dup(STDERR_FILENO);
+	tmp_fd = open("config-unit-stderr.tmp", O_RDWR | O_CREAT | O_TRUNC, 0600);
+	if (tmp_fd < 0) {
+		perror("open");
+		exit(1);
+	}
+	dup2(tmp_fd, STDERR_FILENO);
+
+	rh = rc_read_config(path);
+
+	fflush(stderr);
+	dup2(saved_fd, STDERR_FILENO);
+	close(saved_fd);
+	unlink(path);
+
+	lseek(tmp_fd, 0, SEEK_SET);
+	n = read(tmp_fd, out, outlen - 1);
+	out[n > 0 ? n : 0] = '\0';
+	close(tmp_fd);
+	unlink("config-unit-stderr.tmp");
+
+	if (rh != NULL)
+		rc_destroy(rh);
+
+	return rh != NULL;
+}
+
+static void test_acctserver_log_suppression(void)
+{
+	char captured[4096];
+	const char needle[] = "no acctserver specified";
+
+	const char udp_conf[] =
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	if (!run_capturing_stderr(udp_conf, sizeof(udp_conf) - 1, captured, sizeof(captured))) {
+		fprintf(stderr, "error: valid udp config without acctserver was rejected\n");
+		exit(1);
+	}
+	if (strstr(captured, needle) == NULL) {
+		fprintf(stderr, "error: '%s' was NOT logged for serv-type udp "
+				"(default) without an acctserver\n", needle);
+		exit(1);
+	}
+
+	const char tls_conf[] =
+		"serv-type tls\n"
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	if (!run_capturing_stderr(tls_conf, sizeof(tls_conf) - 1, captured, sizeof(captured))) {
+		fprintf(stderr, "error: valid tls config without acctserver was rejected\n");
+		exit(1);
+	}
+	if (strstr(captured, needle) != NULL) {
+		fprintf(stderr, "error: '%s' WAS logged for serv-type tls "
+				"without an acctserver (should be suppressed)\n", needle);
+		exit(1);
+	}
+}
+
 int main(void)
 {
 	openlog(NULL, LOG_PERROR, LOG_USER);
@@ -228,6 +305,7 @@ int main(void)
 	test_prefix_match_secret();
 	test_last_line_no_newline();
 	test_overlong_line_resync();
+	test_acctserver_log_suppression();
 
 	printf("config-unit: all tests passed\n");
 	return 0;
