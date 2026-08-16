@@ -164,10 +164,12 @@ static inline int pb_put_bytes(pkt_buf *pb, const void *src, int n)
 }
 
 /* Reserve n bytes at tail; return pointer to the reserved region, or NULL on
- * overflow.  The caller patches the content after writing surrounding data. */
+ * overflow.  The caller patches the content after writing surrounding data.
+ * n == 0 is a well-defined no-op, returning the current tail pointer without
+ * advancing it, consistent with pb_put_bytes(pb, src, 0). */
 static inline uint8_t *pb_put_reserve(pkt_buf *pb, int n)
 {
-	if (n <= 0 || pb->tail + n > pb->end) return NULL;
+	if (n < 0 || pb->tail + n > pb->end) return NULL;
 	uint8_t *p = pb->tail;
 	pb->tail += n;
 	return p;
