@@ -180,39 +180,50 @@ static void test_last_line_no_newline(void)
 	rc_destroy(rh);
 }
 
-/* (b) a physical line at/beyond the 512-byte line buffer must be
- *     diagnosed and discarded without corrupting the following line. */
-static void test_overlong_line_resync(void)
+/* (b) rc_read_config() now reads lines with getline(), which has no fixed
+ *     buffer to overflow. A single physical line far longer than the old
+ *     512-byte fgets() buffer must be read and parsed intact -- value not
+ *     truncated, following line not corrupted -- instead of triggering the
+ *     old "line too long, skip and resync" path (which no longer exists). */
+static void test_long_line_no_truncation(void)
 {
 	rc_handle *rh;
 	char *path;
-	const char *bindaddr;
+	const char *nas_id, *bindaddr;
+	char long_id[1000];
 	char buf[4096];
 	int n;
 
+	memset(long_id, 'a', sizeof(long_id) - 1);
+	long_id[sizeof(long_id) - 1] = '\0';
+
 	n = snprintf(buf, sizeof(buf),
-		     "%600s\n"                 /* one unrecognized 600-byte line */
 		     "authserver 127.0.0.1:1\n"
 		     "acctserver 127.0.0.1:1\n"
 		     "radius_timeout 5\n"
 		     "radius_retries 1\n"
-		     "bindaddr *\n", "x");
-	/* %600s right-pads with spaces; not 600 'x' bytes, but still a
-	 * single physical line far longer than the 512-byte line buffer,
-	 * which is all this test needs. */
+		     "nas-identifier %s\n"     /* far longer than the old 512-byte line buffer */
+		     "bindaddr *\n", long_id);
 	path = write_conf(buf, (size_t)n);
 	rh = rc_read_config(path);
 	unlink(path);
 	if (rh == NULL) {
-		fprintf(stderr, "error: config with a too-long line was "
-				"rejected outright instead of skipping just that line\n");
+		fprintf(stderr, "error: config with a line longer than the old "
+				"512-byte buffer was rejected\n");
+		exit(1);
+	}
+
+	nas_id = rc_conf_str(rh, "nas-identifier");
+	if (nas_id == NULL || strcmp(nas_id, long_id) != 0) {
+		fprintf(stderr, "error: nas-identifier value was truncated or "
+				"corrupted by a line longer than the old 512-byte buffer\n");
 		exit(1);
 	}
 
 	bindaddr = rc_conf_str(rh, "bindaddr");
 	if (bindaddr == NULL || strcmp(bindaddr, "*") != 0) {
 		fprintf(stderr, "error: bindaddr = '%s', expected '*' "
-				"(the line after the too-long one was misparsed)\n",
+				"(the line after the long one was misparsed)\n",
 				bindaddr ? bindaddr : "(null)");
 		exit(1);
 	}
@@ -304,7 +315,7 @@ int main(void)
 	test_server_list_bound();
 	test_prefix_match_secret();
 	test_last_line_no_newline();
-	test_overlong_line_resync();
+	test_long_line_no_truncation();
 	test_acctserver_log_suppression();
 
 	printf("config-unit: all tests passed\n");
