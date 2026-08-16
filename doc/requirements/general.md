@@ -305,6 +305,40 @@ usage and propagated `-1` return checks.
 **Links:** REQ-NET-DATA-* (packet packing, see `net.md`), REQ-UTIL-DATA-*
 (`pkt_buf` implementation, see `util.md`)
 
+### REQ-GEN-MEM-006 — Line-oriented file/stream parsing in `lib/` MUST use `getline()`, never `fgets()` into a fixed-size buffer
+
+**Requirement:** New or modified code in `lib/` that reads a text file or
+stream line-by-line (config files, dictionary files, credentials files, or
+any future format) MUST use `getline()`, which grows its buffer to fit the
+line rather than imposing a silent length limit. `fgets()` into a
+fixed-size stack buffer MUST NOT be used for this purpose: a physical line at
+or beyond the buffer's size makes `fgets()` return a partial line with no
+trailing newline, and unless every caller specifically detects and handles
+that split (which historically they did not — see the `Source` commits
+below), the unread remainder is picked up by the next read and misparsed as
+a bogus separate line, silently corrupting or truncating whatever value
+happened to be mid-line — including a shared secret, in
+`rc_find_server_addr()`'s case. A function converted to `getline()` MUST
+`free()` its line buffer on every exit path (see REQ-GEN-MEM-003 — this
+is the reason a function with multiple early-return error paths MUST route
+them through a single cleanup label once it owns a `getline()`-allocated
+buffer, rather than duplicating the `free()` at each one).
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/config.c (`rc_read_config()`, `rc_find_server_addr()`),
+lib/dict.c (`rc_dict_init()`) — all three converted from a fixed `fgets()`
+buffer to `getline()` after the fixed-buffer form was found to silently
+truncate/misparse a physical line at or beyond the buffer size (`config.c`'s
+511-byte limit; the `servers`-file 128-byte limit that could truncate a
+secret; the dictionary parser's 1024-byte limit)
+**Acceptance:** [MEM] negative, local — `grep -n 'fgets(' lib/*.c` returns no
+matches; positive — a test file containing one physical line far longer than
+the format's old fixed-buffer size (e.g. tests/config-unit.c's
+`test_long_line_no_truncation`/`test_servers_file_long_line`,
+tests/dict.c's long-comment-line case) parses correctly instead of being
+truncated or corrupting the following line.
+**Links:** REQ-GEN-MEM-003, REQ-CONFIG-CFG-002 (config.md)
+
 ---
 
 ## TECH — canonical technology stack constraints
