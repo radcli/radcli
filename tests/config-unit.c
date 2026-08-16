@@ -145,6 +145,77 @@ static void test_prefix_match_secret(void)
 	rc_destroy(rh);
 }
 
+/* rc_find_server_addr()'s "servers" file parsing switched from a fixed
+ * 128-byte fgets() buffer to getline(). A servers-file line longer than the
+ * old buffer must be read intact (not silently truncated/misparsed as a
+ * bogus extra line) and must not corrupt the valid entry that follows it.
+ *
+ * The padding that makes the line long is a third, unused whitespace-
+ * separated token trailing the hostname/secret pair (rc_find_server_addr()
+ * only ever reads the first two tokens off a line via strtok_r()), not a
+ * long hostname: hostnm[] is fixed at AUTH_ID_LEN (64) regardless of line
+ * length, so a too-long *hostname* would just get silently truncated to a
+ * valid-length nonexistent name and trigger a real (sandboxed, slow) DNS
+ * lookup attempt -- unrelated to the getline() behavior under test here.
+ * The filler line's own hostname is a numeric address (192.0.2.1, TEST-NET-1)
+ * so its rc_getaddrinfo() call resolves instantly, no DNS involved. */
+static void test_servers_file_long_line(void)
+{
+	rc_handle *rh;
+	char *path;
+	char servers_path[64];
+	char conf_path[64];
+	char conf[512];
+	struct addrinfo *info = NULL;
+	char secret[MAX_SECRET_LENGTH];
+	char padding[300];
+	char servers_content[512];
+	int n;
+
+	memset(padding, 'x', sizeof(padding) - 1);
+	padding[sizeof(padding) - 1] = '\0';
+
+	n = snprintf(servers_content, sizeof(servers_content),
+		     "192.0.2.1 secretA %s\n"   /* far longer than the old 128-byte buffer */
+		     "127.0.0.1 secretB\n", padding);
+	path = write_conf(servers_content, (size_t)n);
+	strcpy(servers_path, path);
+
+	n = snprintf(conf, sizeof(conf),
+		     "authserver 127.0.0.1:1\n"
+		     "acctserver 127.0.0.1:1\n"
+		     "radius_timeout 5\n"
+		     "radius_retries 1\n"
+		     "servers %s\n", servers_path);
+	path = write_conf(conf, (size_t)n);
+	strcpy(conf_path, path);
+
+	rh = rc_read_config(conf_path);
+	unlink(conf_path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: valid config referencing a servers file "
+				"was rejected\n");
+		exit(1);
+	}
+
+	if (rc_find_server_addr(rh, "127.0.0.1", &info, secret, ACCT) != 0) {
+		unlink(servers_path);
+		fprintf(stderr, "error: rc_find_server_addr() failed to find "
+				"the entry after the too-long servers-file line\n");
+		exit(1);
+	}
+	unlink(servers_path);
+	freeaddrinfo(info);
+
+	if (strcmp(secret, "secretB") != 0) {
+		fprintf(stderr, "error: secret = '%s', expected 'secretB' "
+				"(the entry after the long line was misparsed)\n", secret);
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 /* commit 25d4339: line-buffer handling in rc_read_config().
  * (a) last line without a trailing newline must not have its real last
  *     byte stripped as if it were a '\n'. */
@@ -350,6 +421,7 @@ int main(void)
 
 	test_server_list_bound();
 	test_prefix_match_secret();
+	test_servers_file_long_line();
 	test_last_line_no_newline();
 	test_long_line_no_truncation();
 	test_keyword_trailing_whitespace_only();

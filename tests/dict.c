@@ -215,6 +215,44 @@ int main(int argc, char **argv)
 
 	rc_dict_free(rh);
 
+	/* A physical line far longer than the old fixed 1024-byte fgets()
+	 * buffer must be read intact by getline() and must not corrupt the
+	 * line that follows it. */
+	{
+		char long_comment[2000];
+		char dictbuf[2200];
+
+		memset(long_comment, 'x', sizeof(long_comment) - 1);
+		long_comment[sizeof(long_comment) - 1] = '\0';
+
+		snprintf(dictbuf, sizeof(dictbuf),
+			 "ATTRIBUTE\tTest-Attr\t\t202\tinteger\n"
+			 "# %s\n"
+			 "VALUE\tTest-Attr\tTest-Val\t1\n", long_comment);
+		ret = rc_read_dictionary_from_buffer(rh, dictbuf, strlen(dictbuf) + 1);
+		if (ret != 0) {
+			fprintf(stderr, "error: dictionary with a line longer than the "
+					"old 1024-byte buffer was rejected\n");
+			exit(1);
+		}
+
+		attr = rc_dict_findattr(rh, "Test-Attr");
+		if (attr == NULL) {
+			fprintf(stderr, "error: Test-Attr not found\n");
+			exit(1);
+		}
+		assert(ATTRID(attr->value) == 202);
+
+		dv = rc_dict_findval(rh, "Test-Val");
+		if (dv == NULL) {
+			fprintf(stderr, "error: Test-Val not found "
+					"(line after the long comment was misparsed)\n");
+			exit(1);
+		}
+	}
+
+	rc_dict_free(rh);
+
 	/* Malformed numeric fields must be fully validated, not just their
 	 * first character (isdigit(*valstr) let "101abc" through): commit
 	 * 790407f. One case per ATTRIBUTE value / VALUE value / VENDOR PEC. */
