@@ -735,10 +735,12 @@ rc_handle *rc_read_config(char const *filename)
 		p += pos+1;
 		while (isspace(*p))
 			p++;
-		pos = strlen(p) - 1;
-		while(pos != 0 && isspace(p[pos]))
-			pos--;
-		p[pos + 1] = '\0';
+		if (*p != '\0') {
+			pos = strlen(p) - 1;
+			while (pos != 0 && isspace(p[pos]))
+				pos--;
+			p[pos + 1] = '\0';
+		}
 
 		switch (option->type) {
 			case OT_STR:

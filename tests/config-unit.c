@@ -231,6 +231,42 @@ static void test_long_line_no_truncation(void)
 	rc_destroy(rh);
 }
 
+/* A keyword line whose value is only trailing whitespace (no actual value)
+ * must not underflow the trailing-whitespace-trim index: after skipping the
+ * separator whitespace, p points at the line's terminating '\0', so
+ * strlen(p) - 1 wraps to SIZE_MAX. Caught by UBSan as a pointer-offset
+ * overflow at the p[pos]/p[pos+1] accesses. */
+static void test_keyword_trailing_whitespace_only(void)
+{
+	rc_handle *rh;
+	char *path;
+	const char *bindaddr;
+
+	const char conf[] =
+		"authserver 127.0.0.1:1\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n"
+		"bindaddr   \n";  /* keyword followed only by whitespace */
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: config with a whitespace-only option value "
+				"was rejected\n");
+		exit(1);
+	}
+
+	bindaddr = rc_conf_str(rh, "bindaddr");
+	if (bindaddr == NULL || strcmp(bindaddr, "") != 0) {
+		fprintf(stderr, "error: bindaddr = '%s', expected '' "
+				"(empty value)\n", bindaddr ? bindaddr : "(null)");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 /* commit 8c4e3ac: "no acctserver specified" must be suppressed for
  * serv-type tls/dtls, and still logged otherwise. rh->so_type is not set
  * until rc_apply_config() runs (called internally by rc_read_config() via
@@ -316,6 +352,7 @@ int main(void)
 	test_prefix_match_secret();
 	test_last_line_no_newline();
 	test_long_line_no_truncation();
+	test_keyword_trailing_whitespace_only();
 	test_acctserver_log_suppression();
 
 	printf("config-unit: all tests passed\n");
