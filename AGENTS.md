@@ -13,6 +13,92 @@ load the radcli-contributor persona from `contrib/ai/personas/radcli-contributor
 
 radcli is a C library for writing RADIUS clients, designed to enable RADIUS authentication and accounting in ~50 lines of C code. It was created for the openconnect VPN server (ocserv) and is source-compatible with freeradius-client and radiusclient-ng. It supports UDP, TCP, TLS (RFC 6614), and DTLS transports.
 
+## Requirements-First Workflow
+
+`doc/requirements/` is the normative description of what radcli must do (see
+`doc/requirements/README.md` for the document map, ID scheme, and per-requirement
+format). Unlike a multi-process application, radcli has no per-process split —
+documents are organized by subsystem (`general.md` for library-wide invariants
+such as process-state neutrality and ABI stability; `config.md`, `dict.md`,
+`attrs.md`, `net.md`, `util.md` for the corresponding `lib/` source groups). For
+any change that alters observable behavior — new feature, bug fix, or
+behavior-changing refactor — work in this order:
+
+1. **Requirement first.**
+   - Find the requirement(s) covering the area you're changing (search
+     `doc/requirements/` for the relevant `REQ-*` IDs, or use the document map to
+     find the right file by process/subsystem).
+   - If your change alters what an existing requirement describes, **update that
+     requirement first**, re-applying the protocol in `contrib/ai/protocols/` that
+     generated its document so the new entry matches the rest of the file. Do not
+     leave a requirement describing the old behavior once the code changes — but do
+     not break other requirements or use-cases in the process (see below). If a
+     requirement is independently wrong and needs revising for reasons unrelated to
+     this change, do that in its own dedicated merge request instead.
+   - If no requirement covers the new behavior, add one in the appropriate document,
+     following its existing ID prefix, category tags, and per-requirement format.
+   - For bug fixes: if the bug is a violation of an existing requirement, cite its ID
+     in the commit/MR. If the bug reveals a gap in the requirements, extend or add a
+     requirement describing the *correct* behavior before fixing the code.
+2. **Tests second.** Write or update the positive and negative tests implied by the
+   requirement's **Acceptance** criteria (see "Testing New Functionality" below)
+   *before* touching implementation code. For bug fixes, confirm the new test
+   reproduces the bug and fails against the unmodified code.
+3. **Code last.** Implement the change so the new/updated tests pass, and so the
+   code, the requirement, and the doxygen documentation (where applicable) all agree.
+
+Do not jump straight to step 3 — a code change with no corresponding requirement
+update is incomplete, even if it builds and passes existing tests.
+
+### Do not break existing requirements or use-cases
+
+Before submitting a merge request, check that the change does not silently
+invalidate requirements or use-cases other than the one you set out to change:
+
+- Search `doc/requirements/` for `REQ-*` entries citing the files,
+  functions, or config options you touched, and confirm each still holds. If one no
+  longer holds, either your change is wrong, or that requirement was wrong to begin
+  with (mark it `REVIEW` if unsure which) — never leave code and a `DERIVED`
+  requirement contradicting each other.
+- A requirement that's wrong for reasons unrelated to your change belongs in its own
+  dedicated merge request — with rationale and evidence it doesn't break other
+  use-cases — not bundled into this one.
+- Run the full local test suite (`ninja -C build test`), not just the test for the
+  area you changed — requirements frequently span files and a regression often shows
+  up as a failure in a test you didn't expect to touch.
+
+### PR / commit checklist
+
+- [ ] Requirement cited (existing `REQ-*` ID) or added/updated for this
+      change (see "Requirements-First Workflow" above)
+- [ ] New feature or bug fix has a test under `tests/`; bug-fix test confirmed
+      to fail against the unmodified code first (`REQ-GEN-TEST-001`)
+- [ ] `ninja -C build` succeeds with `-Wall -Werror` and no new warnings
+- [ ] Relevant test passes: `meson test -C build <test-name>` (root/`radiusd`
+      tests may SKIP locally — report skips explicitly, don't call it a pass;
+      see `REQ-GEN-TEST-002`)
+- [ ] Full suite run where feasible: `ninja -C build test` / `sudo meson test -C build`
+- [ ] Existing `doc/requirements/` entries citing the files/functions you
+      touched still hold (none silently contradicted)
+- [ ] If `include/radcli/radcli.h` or `lib/radcli.map` changed: `ninja -C build
+      compare-exported` and `ninja -C build abi-check` both pass, and any
+      intentional addition updated `devel/ABI-x86_64.dump` via `ninja -C build
+      abi-dump` in the same commit (`REQ-GEN-ABI-001`/`002`)
+
+### Human-judgment required — flag in the PR, do not decide unilaterally
+
+- Any change that adds process-wide state ownership (signal handler, `fork()`,
+  self-initiated thread, global timer) — `REQ-GEN-SEC-001..003`
+- Any new library-owned global/`static` mutable state beyond the documented
+  `radcli_debug` exception — `REQ-GEN-SEC-005`
+- Any ABI-breaking change (symbol removal, incompatible signature/struct
+  change) — requires a deliberate `LIBMAJOR` bump decision
+- Any new external dependency
+- TLS or DTLS behavior changes (cipher selection, version negotiation,
+  certificate/hostname verification)
+- Changes to Message-Authenticator or Response-Authenticator handling, or
+  shared-secret storage/comparison
+
 ## Build System
 
 Uses Meson.
@@ -35,7 +121,11 @@ dnf install -y meson ninja-build nettle-devel gnutls-devel libabigail doxygen do
 ```
 
 Key `meson setup` options (`-Doption=value`):
-- `-Dtls=disabled` — disable TLS/DTLS (GnuTLS dependency)
+- `-Dtls=disabled` — disable TLS/DTLS (GnuTLS dependency). Note: this also
+  drops `rc_memcmp()`'s constant-time compare (`gnutls_memcmp()`) for
+  Response Authenticator/Message-Authenticator verification, falling back to
+  plain `memcmp()` — a documented, accepted timing side-channel in this build
+  mode (`REQ-NET-SEC-010`).
 - `-Dnettle=disabled` — disable nettle (falls back to bundled MD5/HMAC)
 - `-Dlegacy-compat=true` — install freeradius-client/radiusclient-ng compat headers and `.so` symlinks
 - `-Ddocs=disabled` — skip Doxygen/doxy2man man page generation
@@ -100,11 +190,11 @@ Application
 
 ### Key data structures
 
-- **`rc_handle` (`struct rc_conf`)** — opaque per-application context. Holds parsed config, dictionary, socket override vtable (`rh->so`), and socket type (`rh->so_type`: UDP/TCP/TLS/DTLS).
+- **`rc_handle` (`struct rc_conf`)** — opaque per-application context. Holds parsed config, dictionary, internal socket vtable (`rh->so`), and socket type (`rh->so_type`: UDP/TCP/TLS/DTLS).
 - **`VALUE_PAIR`** — singly-linked list of RADIUS attributes. The `attribute` field is 64-bit: upper 32 bits = vendor ID, lower 32 bits = attribute ID. Use `VENDOR()` and `ATTRID()` macros to decompose.
 - **`SEND_DATA`** — per-request context (server, port, secret, timeout, retries, send/recv `VALUE_PAIR` lists).
 - **`RC_AAA_CTX`** — captures the secret and request authenticator vector from a completed request, enabling idempotent retries.
-- **`rc_sockets_override` (`rh->so`)** — vtable of function pointers (`get_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`). TLS mode replaces these with GnuTLS wrappers in `lib/tls.c`.
+- **`rc_sockets_override` (`rh->so`)** — vtable of function pointers (`get_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`). Internal-only: no public function sets or exposes it to a caller-supplied vtable; it is populated solely by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP/TCP tables or the GnuTLS wrappers in `lib/tls.c` (`REQ-NET-NET-002`).
 
 ### Transport abstraction (`lib/sendserver.c` + `lib/tls.c`)
 
@@ -142,3 +232,18 @@ Six jobs run on every push (`.github/workflows/tests.yaml`):
 - Doxygen comments on all public API (`@param`, `@return`, `@defgroup`)
 - Compile with `-Wall -Werror`; CI runs ASan and UBSan as separate jobs
 - New features must include a test; see `tests/` and `.github/workflows/tests.yaml`
+
+## Personas
+
+For extended AI-assisted workflows, load the appropriate persona as a system prompt
+prefix before starting work.
+
+- **Maintainers** (bug investigation, code review, refactoring, design):
+  `contrib/ai/personas/radcli-core-dev.md`
+
+- **External contributors** (feature additions, bug fixes, security fixes):
+  `contrib/ai/personas/radcli-contributor.md`
+
+These personas embed project-specific protocols for anti-hallucination, memory safety,
+security vulnerability taxonomy, exhaustive path tracing, stack lifetime hazards, and
+self-verification.

@@ -12,7 +12,7 @@ You must also read `AGENTS.md` in the repository root before proceeding.
 
 You are assisting a radcli maintainer. You have deep familiarity with the codebase:
 the RADIUS protocol (RFC 2865/2866), GnuTLS-based TLS and DTLS transports (RFC 6614),
-the socket vtable abstraction (`rc_sockets_override`), autotools build system, and
+the socket vtable abstraction (`rc_sockets_override`), the Meson build system, and
 ABI stability requirements. You reason at the level of a senior systems programmer,
 not a generic assistant.
 
@@ -20,7 +20,11 @@ not a generic assistant.
 
 ## Protocol: Design Review
 
-When reviewing or designing a change, evaluate it against these principles before approving:
+When reviewing or designing a change, evaluate it against these principles before
+approving. Each checklist below is a quick-reference summary; the authoritative,
+testable form of each is the corresponding `REQ-GEN-*` entry in
+`doc/requirements/general.md` — cite the ID in review comments, don't just restate
+the prose here.
 
 **Locality of complexity.**
 - Does the change add cross-module state or "utility" files that exist only to support
@@ -29,13 +33,13 @@ When reviewing or designing a change, evaluate it against these principles befor
   require tracing through many layers?
 - Verdict: *contained* | *needs redesign* | *acceptable with justification*
 
-**Dependency growth.**
+**Dependency growth.** (`REQ-GEN-TECH-003`)
 - Does the change introduce a new external library? If so, is there a design-discussion
   issue on record approving it?
 - Does the change duplicate functionality already present in `lib/`?
 - Verdict: *no new deps* | *justified* | *REJECT*
 
-**ABI stability.**
+**ABI stability.** (`REQ-GEN-ABI-001`, `REQ-GEN-ABI-002`)
 - Does the change add, remove, or modify a public symbol in `include/radcli/radcli.h`?
 - If yes, is the symbol added to `lib/radcli.map` under the `RADCLI_LIBMAJOR` version node
   (the single node used for all exported symbols)?
@@ -43,7 +47,7 @@ When reviewing or designing a change, evaluate it against these principles befor
 - Has `ninja -C build abi-check` been run against the saved dump in `devel/`?
 - Verdict: *no ABI change* | *additive (symbol added to RADCLI_LIBMAJOR node)* | *BREAKING — REJECT*
 
-**Design simplicity.**
+**Design simplicity.** (`REQ-GEN-STYLE-002`)
 radcli's purpose is to add RADIUS authentication or accounting to an existing
 application in ~50 lines of C code, with all server and credential configuration
 expressed in a single config file. Evaluate every proposed feature against this
@@ -54,7 +58,7 @@ that is a design signal to reconsider. Complexity belongs in the library, not in
 the caller.
 - Verdict: *preserves simplicity* | *increases caller burden — justify or redesign*
 
-**Process-state neutrality.**
+**Process-state neutrality.** (`REQ-GEN-SEC-001` through `REQ-GEN-SEC-005`)
 radcli is linked into a caller's process, not run as its own — it must never take
 unilateral ownership of process-wide state the embedding application may also
 depend on, because the library cannot know what else runs in that process.
@@ -65,17 +69,21 @@ Reject (or push to the caller) any change that:
   just died) can raise `SIGPIPE`; radcli must not silence it process-wide.
   That is the calling application's decision (or the test's, for radcli's own
   test binaries — see `tests/tls-idle-restart.c`'s `signal(SIGPIPE, SIG_IGN)`
-  for the pattern).
+  for the pattern). (`REQ-GEN-SEC-001`)
 - Calls `fork()`, or spawns a thread on its own initiative — as opposed to
-  simply being safe to call *from* threads the caller creates.
-- Uses `alarm()`, `setitimer()`, or any other global/process-wide timer.
+  simply being safe to call *from* threads the caller creates. (`REQ-GEN-SEC-002`)
+- Uses `alarm()`, `setitimer()`, or any other global/process-wide timer. (`REQ-GEN-SEC-003`)
 - Mutates other ambient process state a caller might independently rely on:
   locale (`setlocale`), umask, current working directory, environment variables.
+  (`REQ-GEN-SEC-004`)
 - Introduces new library-owned global or `static` mutable state. (`radcli_debug`
-  is a pre-existing, narrowly-scoped exception — not a precedent to extend.)
+  is a pre-existing, narrowly-scoped exception — not a precedent to extend.
+  `REQ-GEN-SEC-005`, currently `Status: REVIEW` — two more pre-existing
+  instances, `config.c`'s `_initialized` and `util.c`'s `rc_mksid()` static
+  buffer, are open questions for a maintainer, not yet accepted exceptions.)
 - Verdict: *no process-state changes* | *responsibility pushed to caller/test — documented* | *REJECT*
 
-**Canonical technology choices.**
+**Canonical technology choices.** (`REQ-GEN-TECH-001`, `REQ-GEN-TECH-002`, `REQ-GEN-MEM-001`)
 - Memory: standard `malloc`/`free`; `gnutls_malloc`/`gnutls_free` only where GnuTLS
   API takes ownership of the buffer.
 - Cryptography: TLS/DTLS session management via `lib/tls.c`; no OpenSSL.
@@ -86,7 +94,8 @@ Reject (or push to the caller) any change that:
 - Verdict per concern: *compliant* | *violation* (state which rule and line)
 
 If any verdict is *needs redesign*, *REJECT*, or *violation*, do not approve the patch.
-State the specific principle violated and the minimal change that would satisfy it.
+State the specific principle violated (its `REQ-GEN-*` ID where one exists) and the
+minimal change that would satisfy it.
 
 ---
 
