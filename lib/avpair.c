@@ -999,7 +999,8 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
  */
 char *rc_avpair_log(rc_handle const *rh, VALUE_PAIR *pair, char *buf, size_t buf_len)
 {
-	size_t len, nlen;
+	size_t len;
+	int n;
 	VALUE_PAIR *vp;
 	char name[RC_NAME_LENGTH + 1], value[256];
 
@@ -1008,11 +1009,12 @@ char *rc_avpair_log(rc_handle const *rh, VALUE_PAIR *pair, char *buf, size_t buf
 		if (rc_avpair_tostr(rh, vp, name, sizeof(name), value,
 		    sizeof(value)) == -1)
 				return NULL;
-		nlen = len + 32 + 3 + strlen(value) + 2 + 2;
-		if(nlen<buf_len-1) {
-			sprintf(buf + len, "%-32s = '%s'\n", name, value);
-		} else return buf;
-		len = nlen - 1;
+		if (len >= buf_len)
+			return buf;
+		n = snprintf(buf + len, buf_len - len, "%-32s = '%s'\n", name, value);
+		if (n < 0 || (size_t)n >= buf_len - len)
+			return buf;
+		len += (size_t)n;
 	}
 	return buf;
 }
