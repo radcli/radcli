@@ -183,26 +183,26 @@ and abort the whole load.
 `authserver localhost` parses; [CFG] negative — a line starting with a tab/space
 (empty option name) fails the load with "bogus format" (`lib/config.c:685-690`).
 
-### REQ-CONFIG-CFG-002 — Config lines longer than the 511-byte line buffer MUST be rejected with a clear diagnostic, not silently mis-parsed
+### REQ-CONFIG-CFG-002 — Config lines of any length MUST be read intact, via `getline()`, never a fixed-size `fgets()` buffer
 
-**Requirement:** `rc_read_config()` reads each line into a fixed
-`char buffer[512]` via `fgets()`. It MUST only strip the buffer's last
-character when that character actually is the trailing newline `fgets()`
-left in place — never unconditionally. When a physical line is ≥511 bytes,
-`fgets()` returns a partial line with no trailing newline; in that case
-`rc_read_config()` MUST log a "line too long" diagnostic (naming the file and
-line number) and discard the remainder of that physical line up to and
-including its terminating `\n` before continuing, so the remainder is never
-misparsed as a bogus separate config line.
-**Strength:** MUST NOT (strip a non-newline character) ; MUST (report and
-resynchronize on an over-long line)
+**Requirement:** `rc_read_config()` MUST read each line with `getline()` into
+a buffer it grows as needed, not `fgets()` into a fixed-size stack buffer.
+There is no line-length limit to enforce or diagnose: an arbitrarily long
+physical line MUST be read and parsed in full, never truncated, and never
+misparsed as two separate lines. The read line MUST only have its last
+character stripped when that character actually is the trailing newline
+`getline()` left in place — never unconditionally, so a last line lacking a
+trailing newline keeps its real last byte.
+**Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:647 (`buffer[512]`), lib/config.c:673-700
-**Acceptance:** [CFG][ERR] negative, local — a config file containing one line
-≥511 bytes causes `rc_read_config()` to log "line too long" for that line and
-continue parsing the rest of the file; a config file whose last line lacks a
-trailing newline parses that line's full, uncorrupted content.
-**Links:** REQ-GEN-MEM-004 (bounded string handling)
+**Source:** lib/config.c:677-679 (`buffer`/`bufsize`/`nread`), lib/config.c:706-711
+**Acceptance:** [CFG][ERR] negative, local — a config file containing one
+line far longer than the old 511-byte `fgets()` limit parses correctly
+(e.g. a long `nas-identifier` value round-trips uncorrupted and the line
+after it is not misparsed); a config file whose last line lacks a trailing
+newline parses that line's full, uncorrupted content.
+**Links:** REQ-GEN-MEM-004 (bounded string handling), REQ-GEN-MEM-006
+(`getline()` requirement for all line-oriented file reads in `lib/`)
 
 ### REQ-CONFIG-CFG-003 — Duplicate option definitions MUST be rejected, in both file parsing and `rc_add_config()`
 
