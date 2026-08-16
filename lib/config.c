@@ -657,8 +657,10 @@ int rc_apply_config(rc_handle *rh)
  * **Security:**
  *  - @b require-message-authenticator: set to @c no to accept responses that
  *    lack the Message-Authenticator attribute.  Enabled by default per
- *    draft-ietf-radext-deprecating-radius (CVE-2024-3596 / BLAST RADIUS);
- *    only disable for legacy servers that predate RFC 3579.
+ *    draft-ietf-radext-deprecating-radius-10 (CVE-2024-3596 / BLAST RADIUS);
+ *    only disable for legacy servers that predate RFC 3579.  Has no effect
+ *    over RADIUS/TLS or RADIUS/DTLS, where this mitigation is never
+ *    enforced, per draft-ietf-radext-deprecating-radius-10 Section 4.
  *
  * **Tuning:**
  *  - @b radius_timeout: request timeout in seconds (integer, default 3).

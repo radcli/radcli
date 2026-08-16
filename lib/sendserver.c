@@ -870,17 +870,24 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			}
 		}
 
-		/* Enforce BLAST RADIUS: MA must also be the first attribute. */
-		if (length == 0 ||
-		    recv_buffer[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
-			p = rc_conf_str(rh, "require-message-authenticator");
-			if (p == NULL || (strcasecmp(p, "false") != 0 && strcasecmp(p, "no") != 0)) {
-				rc_log(LOG_ERR,
-				       "rc_send_server: recvfrom: %s:%d: required attribute Message-Authenticator is missing or not first",
-				       server_name, data->svc_port);
-				memset(secret, '\0', sizeof(secret));
-				result = ERROR_RC;
-				goto cleanup;
+		/* Enforce BLAST RADIUS: MA must also be the first attribute.
+		 * Per draft-ietf-radext-deprecating-radius-10 Section 4, this
+		 * mitigation MUST be applied to RADIUS/UDP and RADIUS/TCP, and
+		 * MUST NOT be applied to RADIUS/TLS or RADIUS/DTLS: those
+		 * transports are already integrity-protected end-to-end, so the
+		 * MD5-prefix collision this guards against isn't reachable. */
+		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS) {
+			if (length == 0 ||
+			    recv_buffer[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
+				p = rc_conf_str(rh, "require-message-authenticator");
+				if (p == NULL || (strcasecmp(p, "false") != 0 && strcasecmp(p, "no") != 0)) {
+					rc_log(LOG_ERR,
+					       "rc_send_server: recvfrom: %s:%d: required attribute Message-Authenticator is missing or not first",
+					       server_name, data->svc_port);
+					memset(secret, '\0', sizeof(secret));
+					result = ERROR_RC;
+					goto cleanup;
+				}
 			}
 		}
 	}

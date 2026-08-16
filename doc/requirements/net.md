@@ -413,25 +413,37 @@ attribute presence via `rc_avpair_get`, not on `recv_auth->code`)
 Message-Authenticator computed with the wrong secret MUST be rejected (`ERROR_RC`), not passed
 through as `REJECT_RC`.
 
-### REQ-NET-SEC-007 — BLAST RADIUS mitigation: Message-Authenticator MUST be the first attribute in an Access-* reply, unless explicitly disabled
+### REQ-NET-SEC-007 — BLAST RADIUS mitigation: Message-Authenticator MUST be the first attribute in an Access-* reply over RADIUS/UDP and RADIUS/TCP, unless explicitly disabled; MUST NOT be enforced over RADIUS/TLS or RADIUS/DTLS
 
-**Requirement:** Per `draft-ietf-radext-deprecating-radius` (the BLAST RADIUS mitigation), for
-`AUTH`-type replies `rc_send_server_ctx()` MUST reject (`ERROR_RC`) a reply whose first attribute
-is not `PW_MESSAGE_AUTHENTICATOR` (or which has zero attributes), UNLESS the config option
+**Requirement:** Per `draft-ietf-radext-deprecating-radius-10` Section 4 (the BLAST RADIUS
+mitigation), for `AUTH`-type replies received over `RC_SOCKET_UDP`/`RC_SOCKET_TCP`,
+`rc_send_server_ctx()` MUST reject (`ERROR_RC`) a reply whose first attribute is not
+`PW_MESSAGE_AUTHENTICATOR` (or which has zero attributes), UNLESS the config option
 `require-message-authenticator` is explicitly set to `false`/`no`. This check MUST run whether or
 not a Message-Authenticator attribute was found anywhere else in the packet — a reply that
 carries a *valid* Message-Authenticator attribute in a later position is still rejected by
 default, because the MD5-prefix-collision attack BLAST RADIUS exploits works by prepending
-attacker-controlled bytes before a genuine, valid Message-Authenticator.
-**Strength:** MUST NOT (accept non-first or absent MA by default) ; MUST (enforce position,
-respect the opt-out)
+attacker-controlled bytes before a genuine, valid Message-Authenticator. Conversely, per the same
+Section 4 clause ("MUST NOT be applied to RADIUS/TLS or RADIUS/DTLS"), this presence/position
+enforcement and the `require-message-authenticator` opt-out MUST NOT be applied when
+`rh->so_type` is `RC_SOCKET_TLS` or `RC_SOCKET_DTLS` — those transports are already
+integrity-protected end-to-end, so the MD5-prefix attack this mitigation defends against is not
+reachable, and a reply missing or misordering Message-Authenticator MUST still be accepted
+(subject to `REQ-NET-SEC-006`'s opportunistic validation, which still applies to all transports).
+**Strength:** MUST NOT (accept non-first or absent MA by default, over UDP/TCP) ; MUST (enforce
+position over UDP/TCP, respect the opt-out) ; MUST NOT (enforce presence/position over TLS/DTLS)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:862-891
-**Acceptance:** [SEC] negative, local — a reply with a valid Message-Authenticator attribute
-appended *after* another attribute MUST be rejected under default config, and accepted when
-`require-message-authenticator=false` is set. Per `REQ-GEN-TEST-003`, negative test mandatory.
-**Links:** REQ-GEN-TEST-003, REQ-CONFIG-* (`require-message-authenticator` option, see
-`config.md`)
+**Source:** lib/sendserver.c:862-897 (the `rh->so_type != RC_SOCKET_TLS && rh->so_type !=
+RC_SOCKET_DTLS` guard at 879 scopes the enforcement to UDP/TCP)
+**Acceptance:** [SEC] negative, local — over UDP/TCP, a reply with a valid Message-Authenticator
+attribute appended *after* another attribute MUST be rejected under default config, and accepted
+when `require-message-authenticator=false` is set. Per `REQ-GEN-TEST-003`, negative test
+mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
+but not first, MUST be accepted (`OK_RC`) regardless of `require-message-authenticator`; a reply
+with a Message-Authenticator attribute present but cryptographically wrong MUST still be rejected
+(exercises `REQ-NET-SEC-006`, unaffected by this requirement's transport scoping).
+**Links:** REQ-GEN-TEST-003, REQ-NET-SEC-006, REQ-NET-NET-012 (`rh->so_type` is what this
+requirement branches on), REQ-CONFIG-* (`require-message-authenticator` option, see `config.md`)
 
 ### REQ-NET-SEC-008 — Message-Authenticator enforcement (REQ-NET-SEC-006/007) applies only to `AUTH`-type exchanges, not `ACCT`
 
