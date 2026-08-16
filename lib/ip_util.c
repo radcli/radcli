@@ -43,6 +43,7 @@ struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags)
  
 	err = getaddrinfo(host, service, &hints, &res);
 	if (err != 0) {
+		rc_log(LOG_ERR, "rc_getaddrinfo: %s: %s", host ? host : "(null)", gai_strerror(err));
  		return NULL;
  	}
 
