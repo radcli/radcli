@@ -39,8 +39,10 @@ static char const * months[] =
  *
  * @param valstr the printable date in 'day month year' format.
  * @param tm the output struct.
+ * @return 0 on success, -1 if the month name in valstr was not recognized
+ *  (tm is left untouched in that case).
  -*/
-void rc_str2tm (char const *valstr, struct tm *tm)
+int rc_str2tm (char const *valstr, struct tm *tm)
 {
 	int             i;
 
@@ -48,17 +50,19 @@ void rc_str2tm (char const *valstr, struct tm *tm)
 	for (i = 0; i < 12; i++)
 	{
 		if (strncmp (months[i], valstr, 3) == 0)
-		{
-			tm->tm_mon = i;
-			i = 13;
-		}
+			break;
 	}
+	if (i == 12)
+		return -1;
+	tm->tm_mon = i;
 
 	/* Get the Day */
 	tm->tm_mday = atoi (&valstr[4]);
 
 	/* Now the year */
 	tm->tm_year = atoi (&valstr[7]) - 1900;
+
+	return 0;
 }
 
 /*- Returns the current monotonic time as a double

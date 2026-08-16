@@ -72,7 +72,7 @@ size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags);
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia);
 double rc_getmtime(void);
-void rc_str2tm (char const *valstr, struct tm *tm);
+int rc_str2tm (char const *valstr, struct tm *tm);
 int rc_set_netns(const char *net_namespace, int *prev_ns_handle);
 int rc_reset_netns(int *prev_ns_handle);
 

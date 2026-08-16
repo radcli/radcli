@@ -799,7 +799,11 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 				tm->tm_hour = 0;
 				tm->tm_min = 0;
 				tm->tm_sec = 0;
-				rc_str2tm (valstr, tm);
+				if (rc_str2tm (valstr, tm) < 0) {
+					rc_log(LOG_ERR, "rc_avpair_parse: invalid date %s", valstr);
+					free(pair);
+					return -1;
+				}
 				pair->lvalue = (uint32_t) mktime (tm);
 				break;
 
