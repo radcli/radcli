@@ -674,7 +674,9 @@ int rc_apply_config(rc_handle *rh)
 rc_handle *rc_read_config(char const *filename)
 {
 	FILE *configfd;
-	char buffer[512], *p;
+	char *buffer = NULL, *p;
+	size_t bufsize = 0;
+	ssize_t nread;
 	OPTION *option;
 	int line;
 	size_t pos;
@@ -701,55 +703,33 @@ rc_handle *rc_read_config(char const *filename)
 	}
 
 	line = 0;
-	while ((fgets(buffer, sizeof(buffer), configfd) != NULL))
+	while ((nread = getline(&buffer, &bufsize, configfd)) != -1)
 	{
-		size_t buflen = strlen(buffer);
-
 		line++;
 
-		if (buflen == sizeof(buffer) - 1 && buffer[buflen-1] != '\n') {
-			/* fgets() filled the buffer without reaching a newline: the
-			 * physical line is longer than our fixed-size buffer. Discard
-			 * the remainder of the line so it isn't misparsed as a bogus
-			 * separate config line on the next iteration, and report a
-			 * clear diagnostic instead of silently mis-parsing it. */
-			int c;
-			rc_log(LOG_ERR, "%s: line %d: line too long (max %zu characters), skipped",
-				filename, line, sizeof(buffer) - 2);
-			while ((c = fgetc(configfd)) != EOF && c != '\n')
-				;
-			continue;
-		}
-
-		if (buflen > 0 && buffer[buflen-1] == '\n')
-			buffer[buflen-1] = '\0';
+		if (nread > 0 && buffer[nread-1] == '\n')
+			buffer[--nread] = '\0';
 
 		p = buffer;
 
-		if ((*p == '\n') || (*p == '#') || (*p == '\0'))
+		if ((*p == '#') || (*p == '\0'))
 			continue;
 
 		if ((pos = strcspn(p, "\t ")) == 0) {
 			rc_log(LOG_ERR, "%s: line %d: bogus format: %s", filename, line, p);
-			fclose(configfd);
-			rc_destroy(rh);
-			return NULL;
+			goto error;
 		}
 
 		p[pos] = '\0';
 
 		if ((option = find_option(rh, p, OT_ANY)) == NULL) {
 			rc_log(LOG_ERR, "%s: line %d: unrecognized keyword: %s", filename, line, p);
-			fclose(configfd);
-			rc_destroy(rh);
-			return NULL;
+			goto error;
 		}
 
 		if (option->status != ST_UNDEF) {
 			rc_log(LOG_ERR, "%s: line %d: duplicate option line: %s", filename, line, p);
-			fclose(configfd);
-			rc_destroy(rh);
-			return NULL;
+			goto error;
 		}
 
 		p += pos+1;
@@ -762,38 +742,27 @@ rc_handle *rc_read_config(char const *filename)
 
 		switch (option->type) {
 			case OT_STR:
-				if (set_option_str(filename, line, option, p) < 0) {
-					fclose(configfd);
-					rc_destroy(rh);
-				 	return NULL;
-				}
+				if (set_option_str(filename, line, option, p) < 0)
+					goto error;
 				break;
 			case OT_INT:
-				if (set_option_int(filename, line, option, p) < 0) {
-					fclose(configfd);
-					rc_destroy(rh);
-				 	return NULL;
-				}
+				if (set_option_int(filename, line, option, p) < 0)
+					goto error;
 				break;
 			case OT_SRV:
-				if (set_option_srv(filename, line, option, p) < 0) {
-					fclose(configfd);
-					rc_destroy(rh);
-				 	return NULL;
-				}
+				if (set_option_srv(filename, line, option, p) < 0)
+					goto error;
 				break;
 			case OT_AUO:
-				if (set_option_auo(filename, line, option, p) < 0) {
-					fclose(configfd);
-					rc_destroy(rh);
-				 	return NULL;
-				}
+				if (set_option_auo(filename, line, option, p) < 0)
+					goto error;
 				break;
 			default:
 				rc_log(LOG_CRIT, "rc_read_config: impossible case branch!");
 				abort();
 		}
 	}
+	free(buffer);
 	fclose(configfd);
 
 	if (rc_test_config(rh, filename) == -1) {
@@ -827,6 +796,12 @@ rc_handle *rc_read_config(char const *filename)
 	}
 
 	return rh;
+
+error:
+	free(buffer);
+	fclose(configfd);
+	rc_destroy(rh);
+	return NULL;
 }
 
 /** @brief Get the value of a config option
