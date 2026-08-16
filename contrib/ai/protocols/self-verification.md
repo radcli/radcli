@@ -1,0 +1,156 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) PromptKit Contributors -->
+
+---
+name: self-verification
+type: guardrail
+description: >
+  Cross-cutting protocol requiring the LLM to verify its own output
+  before finalizing. Includes sampling checks, citation audits,
+  coverage confirmation, and explicit quality gates.
+applicable_to: all
+---
+
+# Protocol: Self-Verification
+
+This protocol MUST be applied before finalizing any output artifact.
+It defines a quality gate that prevents submission of unverified,
+incomplete, or unsupported claims.
+
+## When to Apply
+
+Execute this protocol **after** generating your output but **before**
+presenting it as final. Treat it as a pre-submission checklist.
+
+## Rules
+
+### 1. Sampling Verification
+
+- Select a **coverage sample** of at least 3 specific claims, findings,
+  or data points from your output. Include different claim types when
+  present (for example: a file path, a code snippet, a conclusion, a
+  severity assignment, or a remediation recommendation).
+- For each sampled item, **re-verify** it against the source material:
+  - Does the file path, line number, or location actually exist?
+  - Does the code snippet match what is actually at that location?
+  - Does the evidence actually support the conclusion stated?
+- If any sampled item fails verification, **re-examine all items of
+  the same type** before proceeding.
+- For each sampled finding, apply **symmetric falsification**: attempt
+  to disprove the finding with the same rigor you applied when
+  falsifying candidate findings that you concluded were safe. Verify
+  whether any upstream validation, API contract, or initialization
+  invariant makes this safe; cite the specific call sites, checks, or
+  invariants reviewed and explain why they do not neutralize the
+  finding. If you have not verified that upstream validation does not
+  apply, downgrade or remove the finding.
+
+### 2. Citation Audit
+
+Apply the epistemic labeling rules from the `anti-hallucination` protocol
+(Rules 1–4: KNOWN/INFERRED/ASSUMED classification, refusal to fabricate,
+uncertainty disclosure, source attribution). Scan the output for factual
+claims that lack epistemic labels or source citations, and remediate each:
+add the appropriate epistemic label (`[KNOWN]`, `[INFERRED]`, or
+`[ASSUMPTION]`), add the citation, or remove the claim. **Zero uncited factual
+claims** is the target.
+
+### 3. Coverage Confirmation
+
+- Review the task's scope (explicit and implicit requirements).
+- Verify that every element of the requested scope is addressed:
+  - Are there requirements, code paths, or areas that were asked about
+    but not covered in the output?
+  - If any areas were intentionally excluded, document why in a
+    "Limitations" or "Coverage" section.
+- Include the 4-field coverage statement defined in the
+  `operational-constraints` protocol (Rule 9: Examined, Method,
+  Excluded, Limitations).
+
+### 4. Internal Consistency Check
+
+- Verify that findings do not contradict each other.
+- Verify that severity/risk ratings are consistent across findings
+  of similar nature.
+- Verify that the executive summary accurately reflects the body.
+- Verify that remediation recommendations do not conflict with
+  stated constraints.
+
+### 5. Completeness Gate
+
+Before finalizing, answer these questions explicitly (even if only
+internally):
+
+- [ ] Have I addressed the stated goal or success criteria?
+- [ ] Are all deliverable artifacts present and well-formed?
+- [ ] Does every claim have supporting evidence or an explicit label?
+- [ ] Have I stated what I did NOT examine and why?
+- [ ] Have I sampled and re-verified at least 3 specific data points?
+- [ ] Is the output internally consistent?
+
+If any answer is "no," address the gap before finalizing.
+
+### 6. Determinism Check
+
+When the output contains instructions, protocols, checklists, or
+other directive text intended for LLM consumption, scan for language
+that introduces non-deterministic interpretation:
+
+- [ ] Are all instructions specific enough that two different LLMs
+      would produce output with the same section headings, the same
+      number of items per section (±20%), and the same classification
+      labels?
+- [ ] Are quantifiers concrete (specific counts or ranges, not
+      "some" or "several")?
+- [ ] Are evaluation criteria observable (not subjective adjectives
+      like "good" or "appropriate")?
+- [ ] Do all conditionals have explicit else/default branches?
+- [ ] Are action verbs decomposed into specific sub-steps (not
+      standalone "analyze" or "evaluate")?
+
+If any answer is "no," tighten the language before finalizing. If the
+vague language serves a deliberate purpose (e.g., allowing LLM
+discretion in creative tasks), mark it with an inline comment
+`<!-- intentionally flexible -->` and leave it unchanged. This check
+applies to generated prompt text, instruction files, and protocol
+content — not to narrative prose, user-facing explanations, or
+creative output.
+
+<!-- END PromptKit base -->
+
+---
+
+<!-- BEGIN radcli extensions -->
+
+## radcli-Specific Extensions
+
+### Agent-runnable verification (Rule 5 application)
+
+Before declaring any security review or change "done", run what can be run
+locally and report exactly what was and was not verified:
+
+1. `clang-format --dry-run -Werror <file>` — run on every modified file under
+   `src/` and `tests/`.
+2. `ninja -C build` — the build must succeed with no new warnings.
+3. `meson test -C build <relevant-test>` — check for `SKIP` vs `OK` in the
+   output and report both.
+
+### Most tests require root (Rule 3 application)
+
+Meson reports skipped tests as `SKIP` (exit code 77), not as failures. A run
+that shows no failures but many skips is not a passing run — it is a partial
+run. **Never report "tests pass" when tests were skipped.** Instead report:
+"Tests run locally: [list]. Skipped (require root): [list]. Full verification
+requires CI."
+
+### Human-judgment items (Rule 3 — Coverage Confirmation)
+
+Always flag these explicitly as requiring maintainer review, even when your
+own analysis found no issue:
+
+- TLS/DTLS behavior (cipher selection, version negotiation, certificate handling)
+
+State: "I have verified [list]. Skipped locally (require root): [list]. The
+following require maintainer review: [list]." Do not omit any part.
+
+<!-- END radcli extensions -->

@@ -518,7 +518,7 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 /// @cond INTERNAL
 static int restart_session(rc_handle *rh, tls_st *st)
 {
-	/* init_session() assumes a zeroed struct */
+	/* init_session() assumes a zeroed struct: REQ-NET-NET-016 */
 	struct tls_int_st tmps = { 0 };
 	time_t now = time(0);
 	int ret;
