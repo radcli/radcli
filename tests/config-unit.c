@@ -145,12 +145,89 @@ static void test_prefix_match_secret(void)
 	rc_destroy(rh);
 }
 
+/* commit 25d4339: line-buffer handling in rc_read_config().
+ * (a) last line without a trailing newline must not have its real last
+ *     byte stripped as if it were a '\n'. */
+static void test_last_line_no_newline(void)
+{
+	rc_handle *rh;
+	char *path;
+	const char *bindaddr;
+
+	const char conf[] =
+		"authserver 127.0.0.1:1\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n"
+		"bindaddr *";  /* no trailing '\n' on purpose */
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: config with no trailing newline on the "
+				"last line was rejected\n");
+		exit(1);
+	}
+
+	bindaddr = rc_conf_str(rh, "bindaddr");
+	if (bindaddr == NULL || strcmp(bindaddr, "*") != 0) {
+		fprintf(stderr, "error: bindaddr = '%s', expected '*' "
+				"(last byte of the newline-less last line was stripped)\n",
+				bindaddr ? bindaddr : "(null)");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
+/* (b) a physical line at/beyond the 512-byte line buffer must be
+ *     diagnosed and discarded without corrupting the following line. */
+static void test_overlong_line_resync(void)
+{
+	rc_handle *rh;
+	char *path;
+	const char *bindaddr;
+	char buf[4096];
+	int n;
+
+	n = snprintf(buf, sizeof(buf),
+		     "%600s\n"                 /* one unrecognized 600-byte line */
+		     "authserver 127.0.0.1:1\n"
+		     "acctserver 127.0.0.1:1\n"
+		     "radius_timeout 5\n"
+		     "radius_retries 1\n"
+		     "bindaddr *\n", "x");
+	/* %600s right-pads with spaces; not 600 'x' bytes, but still a
+	 * single physical line far longer than the 512-byte line buffer,
+	 * which is all this test needs. */
+	path = write_conf(buf, (size_t)n);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: config with a too-long line was "
+				"rejected outright instead of skipping just that line\n");
+		exit(1);
+	}
+
+	bindaddr = rc_conf_str(rh, "bindaddr");
+	if (bindaddr == NULL || strcmp(bindaddr, "*") != 0) {
+		fprintf(stderr, "error: bindaddr = '%s', expected '*' "
+				"(the line after the too-long one was misparsed)\n",
+				bindaddr ? bindaddr : "(null)");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 int main(void)
 {
 	openlog(NULL, LOG_PERROR, LOG_USER);
 
 	test_server_list_bound();
 	test_prefix_match_secret();
+	test_last_line_no_newline();
+	test_overlong_line_resync();
 
 	printf("config-unit: all tests passed\n");
 	return 0;
