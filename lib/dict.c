@@ -685,7 +685,7 @@ DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attr
 	val = rh->dictionary_values;
 	while (val != NULL)
 	{
-		if (strcmp (val->attrname, attrname) == 0 &&
+		if (strcasecmp (val->attrname, attrname) == 0 &&
 				val->value == value)
 		{
 			return val;
