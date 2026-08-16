@@ -1063,10 +1063,9 @@ int rc_find_server_addr (rc_handle const *rh, char const *server_name,
 	{
 		/* Check to see if the server secret is defined in the rh config */
 		unsigned  servernum;
-		size_t    server_name_len = strlen(server_name);
 		for (servernum = 0; servernum < servers->max; servernum++)
 		{
-			if( (strncmp(server_name, servers->name[servernum], server_name_len) == 0) &&
+			if( (strcmp(server_name, servers->name[servernum]) == 0) &&
 				(servers->secret[servernum] != NULL) )
 			{
 				memset(secret, '\0', MAX_SECRET_LENGTH);

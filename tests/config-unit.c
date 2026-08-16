@@ -105,11 +105,52 @@ static void test_server_list_bound(void)
 	}
 }
 
+/* commit 44ce586: rc_find_server_addr() prefix-match secret lookup.
+ * "127.0.0.10" is listed first and is a textual prefix-superstring of the
+ * query "127.0.0.1"; the old strncmp() bounded by the query's length
+ * would match it and return the wrong secret. */
+static void test_prefix_match_secret(void)
+{
+	rc_handle *rh;
+	char *path;
+	struct addrinfo *info = NULL;
+	char secret[MAX_SECRET_LENGTH];
+
+	const char conf[] =
+		"authserver 127.0.0.10:1:secretB,127.0.0.1:1:secretA\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: valid config with two authservers was rejected\n");
+		exit(1);
+	}
+
+	if (rc_find_server_addr(rh, "127.0.0.1", &info, secret, AUTH) != 0) {
+		fprintf(stderr, "error: rc_find_server_addr() failed for exact match\n");
+		exit(1);
+	}
+	freeaddrinfo(info);
+
+	if (strcmp(secret, "secretA") != 0) {
+		fprintf(stderr, "error: rc_find_server_addr(\"127.0.0.1\") returned "
+				"secret '%s', expected 'secretA' "
+				"(prefix-matched the unrelated \"127.0.0.10\" entry)\n", secret);
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 int main(void)
 {
 	openlog(NULL, LOG_PERROR, LOG_USER);
 
 	test_server_list_bound();
+	test_prefix_match_secret();
 
 	printf("config-unit: all tests passed\n");
 	return 0;
