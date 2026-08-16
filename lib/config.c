@@ -703,14 +703,31 @@ rc_handle *rc_read_config(char const *filename)
 	line = 0;
 	while ((fgets(buffer, sizeof(buffer), configfd) != NULL))
 	{
+		size_t buflen = strlen(buffer);
+
 		line++;
+
+		if (buflen == sizeof(buffer) - 1 && buffer[buflen-1] != '\n') {
+			/* fgets() filled the buffer without reaching a newline: the
+			 * physical line is longer than our fixed-size buffer. Discard
+			 * the remainder of the line so it isn't misparsed as a bogus
+			 * separate config line on the next iteration, and report a
+			 * clear diagnostic instead of silently mis-parsing it. */
+			int c;
+			rc_log(LOG_ERR, "%s: line %d: line too long (max %zu characters), skipped",
+				filename, line, sizeof(buffer) - 2);
+			while ((c = fgetc(configfd)) != EOF && c != '\n')
+				;
+			continue;
+		}
+
+		if (buflen > 0 && buffer[buflen-1] == '\n')
+			buffer[buflen-1] = '\0';
+
 		p = buffer;
 
 		if ((*p == '\n') || (*p == '#') || (*p == '\0'))
 			continue;
-
-		p[strlen(p)-1] = '\0';
-
 
 		if ((pos = strcspn(p, "\t ")) == 0) {
 			rc_log(LOG_ERR, "%s: line %d: bogus format: %s", filename, line, p);
