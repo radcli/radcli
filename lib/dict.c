@@ -222,6 +222,21 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
+			/*
+			 * Validate all entries. Length checks must run against the
+			 * original tokens, before strlcpy() truncates them into the
+			 * fixed-size buffers below -- otherwise an over-long name can
+			 * never trip the check, since the truncated copy is always
+			 * within bounds.
+			 */
+			if (strlen (name_t) > RC_NAME_LENGTH)
+			{
+				rc_log(LOG_ERR,
+					"rc_dict_init: invalid name length on line %d of "
+					"dictionary %s", line_no, pfilename);
+				return -1;
+			}
+
 			strlcpy(namestr, name_t, sizeof(namestr));
 			strlcpy(valstr, val_t, sizeof(valstr));
 			strlcpy(typestr, type_t, sizeof(typestr));
@@ -232,17 +247,6 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			else
 			{
 				optstr[0] = '\0';
-			}
-
-			/*
-			 * Validate all entries
-			 */
-			if (strlen (namestr) > RC_NAME_LENGTH)
-			{
-				rc_log(LOG_ERR, 
-					"rc_dict_init: invalid name length on line %d of "
-					"dictionary %s", line_no, pfilename);
-				return -1;
 			}
 
 			if (!isdigit (*valstr))
@@ -345,14 +349,11 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
-			strlcpy(attrstr, attr_t, sizeof(attrstr));
-			strlcpy(namestr, name_t, sizeof(namestr));
-			strlcpy(valstr, val_t, sizeof(valstr));
-
 			/*
-			 * Validate all entries
+			 * Validate all entries. Length checks must run against the
+			 * original tokens, before strlcpy() truncates them below.
 			 */
-			if (strlen (attrstr) > RC_NAME_LENGTH)
+			if (strlen (attr_t) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "
@@ -360,13 +361,17 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				return -1;
 			}
 
-			if (strlen (namestr) > RC_NAME_LENGTH)
+			if (strlen (name_t) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid name length on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
+
+			strlcpy(attrstr, attr_t, sizeof(attrstr));
+			strlcpy(namestr, name_t, sizeof(namestr));
+			strlcpy(valstr, val_t, sizeof(valstr));
 
 			if (!isdigit (*valstr))
 			{
@@ -469,17 +474,18 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
-			strlcpy(attrstr, name_t, sizeof(attrstr));
-			strlcpy(valstr, val_t, sizeof(valstr));
-
-			/* Validate all entries */
-			if (strlen (attrstr) > RC_NAME_LENGTH)
+			/* Validate all entries against the original tokens, before
+			 * strlcpy() truncates them below. */
+			if (strlen (name_t) > RC_NAME_LENGTH)
 			{
 				rc_log(LOG_ERR,
 					"rc_dict_init: invalid attribute length on line %d of "
 					"dictionary %s", line_no, pfilename);
 				return -1;
 			}
+
+			strlcpy(attrstr, name_t, sizeof(attrstr));
+			strlcpy(valstr, val_t, sizeof(valstr));
 
 			if (!isdigit (*valstr))
 			{
