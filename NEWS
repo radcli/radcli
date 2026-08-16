@@ -1,3 +1,15 @@
+* Version 1.5.3 (unreleased)
+- Fix TLS/DTLS server hostname verification being silently disabled
+  whenever tls-verify-hostname was explicitly set to anything other
+  than the literal string "no". This didn't affect the default config
+  file where tls-verify-hostname is commented out.
+- Fix a stack buffer overflow in rc_avpair_log() when logging an
+  attribute whose dictionary name is longer than 32 bytes: the
+  buffer-space estimate assumed a fixed 32-byte name field while names
+  can be up to 64 bytes, and the unbounded sprintf() wrote past the
+  caller-supplied buffer.
+
+
 * Version 1.5.2 (released 2026-06-07)
 - tls: defer TCP connect and TLS handshake to first use. This addresses
   the issue of radcli connecting to TLS server during rc_read_config().
