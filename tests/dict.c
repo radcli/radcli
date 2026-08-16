@@ -169,6 +169,42 @@ int main(int argc, char **argv)
 
 	rc_dict_free(rh);
 
+	/* Over-long name/attrname tokens (> RC_NAME_LENGTH) must be rejected,
+	 * not silently truncated by strlcpy() before the length check runs:
+	 * commit 17a3521. One case per ATTRIBUTE/VALUE/VENDOR line type. */
+	{
+		char long_token[RC_NAME_LENGTH + 16];
+		char dictbuf[256];
+
+		memset(long_token, 'A', sizeof(long_token) - 1);
+		long_token[sizeof(long_token) - 1] = '\0';
+
+		snprintf(dictbuf, sizeof(dictbuf), "ATTRIBUTE\t%s\t\t200\tinteger\n", long_token);
+		ret = rc_read_dictionary_from_buffer(rh, dictbuf, strlen(dictbuf) + 1);
+		if (ret == 0) {
+			fprintf(stderr, "error: over-long ATTRIBUTE name was accepted\n");
+			exit(1);
+		}
+
+		snprintf(dictbuf, sizeof(dictbuf),
+			 "ATTRIBUTE\tSome-Attr\t\t201\tinteger\n"
+			 "VALUE\tSome-Attr\t\t%s\t1\n", long_token);
+		ret = rc_read_dictionary_from_buffer(rh, dictbuf, strlen(dictbuf) + 1);
+		if (ret == 0) {
+			fprintf(stderr, "error: over-long VALUE name was accepted\n");
+			exit(1);
+		}
+
+		snprintf(dictbuf, sizeof(dictbuf), "VENDOR\t%s\t\t18312\n", long_token);
+		ret = rc_read_dictionary_from_buffer(rh, dictbuf, strlen(dictbuf) + 1);
+		if (ret == 0) {
+			fprintf(stderr, "error: over-long VENDOR name was accepted\n");
+			exit(1);
+		}
+	}
+
+	rc_dict_free(rh);
+
 	rc_destroy(rh);
 
 	return 0;
