@@ -14,6 +14,7 @@ shell_tests = [
 
 if have_gnutls
   shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
+  shell_tests += ['avp-codec-freeradius-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
@@ -45,6 +46,15 @@ if have_gnutls
   # (lib/avp.h), not in radcli.map.
   avp_codec = executable('avp-codec', 'avp-codec.c',
     include_directories: tests_incdirs, link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
+  # FreeRADIUS interoperability check (tests/avp-codec-freeradius-tests.sh,
+  # needs root + a real radiusd/freeradius binary; not run by "meson test"
+  # directly). Needs ../lib for rc-md5.h (rc_md5_calc, to verify the reply's
+  # Response Authenticator); links libradcli_static for the same
+  # non-exported radcli_avp_decode()/_encode() reason as avp_codec above.
+  avp_codec_freeradius = executable('avp-codec-freeradius', 'avp-codec-freeradius.c',
+    include_directories: tests_incdirs + [include_directories('../lib')],
+    link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
   config_unit = executable('config-unit', 'config-unit.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
