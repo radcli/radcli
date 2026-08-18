@@ -193,6 +193,12 @@ int main(int argc, char **argv)
 	if (argc > 1)
 		server_ip = argv[1];
 
+	/* rc_log() is just syslog(): without LOG_PERROR, any error radcli
+	 * logs internally (a dictionary parse failure, in particular) goes
+	 * to the system journal and never appears in this program's own
+	 * output or in "meson test"'s captured log. */
+	openlog("avp-codec-freeradius", LOG_PID | LOG_PERROR, LOG_USER);
+
 	rh = rc_new();
 	if (rh == NULL)
 		die("rc_new");
