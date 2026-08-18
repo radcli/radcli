@@ -843,3 +843,163 @@ too_large:
 	    "would exceed %zu bytes", buflen);
 	return -1;
 }
+
+/* --- projection between radcli_avp_list and VALUE_PAIR (internal only) ---
+ *
+ * Not part of the public radcli2 API -- declared in lib/avp.h.
+ * Lets a VALUE_PAIR-based caller and a radcli_avp_list-based caller
+ * exchange attribute lists without either side needing to know the other's
+ * representation. Both directions are pure re-copies through the public
+ * accessors/constructors of whichever side they are producing -- no shared
+ * storage, no aliasing, one direction does not undo what the other did.
+ *
+ * radcli_avp_list_to_value_pairs() omits an attribute VALUE_PAIR's fixed-
+ * size fields cannot hold (a string/IPv6-prefix value over the wire length
+ * VALUE_PAIR's 253-octet strvalue allows, or a value whose stored length
+ * does not match its type's fixed size), logging why exactly as
+ * rc_avpair_gen() itself does (lib/avpair.c) for an attribute it does not
+ * recognise. This means a VALUE_PAIR list produced this way is
+ * never longer, and is byte-identical for every attribute it does carry, to
+ * what the legacy decoder would have produced from the same wire data
+ * directly -- including a decrypted Tunnel-Password or MS-MPPE-*-Key
+ * attribute, which arrives here as an ordinary plaintext string, already
+ * decrypted by whichever radcli_avp_decode() call produced the source list.
+ *
+ * radcli_value_pairs_to_avp_list() is the reverse: encryption is not a
+ * concern in this direction, since it happens later, in
+ * radcli_avp_encode() itself, driven by the same dictionary encrypt=N flag
+ * regardless of which representation the caller started from.
+ */
+
+int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *l, VALUE_PAIR **out)
+{
+	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
+	const struct radcli_avp_st *a = NULL;
+	VALUE_PAIR *head = NULL, **tail = &head;
+
+	if (rh == NULL || out == NULL)
+		return -1;
+
+	if (list == NULL) {
+		*out = NULL;
+		return 0;
+	}
+
+	list_for_each(&list->head, a, node) {
+		const DICT_ATTR *def = (const DICT_ATTR *)a->def;
+		unsigned max_vlen = (VENDOR(def->value) != 0) ? (AUTH_STRING_LEN - VSA_HDR_LEN) : AUTH_STRING_LEN;
+		VALUE_PAIR *vp;
+
+		switch (def->type) {
+		case PW_TYPE_STRING:
+		case PW_TYPE_IPV6PREFIX:
+			if (a->len > max_vlen) {
+				rc_log(LOG_WARNING, "radcli_avp_list_to_value_pairs: %s: "
+				    "%zu bytes exceeds VALUE_PAIR's %u-byte limit, omitting",
+				    def->name, a->len, max_vlen);
+				continue; /* omitted: does not fit VALUE_PAIR's wire limit */
+			}
+			break;
+		case PW_TYPE_IPV6ADDR:
+			if (a->len != 16) {
+				rc_log(LOG_WARNING, "radcli_avp_list_to_value_pairs: %s: "
+				    "%zu bytes, expected 16, omitting", def->name, a->len);
+				continue;
+			}
+			break;
+		case PW_TYPE_INTEGER:
+		case PW_TYPE_IPADDR:
+		case PW_TYPE_DATE:
+			if (a->len != sizeof(uint32_t)) {
+				rc_log(LOG_WARNING, "radcli_avp_list_to_value_pairs: %s: "
+				    "%zu bytes, expected 4, omitting", def->name, a->len);
+				continue;
+			}
+			break;
+		default:
+			continue; /* unreachable: radcli_attr_type has no other value */
+		}
+
+		vp = calloc(1, sizeof(*vp));
+		if (vp == NULL) {
+			rc_log(LOG_CRIT, "radcli_avp_list_to_value_pairs: out of memory");
+			rc_avpair_free(head);
+			return -1;
+		}
+		strlcpy(vp->name, def->name, sizeof(vp->name));
+		vp->attribute = def->value;
+		vp->type = def->type;
+
+		switch (def->type) {
+		case PW_TYPE_STRING:
+		case PW_TYPE_IPV6PREFIX:
+			memcpy(vp->strvalue, a->data, a->len);
+			vp->lvalue = (uint32_t)a->len;
+			break;
+		case PW_TYPE_IPV6ADDR:
+			memcpy(vp->strvalue, a->data, 16);
+			vp->lvalue = 16;
+			break;
+		case PW_TYPE_INTEGER:
+		case PW_TYPE_IPADDR:
+		case PW_TYPE_DATE:
+			memcpy(&vp->lvalue, a->data, sizeof(uint32_t));
+			break;
+		default:
+			break;
+		}
+
+		*tail = vp;
+		tail = &vp->next;
+	}
+
+	*out = head;
+	return 0;
+}
+
+int radcli_value_pairs_to_avp_list(rc_handle const *rh, VALUE_PAIR *vp, radcli_avp_list **out)
+{
+	radcli_avp_list *list;
+
+	if (rh == NULL || out == NULL)
+		return -1;
+
+	list = radcli_avp_list_new();
+	if (list == NULL)
+		return -1;
+
+	for (; vp != NULL; vp = vp->next) {
+		const radcli_attr_def *def = radcli_dict_lookup_num(rh, (uint32_t)ATTRID(vp->attribute),
+								     (uint32_t)VENDOR(vp->attribute));
+
+		if (def == NULL) {
+			/* Defensive only: a VALUE_PAIR built via rc_avpair_add()/
+			 * rc_avpair_gen() against this same rh always has one. */
+			continue;
+		}
+
+		switch (vp->type) {
+		case PW_TYPE_STRING:
+		case PW_TYPE_IPV6ADDR:
+		case PW_TYPE_IPV6PREFIX:
+			if (radcli_avp_add_bytes(list, def, vp->strvalue, vp->lvalue) != 0) {
+				radcli_avp_list_free(list);
+				return -1;
+			}
+			break;
+		case PW_TYPE_INTEGER:
+		case PW_TYPE_IPADDR:
+		case PW_TYPE_DATE:
+			if (radcli_avp_add_bytes(list, def, &vp->lvalue, sizeof(vp->lvalue)) != 0) {
+				radcli_avp_list_free(list);
+				return -1;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	*out = list;
+	return 0;
+}

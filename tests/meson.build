@@ -47,6 +47,11 @@ if have_gnutls
   avp_codec = executable('avp-codec', 'avp-codec.c',
     include_directories: tests_incdirs, link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
+  # Same reason: radcli_avp_list_to_value_pairs()/radcli_value_pairs_to_avp_list()
+  # are internal-only (include/includes.h), not in radcli.map.
+  avp_legacy = executable('avp-legacy', 'avp-legacy.c',
+    include_directories: tests_incdirs, link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
   # FreeRADIUS interoperability check (tests/avp-codec-freeradius-tests.sh,
   # needs root + a real radiusd/freeradius binary; not run by "meson test"
   # directly). Needs ../lib for rc-md5.h (rc_md5_calc, to verify the reply's
@@ -60,7 +65,7 @@ if have_gnutls
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
 
-  foreach t : [avpair, dict, avp, dict_add, pack, avp_codec, config_unit]
+  foreach t : [avpair, dict, avp, dict_add, pack, avp_codec, avp_legacy, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

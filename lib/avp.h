@@ -40,4 +40,7 @@ int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *list, 
                       const uint8_t request_authenticator[AUTH_VECTOR_LEN],
                       uint8_t *buf, size_t buflen, size_t *n_encrypted);
 
+int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *list, VALUE_PAIR **out);
+int radcli_value_pairs_to_avp_list(rc_handle const *rh, VALUE_PAIR *vp, radcli_avp_list **out);
+
 #endif /* AVP_H */
