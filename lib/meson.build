@@ -2,9 +2,9 @@
 # Interfaces changed/added/removed:   CURRENT++       REVISION=0
 # Interfaces added:                             AGE++
 # Interfaces removed:                           AGE=0
-v_current = 11
+v_current = 12
 v_revision = 0
-v_age = 1
+v_age = 2
 lib_soversion = (v_current - v_age).to_string()
 lib_fullversion = '@0@.@1@.@2@'.format(v_current - v_age, v_age, v_revision)
 
