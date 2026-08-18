@@ -1,4 +1,4 @@
-tests_incdirs = [config_inc, include_dirs, include_directories('../src')]
+tests_incdirs = [config_inc, include_dirs, include_directories('../src', '../lib')]
 
 test_env = environment()
 test_env.set('top_builddir', meson.project_build_root())
@@ -30,6 +30,9 @@ if have_gnutls
   dict = executable('dict', 'dict.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
+  avp = executable('avp', 'avp.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
   dict_add = executable('dict-add', 'dict-add.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
@@ -38,11 +41,16 @@ if have_gnutls
   pack = executable('pack', 'pack.c',
     include_directories: tests_incdirs, link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
+  # Same reason: radcli_avp_decode()/radcli_avp_encode() are internal-only
+  # (lib/avp.h), not in radcli.map.
+  avp_codec = executable('avp-codec', 'avp-codec.c',
+    include_directories: tests_incdirs, link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
   config_unit = executable('config-unit', 'config-unit.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
 
-  foreach t : [avpair, dict, dict_add, pack, config_unit]
+  foreach t : [avpair, dict, avp, dict_add, pack, avp_codec, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

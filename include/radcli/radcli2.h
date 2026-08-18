@@ -43,6 +43,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <netinet/in.h>
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -152,6 +153,170 @@ radcli_attr_type radcli_attr_def_type(const radcli_attr_def *def);
  *  the terminating null, as with snprintf(); negative if def is NULL.
  */
 int radcli_attr_def_oid(const radcli_attr_def *def, char *buf, size_t buflen);
+
+/** Opaque attribute-value pair.
+ *
+ * Owned by the radcli_avp_list it was added to; never freed individually by
+ * the caller. Its value is heap-allocated and length-carrying -- unlike
+ * radcli.h's VALUE_PAIR, it has no 253-octet ceiling.
+ */
+struct radcli_avp_st;
+typedef struct radcli_avp_st radcli_avp;
+
+/** Opaque, ordered list of attribute-value pairs.
+ *
+ * Construct with radcli_avp_list_new(), add attributes with the
+ * radcli_avp_add_*() family, and release with radcli_avp_list_free().
+ */
+struct radcli_avp_list_st;
+typedef struct radcli_avp_list_st radcli_avp_list;
+
+/** @brief Create an empty attribute-value pair list.
+ * @return the new list, or NULL on allocation failure.
+ */
+radcli_avp_list *radcli_avp_list_new(void);
+
+/** @brief Free a list and every attribute it holds.
+ * @param list a list from radcli_avp_list_new(); NULL is accepted and ignored.
+ */
+void radcli_avp_list_free(radcli_avp_list *list);
+
+/** @brief Append an attribute holding an arbitrary byte string.
+ *
+ * The primitive every other radcli_avp_add_*() function is defined in terms
+ * of; valid for any attribute type, since the underlying representation is
+ * always length-carrying bytes.
+ *
+ * @param list destination list.
+ * @param def the attribute, from radcli_dict_lookup() or a sibling.
+ * @param value the bytes to copy in; may be NULL only if len is 0.
+ * @param len number of bytes at value.
+ * @return 0 on success, -1 on failure (allocation failure, or NULL list/def).
+ */
+int radcli_avp_add_bytes(radcli_avp_list *list, const radcli_attr_def *def, const void *value, size_t len);
+
+/** @brief Append a string-typed attribute.
+ * @param list destination list.
+ * @param def the attribute; must be RADCLI_TYPE_STRING.
+ * @param value a null-terminated string.
+ * @return 0 on success, -1 on failure (def is not RADCLI_TYPE_STRING, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_str(radcli_avp_list *list, const radcli_attr_def *def, const char *value);
+
+/** @brief Append an integer/IPv4-address/date-typed attribute.
+ * @param list destination list.
+ * @param def the attribute; must be RADCLI_TYPE_INTEGER, RADCLI_TYPE_IPADDR, or RADCLI_TYPE_DATE.
+ * @param value the value; an IPv4 address is given in host byte order.
+ * @return 0 on success, -1 on failure (def has none of the accepted types, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_uint32(radcli_avp_list *list, const radcli_attr_def *def, uint32_t value);
+
+/** @brief Append an IPv4-address-typed attribute from a struct in_addr.
+ * @param list destination list.
+ * @param def the attribute; must be RADCLI_TYPE_IPADDR.
+ * @param value the address, in the usual network byte order struct in_addr carries.
+ * @return 0 on success, -1 on failure (def is not RADCLI_TYPE_IPADDR, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_ipaddr(radcli_avp_list *list, const radcli_attr_def *def, struct in_addr value);
+
+/** @brief Append an IPv6-address or IPv6-prefix-typed attribute.
+ *
+ * For RADCLI_TYPE_IPV6ADDR, prefix MUST be 0 (a plain address has no
+ * prefix). For RADCLI_TYPE_IPV6PREFIX, the RFC 3162 wire format is built
+ * internally: a reserved zero octet, the prefix length, and the full
+ * 16-octet address.
+ *
+ * @param list destination list.
+ * @param def the attribute; must be RADCLI_TYPE_IPV6ADDR or RADCLI_TYPE_IPV6PREFIX.
+ * @param value the address.
+ * @param prefix the prefix length (0-128); ignored/must be 0 for RADCLI_TYPE_IPV6ADDR.
+ * @return 0 on success, -1 on failure (wrong type, prefix out of range, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_in6(radcli_avp_list *list, const radcli_attr_def *def,
+			const struct in6_addr *value, unsigned prefix);
+
+/** @brief Find the idx-th occurrence of an attribute in a list.
+ * @param list the list to search.
+ * @param def the attribute to look for.
+ * @param idx 0 for the first occurrence, 1 for the second, and so on.
+ * @return the matching attribute, or NULL if fewer than idx+1 occurrences exist.
+ */
+const radcli_avp *radcli_avp_get(const radcli_avp_list *list, const radcli_attr_def *def, unsigned idx);
+
+/** Iterator over a radcli_avp_list.
+ *
+ * A plain value: construct with radcli_avp_list_iter(), advance with
+ * radcli_avp_iter_next(). No allocation, safe to copy, safe to run several
+ * independent iterators over the same list concurrently (as long as nothing
+ * mutates the list while any of them are in use -- see radcli_avp_list_st's
+ * locking note in lib/avp.c). Fields are an implementation detail; do not
+ * access them directly. Deliberately not opaque via an incomplete type: a
+ * two-pointer cursor belongs on the caller's stack at zero cost, the way any
+ * ccan/list or kernel list cursor does, not behind a heap allocation.
+ *
+ * Usage:
+ * @code
+ * radcli_avp_iter it = radcli_avp_list_iter(list);
+ * const radcli_avp *a;
+ * while ((a = radcli_avp_iter_next(&it)) != NULL) {
+ *     ...
+ * }
+ * @endcode
+ */
+typedef struct {
+	const radcli_avp_list *list;
+	const radcli_avp *cur;
+} radcli_avp_iter;
+
+/** @brief Begin iterating list.
+ * @param list the list to iterate; NULL is accepted (the iterator yields nothing).
+ * @return an iterator positioned at list's first attribute.
+ */
+radcli_avp_iter radcli_avp_list_iter(const radcli_avp_list *list);
+
+/** @brief Return the current attribute and advance.
+ * @param it an iterator from radcli_avp_list_iter().
+ * @return the current attribute, or NULL once the list is exhausted -- every
+ *  subsequent call on the same it also returns NULL; it does not restart.
+ */
+const radcli_avp *radcli_avp_iter_next(radcli_avp_iter *it);
+
+/** @brief Return the attribute definition of a. */
+const radcli_attr_def *radcli_avp_def(const radcli_avp *a);
+
+/** @brief Read an attribute's value as an integer/IPv4-address/date.
+ * @param a the attribute; radcli_avp_def(a) must be RADCLI_TYPE_INTEGER,
+ *  RADCLI_TYPE_IPADDR, or RADCLI_TYPE_DATE. An IPv4 address is returned in
+ *  host byte order.
+ * @param out where to write the value; may be NULL to just check validity.
+ * @return 0 on success, -1 if a's type does not match.
+ */
+int radcli_avp_get_uint32(const radcli_avp *a, uint32_t *out);
+
+/** @brief Read an attribute's value as an IPv6 address or prefix.
+ * @param a the attribute; radcli_avp_def(a) must be RADCLI_TYPE_IPV6ADDR or
+ *  RADCLI_TYPE_IPV6PREFIX.
+ * @param out where to write the address (zero-padded beyond the prefix
+ *  length for RADCLI_TYPE_IPV6PREFIX); may be NULL.
+ * @param prefix where to write the prefix length (128 for
+ *  RADCLI_TYPE_IPV6ADDR); may be NULL.
+ * @return 0 on success, -1 if a's type does not match.
+ */
+int radcli_avp_get_in6(const radcli_avp *a, struct in6_addr *out, unsigned *prefix);
+
+/** @brief Read an attribute's value as raw bytes.
+ *
+ * Valid for every attribute type, since the underlying representation is
+ * always length-carrying bytes; the interpretation of those bytes for
+ * integer/IPv4/date-typed attributes matches radcli_avp_get_uint32()'s.
+ *
+ * @param a the attribute.
+ * @param out where to write a pointer to the value; valid for a's lifetime.
+ *  May be NULL.
+ * @param len where to write the value's length in bytes. May be NULL.
+ * @return 0 on success, -1 if a is NULL.
+ */
+int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len);
 
 /** @} */
 

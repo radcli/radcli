@@ -36,7 +36,7 @@ These documents are generated and maintained using the reasoning protocols in
 | Document | Protocol | Produces |
 |----------|----------|----------|
 | `general.md` | `requirements-elicitation.md` | Library-invariant / cross-cutting requirements derived from `AGENTS.md` and `contrib/ai/personas/radcli-core-dev.md`'s Design Review checklists: process-state neutrality, ABI stability, memory/string safety, canonical technology choices. |
-| `config.md`, `dict.md`, `attrs.md`, `net.md`, `util.md` | `requirements-from-implementation.md` | Requirements derived from the current `lib/`/`include/radcli/radcli.h` source: what each public function and data structure actually guarantees. |
+| `config.md`, `dict.md`, `attrs.md`, `net.md`, `util.md`, `avp2.md` | `requirements-from-implementation.md` | Requirements derived from the current `lib/`/`include/radcli/radcli.h` source: what each public function and data structure actually guarantees. |
 
 When adding to or updating a document, re-apply the protocol that generated it —
 do not hand-write requirements in a different style than the rest of the file.
@@ -51,6 +51,7 @@ do not hand-write requirements in a different style than the rest of the file.
 | `attrs.md` | `REQ-ATTR` | `lib/avpair.c`, `lib/buildreq.c`, `lib/aaa_ctx.c`, `include/radcli/radcli.h` (`VALUE_PAIR`, `rc_avpair_*`, `rc_auth`, `rc_acct`, `rc_aaa`, `rc_aaa_ctx_*`) |
 | `net.md` | `REQ-NET` | `lib/sendserver.c`, `lib/tls.c`, `lib/tls.h`, `include/radcli/radcli.h` (`rc_send_server`, `SEND_DATA`, `rc_sockets_override`, `rc_check_tls`) |
 | `util.md` | `REQ-UTIL` | `lib/util.c`, `lib/util.h` (`pkt_buf`), `lib/ip_util.c`, `lib/log.c`, `lib/md5.c`, `lib/rc-md5.c`, `lib/hmac.c`, `lib/nettle-hmac.c` |
+| `avp2.md` | `REQ-AVP2` | `lib/avp.c`, `include/radcli/radcli2.h` (`radcli_avp_list`, `radcli_avp_add_*`, `radcli_avp_get`, `radcli_avp_iter`/`radcli_avp_list_iter`/`radcli_avp_iter_next`) |
 
 Every public symbol in `include/radcli/radcli.h` and `lib/radcli.map` MUST be cited
 by at least one `REQ-*` across these documents (see "Completeness" below).

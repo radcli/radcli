@@ -1,0 +1,611 @@
+/*
+ * Copyright (C) 2026 Nikos Mavrogiannopoulos
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <config.h>
+#include <includes.h>
+#include <radcli/radcli.h>
+#include <radcli/radcli2.h>
+#include <ccan/list/list.h>
+#include "util.h"
+#include "avp.h"
+
+/**
+ * @defgroup radcli2-api New API
+ * @brief New, opaque-by-default API functions
+ *
+ * @{
+ */
+
+/* radcli_avp/radcli_avp_list construction and access (decision A, Phase 1 of
+ * doc/plan-api-modernization.md). Values are always stored as heap-allocated,
+ * length-carrying bytes -- there is no 253-octet ceiling as in VALUE_PAIR,
+ * and no attempt here to encode or decode wire format; that is a later
+ * commit. Typed setters/getters interpret those bytes according to the
+ * attribute's radcli_attr_type, validated against radcli_attr_def_type().
+ *
+ * radcli_avp_add_uint64()/radcli_avp_get_uint64() are deliberately not
+ * implemented yet: they would only be meaningful for RADCLI_TYPE_INTEGER64,
+ * which Phase 2 introduces alongside the dictionary attribute that needs it
+ * (MIP6-Feature-Vector). Adding them now would be dead API surface with no
+ * type that could use it.
+ */
+
+/* Doubly-linked via ccan/list rather than a hand-rolled next-only chain, to
+ * match the rest of the codebase's convention for its (few) other linked
+ * structures -- see lib/dict.c's dict_encrypt_flag / dict_counter64_pair for
+ * the singly-linked style used for prepend-only, walk-to-free dictionary
+ * side tables.
+ *
+ * No owner back-pointer: radcli_avp_iter (radcli2.h) carries the list
+ * alongside the current position, the same two things any ccan/list or
+ * kernel-list iterator needs (a head to detect end-of-list, a node for
+ * position) -- so unlike an earlier version of this API, no per-node state
+ * is needed just to answer "am I at the end".
+ *
+ * Locking: none, by design -- same contract as ccan/list itself and as
+ * kernel intrusive lists generally. A radcli_avp_list is built by exactly
+ * one thread (radcli_avp_list_new() plus radcli_avp_add_*()/
+ * radcli_avp_decode()) and is expected to have a single owner at a time
+ * thereafter; concurrent readers are fine, a concurrent mutator is not.
+ * Nothing here takes a lock, so callers sharing one list across threads
+ * (e.g. handing decoded request avps to a worker while another thread still
+ * walks them) must serialise that themselves. radcli_avp_iter is a plain
+ * value (no allocation, safe to copy, safe to run several independent
+ * iterators over one list concurrently, as long as nothing is mutating it),
+ * but it is only valid as long as the radcli_avp_list it was constructed
+ * from is; nothing detects use of an iterator, or an avp it returned, past
+ * that list's radcli_avp_list_free(), same as walking a kernel list past
+ * its lifetime. */
+struct radcli_avp_st {
+	const radcli_attr_def *def;
+	struct list_node node;
+	size_t len;      /* data holds len bytes, possibly 0 */
+	unsigned char data[];
+};
+
+struct radcli_avp_list_st {
+	struct list_head head;
+};
+
+/* linux/list.h has list_is_last(pos, head): true if pos is the last entry,
+ * for callers that only have a node, not the list_head, and need to detect
+ * end-of-list without walking off it. ccan/list has no equivalent -- every
+ * built-in helper takes the head and iterates from there -- so this is that
+ * primitive, backing radcli_avp_iter_next() below, rather than a one-off
+ * inline pointer compare. */
+static inline bool avp_list_node_is_last(const struct list_node *n, const struct list_head *h)
+{
+	return n->next == &h->n;
+}
+
+radcli_avp_list *radcli_avp_list_new(void)
+{
+	struct radcli_avp_list_st *list = calloc(1, sizeof(*list));
+	if (list == NULL) {
+		rc_log(LOG_CRIT, "radcli_avp_list_new: out of memory");
+		return NULL;
+	}
+	list_head_init(&list->head);
+	return (radcli_avp_list *)list;
+}
+
+void radcli_avp_list_free(radcli_avp_list *l)
+{
+	struct radcli_avp_list_st *list = (struct radcli_avp_list_st *)l;
+	struct list_node *n, *next;
+
+	if (list == NULL)
+		return;
+
+	/* list_check(), for parity with every other entry point in this file
+	 * (list_add_tail()/list_for_each() all run it via list_debug()): a
+	 * no-op build (CCAN_LIST_DEBUG unset, as this tree always builds) costs
+	 * nothing, but it means turning that debug knob on to chase a real
+	 * corruption gets coverage here too, not just on insert/lookup. */
+	(void)list_debug(&list->head);
+
+	/* Walk list->head's chain directly and capture next before freeing the
+	 * current node, rather than re-deriving the first node with list_top()
+	 * once per iteration (as an earlier version of this loop did, replacing
+	 * an even earlier list_for_each_safe() that a static analyzer read as a
+	 * double-free -- see git history). Once the list is non-empty and
+	 * populated from real decoded data (radcli_avp_decode()'s error path,
+	 * rather than a small hand-built test list), re-entering list_top()
+	 * after each free() gave the same analyzer a *use-after-free* reading
+	 * of the identical list_top_() pointer arithmetic instead.
+	 *
+	 * The actual fix is this loop never converting the sentinel node
+	 * (list->head.n) into a (fictitious, one-before-the-allocation)
+	 * struct radcli_avp_st * at all: list_entry()/container_of() is only
+	 * ever applied to "n" after the loop condition has confirmed it is a
+	 * real entry, unlike list_for_each_off()/list_for_each_safe_off(),
+	 * which unconditionally form that phantom pointer every iteration
+	 * (including the terminating one) purely to compare it against the
+	 * head. That phantom pointer is never dereferenced and is exactly the
+	 * trick struct list_head-based kernel lists rely on too, but it is
+	 * what a static analyzer sees and objects to; not forming it avoids
+	 * relying on that "never dereferenced" caveat in the first place.
+	 *
+	 * list_del() still runs on each node before free(), the standard
+	 * "list_del(&pos->list); kfree(pos);" kernel teardown idiom applied
+	 * one node at a time: it keeps list->head's links correct at every
+	 * step rather than only at the end, and under CCAN_LIST_DEBUG it
+	 * poisons the freed node's next/prev, turning any stray second use of
+	 * a dangling avp into a NULL-pointer deref instead of walking into
+	 * whatever the allocator put in that freed slot next. */
+	for (n = list->head.n.next; n != &list->head.n; n = next) {
+		struct radcli_avp_st *a = list_entry(n, struct radcli_avp_st, node);
+
+		next = n->next;
+		list_del(n);
+		free(a);
+	}
+	free(list);
+}
+
+int radcli_avp_add_bytes(radcli_avp_list *l, const radcli_attr_def *def, const void *value, size_t len)
+{
+	struct radcli_avp_list_st *list = (struct radcli_avp_list_st *)l;
+	struct radcli_avp_st *a;
+
+	if (list == NULL || def == NULL)
+		return -1;
+	if (len > 0 && value == NULL)
+		return -1;
+
+	/* Single allocation for the header and its data: data is never
+	 * resized after creation, so there is no reason to keep them apart. */
+	a = calloc(1, sizeof(*a) + len);
+	if (a == NULL) {
+		rc_log(LOG_CRIT, "radcli_avp_add_bytes: out of memory");
+		return -1;
+	}
+
+	if (len > 0)
+		memcpy(a->data, value, len);
+	a->len = len;
+	a->def = def;
+
+	list_add_tail(&list->head, &a->node);
+
+	return 0;
+}
+
+int radcli_avp_add_str(radcli_avp_list *l, const radcli_attr_def *def, const char *value)
+{
+	if (def == NULL || value == NULL || radcli_attr_def_type(def) != RADCLI_TYPE_STRING)
+		return -1;
+	return radcli_avp_add_bytes(l, def, value, strlen(value));
+}
+
+int radcli_avp_add_uint32(radcli_avp_list *l, const radcli_attr_def *def, uint32_t value)
+{
+	radcli_attr_type t;
+
+	if (def == NULL)
+		return -1;
+	t = radcli_attr_def_type(def);
+	if (t != RADCLI_TYPE_INTEGER && t != RADCLI_TYPE_IPADDR && t != RADCLI_TYPE_DATE)
+		return -1;
+	return radcli_avp_add_bytes(l, def, &value, sizeof(value));
+}
+
+int radcli_avp_add_ipaddr(radcli_avp_list *l, const radcli_attr_def *def, struct in_addr value)
+{
+	uint32_t hostval;
+
+	if (def == NULL || radcli_attr_def_type(def) != RADCLI_TYPE_IPADDR)
+		return -1;
+	hostval = ntohl(value.s_addr);
+	return radcli_avp_add_bytes(l, def, &hostval, sizeof(hostval));
+}
+
+int radcli_avp_add_in6(radcli_avp_list *l, const radcli_attr_def *def,
+			const struct in6_addr *value, unsigned prefix)
+{
+	radcli_attr_type t;
+	unsigned char buf[18]; /* RFC 3162: reserved(1) + prefix-len(1) + address(16) */
+
+	if (def == NULL || value == NULL)
+		return -1;
+	t = radcli_attr_def_type(def);
+
+	if (t == RADCLI_TYPE_IPV6ADDR) {
+		if (prefix != 0)
+			return -1;
+		return radcli_avp_add_bytes(l, def, value, 16);
+	}
+	if (t == RADCLI_TYPE_IPV6PREFIX) {
+		if (prefix > 128)
+			return -1;
+		buf[0] = 0;
+		buf[1] = (unsigned char)prefix;
+		memcpy(buf + 2, value, 16);
+		return radcli_avp_add_bytes(l, def, buf, sizeof(buf));
+	}
+	return -1;
+}
+
+const radcli_avp *radcli_avp_get(const radcli_avp_list *l, const radcli_attr_def *def, unsigned idx)
+{
+	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
+	const struct radcli_avp_st *a = NULL;
+	unsigned n = 0;
+
+	if (list == NULL || def == NULL)
+		return NULL;
+
+	list_for_each(&list->head, a, node) {
+		if (a->def == def) {
+			if (n == idx)
+				return (const radcli_avp *)a;
+			n++;
+		}
+	}
+	return NULL;
+}
+
+radcli_avp_iter radcli_avp_list_iter(const radcli_avp_list *l)
+{
+	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
+	radcli_avp_iter it;
+
+	it.list = l;
+	it.cur = list ? (const radcli_avp *)list_top(&list->head, struct radcli_avp_st, node) : NULL;
+	return it;
+}
+
+const radcli_avp *radcli_avp_iter_next(radcli_avp_iter *it)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)it->cur;
+	const radcli_avp *ret = it->cur;
+
+	/* it->cur is resolved once, at radcli_avp_list_iter() construction (the
+	 * first element, or NULL for an empty/NULL list) or right here on each
+	 * advance -- never re-derived from it->list once it goes NULL. That is
+	 * what makes NULL mean "exhausted" unconditionally: a caller that calls
+	 * this again after already seeing NULL keeps getting NULL, rather than
+	 * silently restarting from the top. */
+	if (avp != NULL) {
+		const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)it->list;
+
+		if (avp_list_node_is_last(&avp->node, &list->head))
+			it->cur = NULL;
+		else
+			it->cur = (const radcli_avp *)list_entry(avp->node.next, struct radcli_avp_st, node);
+	}
+	return ret;
+}
+
+const radcli_attr_def *radcli_avp_def(const radcli_avp *a)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
+	return avp ? avp->def : NULL;
+}
+
+int radcli_avp_get_uint32(const radcli_avp *a, uint32_t *out)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
+	radcli_attr_type t;
+
+	if (avp == NULL || avp->def == NULL)
+		return -1;
+	t = radcli_attr_def_type(avp->def);
+	if (t != RADCLI_TYPE_INTEGER && t != RADCLI_TYPE_IPADDR && t != RADCLI_TYPE_DATE)
+		return -1;
+	if (avp->len != sizeof(uint32_t))
+		return -1;
+
+	if (out)
+		memcpy(out, avp->data, sizeof(uint32_t));
+	return 0;
+}
+
+int radcli_avp_get_in6(const radcli_avp *a, struct in6_addr *out, unsigned *prefix)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
+	radcli_attr_type t;
+
+	if (avp == NULL || avp->def == NULL)
+		return -1;
+	t = radcli_attr_def_type(avp->def);
+
+	if (t == RADCLI_TYPE_IPV6ADDR) {
+		if (avp->len != 16)
+			return -1;
+		if (out)
+			memcpy(out, avp->data, 16);
+		if (prefix)
+			*prefix = 128;
+		return 0;
+	}
+	if (t == RADCLI_TYPE_IPV6PREFIX) {
+		const unsigned char *p = avp->data;
+		size_t addrbytes;
+
+		if (avp->len < 2 || avp->len > 18)
+			return -1;
+		addrbytes = avp->len - 2;
+
+		if (out) {
+			memset(out, 0, 16);
+			memcpy(out, p + 2, addrbytes);
+		}
+		if (prefix)
+			*prefix = p[1];
+		return 0;
+	}
+	return -1;
+}
+
+int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
+
+	if (avp == NULL)
+		return -1;
+
+	if (out)
+		*out = avp->data;
+	if (len)
+		*len = avp->len;
+	return 0;
+}
+
+/** @} */
+
+/* --- radcli_avp_decode()/radcli_avp_encode(): wire codec (internal only) --
+ *
+ * Not part of the public radcli2 API -- declared in lib/avp.h, not in
+ * radcli2.h or radcli.map. Mirrors lib/avpair.c's rc_avpair_gen2()/
+ * lib/sendserver.c's rc_pack_list() framing rules exactly (RFC 2865 TLV
+ * attributes, RFC 2865 SS5.26 VSA envelope with a 4-octet Vendor-Id).
+ *
+ * The decode side needs almost no per-type switch: since every radcli_avp
+ * stores its value as length-carrying bytes, decoding most attributes is
+ * "look it up in the dictionary, copy its value in" regardless of type --
+ * the interpretation is deferred to the typed getters. The one exception is
+ * the three 4-octet numeric types (INTEGER/IPADDR/DATE), which the wire
+ * carries in network byte order but radcli_avp_add_uint32()/
+ * radcli_avp_get_uint32() store/read in host byte order (matching legacy
+ * VALUE_PAIR->lvalue's convention); decode converts with ntohl() so both
+ * construction paths agree on what is in memory. Decode does not itself
+ * reject a fixed-length type whose wire length is wrong (e.g. a 3-octet
+ * INTEGER, left un-byte-swapped since ntohl() would read past it);
+ * radcli_avp_get_uint32() already rejects that at read time, and
+ * radcli_avp_get_bytes() still lets a caller see the raw (malformed) value,
+ * which is strictly more information than rc_avpair_gen2() offers today by
+ * silently dropping the attribute.
+ */
+
+/// @cond INTERNAL
+static int attr_requires_encryption(const DICT_ATTR *def)
+{
+	uint32_t vendor = VENDOR(def->value);
+	uint32_t attrid = ATTRID(def->value);
+
+	if (vendor == 0)
+		return attrid == PW_USER_PASSWORD || attrid == PW_TUNNEL_PASSWORD;
+	if (vendor == VENDOR_MICROSOFT)
+		return attrid == PW_MS_MPPE_SEND_KEY || attrid == PW_MS_MPPE_RECV_KEY;
+	return 0;
+}
+
+static int avp_decode_into(rc_handle const *rh, struct radcli_avp_list_st *list,
+			   const uint8_t *ptr_in, size_t length, uint32_t vendorspec)
+{
+	pkt_buf pb;
+	const uint8_t *attr_data, *ptr;
+	int attrlen;
+	uint32_t lvalue;
+	const radcli_attr_def *def;
+
+	pb_init_read(&pb, (void *)(uintptr_t)ptr_in, length, length);
+
+	while (pb_len(&pb) > 0) {
+		if (pb_len(&pb) < 2) {
+			rc_log(LOG_ERR, "radcli_avp_decode: received attribute with invalid length");
+			return -1;
+		}
+		attrlen = pb.data[1];
+		if (attrlen < 2 || (size_t)attrlen > pb_len(&pb)) {
+			rc_log(LOG_ERR, "radcli_avp_decode: received attribute with invalid length");
+			return -1;
+		}
+
+		attr_data = pb.data;
+		if (pb_pull(&pb, attrlen) != 0) {
+			rc_log(LOG_ERR, "radcli_avp_decode: internal pb_pull failure");
+			return -1;
+		}
+
+		ptr = attr_data + 2;
+		attrlen -= 2;
+
+		if (vendorspec == 0 && attr_data[0] == PW_VENDOR_SPECIFIC) {
+			if (attrlen < 4) {
+				rc_log(LOG_WARNING, "radcli_avp_decode: received VSA attribute with invalid length");
+				continue;
+			}
+			memcpy(&lvalue, ptr, 4);
+			lvalue = ntohl(lvalue);
+			if (rc_dict_getvend(rh, lvalue) == NULL) {
+				rc_log(LOG_WARNING, "radcli_avp_decode: received VSA attribute "
+				    "with unknown Vendor-Id %u", lvalue);
+				continue;
+			}
+			if (avp_decode_into(rh, list, ptr + 4, (size_t)(attrlen - 4), lvalue) < 0)
+				return -1;
+			continue;
+		}
+
+		def = radcli_dict_lookup_num(rh, attr_data[0], vendorspec);
+		if (def == NULL) {
+			if (vendorspec == 0)
+				rc_log(LOG_WARNING, "radcli_avp_decode: received unknown "
+				    "attribute %u of length %d", (unsigned)attr_data[0], attrlen + 2);
+			else
+				rc_log(LOG_WARNING, "radcli_avp_decode: received unknown VSA "
+				    "attribute %u, vendor %u of length %d",
+				    (unsigned)attr_data[0], vendorspec, attrlen + 2);
+			continue;
+		}
+
+		{
+			radcli_attr_type t = radcli_attr_def_type(def);
+
+			if ((t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE)
+			    && attrlen == (int)sizeof(uint32_t)) {
+				uint32_t netval, hostval;
+
+				memcpy(&netval, ptr, sizeof(netval));
+				hostval = ntohl(netval);
+				if (radcli_avp_add_bytes((radcli_avp_list *)list, def,
+							 &hostval, sizeof(hostval)) != 0)
+					return -1; /* allocation failure; already logged */
+			} else {
+				if (radcli_avp_add_bytes((radcli_avp_list *)list, def, ptr, (size_t)attrlen) != 0)
+					return -1; /* allocation failure; already logged */
+			}
+		}
+	}
+	return 0;
+}
+/// @endcond
+
+/* Parses the attribute-value region [ptr, ptr+length) of a received RADIUS
+ * packet into a newly allocated radcli_avp_list; vendorspec is 0 for a
+ * top-level packet region, or the enclosing vendor's PEN when decoding a
+ * VSA's sub-attributes. Returns 0 on success (*out set, possibly to an empty
+ * list if every attribute present was unrecognised and skipped), -1 on a
+ * hard framing error (*out left unset). */
+int radcli_avp_decode(rc_handle const *rh, const uint8_t *ptr, size_t length,
+		      uint32_t vendorspec, radcli_avp_list **out)
+{
+	struct radcli_avp_list_st *list;
+
+	if (rh == NULL || out == NULL)
+		return -1;
+
+	list = (struct radcli_avp_list_st *)radcli_avp_list_new();
+	if (list == NULL)
+		return -1;
+
+	if (avp_decode_into(rh, list, ptr, length, vendorspec) != 0) {
+		radcli_avp_list_free((radcli_avp_list *)list);
+		return -1;
+	}
+
+	*out = (radcli_avp_list *)list;
+	return 0;
+}
+
+/* Writes list's wire encoding into buf (capacity buflen) -- attribute bytes
+ * only, no packet header. Returns the number of bytes written, or -1 on
+ * overflow or on an attribute that requires per-request encryption this
+ * function does not perform (User-Password, Tunnel-Password,
+ * MS-MPPE-Send-Key, MS-MPPE-Recv-Key). */
+int radcli_avp_encode(const radcli_avp_list *l, uint8_t *buf, size_t buflen)
+{
+	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
+	const struct radcli_avp_st *a = NULL;
+	pkt_buf pb;
+	uint8_t *attr_start, *attr_len_ptr, *vsa_len_ptr;
+	uint32_t vendor, attrid, netval;
+	radcli_attr_type t;
+
+	if (list == NULL)
+		return -1;
+
+	pb_init(&pb, buf, buflen);
+
+	list_for_each(&list->head, a, node) {
+		const DICT_ATTR *def = (const DICT_ATTR *)a->def;
+
+		vendor = VENDOR(def->value);
+		attrid = ATTRID(def->value);
+
+		if (attr_requires_encryption(def)) {
+			rc_log(LOG_ERR, "radcli_avp_encode: %s requires per-request "
+			    "encryption, which this function does not perform", def->name);
+			return -1;
+		}
+		if (vendor == 0 && attrid > 0xff) {
+			/* An RFC 6929 extended attribute number: not encodable in the
+			 * classic RFC 2865 TLV this function writes. The bundled
+			 * dictionary carries none today (Phase 1 scope note), so this
+			 * is unreachable in practice; kept as a defensive guard rather
+			 * than an assumption. */
+			rc_log(LOG_ERR, "radcli_avp_encode: %s has an attribute number "
+			    "outside the classic RADIUS TLV range", def->name);
+			return -1;
+		}
+
+		vsa_len_ptr = NULL;
+		if (vendor != 0) {
+			if (pb_put_byte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
+			vsa_len_ptr = pb.tail;
+			if (pb_put_byte(&pb, 6) < 0) goto too_large;
+			netval = htonl(vendor);
+			if (pb_put_bytes(&pb, &netval, sizeof(netval)) < 0) goto too_large;
+		}
+
+		attr_start = pb.tail;
+		if (pb_put_byte(&pb, (uint8_t)(attrid & 0xff)) < 0) goto too_large;
+		attr_len_ptr = pb.tail;
+		if (pb_put_byte(&pb, 2) < 0) goto too_large; /* placeholder; patched below */
+
+		t = radcli_attr_def_type(a->def);
+		if (t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE) {
+			uint32_t hostval;
+
+			if (a->len != sizeof(uint32_t)) {
+				rc_log(LOG_ERR, "radcli_avp_encode: %s has the wrong stored "
+				    "length for its type", def->name);
+				return -1;
+			}
+			memcpy(&hostval, a->data, sizeof(hostval));
+			netval = htonl(hostval);
+			if (pb_put_bytes(&pb, &netval, sizeof(netval)) < 0) goto too_large;
+		} else {
+			if (a->len > AUTH_STRING_LEN - (vendor != 0 ? VSA_HDR_LEN : 0)) {
+				rc_log(LOG_ERR, "radcli_avp_encode: %s value too long (%zu bytes)",
+				    def->name, a->len);
+				return -1;
+			}
+			if (pb_put_bytes(&pb, a->data, (int)a->len) < 0) goto too_large;
+		}
+
+		*attr_len_ptr = (uint8_t)(pb.tail - attr_start);
+		if (vsa_len_ptr != NULL)
+			*vsa_len_ptr += *attr_len_ptr;
+	}
+
+	return (int)pb_written(&pb);
+
+too_large:
+	rc_log(LOG_ERR, "radcli_avp_encode: attribute value too large or buffer "
+	    "would exceed %zu bytes", buflen);
+	return -1;
+}

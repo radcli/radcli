@@ -143,6 +143,7 @@
 #endif
 
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h>
 
 #define GETSTR_LENGTH		128	//!< must be bigger than AUTH_PASS_LEN.
 
