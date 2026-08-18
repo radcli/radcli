@@ -41,6 +41,16 @@
  *      radcli_request_code() reports RADCLI_CODE_ACCOUNTING_RESPONSE --
  *      exercising the zero-vector-then-computed-from-the-packet request
  *      path, which the Access-Request above does not.
+ *   3. A no_wait Accounting-Request via radcli_request_send_noreply(), for
+ *      a User-Name unique to this check (NOREPLY_USER below). This process
+ *      itself never reads a reply -- that is the point of send_noreply()
+ *      -- so it cannot confirm server-side receipt on its own; instead,
+ *      tests/request-freeradius-tests.sh runs radiusd with its own debug
+ *      trace captured to a file (tests/ns.sh's RADIUSD_LOGFILE), and greps
+ *      that file for NOREPLY_USER followed by a genuine "Sent
+ *      Accounting-Response", after this program exits. That is what
+ *      actually proves the fire-and-forget send was received and
+ *      processed by a real server, not merely handed to the local kernel.
  */
 
 #include <config.h>
@@ -51,6 +61,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Grepped for in tests/request-freeradius-tests.sh's captured radiusd
+ * debug trace -- see the check 3 note in the file comment above. Not a
+ * user tests/raddb/users has an entry for: this Accounting-Request
+ * carries no Cleartext-Password, so it is not an authentication attempt
+ * and the username matching no "users" entry is irrelevant to it. */
+#define NOREPLY_USER "radcli-noreply-interop-check"
 
 static void die(const char *msg) __attribute__((noreturn));
 
@@ -174,6 +191,27 @@ int main(int argc, char **argv)
 	}
 	radcli_request_free(r);
 	printf("OK: Accounting-Request/Accounting-Response through radcli_request_perform()\n");
+
+	/* --- 3: a no_wait Accounting-Request; see the check 3 note in the
+	 * file comment above for how this is actually verified --- */
+
+	send_list = radcli_avp_list_new();
+	if (send_list == NULL)
+		die("radcli_avp_list_new");
+	if (radcli_avp_add_str(send_list, d_user, NOREPLY_USER) != 0)
+		die("radcli_avp_add_str(User-Name)");
+	if (radcli_avp_add_uint32(send_list, d_acct_status, 1 /* Start */) != 0)
+		die("radcli_avp_add_uint32(Acct-Status-Type)");
+
+	r = radcli_request_new(ctx, RADCLI_CODE_ACCOUNTING_REQUEST, send_list);
+	radcli_avp_list_free(send_list);
+	if (r == NULL)
+		die("radcli_request_new(RADCLI_CODE_ACCOUNTING_REQUEST) for the no_wait check");
+
+	if (radcli_request_send_noreply(r) != RADCLI_OK)
+		die("radcli_request_send_noreply did not return RADCLI_OK");
+	radcli_request_free(r);
+	printf("OK: radcli_request_send_noreply() transmitted the no_wait Accounting-Request\n");
 
 	rc_dict_free(rh);
 	rc_destroy(rh);

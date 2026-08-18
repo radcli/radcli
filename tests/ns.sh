@@ -166,7 +166,12 @@ fi
 if test -z "${NO_RADIUSD}"; then
 	set -e
 	echo ${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout
-	${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout 2>&1 &
+	# Also tee radiusd's own debug trace to RADIUSD_LOGFILE, if a caller set
+	# it, so a test can grep server-side evidence of a request it sent
+	# itself (e.g. a no_wait request there is otherwise no reply to check).
+	# Process substitution, not a pipe, so $! below is still radiusd's own
+	# PID, matching every other test's RADIUSPID-based cleanup.
+	${CMDNS2} ${RADIUSD} -d ${srcdir}/${RADDB_DIR}/ -fxx -l stdout > >(tee "${RADIUSD_LOGFILE:-/dev/null}") 2>&1 &
 	RADIUSPID=$!
 	set +e
 

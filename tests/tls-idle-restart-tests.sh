@@ -48,6 +48,10 @@ function finish {
 	rm -f "$CONFFILE" "$SERVERSFILE"
 	rm -rf "$STATEDIR"
 }
+# ns.sh only registers its own EXIT trap (which calls finish) after its
+# root/radiusd/ip-netns checks; without this, an early "exit 77" from one
+# of those checks would skip finish() and leak STATEDIR.
+trap finish EXIT
 
 . ${srcdir}/ns.sh
 
