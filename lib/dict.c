@@ -21,7 +21,9 @@
 
 #include <config.h>
 #include <includes.h>
+#include <limits.h>
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h>
 #include "util.h"
 
 /** @brief Add attribute to dictionary
@@ -744,4 +746,156 @@ void rc_dict_free(rc_handle *rh)
 	rh->dictionary_values = NULL;
 	rh->dictionary_vendors = NULL;
 }
+/** @} */
+
+/**
+ * @defgroup radcli2-api New API
+ * @brief New, opaque-by-default API functions
+ *
+ * @{
+ */
+
+/* radcli_attr_def is never given its own storage: a dictionary attribute
+ * definition is a DICT_ATTR, and the "opaque handle" is that same pointer
+ * under a name radcli2.h does not define. This keeps the new lookup API
+ * from duplicating the dictionary (contrib/ai/personas/radcli-core-dev.md,
+ * Design Review / Dependency growth). */
+
+/// @cond INTERNAL
+static radcli_attr_type dict_type_to_radcli(rc_attr_type t)
+{
+	switch (t) {
+	case PW_TYPE_STRING:
+		return RADCLI_TYPE_STRING;
+	case PW_TYPE_INTEGER:
+		return RADCLI_TYPE_INTEGER;
+	case PW_TYPE_IPADDR:
+		return RADCLI_TYPE_IPADDR;
+	case PW_TYPE_DATE:
+		return RADCLI_TYPE_DATE;
+	case PW_TYPE_IPV6ADDR:
+		return RADCLI_TYPE_IPV6ADDR;
+	case PW_TYPE_IPV6PREFIX:
+		return RADCLI_TYPE_IPV6PREFIX;
+	default:
+		/* unreachable: rc_dict_addattr() rejects type >= PW_TYPE_MAX
+		 * before a DICT_ATTR with an out-of-range type can exist. */
+		return RADCLI_TYPE_STRING;
+	}
+}
+
+/* 5 = the deepest RFC 6929 form this parser accepts, even though the
+ * bundled dictionary can only resolve the 1- and 3-component ones today:
+ * vendor(26) . vendor-id . extended-type(241) . ext-attr . tlv-type. */
+#define RADCLI_OID_MAX_COMPONENTS 5
+
+/* Parses a dot-separated OID ("1", "26.311.11") into up to
+ * RADCLI_OID_MAX_COMPONENTS uint32_t components. Returns the component
+ * count, or -1 if oid is NULL/empty, a component is not a plain unsigned
+ * integer, a component overflows uint32_t, or more components than fit in
+ * comp are present. */
+static int parse_oid(const char *oid, uint32_t comp[RADCLI_OID_MAX_COMPONENTS])
+{
+	const char *p = oid;
+	int n = 0;
+
+	if (oid == NULL || *oid == '\0')
+		return -1;
+
+	while (1) {
+		char *end;
+		unsigned long v;
+
+		if (n >= RADCLI_OID_MAX_COMPONENTS)
+			return -1;
+
+		errno = 0;
+		v = strtoul(p, &end, 10);
+		if (end == p || (v == ULONG_MAX && errno == ERANGE))
+			return -1;
+#if ULONG_MAX > UINT32_MAX
+		if (v > UINT32_MAX)
+			return -1;
+#endif
+
+		comp[n++] = (uint32_t)v;
+
+		if (*end == '\0')
+			break;
+		if (*end != '.')
+			return -1;
+		p = end + 1;
+	}
+	return n;
+}
+/// @endcond
+
+const radcli_attr_def *radcli_dict_lookup(const radcli_ctx *ctx, const char *name)
+{
+	if (ctx == NULL || name == NULL)
+		return NULL;
+	return (const radcli_attr_def *)rc_dict_findattr((rc_handle const *)ctx, name);
+}
+
+const radcli_attr_def *radcli_dict_lookup_num(const radcli_ctx *ctx, uint32_t attrid, uint32_t vendor)
+{
+	if (ctx == NULL)
+		return NULL;
+	return (const radcli_attr_def *)rc_dict_getattr((rc_handle const *)ctx,
+							 RADCLI_VENDOR_ATTR_SET(attrid, vendor));
+}
+
+const radcli_attr_def *radcli_dict_lookup_oid(const radcli_ctx *ctx, const char *oid)
+{
+	uint32_t comp[RADCLI_OID_MAX_COMPONENTS];
+	int n;
+
+	if (ctx == NULL)
+		return NULL;
+
+	n = parse_oid(oid, comp);
+	if (n <= 0)
+		return NULL;
+
+	if (n == 1)
+		return radcli_dict_lookup_num(ctx, comp[0], 0);
+
+	if (n == 3 && comp[0] == PW_VENDOR_SPECIFIC)
+		return radcli_dict_lookup_num(ctx, comp[2], comp[1]);
+
+	/* "26.<vendor>" alone names a vendor, not an attribute; longer forms
+	 * name an RFC 6929 extended/TLV attribute the bundled dictionary does
+	 * not yet carry (doc/plan-api-modernization.md Phase 1 scope note).
+	 * Both are well-formed OIDs that simply match nothing today. */
+	return NULL;
+}
+
+const char *radcli_attr_def_name(const radcli_attr_def *def)
+{
+	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	return a ? a->name : NULL;
+}
+
+radcli_attr_type radcli_attr_def_type(const radcli_attr_def *def)
+{
+	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	return dict_type_to_radcli(a ? a->type : PW_TYPE_STRING);
+}
+
+int radcli_attr_def_oid(const radcli_attr_def *def, char *buf, size_t buflen)
+{
+	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	uint32_t vendor, attrid;
+
+	if (a == NULL)
+		return -1;
+
+	vendor = VENDOR(a->value);
+	attrid = ATTRID(a->value);
+
+	if (vendor == 0)
+		return snprintf(buf, buflen, "%u", attrid);
+	return snprintf(buf, buflen, "26.%u.%u", vendor, attrid);
+}
+
 /** @} */
