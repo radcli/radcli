@@ -48,6 +48,9 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
 
 /* Packs an attribute value pair list into a buffer
  *
+ * @param rh a handle to parsed configuration (used for the dictionary
+ *        encrypt=N lookup that refuses an attribute this function cannot
+ *        encrypt -- see the check at the top of the loop below).
  * @param vp a pointer to a VALUE_PAIR.
  * @param secret the secret used by the server.
  * @param auth a pointer to AUTH_HDR.
@@ -55,10 +58,13 @@ static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
  *        callers must subtract any bytes appended after this call (e.g. 18
  *        bytes for Message-Authenticator on auth requests).
  * @return The number of octets packed, or -1 if any attribute value exceeds
- *         253 bytes or the packet would exceed max_len.
+ *         253 bytes, the packet would exceed max_len, or an attribute
+ *         requires encryption this function does not implement (any
+ *         dictionary encrypt=N flag other than User-Password's own
+ *         RFC 2865 SS5.2 handling below).
  */
 /// @cond INTERNAL
-int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
+int rc_pack_list(rc_handle *rh, VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 {
 	int length, i, pc, padded_length;
 	size_t secretlen;
@@ -79,6 +85,27 @@ int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
 	while (vp != NULL) {
 		vsa_len_ptr = NULL;
 		unsigned max_vlen = AUTH_STRING_LEN;        /* 253: RFC 2865 per-attribute value limit */
+
+		/* PW_USER_PASSWORD has its own encryption below (RFC 2865 SS5.2);
+		 * every other attribute the dictionary flags "encrypt=N" -- today
+		 * that means Tunnel-Password and the two MS-MPPE-*-Key VSAs,
+		 * encrypt=2, RFC 2868 SS3.5 salt-encryption -- has no
+		 * implementation in this function, and MUST NOT fall through to
+		 * the plain string/integer encoding below: doing so would send
+		 * the attribute's real value on the wire completely unencrypted.
+		 * A whitelist, not a blocklist: refusal is the default for any
+		 * flagged attribute this function does not specifically know how
+		 * to encrypt, including one a future dictionary change adds. */
+		if (vp->attribute != PW_USER_PASSWORD) {
+			DICT_ATTR *def = rc_dict_getattr(rh, vp->attribute);
+
+			if (def != NULL && rc_dict_attr_encrypt_type(rh, def) != 0) {
+				rc_log(LOG_ERR, "rc_pack_list: %s requires encryption this "
+				    "function does not implement; refusing to send it "
+				    "unencrypted", def->name);
+				return -1;
+			}
+		}
 
 		if (VENDOR(vp->attribute) != 0) {
 			max_vlen = AUTH_STRING_LEN - VSA_HDR_LEN; /* 247: VSA envelope consumes 6 bytes */
@@ -630,7 +657,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 
 	if (data->code == PW_ACCOUNTING_REQUEST) {
 		server_type = "acct";
-		total_length = rc_pack_list(data->send_pairs, secret, auth, RC_MAX_PACKET_LEN);
+		total_length = rc_pack_list(rh, data->send_pairs, secret, auth, RC_MAX_PACKET_LEN);
 		if (total_length < 0) {
 			result = ERROR_RC;
 			goto cleanup;
@@ -650,7 +677,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
 
 		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below) */
-		total_length = rc_pack_list(data->send_pairs, secret, auth,
+		total_length = rc_pack_list(rh, data->send_pairs, secret, auth,
 					    RC_MAX_PACKET_LEN - (2 + MD5_DIGEST_SIZE));
 		if (total_length < 0) {
 			result = ERROR_RC;
