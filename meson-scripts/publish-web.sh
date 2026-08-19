@@ -14,8 +14,10 @@ cd "$doc_builddir"
 
 cd "$top_srcdir"
 
-if [ -n "$(git status --porcelain)" ]; then
-	echo "error: working tree is not clean; commit or stash changes before publishing" >&2
+# Only tracked modifications matter here: the gh-pages commit is built from an
+# explicit "git add -f html", so untracked files in the tree cannot leak into it.
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+	echo "error: tracked files have uncommitted changes; commit or stash them before publishing" >&2
 	exit 1
 fi
 
