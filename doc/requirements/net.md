@@ -27,9 +27,12 @@ per-transport implementations (`default_socket_funcs`/`default_tcp_socket_funcs`
 `lib/config.c`, the GnuTLS-backed vtable installed by `rc_init_tls()` in `lib/tls.c`); the
 retry/timeout loop in `rc_send_server_ctx()`; and RADIUS-level response authentication at the
 wire — Response Authenticator (RFC 2865 §3) and Message-Authenticator (RFC 2869 §5.14, RFC 3579
-§3.2) verification. Packet *construction* (`rc_pack_list()`) and *field-level* attribute parsing
-are exercised here only insofar as they affect transport-level framing; `attrs.md` and `util.md`
-own the attribute/`pkt_buf` contracts themselves (see `REQ-GEN-MEM-005`).
+§3.2) verification. Packet *construction* (`rc_send_server_ctx()` converts `data->send_pairs`
+to a `radcli_avp_list` and encodes it with `radcli_avp_encode_rfc2865()`, `lib/avp.c`; the
+legacy `rc_pack_list()` implements the same wire format but is no longer called from this path,
+see `REQ-NET-SEC-003`) and *field-level* attribute parsing are exercised here only insofar as
+they affect transport-level framing; `attrs.md` and `util.md` own the attribute/`pkt_buf`
+contracts themselves (see `REQ-GEN-MEM-005`).
 
 `rc_sockets_override` is declared in `include/includes.h`, not `include/radcli/radcli.h`, and
 `include/meson.build:1` installs only `radcli/radcli.h`. It is therefore **not part of the
@@ -416,13 +419,16 @@ reflect the attribute's presence before the HMAC is computed, since the HMAC cov
 packet including its own (zeroed) slot.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:327-344 (`add_msg_auth_attr`), 649-664 (call site);
-lib/sendserver.c:653-655 (packing budget reserves 2+MD5_DIGEST_SIZE=18 bytes ahead of time)
+**Source:** lib/sendserver.c (`add_msg_auth_attr`); `rc_send_server_ctx()`'s non-accounting
+branch (packing budget reserves 2+MD5_DIGEST_SIZE=18 bytes ahead of time, passed as `buflen` to
+`radcli_avp_encode_rfc2865()`)
 **Acceptance:** [SEC] unit, local — capture an Access-Request; verify it contains a
 Message-Authenticator attribute whose value equals HMAC-MD5-secret over the packet with that
 16-byte field zeroed.
-**Links:** REQ-GEN-MEM-005 (packing uses `pkt_buf` via `rc_pack_list`, budget reserved for the
-attribute appended after `rc_pack_list` returns)
+**Links:** REQ-GEN-MEM-005 (packing uses `pkt_buf` via `radcli_avp_encode_rfc2865()`, lib/avp.c;
+budget reserved for the attribute appended after it returns). `rc_pack_list()` (lib/sendserver.c)
+implements the same wire format and is still used directly by `tests/pack.c`, but is no longer
+called from `rc_send_server_ctx()`.
 
 ### REQ-NET-SEC-004 — A reply MUST NOT be accepted unless its Response Authenticator matches MD5(code‖id‖length‖request-vector‖attrs‖secret)
 

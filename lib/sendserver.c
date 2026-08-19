@@ -16,6 +16,7 @@
 #include <pathnames.h>
 #include <poll.h>
 #include "util.h"
+#include "avp.h"
 #include "rc-md5.h"
 #include "rc-hmac.h"
 #include "rc-random.h"
@@ -50,7 +51,13 @@
  * @{
  */
 
-/* Packs an attribute value pair list into a buffer
+/* Packs an attribute value pair list into a buffer.
+ *
+ * No longer called by rc_send_server_ctx(), which builds its packet via
+ * radcli_value_pairs_to_avp_list() + radcli_avp_encode_rfc2865() (lib/avp.c)
+ * instead -- one encoder implementing the encrypt=N whitelist and the
+ * wire format, not two. Kept, and still tested directly (tests/pack.c),
+ * as the documented behaviour of an already-shipped internal symbol.
  *
  * @param rh a handle to parsed configuration (used for the dictionary
  *        encrypt=N lookup that refuses an attribute this function cannot
@@ -908,6 +915,8 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	VALUE_PAIR *vp;
 	struct sockaddr_storage *ss_set = NULL;
 	int mgmt_secret = 0;
+	radcli_avp_list *avp_list;
+	int encoded_len;
 
 	server_name = data->server;
 	if (server_name == NULL || server_name[0] == '\0')
@@ -1013,17 +1022,34 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			      PW_NAS_IDENTIFIER, p, -1, 0);
 	}
 
-	/* Build a request */
+	/* Build a request. Encodes via the same radcli_avp_encode_rfc2865()
+	 * the new API uses -- converting data->send_pairs to a
+	 * radcli_avp_list first -- rather than rc_pack_list(), so there is
+	 * one encoder implementing the encrypt=N whitelist and the wire
+	 * format, not two. The one caller-visible difference from
+	 * rc_pack_list(): per RFC 2865 SS5.2, an over-length User-Password
+	 * (> AUTH_PASS_LEN, 128 octets) is now rejected rather than silently
+	 * truncated to a different, shorter password the caller did not ask
+	 * to send -- a deliberate divergence, not an oversight (see
+	 * radcli_avp_encode_rfc2865()'s own comment, lib/avp.c). */
+	if (radcli_value_pairs_to_avp_list(rh, data->send_pairs, &avp_list) != 0) {
+		memset(secret, '\0', sizeof(secret));
+		return ERROR_RC;
+	}
+
 	auth = (AUTH_HDR *) send_buffer;
 	auth->code = data->code;
 	auth->id = data->seq_nbr;
 
 	if (data->code == PW_ACCOUNTING_REQUEST) {
-		total_length = rc_pack_list(rh, data->send_pairs, secret, auth, RC_MAX_PACKET_LEN);
-		if (total_length < 0) {
+		encoded_len = radcli_avp_encode_rfc2865(rh, avp_list, secret, auth->vector,
+						auth->data, RC_MAX_PACKET_LEN - AUTH_HDR_LEN, NULL);
+		radcli_avp_list_free(avp_list);
+		if (encoded_len < 0) {
 			memset(secret, '\0', sizeof(secret));
 			return ERROR_RC;
 		}
+		total_length = AUTH_HDR_LEN + encoded_len;
 
 		tlen = htons((unsigned short)total_length);
 		memcpy(&auth->length, &tlen, sizeof(uint16_t));
@@ -1039,12 +1065,14 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
 
 		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below) */
-		total_length = rc_pack_list(rh, data->send_pairs, secret, auth,
-					    RC_MAX_PACKET_LEN - (2 + MD5_DIGEST_SIZE));
-		if (total_length < 0) {
+		encoded_len = radcli_avp_encode_rfc2865(rh, avp_list, secret, vector, auth->data,
+						RC_MAX_PACKET_LEN - AUTH_HDR_LEN - (2 + MD5_DIGEST_SIZE), NULL);
+		radcli_avp_list_free(avp_list);
+		if (encoded_len < 0) {
 			memset(secret, '\0', sizeof(secret));
 			return ERROR_RC;
 		}
+		total_length = AUTH_HDR_LEN + encoded_len;
 
 		total_length = add_msg_auth_attr(rh, secret, auth, total_length);
 

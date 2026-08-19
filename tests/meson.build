@@ -40,6 +40,9 @@ if have_gnutls
   dict_add = executable('dict-add', 'dict-add.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
+  auth_userpass_len = executable('auth-userpass-len', 'auth-userpass-len.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
   # Links against the static archive directly so the non-exported
   # rc_pack_list symbol (not in radcli.map) is accessible for unit testing.
   pack = executable('pack', 'pack.c',
@@ -74,7 +77,7 @@ if have_gnutls
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
 
-  foreach t : [avpair, dict, avp, request, dict_add, pack, avp_codec, avp_legacy, config_unit]
+  foreach t : [avpair, dict, avp, request, dict_add, auth_userpass_len, pack, avp_codec, avp_legacy, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif
