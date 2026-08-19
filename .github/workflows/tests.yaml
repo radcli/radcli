@@ -12,6 +12,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-static-analyzer-clang-clang-tools-libgnutls28-dev-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -35,6 +40,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-gcc-freeradius-libgnutls28-dev-python3-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -59,6 +69,15 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  # Same package list as tests-asan: sharing the key lets whichever
+                  # job populates the cache first on a given day help the other,
+                  # even though the two run in parallel (so never help each other
+                  # within the same workflow run).
+                  key: apt-gcc-freeradius-libgnutls28-dev-python3-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -85,6 +104,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -121,6 +145,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-distcheck-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-doxygen-perl-qt5-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -153,6 +182,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-clang-freeradius-python3-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
@@ -179,6 +213,11 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v5
+            - name: Cache APT packages
+              uses: actions/cache@v4
+              with:
+                  path: /var/cache/apt/archives/*.deb
+                  key: apt-gcc-freeradius-python3-meson-ninja-build-v1
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
