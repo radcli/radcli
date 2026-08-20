@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	assert(radcli_avp_add_in6(l, d_v6, &i6, 0) == 0);
 	assert(radcli_avp_add_str(l, d_agent, "circuit-42") == 0); /* VSA */
 
-	n = radcli_avp_encode(l, buf, sizeof(buf));
+	n = radcli_avp_encode(l, NULL, NULL, buf, sizeof(buf));
 	if (n <= 0) {
 		fprintf(stderr, "error: radcli_avp_encode() failed (%d)\n", n);
 		exit(1);
@@ -562,14 +562,90 @@ int main(int argc, char **argv)
 		rc_destroy(rh5);
 	}
 
-	/* --- encode: attributes needing per-request encryption are refused,
-	 * never sent as accidental plaintext --- */
+	/* --- encode: RFC 2865 SS5.2 User-Password encryption, against vectors
+	 * computed independently in Python (hashlib.md5), covering one cipher
+	 * block (7-byte password, padded to 16) and two (20-byte password,
+	 * padded to 32). secret/authenticator match the salt-decrypt vectors
+	 * above. --- */
+
+	{
+		static const char secret[] = "testing123";
+		static const uint8_t req_auth[AUTH_VECTOR_LEN] = {
+			0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+			0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+		};
+
+		{
+			static const uint8_t want_cipher[] = {
+				0xe5, 0xdd, 0x6a, 0xb8, 0x47, 0x89, 0x5b, 0x1a,
+				0x10, 0x46, 0x07, 0x24, 0x00, 0x14, 0x82, 0x8b,
+			};
+			radcli_avp_list *l3 = radcli_avp_list_new();
+			int len;
+
+			assert(radcli_avp_add_str(l3, d_pass, "s3cr3t!") == 0);
+			len = radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf));
+			if (len != 2 + (int)sizeof(want_cipher) ||
+			    buf[0] != 2 /* User-Password */ ||
+			    buf[1] != (uint8_t)len ||
+			    memcmp(buf + 2, want_cipher, sizeof(want_cipher)) != 0) {
+				fprintf(stderr, "error: User-Password (1 block) did not "
+						"encrypt to the expected ciphertext\n");
+
+				exit(1);
+			}
+			radcli_avp_list_free(l3);
+		}
+
+		{
+			static const uint8_t want_cipher[] = {
+				0xf7, 0x8c, 0x6a, 0xae, 0x11, 0x9b, 0x1d, 0x72,
+				0x79, 0x2c, 0x6c, 0x48, 0x6d, 0x7a, 0xed, 0xfb,
+				0xa7, 0x74, 0xce, 0xa9, 0xec, 0x04, 0xf9, 0x9a,
+				0xf4, 0x66, 0x2f, 0x74, 0xd7, 0x8f, 0xd5, 0x3d,
+			};
+			radcli_avp_list *l3 = radcli_avp_list_new();
+			int len;
+
+			assert(radcli_avp_add_str(l3, d_pass, "abcdefghijklmnopqrst") == 0);
+			len = radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf));
+			if (len != 2 + (int)sizeof(want_cipher) ||
+			    memcmp(buf + 2, want_cipher, sizeof(want_cipher)) != 0) {
+				fprintf(stderr, "error: User-Password (2 blocks) did not "
+						"encrypt to the expected ciphertext\n");
+
+				exit(1);
+			}
+			radcli_avp_list_free(l3);
+		}
+
+		/* Longer than AUTH_PASS_LEN (128) is rejected, not truncated. */
+		{
+			radcli_avp_list *l3 = radcli_avp_list_new();
+			char toolong[AUTH_PASS_LEN + 2]; /* AUTH_PASS_LEN+1 'x's, one over the limit */
+
+			memset(toolong, 'x', sizeof(toolong) - 1);
+			toolong[sizeof(toolong) - 1] = '\0';
+			assert(strlen(toolong) == AUTH_PASS_LEN + 1);
+			assert(radcli_avp_add_str(l3, d_pass, toolong) == 0);
+			if (radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf)) >= 0) {
+				fprintf(stderr, "error: an over-length User-Password was "
+						"accepted instead of rejected\n");
+
+				exit(1);
+			}
+			radcli_avp_list_free(l3);
+		}
+	}
+
+	/* --- encode: User-Password without a secret is refused, never sent as
+	 * accidental plaintext --- */
 
 	{
 		radcli_avp_list *l2 = radcli_avp_list_new();
 
 		assert(radcli_avp_add_str(l2, d_pass, "hunter2") == 0);
-		if (radcli_avp_encode(l2, buf, sizeof(buf)) >= 0) {
+		if (radcli_avp_encode(l2, NULL, NULL, buf, sizeof(buf)) >= 0) {
 			fprintf(stderr, "error: radcli_avp_encode() sent User-Password in "
 					"plaintext instead of refusing it\n");
 			exit(1);

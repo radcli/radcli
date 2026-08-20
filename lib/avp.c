@@ -412,6 +412,17 @@ int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
  */
 
 /// @cond INTERNAL
+static int attr_is_user_password(const DICT_ATTR *def)
+{
+	return VENDOR(def->value) == 0 && ATTRID(def->value) == PW_USER_PASSWORD;
+}
+
+/* Attributes radcli_avp_encode() refuses unconditionally: User-Password has
+ * its own RFC 2865 SS5.2 handling (attr_is_user_password() above, checked
+ * separately and first); Tunnel-Password/MS-MPPE-*-Key use RFC 2868 SS3.5 /
+ * RFC 2548 salt-encryption, which radcli_avp_decode() reverses but this
+ * function does not originate (see doc/plan-api-modernization.md's
+ * "Retiring RC_AAA_CTX" section -- a client has not needed to send these). */
 static int attr_requires_encryption(const DICT_ATTR *def)
 {
 	uint32_t vendor = VENDOR(def->value);
@@ -460,6 +471,47 @@ static void salt_decrypt(unsigned char *plaintext, const unsigned char *cipherte
 		}
 		for (j = 0; j < 16; j++)
 			plaintext[i + j] = ciphertext[i + j] ^ b[j];
+	}
+}
+
+/* RFC 2865 SS5.2 User-Password encryption. Same construction as
+ * salt_decrypt() with no salt component, but deliberately NOT implemented
+ * by generalizing that function to share code: the two run in opposite
+ * directions, and b(i) for i>1 must chain from the *ciphertext* of block
+ * i-1 either way -- which for encryption is `ciphertext[i-16..i)`, already
+ * written by the previous loop iteration, not `plaintext[i-16..i)`. A
+ * shared "in/out" primitive would have to read from `out` here and from
+ * `in` in the decrypt case, an easy place to introduce a directional bug
+ * silently; two small, direction-specific functions are safer than one
+ * clever one. len must be a non-zero multiple of 16; ciphertext must have
+ * room for len bytes and must not alias plaintext. */
+/// @cond INTERNAL
+static void user_password_encrypt(unsigned char *ciphertext, const unsigned char *plaintext, size_t len,
+				  const char *secret,
+				  const unsigned char request_authenticator[AUTH_VECTOR_LEN])
+{
+	unsigned char keybuf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN];
+	unsigned char b[16];
+	size_t secretlen = strlen(secret);
+	size_t i;
+
+	if (secretlen > MAX_SECRET_LENGTH)
+		secretlen = MAX_SECRET_LENGTH;
+
+	memcpy(keybuf, secret, secretlen);
+	memcpy(keybuf + secretlen, request_authenticator, AUTH_VECTOR_LEN);
+	rc_md5_calc(b, keybuf, secretlen + AUTH_VECTOR_LEN);
+
+	for (i = 0; i < len; i += 16) {
+		size_t j;
+
+		if (i > 0) {
+			memcpy(keybuf, secret, secretlen);
+			memcpy(keybuf + secretlen, ciphertext + i - 16, 16); /* previously-written block */
+			rc_md5_calc(b, keybuf, secretlen + 16);
+		}
+		for (j = 0; j < 16; j++)
+			ciphertext[i + j] = plaintext[i + j] ^ b[j];
 	}
 }
 /// @endcond
@@ -627,11 +679,19 @@ int radcli_avp_decode(rc_handle const *rh, const char *secret,
 }
 
 /* Writes list's wire encoding into buf (capacity buflen) -- attribute bytes
- * only, no packet header. Returns the number of bytes written, or -1 on
- * overflow or on an attribute that requires per-request encryption this
- * function does not perform (User-Password, Tunnel-Password,
- * MS-MPPE-Send-Key, MS-MPPE-Recv-Key). */
-int radcli_avp_encode(const radcli_avp_list *l, uint8_t *buf, size_t buflen)
+ * only, no packet header. secret/request_authenticator are used only to
+ * encrypt a User-Password attribute (RFC 2865 SS5.2); pass secret == NULL
+ * if the list carries none (radcli_avp_encode() then refuses one if
+ * present, rather than sending it unencrypted). Returns the number of
+ * bytes written, or -1 on overflow, on User-Password without a secret
+ * supplied or longer than AUTH_PASS_LEN (128) bytes, or on an attribute
+ * that requires salt-encryption this function does not perform
+ * (Tunnel-Password, MS-MPPE-Send-Key, MS-MPPE-Recv-Key --
+ * radcli_avp_decode() reverses that scheme; encoding to originate a
+ * request carrying one is not implemented). */
+int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
+		      const uint8_t request_authenticator[AUTH_VECTOR_LEN],
+		      uint8_t *buf, size_t buflen)
 {
 	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
 	const struct radcli_avp_st *a = NULL;
@@ -650,6 +710,50 @@ int radcli_avp_encode(const radcli_avp_list *l, uint8_t *buf, size_t buflen)
 
 		vendor = VENDOR(def->value);
 		attrid = ATTRID(def->value);
+
+		if (attr_is_user_password(def)) {
+			unsigned char passbuf[AUTH_PASS_LEN];
+			unsigned char cipher[AUTH_PASS_LEN];
+			size_t padded_len;
+
+			if (secret == NULL || request_authenticator == NULL) {
+				rc_log(LOG_ERR, "radcli_avp_encode: %s requires the shared "
+				    "secret and request authenticator, which were not supplied",
+				    def->name);
+				return -1;
+			}
+			if (a->len > AUTH_PASS_LEN) {
+				/* Legacy rc_pack_list() silently truncates an over-length
+				 * password to AUTH_PASS_LEN; that is a footgun (the server
+				 * authenticates a different, shorter password than the
+				 * caller believes it sent), not behaviour worth repeating
+				 * here. Reject instead. */
+				rc_log(LOG_ERR, "radcli_avp_encode: %s is %zu bytes, longer "
+				    "than the %d-byte RFC 2865 SS5.2 maximum",
+				    def->name, a->len, AUTH_PASS_LEN);
+				return -1;
+			}
+
+			padded_len = ((a->len + (AUTH_VECTOR_LEN - 1)) / AUTH_VECTOR_LEN) * AUTH_VECTOR_LEN;
+			if (padded_len == 0)
+				padded_len = AUTH_VECTOR_LEN; /* RFC 2865 SS5.2: pad to a
+				                                * multiple of 16; an empty
+				                                * password still sends one
+				                                * (all-zero) block. */
+
+			memset(passbuf, 0, sizeof(passbuf));
+			if (a->len > 0)
+				memcpy(passbuf, a->data, a->len);
+			user_password_encrypt(cipher, passbuf, padded_len, secret, request_authenticator);
+
+			attr_start = pb.tail;
+			if (pb_put_byte(&pb, (uint8_t)(attrid & 0xff)) < 0) goto too_large;
+			attr_len_ptr = pb.tail;
+			if (pb_put_byte(&pb, 2) < 0) goto too_large; /* placeholder; patched below */
+			if (pb_put_bytes(&pb, cipher, (int)padded_len) < 0) goto too_large;
+			*attr_len_ptr = (uint8_t)(pb.tail - attr_start);
+			continue;
+		}
 
 		if (attr_requires_encryption(def)) {
 			rc_log(LOG_ERR, "radcli_avp_encode: %s requires per-request "
