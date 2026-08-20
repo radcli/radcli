@@ -32,7 +32,9 @@
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
 
-int radcli_avp_decode(rc_handle const *rh, const uint8_t *ptr, size_t length,
+int radcli_avp_decode(rc_handle const *rh, const char *secret,
+                      const uint8_t request_authenticator[AUTH_VECTOR_LEN],
+                      const uint8_t *ptr, size_t length,
                       uint32_t vendorspec, radcli_avp_list **out);
 int radcli_avp_encode(const radcli_avp_list *list, uint8_t *buf, size_t buflen);
 

@@ -150,20 +150,25 @@ succeeds).
 ### REQ-DICT-DATA-001 — `ATTRIBUTE` lines require name, numeric value, and a type from a fixed set
 
 **Requirement:** An `ATTRIBUTE` line MUST supply at least `NAME VALUE TYPE`
-(a fourth, optional vendor-option token MAY follow). `VALUE` MUST begin with
-a digit (checked via `isdigit()` on the first character only — see
-REQ-DICT-ERR-002 for the resulting weak validation). `TYPE` MUST be one of
-`string`, `integer`, `ipaddr`, `ipv4addr`, `ipv6addr`, `ipv6prefix`, or
-`date`; `ipaddr` and `ipv4addr` are synonyms both mapping to
-`PW_TYPE_IPADDR`. Any other type keyword MUST be rejected.
+(a fourth, optional option-list token MAY follow — see REQ-DICT-DATA-003 for
+`vendor=`/bare-vendor-name and REQ-DICT-DATA-009 for `has_tag`/`encrypt=`).
+`VALUE` MUST begin with a digit (checked via `isdigit()` on the first
+character only — see REQ-DICT-ERR-002 for the resulting weak validation).
+`TYPE` MUST be one of `string`, `integer`, `uint32`, `ipaddr`, `ipv4addr`,
+`ipv6addr`, `ipv6prefix`, or `date`; `ipaddr`/`ipv4addr` are synonyms both
+mapping to `PW_TYPE_IPADDR`, and `uint32`/`integer` are synonyms both mapping
+to `PW_TYPE_INTEGER` (`uint32` is the spelling FreeRADIUS's newer
+dictionaries, e.g. `share/dictionary/radius/dictionary.rfc2868`, use for the
+same type). Any other type keyword MUST be rejected.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dict.c:209-332 (`ATTRIBUTE` branch); include/radcli/radcli.h:120-128
 (`rc_attr_type`/`PW_TYPE_*`)
 **Acceptance:** [DATA] positive, local — `ATTRIBUTE Foo 1 ipv4addr` and
 `ATTRIBUTE Foo 1 ipaddr` both produce a `DICT_ATTR` with `type ==
-PW_TYPE_IPADDR`. [ERR] negative — `ATTRIBUTE Foo 1 bogus-type` causes
-`rc_dict_init()` to return `-1`.
+PW_TYPE_IPADDR`; `ATTRIBUTE Foo 1 uint32` produces a `DICT_ATTR` with `type
+== PW_TYPE_INTEGER`, same as `ATTRIBUTE Foo 1 integer`. [ERR] negative —
+`ATTRIBUTE Foo 1 bogus-type` causes `rc_dict_init()` to return `-1`.
 
 ### REQ-DICT-DATA-002 — vendor-scoped attribute IDs are encoded as `(id | PEN << 32)` in a 64-bit value
 
@@ -290,9 +295,10 @@ PW_TYPE_INTEGER, 0)` returns a non-NULL `DICT_ATTR*` findable via
 ### REQ-DICT-DATA-008 — `rc_dict_free` releases all three dictionary lists and resets the handle to an empty dictionary state
 
 **Requirement:** `rc_dict_free(rh)` MUST walk and `free()` every node in
-`rh->dictionary_attributes`, `rh->dictionary_values`, and
-`rh->dictionary_vendors`, then set all three list heads to `NULL`, leaving
-`rh` in a state where dictionary lookups return no matches until a new
+`rh->dictionary_attributes`, `rh->dictionary_values`, `rh->dictionary_vendors`,
+and `rh->dictionary_encrypt` (the `encrypt=`/`has_tag` side list — see
+REQ-DICT-DATA-009), then set all four list heads to `NULL`, leaving `rh` in a
+state where dictionary lookups return no matches until a new
 `rc_read_dictionary()`/`rc_read_dictionary_from_buffer()`/`rc_dict_add*()`
 call repopulates them. It MUST NOT free `rh->first_dict_read` (that string is
 owned and released separately, e.g. `rc_destroy()`/`config.c:1177`) —
@@ -301,7 +307,7 @@ also clear `first_dict_read` themselves if they intend to call
 `rc_read_dictionary()` again with the same filename and have it re-parse.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:702-723; lib/config.c:1177-1179
+**Source:** lib/dict.c:786-813; lib/config.c:1177-1179
 **Acceptance:** [DATA] positive, local — after `rc_dict_free(rh)`,
 `rc_dict_findattr(rh, "User-Name")` returns `NULL`. [REVIEW-adjacent, not
 flagged] — calling `rc_read_dictionary(rh, samepath)` again after
@@ -310,6 +316,55 @@ reloading anything (per REQ-DICT-INIT-001), which is an easy-to-hit caller
 pitfall worth noting in the `rc_dict_free()` Doxygen comment (currently
 absent — see REQ-GEN-ABI-003).
 **Links:** REQ-DICT-INIT-001
+
+### REQ-DICT-DATA-009 — an `ATTRIBUTE` line's option list MAY carry `has_tag` and/or `encrypt=`, recorded per-attribute and queryable independently of `DICT_ATTR`
+
+**Requirement:** In addition to `vendor=`/bare-vendor-name (REQ-DICT-DATA-003),
+the comma-separated option list on an `ATTRIBUTE` line's fourth token MAY
+contain:
+- `has_tag` (RFC 2868 SS3.1 tunnel-attribute tagging) — a bare flag, no value.
+- `encrypt=Tunnel-Password` — sets the RFC 2868 SS3.5 / RFC 2548
+  SS2.4.2-2.4.3 salt-encryption scheme (internally represented as
+  `encrypt_type == 2`). This is the spelling FreeRADIUS's own dictionaries
+  use for this scheme (e.g. `dictionary.rfc2868`'s `Tunnel-Password` line:
+  `string has_tag,encrypt=Tunnel-Password`; `dictionary.microsoft`'s
+  `MPPE-Send-Key`/`MPPE-Recv-Key` lines use the same spelling despite not
+  being named "Tunnel-Password" themselves — the name identifies the scheme,
+  not the attribute it's declared on). No numeric spelling is accepted: this
+  grammar has no prior release to stay compatible with, so there is exactly
+  one way to write it. Any other `encrypt=` value MUST be rejected — no other
+  scheme is implemented (see `lib/avp.c`'s `radcli_avp_decode()`).
+Both flags MAY appear on the same line, in either order, and are independent
+of any `vendor=`/bare-vendor-name token also present. Neither flag is stored
+on the public `DICT_ATTR` struct (`include/radcli/radcli.h`); both live in the
+internal `struct dict_encrypt_flag` side list keyed by `DICT_ATTR*` identity
+(`rh->dictionary_encrypt`), queryable via `rc_dict_attr_has_tag()`/
+`rc_dict_attr_encrypt_type()` (`include/includes.h`, internal only — not
+exported). An attribute with neither flag set returns `0`/false from both
+accessors. `radcli_avp_decode()` (`lib/avp.c`) consults `rc_dict_attr_has_tag()`
+to decide whether a salt-encrypted attribute's ciphertext is preceded by a
+one-octet Tag, rather than checking the attribute's identity.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/dict.c:322-405 (`has_tag`/`encrypt=` option parsing), 817-845
+(`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag`); include/includes.h
+(`struct dict_encrypt_flag`, accessor declarations); lib/avp.c:453-464
+(`avp_decode_into()`'s use of `rc_dict_attr_has_tag()`)
+**Acceptance:** [DATA] positive, local — loading a verbatim excerpt of
+FreeRADIUS's `share/dictionary/radius/dictionary.rfc2868` (which uses `uint32`
+and `has_tag`/`encrypt=Tunnel-Password` throughout) succeeds; its
+`Tunnel-Password` line reports `rc_dict_attr_encrypt_type() == 2` and
+`rc_dict_attr_has_tag() == 1`, identical to radcli's own `etc/dictionary`
+(same spelling: `encrypt=Tunnel-Password,has_tag`); its `Tunnel-Type` line
+reports `has_tag == 1`, `encrypt_type == 0`. [DATA] positive — a
+Tunnel-Password AVP salt-encrypted per RFC 2868 decodes to the same
+plaintext whether its definition came from radcli's own `etc/dictionary` or
+the real upstream excerpt (option token order differs between the two: flags
+first in the real file, `encrypt=` first in radcli's). [ERR] negative —
+`ATTRIBUTE Foo 1 string encrypt=Bogus-Name` and `ATTRIBUTE Foo 1 string
+encrypt=2` both cause `rc_dict_init()` to return `-1` — the numeric spelling
+is not a recognised name.
+**Links:** REQ-DICT-DATA-001, REQ-DICT-DATA-003
 
 ---
 

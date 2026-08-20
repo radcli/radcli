@@ -188,6 +188,8 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	size_t          bufsize = 0;
 	uint32_t        value;
 	int             type;
+	int             encrypt_type;
+	int             has_tag_flag;
 	unsigned attr_vendorspec = 0;
 	const char *pfilename = filename;
 
@@ -280,6 +282,13 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			{
 				type = PW_TYPE_INTEGER;
 			}
+			else if (strcmp (typestr, "uint32") == 0)
+			{
+				/* FreeRADIUS's newer dictionaries (e.g. dictionary.rfc2868)
+				 * spell PW_TYPE_INTEGER "uint32"; same synonym relationship
+				 * as ipaddr/ipv4addr above. */
+				type = PW_TYPE_INTEGER;
+			}
 			else if (strcmp (typestr, "ipaddr") == 0)
 			{
 				type = PW_TYPE_IPADDR;
@@ -309,6 +318,8 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			}
 
 			dvend = NULL;
+			encrypt_type = 0;
+			has_tag_flag = 0;
 			if (optstr[0] != '\0') {
 				char *cp1;
 				for (cp1 = optstr; cp1 != NULL; cp1 = cp) {
@@ -317,6 +328,36 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 						*cp = '\0';
 						cp++;
 					}
+
+					if (strcmp(cp1, "has_tag") == 0) {
+						/* RFC 2868 SS3.1 tunnel-attribute tagging; see
+						 * rc_dict_attr_has_tag() below. */
+						has_tag_flag = 1;
+						continue;
+					}
+
+					if (strncmp(cp1, "encrypt=", 8) == 0) {
+						/* FreeRADIUS's dictionaries name an encryption scheme
+						 * by the attribute that first defines it, e.g.
+						 * "encrypt=Tunnel-Password" for the RFC 2868 SS3.5 /
+						 * RFC 2548 SS2.4.2-2.4.3 salt-encryption scheme (see
+						 * share/dictionary/radius/dictionary.rfc2868 and
+						 * dictionary.microsoft upstream) -- matched here so a
+						 * real FreeRADIUS dictionary loads unmodified. No
+						 * other scheme name has a matching implementation
+						 * yet (see radcli_avp_decode() in lib/avp.c). */
+						if (strcmp(cp1 + 8, "Tunnel-Password") == 0) {
+							encrypt_type = 2;
+							continue;
+						}
+						rc_log(LOG_ERR,
+							"rc_dict_init: unsupported encrypt=%s on line %d "
+							"of dictionary %s (only encrypt=Tunnel-Password "
+							"is implemented)",
+							cp1 + 8, line_no, pfilename);
+						goto error;
+					}
+
 					if (strncmp(cp1, "vendor=", 7) == 0)
 						cp1 += 7;
 					dvend = rc_dict_findvend(rh, cp1);
@@ -347,6 +388,20 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			/* Insert it into the list */
 			attr->next = rh->dictionary_attributes;
 			rh->dictionary_attributes = attr;
+
+			if (encrypt_type != 0 || has_tag_flag != 0) {
+				struct dict_encrypt_flag *ef = malloc(sizeof(*ef));
+
+				if (ef == NULL) {
+					rc_log(LOG_CRIT, "rc_dict_init: out of memory");
+					goto error;
+				}
+				ef->attr = attr;
+				ef->encrypt_type = encrypt_type;
+				ef->has_tag = has_tag_flag;
+				ef->next = rh->dictionary_encrypt;
+				rh->dictionary_encrypt = ef;
+			}
 		}
 		else if (strcmp (tok, "VALUE") == 0)
 		{
@@ -729,6 +784,7 @@ void rc_dict_free(rc_handle *rh)
 	DICT_ATTR	*attr, *nattr;
 	DICT_VALUE	*val, *nval;
 	DICT_VENDOR	*vend, *nvend;
+	struct dict_encrypt_flag *ef, *nef;
 
 	for (attr = rh->dictionary_attributes; attr != NULL; attr = nattr) {
 		nattr = attr->next;
@@ -742,9 +798,46 @@ void rc_dict_free(rc_handle *rh)
 		nvend = vend->next;
 		free(vend);
 	}
+	for (ef = rh->dictionary_encrypt; ef != NULL; ef = nef) {
+		nef = ef->next;
+		free(ef);
+	}
 	rh->dictionary_attributes = NULL;
 	rh->dictionary_values = NULL;
 	rh->dictionary_vendors = NULL;
+	rh->dictionary_encrypt = NULL;
+}
+
+/* Internal only -- see the declaration in include/includes.h, shared with
+ * lib/avp.c the way rc_send_server_ctx is. */
+int rc_dict_attr_encrypt_type(rc_handle const *rh, const DICT_ATTR *attr)
+{
+	struct dict_encrypt_flag *ef;
+
+	if (rh == NULL || attr == NULL)
+		return 0;
+
+	for (ef = rh->dictionary_encrypt; ef != NULL; ef = ef->next) {
+		if (ef->attr == attr)
+			return ef->encrypt_type;
+	}
+	return 0;
+}
+
+/* Internal only -- see the declaration in include/includes.h, shared with
+ * lib/avp.c the way rc_send_server_ctx is. */
+int rc_dict_attr_has_tag(rc_handle const *rh, const DICT_ATTR *attr)
+{
+	struct dict_encrypt_flag *ef;
+
+	if (rh == NULL || attr == NULL)
+		return 0;
+
+	for (ef = rh->dictionary_encrypt; ef != NULL; ef = ef->next) {
+		if (ef->attr == attr)
+			return ef->has_tag;
+	}
+	return 0;
 }
 /** @} */
 

@@ -182,6 +182,22 @@ typedef struct rc_sockets_override {
 	int (*unlock)(void *ptr);
 } rc_sockets_override;
 
+/* Per-attribute wire-encryption scheme and RFC 2868 SS3.1 tag flag, keyed by
+ * DICT_ATTR identity, set by "encrypt=N"/"encrypt=<name>" and "has_tag"
+ * tokens on a dictionary ATTRIBUTE line (lib/dict.c). Kept as a side list
+ * rather than DICT_ATTR fields so the public DICT_ATTR struct
+ * (include/radcli/radcli.h) never changes layout -- this list is reachable
+ * only through the internal rc_conf a caller never sees the definition of.
+ * encrypt_type's only value is 2 (RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3
+ * salt-encryption); see radcli_avp_decode() in lib/avp.c. An attribute may
+ * set either flag alone or both together (Tunnel-Password sets both). */
+struct dict_encrypt_flag {
+	const struct dict_attr *attr;
+	int encrypt_type;
+	int has_tag;
+	struct dict_encrypt_flag *next;
+};
+
 struct rc_conf
 {
 	struct _option		*config_options;
@@ -198,6 +214,7 @@ struct rc_conf
 	struct dict_attr	*dictionary_attributes;
 	struct dict_value	*dictionary_values;
 	struct dict_vendor	*dictionary_vendors;
+	struct dict_encrypt_flag *dictionary_encrypt;
 
 	rc_sockets_override	so;
 	unsigned		so_type; /* rc_socket_type */
@@ -212,5 +229,14 @@ struct rc_aaa_ctx_st
 
 int rc_send_server_ctx (rc_handle *rh, RC_AAA_CTX **ctx, SEND_DATA *data,
                         char *msg, rc_type type, int no_wait);
+
+/* Looks up attr's "encrypt=N" flag (lib/dict.c); used by radcli_avp_decode()
+ * (lib/avp.c). See the definition in lib/dict.c. */
+int rc_dict_attr_encrypt_type(rc_handle const *rh, const struct dict_attr *attr);
+
+/* Looks up attr's "has_tag" flag (RFC 2868 SS3.1 tunnel-attribute tagging;
+ * lib/dict.c); used by radcli_avp_decode() (lib/avp.c). See the definition
+ * in lib/dict.c. */
+int rc_dict_attr_has_tag(rc_handle const *rh, const struct dict_attr *attr);
 
 #endif

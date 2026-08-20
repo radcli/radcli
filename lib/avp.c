@@ -28,6 +28,7 @@
 #include <radcli/radcli2.h>
 #include <ccan/list/list.h>
 #include "util.h"
+#include "rc-md5.h"
 #include "avp.h"
 
 /**
@@ -397,6 +398,17 @@ int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
  * radcli_avp_get_bytes() still lets a caller see the raw (malformed) value,
  * which is strictly more information than rc_avpair_gen2() offers today by
  * silently dropping the attribute.
+ *
+ * The other exception is an attribute the dictionary marks
+ * "encrypt=Tunnel-Password" (Tunnel-Password, MS-MPPE-Send-Key,
+ * MS-MPPE-Recv-Key -- see
+ * etc/dictionary and lib/dict.c's rc_dict_attr_encrypt_type()): decode
+ * transparently reverses the RFC 2868 SS3.5 / RFC 2548 salt-encryption
+ * scheme using the caller-supplied secret and request authenticator, and
+ * radcli_avp_get_bytes() then returns the plaintext. Only decryption is
+ * implemented; radcli_avp_encode() still refuses these attributes (see
+ * attr_requires_encryption() below) -- encrypting to originate a request
+ * carrying one is not something a RADIUS client needs to do.
  */
 
 /// @cond INTERNAL
@@ -412,7 +424,49 @@ static int attr_requires_encryption(const DICT_ATTR *def)
 	return 0;
 }
 
-static int avp_decode_into(rc_handle const *rh, struct radcli_avp_list_st *list,
+/* RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3 "salt-encryption" keystream:
+ *   b(1) = MD5(secret || request_authenticator || salt)
+ *   b(i) = MD5(secret || c(i-1))                      for i > 1
+ *   p(i) = c(i) XOR b(i)
+ * ciphertext/plaintext are len bytes, a non-zero multiple of 16; plaintext
+ * must have room for len bytes. Used only to decrypt (encrypting these
+ * attributes -- e.g. to originate a CoA/Access-Accept -- is not implemented;
+ * radcli is a client and has not needed to originate them so far). */
+/// @cond INTERNAL
+static void salt_decrypt(unsigned char *plaintext, const unsigned char *ciphertext, size_t len,
+			 const char *secret, const unsigned char request_authenticator[AUTH_VECTOR_LEN],
+			 const unsigned char salt[2])
+{
+	unsigned char keybuf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN + 2];
+	unsigned char b[16];
+	size_t secretlen = strlen(secret);
+	size_t i;
+
+	if (secretlen > MAX_SECRET_LENGTH)
+		secretlen = MAX_SECRET_LENGTH;
+
+	memcpy(keybuf, secret, secretlen);
+	memcpy(keybuf + secretlen, request_authenticator, AUTH_VECTOR_LEN);
+	memcpy(keybuf + secretlen + AUTH_VECTOR_LEN, salt, 2);
+	rc_md5_calc(b, keybuf, secretlen + AUTH_VECTOR_LEN + 2);
+
+	for (i = 0; i < len; i += 16) {
+		size_t j;
+
+		if (i > 0) {
+			memcpy(keybuf, secret, secretlen);
+			memcpy(keybuf + secretlen, ciphertext + i - 16, 16);
+			rc_md5_calc(b, keybuf, secretlen + 16);
+		}
+		for (j = 0; j < 16; j++)
+			plaintext[i + j] = ciphertext[i + j] ^ b[j];
+	}
+}
+/// @endcond
+
+static int avp_decode_into(rc_handle const *rh, const char *secret,
+			   const uint8_t request_authenticator[AUTH_VECTOR_LEN],
+			   struct radcli_avp_list_st *list,
 			   const uint8_t *ptr_in, size_t length, uint32_t vendorspec)
 {
 	pkt_buf pb;
@@ -455,7 +509,8 @@ static int avp_decode_into(rc_handle const *rh, struct radcli_avp_list_st *list,
 				    "with unknown Vendor-Id %u", lvalue);
 				continue;
 			}
-			if (avp_decode_into(rh, list, ptr + 4, (size_t)(attrlen - 4), lvalue) < 0)
+			if (avp_decode_into(rh, secret, request_authenticator, list,
+					    ptr + 4, (size_t)(attrlen - 4), lvalue) < 0)
 				return -1;
 			continue;
 		}
@@ -469,6 +524,49 @@ static int avp_decode_into(rc_handle const *rh, struct radcli_avp_list_st *list,
 				rc_log(LOG_WARNING, "radcli_avp_decode: received unknown VSA "
 				    "attribute %u, vendor %u of length %d",
 				    (unsigned)attr_data[0], vendorspec, attrlen + 2);
+			continue;
+		}
+
+		if (rc_dict_attr_encrypt_type(rh, (const DICT_ATTR *)def) == 2) {
+			/* RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3 salt-encryption.
+			 * Whether a one-octet Tag precedes the Salt is dictionary data
+			 * (the "has_tag" ATTRIBUTE option -- RFC 2868 SS3.1), not an
+			 * identity check on Tunnel-Password: Tunnel-Password carries
+			 * both encrypt=Tunnel-Password and has_tag; the MS-MPPE-*-Key
+			 * VSAs carry encrypt=Tunnel-Password alone. Any framing problem
+			 * here is treated the same
+			 * as an unrecognised attribute -- logged and skipped, not a
+			 * hard decode error, since it is a property of this one
+			 * attribute, not of the packet. */
+			int has_tag = rc_dict_attr_has_tag(rh, (const DICT_ATTR *)def);
+			size_t off = has_tag ? 1 : 0;
+
+			if (secret == NULL || request_authenticator == NULL) {
+				rc_log(LOG_WARNING, "radcli_avp_decode: %s is salt-encrypted "
+				    "but no secret/request authenticator was supplied; skipping",
+				    radcli_attr_def_name(def));
+			} else if ((size_t)attrlen < off + 2 + 16 ||
+				   ((size_t)attrlen - off - 2) % 16 != 0) {
+				rc_log(LOG_WARNING, "radcli_avp_decode: %s has an invalid "
+				    "salt-encrypted length", radcli_attr_def_name(def));
+			} else {
+				size_t ctlen = (size_t)attrlen - off - 2;
+				unsigned char plain[AUTH_STRING_LEN];
+				unsigned char salt[2];
+				unsigned char lenoct;
+
+				memcpy(salt, ptr + off, 2);
+				salt_decrypt(plain, ptr + off + 2, ctlen, secret,
+					    request_authenticator, salt);
+				lenoct = plain[0];
+				if (lenoct > ctlen - 1) {
+					rc_log(LOG_WARNING, "radcli_avp_decode: %s decrypted to "
+					    "an out-of-range length prefix", radcli_attr_def_name(def));
+				} else if (radcli_avp_add_bytes((radcli_avp_list *)list, def,
+								plain + 1, lenoct) != 0) {
+					return -1; /* allocation failure; already logged */
+				}
+			}
 			continue;
 		}
 
@@ -497,10 +595,17 @@ static int avp_decode_into(rc_handle const *rh, struct radcli_avp_list_st *list,
 /* Parses the attribute-value region [ptr, ptr+length) of a received RADIUS
  * packet into a newly allocated radcli_avp_list; vendorspec is 0 for a
  * top-level packet region, or the enclosing vendor's PEN when decoding a
- * VSA's sub-attributes. Returns 0 on success (*out set, possibly to an empty
- * list if every attribute present was unrecognised and skipped), -1 on a
- * hard framing error (*out left unset). */
-int radcli_avp_decode(rc_handle const *rh, const uint8_t *ptr, size_t length,
+ * VSA's sub-attributes. secret/request_authenticator are used only to
+ * decrypt an attribute the dictionary marks "encrypt=Tunnel-Password"
+ * (Tunnel-Password, MS-MPPE-Send-Key, MS-MPPE-Recv-Key -- RFC 2868 SS3.5 /
+ * RFC 2548); pass
+ * secret == NULL if none of those can occur. Returns 0 on success (*out set,
+ * possibly to an empty list if every attribute present was
+ * unrecognised/undecryptable and skipped), -1 on a hard framing error (*out
+ * left unset). */
+int radcli_avp_decode(rc_handle const *rh, const char *secret,
+		      const uint8_t request_authenticator[AUTH_VECTOR_LEN],
+		      const uint8_t *ptr, size_t length,
 		      uint32_t vendorspec, radcli_avp_list **out)
 {
 	struct radcli_avp_list_st *list;
@@ -512,7 +617,7 @@ int radcli_avp_decode(rc_handle const *rh, const uint8_t *ptr, size_t length,
 	if (list == NULL)
 		return -1;
 
-	if (avp_decode_into(rh, list, ptr, length, vendorspec) != 0) {
+	if (avp_decode_into(rh, secret, request_authenticator, list, ptr, length, vendorspec) != 0) {
 		radcli_avp_list_free((radcli_avp_list *)list);
 		return -1;
 	}

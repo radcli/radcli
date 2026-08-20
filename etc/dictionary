@@ -162,7 +162,7 @@ ATTRIBUTE	Tunnel-Type			64	integer
 ATTRIBUTE	Tunnel-Medium-Type		65	integer
 ATTRIBUTE	Tunnel-Client-Endpoint		66	string
 ATTRIBUTE	Tunnel-Server-Endpoint		67	string
-ATTRIBUTE	Tunnel-Password			69	string
+ATTRIBUTE	Tunnel-Password			69	string encrypt=Tunnel-Password,has_tag
 ATTRIBUTE	Tunnel-Private-Group-ID		81	string
 ATTRIBUTE	Tunnel-Assignment-ID		82	string
 ATTRIBUTE	Tunnel-Preference		83	integer
@@ -471,3 +471,25 @@ ATTRIBUTE	Access-Loop-Encapsulation		144	string
 ATTRIBUTE	IWF-Session				254	string
 
 END-VENDOR	DSL-Forum
+
+##############################################################################
+# RFC 2548 — Microsoft Vendor-specific RADIUS Attributes
+# Vendor: Microsoft, IANA Enterprise Number 311
+#
+# Only the two attributes radcli's decoder currently needs are listed here:
+# MS-MPPE-Send-Key and MS-MPPE-Recv-Key, RFC 2548 SS2.4.2/2.4.3, both using
+# the RFC 2868 SS3.5 salt-encryption scheme (encrypt=Tunnel-Password, the
+# same spelling FreeRADIUS's dictionary.microsoft uses for these two lines).
+# radcli.h's rc_vendor_attr_microsoft enum defines the wider MS-CHAP*/
+# MS-MPPE-* constant set for callers building VALUE_PAIRs directly without a
+# dictionary lookup; this block does not attempt to mirror all of it.
+##############################################################################
+
+VENDOR	Microsoft	311
+
+BEGIN-VENDOR	Microsoft
+
+ATTRIBUTE	MS-MPPE-Send-Key		16	string encrypt=Tunnel-Password
+ATTRIBUTE	MS-MPPE-Recv-Key		17	string encrypt=Tunnel-Password
+
+END-VENDOR	Microsoft
