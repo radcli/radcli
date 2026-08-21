@@ -85,6 +85,15 @@ invalidate requirements or use-cases other than the one you set out to change:
       intentional addition updated `devel/ABI-x86_64.dump` via `ninja -C build
       abi-dump` in the same commit (`REQ-GEN-ABI-001`/`002`)
 
+### Commit messages
+
+- Crisp and focused on what was fixed or added — not a narration of the work.
+- Title alone must give a complete overview: what was fixed/added, without needing
+  the body to make sense.
+- Body: no details beyond *what*, unless the *how* is genuinely unusual or
+  non-obvious (i.e. not what a reader would expect from the title) — in that case,
+  add a single sentence on the how. Otherwise, leave the body empty or omit it.
+
 ### Human-judgment required — flag in the PR, do not decide unilaterally
 
 - Any change that adds process-wide state ownership (signal handler, `fork()`,
