@@ -329,6 +329,37 @@ end-to-end via `rc_acct_async()`, asserting completion in well under `radius_tim
 **Links:** REQ-NET-NET-009, REQ-NET-ERR-001, REQ-ATTR-NET-030 (attrs.md; the `rc_acct_async()`
 caller contract)
 
+### REQ-NET-NET-018 — A server name that resolves to multiple addresses is tried address-by-address, not just the first
+
+**Requirement:** `radcli_transport_exchange()` (internal-only, declared in `include/includes.h`,
+not `include/radcli/radcli.h`/`lib/radcli.map.in`) MUST iterate every address a server name
+resolves to (every `struct addrinfo` in the list `rc_getaddrinfo()`/`rc_find_server_addr()`
+returns, in the order returned), rather than only the first. For each address it MUST open a
+fresh socket and re-derive the local source address (`rc_get_srcaddr()`) before use — not reuse
+a socket or source address computed for a previous address — because addresses in the list can
+differ in family (IPv4/IPv6). Each address gets its own send/retry/receive budget
+(`data->retries` attempts, `REQ-NET-NET-009`'s per-attempt timeout semantics apply per address,
+not once across the whole name); an address is abandoned in favor of the next only after its own
+retry budget is exhausted (`TIMEOUT_RC`) or its socket cannot be opened/bound. `TIMEOUT_RC` MUST
+only be returned once every address in the list has been exhausted this way. `no_wait` mode
+(`REQ-NET-NET-017`) is unaffected by this requirement: it sends once, to the first resolved
+address only, and returns without trying any other address, since there is no reply to judge a
+second attempt by.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/sendserver.c:477-716 (`radcli_transport_exchange()`'s `for (cur_addr = auth_addr;
+cur_addr != NULL; cur_addr = cur_addr->ai_next)` loop, fresh `sfuncs->get_fd()`/
+`rc_get_srcaddr()` per iteration, inner send/poll/retry loop scoped to `cur_addr`); lib/sendserver.c:1061-1066
+(`rc_send_server_ctx()` delegating its socket/retry/receive step to `radcli_transport_exchange()`)
+**Acceptance:** [NET] shell, local, no root — `tests/dns-failover-tests.sh` points `authserver` at
+a name (`localhost`) that resolves to both an IPv4 and an IPv6 loopback address, with a mock
+RADIUS server (`tests/radius-server.py`) listening on only whichever address `getaddrinfo()`
+returns *second*; asserts the request still succeeds, and that it took roughly one exhausted
+retry budget (not an instant reply, and not a hang across both addresses' budgets) — evidence
+that the first address was actually tried and abandoned before the second answered.
+**Links:** REQ-NET-NET-009 (the per-address retry/timeout budget this layers on top of),
+REQ-NET-NET-017 (`no_wait`'s single-address exception to this requirement)
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling

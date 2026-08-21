@@ -9,7 +9,7 @@ shell_tests = [
   'tcp-tests.sh', 'eap-tests.sh', 'no-server-file-tests.sh', 'reject-tests.sh',
   'skip-unknown-vsa.sh', 'namespace-tests.sh', 'radembedded-tests.sh',
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
-  'msg-auth-tests.sh', 'malformed-packet-tests.sh',
+  'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
 ]
 
 if have_gnutls

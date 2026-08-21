@@ -239,4 +239,48 @@ int rc_dict_attr_encrypt_type(rc_handle const *rh, const struct dict_attr *attr)
  * in lib/dict.c. */
 int rc_dict_attr_has_tag(rc_handle const *rh, const struct dict_attr *attr);
 
+/* lib/sendserver.c internals, exposed (no longer static) so
+ * radcli_transport_exchange() can reuse the exact RFC 2865 SS3 Response
+ * Authenticator and Message-Authenticator/Blast-RADIUS logic
+ * rc_send_server_ctx() uses, rather than a second, independently-written
+ * copy of security-sensitive code. None of the five takes or returns a
+ * VALUE_PAIR; all operate on raw bytes, AUTH_HDR, secret, and vector. */
+
+/* Fills a freshly allocated *ctx (if ctx != NULL and *ctx == NULL) with a
+ * copy of secret/vector; a no-op returning OK_RC if ctx == NULL. ERROR_RC
+ * if *ctx is already non-NULL or on allocation failure. */
+int populate_ctx(RC_AAA_CTX **ctx, char secret[MAX_SECRET_LENGTH + 1],
+		 uint8_t vector[AUTH_VECTOR_LEN]);
+
+/* Verifies a reply's Response Authenticator (RFC 2865 SS3: MD5 over Code,
+ * Identifier, Length, the Request Authenticator (vector) the request was
+ * sent with, the reply attributes, and secret) and that its Identifier
+ * matches seq_nbr. Returns OK_RC if both check out, BADRESPID_RC if the
+ * Identifier does not match, BADRESP_RC if the Response Authenticator does
+ * not verify. */
+int rc_check_reply(AUTH_HDR *auth, int bufferlen, char const *secret,
+		   unsigned char const *vector, uint8_t seq_nbr);
+
+/* Fills vector with AUTH_VECTOR_LEN cryptographically random bytes (a
+ * request's Request Authenticator, for any request type other than
+ * Accounting-Request, whose own Request Authenticator is instead computed
+ * from the encoded packet -- see rc_check_reply()'s caller). */
+void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN]);
+
+/* Appends a Message-Authenticator attribute (RFC 2869 SS5.14: type 80,
+ * length 18, an HMAC-MD5 over the packet with the attribute's own value
+ * field zeroed during computation) to the packet at auth, whose first
+ * total_length bytes (header + attributes already encoded) must already be
+ * written. Returns the new total length, including the appended attribute. */
+int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_length);
+
+/* Verifies a received Message-Authenticator attribute against recv_buffer
+ * (length bytes, header included), given secret and the request's own
+ * Request Authenticator (req_auth) -- required for a reply to an
+ * Access-Request, RFC 2869 SS5.14. Returns 0 if it verifies (or is absent:
+ * the caller decides whether that is acceptable), non-zero if present and
+ * wrong. */
+int validate_message_authenticator(const uint8_t *recv_buffer, size_t length,
+				   const char *secret, const unsigned char *req_auth);
+
 #endif
