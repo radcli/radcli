@@ -84,6 +84,9 @@ invalidate requirements or use-cases other than the one you set out to change:
       compare-exported` and `ninja -C build abi-check` both pass, and any
       intentional addition updated `devel/ABI-x86_64.dump` via `ninja -C build
       abi-dump` in the same commit (`REQ-GEN-ABI-001`/`002`)
+- [ ] Every changed line is relevant to the change — no drive-by refactoring;
+      note any adjacent improvement you noticed in the PR description instead
+      of bundling it into the patch
 
 ### Commit messages
 
@@ -93,6 +96,7 @@ invalidate requirements or use-cases other than the one you set out to change:
 - Body: no details beyond *what*, unless the *how* is genuinely unusual or
   non-obvious (i.e. not what a reader would expect from the title) — in that case,
   add a single sentence on the how. Otherwise, leave the body empty or omit it.
+- `Resolves: #NNN` when the commit closes a GitHub issue (recommended, not mandatory).
 
 ### Human-judgment required — flag in the PR, do not decide unilaterally
 
@@ -239,6 +243,13 @@ Six jobs run on every push (`.github/workflows/tests.yaml`):
 - C99, BSD 2-clause license for new files
 - All public functions prefixed `rc_`, macros in `UPPER_CASE`
 - Doxygen comments on all public API (`@param`, `@return`, `@defgroup`)
+- Comments: prefer self-documenting code (meaningful names, short single-purpose
+  functions) over comments. Where used, a comment should explain something not
+  obvious from the code itself — a non-obvious constraint, the reason for an
+  otherwise-surprising choice — not restate what the code already says. Code
+  that implements a specific protocol behavior (e.g. an RFC 2865/2866/5176/6614
+  requirement) must say which spec/section it implements, so a reader can verify
+  the implementation against the source document.
 - Compile with `-Wall -Werror`; CI runs ASan and UBSan as separate jobs
 - New features must include a test; see `tests/` and `.github/workflows/tests.yaml`
 
