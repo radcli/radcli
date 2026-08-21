@@ -469,6 +469,9 @@ int validate_message_authenticator(const uint8_t *recv_buffer,
  * @param recv_buf destination for the reply's attribute region.
  * @param recv_buf_cap recv_buf's capacity in bytes.
  * @param recv_len set to the reply's attribute region length on success.
+ * @param out_code if non-NULL, set to the reply's raw wire Code octet
+ *  (e.g. PW_ACCESS_ACCEPT) whenever recv_len is also set, i.e. on
+ *  OK_RC/REJECT_RC/CHALLENGE_RC/BADRESP_RC; left untouched otherwise.
  * @return OK_RC (0) on success, CHALLENGE_RC on Access-Challenge, TIMEOUT_RC
  *  if every address's retries are exhausted, REJECT_RC on reject, or
  *  negative on failure.
@@ -479,7 +482,8 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
 			      int timeout, int retries, int no_wait, rc_type type,
 			      const uint8_t *send_buf, int send_len,
-			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len)
+			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
+			      uint8_t *out_code)
 {
 	struct addrinfo *auth_addr = NULL, *cur_addr;
 	const rc_sockets_override *sfuncs;
@@ -823,6 +827,8 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			uint8_t code = recv_auth->code; /* memmove() below invalidates recv_auth */
 
 			*recv_len = (size_t)length;
+			if (out_code)
+				*out_code = code;
 			if (recv_buf_cap > (size_t)AUTH_HDR_LEN)
 				memmove(recv_buf, recv_buf + AUTH_HDR_LEN, (size_t)length);
 
@@ -1064,7 +1070,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 					   secret, mgmt_secret,
 					   data->timeout, data->retries, no_wait, type,
 					   send_buffer, total_length,
-					   recv_buffer, sizeof(recv_buffer), &recv_len);
+					   recv_buffer, sizeof(recv_buffer), &recv_len, NULL);
 
 	if (no_wait ||
 	    (result != OK_RC && result != CHALLENGE_RC &&

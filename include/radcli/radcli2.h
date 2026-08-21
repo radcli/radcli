@@ -318,6 +318,101 @@ int radcli_avp_get_in6(const radcli_avp *a, struct in6_addr *out, unsigned *pref
  */
 int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len);
 
+/** \enum radcli_code RADIUS packet codes (RFC 2865 SS3).
+ *
+ * Used both to construct a #radcli_request (RADCLI_CODE_ACCESS_REQUEST or
+ * RADCLI_CODE_ACCOUNTING_REQUEST) and to read back the code of the reply a
+ * successful radcli_request_perform() received, via radcli_request_code().
+ * These are fixed protocol constants and match radcli.h's PW_* constants of
+ * the same name; radcli2.h does not include radcli.h (see this header's top
+ * comment), so they are restated here rather than shared.
+ */
+typedef enum radcli_code {
+	RADCLI_CODE_ACCESS_REQUEST = 1,
+	RADCLI_CODE_ACCESS_ACCEPT = 2,
+	RADCLI_CODE_ACCESS_REJECT = 3,
+	RADCLI_CODE_ACCOUNTING_REQUEST = 4,
+	RADCLI_CODE_ACCOUNTING_RESPONSE = 5,
+	RADCLI_CODE_ACCESS_CHALLENGE = 11
+} radcli_code;
+
+/** \enum radcli_result Outcome of radcli_request_perform(). */
+typedef enum radcli_result {
+	RADCLI_OK = 0,       //!< A validated reply was received; see radcli_request_code() for which one.
+	RADCLI_TIMEOUT = 1,  //!< No reply from any address the server name resolved to.
+	RADCLI_ERROR = -1    //!< Malformed input, a verification failure, or no server configured.
+} radcli_result;
+
+/** Opaque RADIUS request/reply exchange.
+ *
+ * Construct with radcli_request_new(), send it and await the reply with
+ * radcli_request_perform(), read the outcome with the accessors below, and
+ * release with radcli_request_free().
+ */
+struct radcli_request_st;
+typedef struct radcli_request_st radcli_request;
+
+/** @brief Create a request to send.
+ *
+ * Reads the destination server, its shared secret, and the timeout/retry
+ * counts from ctx's configuration -- the same "authserver"/"acctserver",
+ * "radius_timeout", and "radius_retries" settings rc_auth()/rc_acct()
+ * (radcli.h) use. Unlike rc_auth()/rc_acct(), which fail over across every
+ * configured entry, this uses only the first: the new API carries one
+ * server per context, with redundancy delegated to DNS (several A/AAAA
+ * records for one name, tried in order within the request's timeout by
+ * radcli_transport_exchange()) rather than a configured list of distinct
+ * servers. A warning is logged, not an error, if more than one entry is
+ * configured, so a caller migrating one entry point at a time from the
+ * legacy API isn't broken by the leftover entries.
+ *
+ * @param ctx a context with configuration loaded.
+ * @param code RADCLI_CODE_ACCESS_REQUEST or RADCLI_CODE_ACCOUNTING_REQUEST.
+ * @param send the attributes to send; copied in -- send may be freed or
+ *  reused by the caller immediately after this call returns.
+ * @return the new request, or NULL on allocation failure, an invalid code,
+ *  or if ctx has no server configured for that code's type.
+ */
+radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send);
+
+/** @brief Send a request and wait for the reply.
+ *
+ * May be called only once per request; construct a new radcli_request for
+ * a retransmission with different content.
+ *
+ * @param r a request from radcli_request_new().
+ * @return RADCLI_OK if a validated reply was received (see
+ *  radcli_request_code() for which one), RADCLI_TIMEOUT if none of the
+ *  server's addresses replied, or RADCLI_ERROR on failure.
+ */
+int radcli_request_perform(radcli_request *r);
+
+/** @brief Return the reply's RADIUS code.
+ * @param r a request radcli_request_perform() returned RADCLI_OK for.
+ * @return the code (e.g. RADCLI_CODE_ACCESS_ACCEPT), or 0 if r has not yet
+ *  been successfully performed.
+ */
+radcli_code radcli_request_code(const radcli_request *r);
+
+/** @brief Return the reply's decoded attributes.
+ * @param r a request radcli_request_perform() returned RADCLI_OK for.
+ * @return the attribute list, owned by r and valid for its lifetime; NULL
+ *  if r has not yet been successfully performed, or the reply carried no
+ *  attributes.
+ */
+const radcli_avp_list *radcli_request_attrs(const radcli_request *r);
+
+/** @brief Return the name of the server a request was (or will be) sent to.
+ * @param r a request from radcli_request_new().
+ * @return the server name, valid for r's lifetime; never NULL.
+ */
+const char *radcli_request_server(const radcli_request *r);
+
+/** @brief Release a request.
+ * @param r a request from radcli_request_new(); NULL is accepted and ignored.
+ */
+void radcli_request_free(radcli_request *r);
+
 /** @} */
 
 /* *INDENT-OFF* */

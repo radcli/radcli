@@ -14,7 +14,7 @@ shell_tests = [
 
 if have_gnutls
   shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
-  shell_tests += ['avp-codec-freeradius-tests.sh']
+  shell_tests += ['avp-codec-freeradius-tests.sh', 'request-freeradius-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
@@ -32,6 +32,9 @@ if have_gnutls
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
   avp = executable('avp', 'avp.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
+  request = executable('request', 'request.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
   dict_add = executable('dict-add', 'dict-add.c',
@@ -61,11 +64,17 @@ if have_gnutls
     include_directories: tests_incdirs + [include_directories('../lib')],
     link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
+  # FreeRADIUS interoperability check for radcli2.h's request/reply entry
+  # point (tests/request-freeradius-tests.sh), same needs as avp_codec_freeradius
+  # above. Links libradcli_shared: radcli_request_*() are public, exported API.
+  request_freeradius = executable('request-freeradius', 'request-freeradius.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
   config_unit = executable('config-unit', 'config-unit.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
 
-  foreach t : [avpair, dict, avp, dict_add, pack, avp_codec, avp_legacy, config_unit]
+  foreach t : [avpair, dict, avp, request, dict_add, pack, avp_codec, avp_legacy, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

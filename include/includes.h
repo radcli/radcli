@@ -283,4 +283,15 @@ int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_len
 int validate_message_authenticator(const uint8_t *recv_buffer, size_t length,
 				   const char *secret, const unsigned char *req_auth);
 
+/* Representation-agnostic send/retry/receive core (lib/sendserver.c),
+ * shared by rc_send_server_ctx() and lib/request.c's radcli_request_perform();
+ * see its own doc comment for the full contract. */
+int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
+			      char *server_name, unsigned short svc_port,
+			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
+			      int timeout, int retries, int no_wait, rc_type type,
+			      const uint8_t *send_buf, int send_len,
+			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
+			      uint8_t *out_code);
+
 #endif
