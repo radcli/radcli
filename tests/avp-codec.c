@@ -49,7 +49,8 @@ static char test_dict[] =
 "VENDOR          DSL-Forum       3561     Large\n"
 "ATTRIBUTE	Agent-Circuit-Id		1	string DSL-Forum\n"
 "VENDOR          Microsoft       311      Large\n"
-"ATTRIBUTE	MS-MPPE-Send-Key		16	string Microsoft,encrypt=Tunnel-Password\n";
+"ATTRIBUTE	MS-MPPE-Send-Key		16	string Microsoft,encrypt=Tunnel-Password\n"
+"ATTRIBUTE	Test-Int64		251	integer64\n";
 
 static int avp_list_empty(const radcli_avp_list *l)
 {
@@ -162,6 +163,77 @@ int main(int argc, char **argv)
 
 	radcli_avp_list_free(l);
 	radcli_avp_list_free(decoded);
+
+	/* --- round trip: RADCLI_TYPE_INTEGER64, 8-octet network byte order.
+	 * A value with both halves non-zero (0x0123456789abcdef) exercises the
+	 * full width -- either half being byte-swapped or dropped would
+	 * corrupt the other half's bit pattern too, given how the halves are
+	 * combined, unlike an all-zero-high-word value that could hide a
+	 * dropped-high-word bug. --- */
+
+	{
+		const radcli_attr_def *d_int64 = radcli_dict_lookup(rh, "Test-Int64");
+		radcli_avp_list *l4 = radcli_avp_list_new();
+		uint64_t v64;
+
+		assert(d_int64 != NULL && l4 != NULL);
+		assert(radcli_avp_add_uint64(l4, d_int64, UINT64_C(0x0123456789abcdef)) == 0);
+
+		n = radcli_avp_encode_rfc2865(rh, l4, NULL, NULL, buf, sizeof(buf), NULL);
+		if (n != 10 /* type(1) + len(1) + 8 octets */) {
+			fprintf(stderr, "error: Test-Int64 encoded to %d bytes, expected 10\n", n);
+			exit(1);
+		}
+		/* Network byte order, high word first: 01 23 45 67 89 ab cd ef. */
+		{
+			static const uint8_t want[] = {
+				0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+			};
+			if (memcmp(buf + 2, want, sizeof(want)) != 0) {
+				fprintf(stderr, "error: Test-Int64 wire encoding is not "
+						"big-endian, or halves are swapped\n");
+				exit(1);
+			}
+		}
+
+		if (radcli_avp_decode(rh, NULL, NULL, buf, (size_t)n, 0, &decoded) != 0) {
+			fprintf(stderr, "error: radcli_avp_decode() failed on Test-Int64\n");
+			exit(1);
+		}
+		a = radcli_avp_get(decoded, d_int64, 0);
+		if (a == NULL || radcli_avp_get_uint64(a, &v64) != 0 ||
+		    v64 != UINT64_C(0x0123456789abcdef)) {
+			fprintf(stderr, "error: Test-Int64 did not round-trip through the wire codec\n");
+			exit(1);
+		}
+		radcli_avp_list_free(l4);
+		radcli_avp_list_free(decoded);
+	}
+
+	/* --- decode: an integer64 attribute with the wrong wire length is
+	 * skipped outright, not stored raw for a getter to reject later (the
+	 * four-octet numeric types tolerate a wrong length exactly that way --
+	 * this is a deliberately stricter rule, since no VALUE_PAIR-based
+	 * caller could ever have been compiled against RADCLI_TYPE_INTEGER64
+	 * in the first place, so there is no reason to keep a malformed one
+	 * around) --- */
+
+	{
+		radcli_avp_list *skipped;
+		/* Test-Int64 (251) with a 7-byte value: one short of the required 8. */
+		uint8_t short_int64[] = { 251, 9, 1, 2, 3, 4, 5, 6, 7 };
+
+		if (radcli_avp_decode(rh, NULL, NULL, short_int64, sizeof(short_int64), 0, &skipped) != 0) {
+			fprintf(stderr, "error: a wrong-length integer64 attribute was a "
+					"hard decode error\n");
+			exit(1);
+		}
+		if (!avp_list_empty(skipped)) {
+			fprintf(stderr, "error: a wrong-length integer64 attribute was not skipped\n");
+			exit(1);
+		}
+		radcli_avp_list_free(skipped);
+	}
 
 	/* --- decode: hard framing errors abort the whole decode --- */
 

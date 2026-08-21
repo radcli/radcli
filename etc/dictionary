@@ -24,6 +24,8 @@
 #   RFC 4679  DSL Forum Vendor-Specific RADIUS Attributes
 #   RFC 4818  RADIUS Delegated-IPv6-Prefix Attribute
 #   RFC 4849  RADIUS Filter Rule Attribute
+#   RFC 5447  Diameter Mobile IPv6: Support for NAS to Diameter Server
+#             Interaction (MIP6-Feature-Vector only)
 #   RFC 4950  (ICMP Extensions for MPLS — not a RADIUS specification)
 #   RFC 5080  Common RADIUS Implementation Issues and Suggested Fixes
 #             (clarification document — no new attributes defined)
@@ -101,8 +103,8 @@ ATTRIBUTE	Login-LAT-Port			63	string
 
 ATTRIBUTE	Acct-Status-Type		40	integer
 ATTRIBUTE	Acct-Delay-Time			41	integer
-ATTRIBUTE	Acct-Input-Octets		42	integer
-ATTRIBUTE	Acct-Output-Octets		43	integer
+ATTRIBUTE	Acct-Input-Octets		42	integer gigawords=52
+ATTRIBUTE	Acct-Output-Octets		43	integer gigawords=53
 ATTRIBUTE	Acct-Session-Id			44	string
 ATTRIBUTE	Acct-Authentic			45	integer
 ATTRIBUTE	Acct-Session-Time		46	integer
@@ -206,6 +208,14 @@ ATTRIBUTE	User-Priority-Table		59	string
 ##############################################################################
 
 ATTRIBUTE	Delegated-IPv6-Prefix		123	ipv6prefix
+
+##############################################################################
+# RFC 5447 — Diameter Mobile IPv6: Support for NAS to Diameter Server
+#            Interaction (the RADIUS attribute it defines, MIP6-Feature-
+#            Vector, is the only integer64 attribute in the standard space)
+##############################################################################
+
+ATTRIBUTE	MIP6-Feature-Vector		124	integer64
 
 ##############################################################################
 # RFC 6911 — RADIUS Attributes for IPv6 Access Networks

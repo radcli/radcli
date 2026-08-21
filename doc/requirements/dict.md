@@ -366,6 +366,72 @@ encrypt=2` both cause `rc_dict_init()` to return `-1` — the numeric spelling
 is not a recognised name.
 **Links:** REQ-DICT-DATA-001, REQ-DICT-DATA-003
 
+### REQ-DICT-DATA-010 — an `ATTRIBUTE` line's type token MAY be `integer64` (RFC 8044 SS3.3), resolving to `RADCLI_TYPE_INTEGER64` and rejected by the programmatic attribute API
+
+**Requirement:** `rc_dict_init()`'s `ATTRIBUTE` type token MUST accept
+`integer64` (RFC 8044 SS3.3's 8-octet, network-byte-order integer data
+type — e.g. `MIP6-Feature-Vector`, RFC 5447 SS4.2.5, `etc/dictionary`'s
+only standard user of it) in addition to the fixed set in REQ-DICT-DATA-001,
+parsing it to the internal sentinel `PW_TYPE_MAX`, which `dict_type_to_radcli()`
+maps to `RADCLI_TYPE_INTEGER64` for `radcli2.h` callers. `PW_TYPE_MAX` MUST
+NOT be a legal value for `rc_dict_addattr()` (the public, programmatic
+`rc_attr_type`-based attribute API) to accept — `type < 0 || type >=
+PW_TYPE_MAX` is rejected there — so a `VALUE_PAIR`-based caller can never
+construct a `DICT_ATTR` of this type; only the bundled dictionary file,
+parsed directly into `DICT_ATTR` bypassing that check, can.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/dict.c:313-325 (`"integer64"` token parsing), lib/dict.c:50
+(`rc_dict_addattr()`'s `type >= PW_TYPE_MAX` rejection), lib/dict.c:955-980
+(`dict_type_to_radcli()`'s `PW_TYPE_MAX` -> `RADCLI_TYPE_INTEGER64` mapping)
+**Acceptance:** [DATA] positive, local — a synthetic `integer64` line
+(`Test-Int64-Attr`, `tests/dict.c`'s Phase 2 section) loads and
+`radcli_attr_def_type()` reports `RADCLI_TYPE_INTEGER64`. `[UNDOCUMENTED]`
+gap: no test loads the built-in dictionary and looks up `MIP6-Feature-Vector`
+(124) itself by name — coverage is via the synthetic attribute only, not the
+one real standard user of this type. [ERR] negative, local — `tests/dict.c`'s
+`bad_integer64_dict` (`"integer65"`, an unrecognised type token similar to
+but distinct from `"integer64"`) confirms the type-token match is exact, not
+a prefix match; `tests/avp-legacy.c` confirms `rc_avpair_add()` cannot be
+made to construct a `VALUE_PAIR` of this type.
+**Links:** REQ-DICT-DATA-001, REQ-AVP2-DATA-009
+
+### REQ-DICT-DATA-011 — an `ATTRIBUTE` line's option list MAY carry `gigawords=<attrid>`, pairing it with a 64-bit-counter Gigawords attribute (RFC 2866/RFC 2869)
+
+**Requirement:** In addition to `has_tag`/`encrypt=` (REQ-DICT-DATA-009), the
+comma-separated option list on an `ATTRIBUTE` line MAY contain
+`gigawords=<attrid>`, naming — within that line's own vendor scope, if any —
+the attribute id of this attribute's Gigawords counterpart for RFC 2866
+SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2 Acct-Input/Output-Gigawords-style
+64-bit accounting (e.g. `Acct-Input-Octets`'s `gigawords=52` names
+`Acct-Input-Gigawords`). `<attrid>` MUST be a decimal integer in `1..255`;
+anything else (non-numeric, `0`, or `> 255`) MUST cause `rc_dict_init()` to
+return `-1`. The pairing is recorded, vendor-combined via
+`RADCLI_VENDOR_ATTR_SET()`, in the internal `struct dict_counter64_pair` side
+list (`rh->dictionary_gigawords`, `include/includes.h`) keyed by the octets
+attribute's `DICT_ATTR*`, not stored on the public `DICT_ATTR` struct, and
+resolved lazily to a `DICT_ATTR*` by `rc_dict_attr_gigawords()`
+(`include/includes.h`, internal only) rather than at parse time, since the
+named counterpart's own `ATTRIBUTE` line may not have been parsed yet.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/dict.c:380-401 (`gigawords=` option parsing), lib/dict.c:449-463
+(`struct dict_counter64_pair` construction), lib/dict.c:921-933
+(`rc_dict_attr_gigawords()`); include/includes.h (`struct dict_counter64_pair`)
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s `counter64_dict`
+(`Test-Counter-Octets` (252) `gigawords=253` paired with
+`Test-Counter-Gigawords` (253)) loads; `radcli_avp_add_gigawords64()`/
+`_get_gigawords64()` (`tests/avp.c`) confirm the pairing resolves through
+`rc_dict_attr_gigawords()`. [DATA] positive, requires a real FreeRADIUS
+server (`tests/request-freeradius.c`, SS4) — `etc/dictionary`'s actual
+`Acct-Input-Octets`(42, `gigawords=52`)/`Acct-Input-Gigawords`(52) pair
+round-trips a value over 2^32 through a live server via
+`radcli_avp_add_gigawords64()`. [ERR] negative, local — `tests/dict.c`'s
+`bad_gigawords_dict` (`gigawords=notanumber`) is rejected. `[UNDOCUMENTED]`
+gap: the numeric-range validation (`v <= 0 || v > 0xff`, lib/dict.c:396) has
+no dedicated `gigawords=0`/`gigawords=256` negative test.
+**Links:** REQ-DICT-DATA-009, REQ-AVP2-DATA-012
+
 ---
 
 ## ERR — parse-error, validation, and allocation-failure behavior

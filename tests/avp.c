@@ -41,7 +41,11 @@ static char test_dict[] =
 "ATTRIBUTE	NAS-IP-Address		4	ipaddr\n"
 "ATTRIBUTE	Framed-IPv6-Address	168	ipv6addr\n"
 "ATTRIBUTE	Framed-IPv6-Prefix	97	ipv6prefix\n"
-"ATTRIBUTE	Session-Timeout		27	integer\n";
+"ATTRIBUTE	Session-Timeout		27	integer\n"
+"ATTRIBUTE	Test-Int64		251	integer64\n"
+"ATTRIBUTE	Test-Octets		252	integer gigawords=253\n"
+"ATTRIBUTE	Test-Gigawords		253	integer\n"
+"ATTRIBUTE	Test-Octets-Unpaired	254	integer\n";
 
 int main(int argc, char **argv)
 {
@@ -260,6 +264,112 @@ int main(int argc, char **argv)
 	if (rawlen != 3 || memcmp(raw, "bob", 3) != 0) {
 		fprintf(stderr, "error: idx=1 User-Name is not the second one added\n");
 		exit(1);
+	}
+
+	/* --- Phase 2: RADCLI_TYPE_INTEGER64, radcli_avp_add_uint64()/_get_uint64() --- */
+
+	{
+		const radcli_attr_def *d_int64 = radcli_dict_lookup(ctx, "Test-Int64");
+		uint64_t v64;
+
+		assert(d_int64 != NULL);
+		if (radcli_attr_def_type(d_int64) != RADCLI_TYPE_INTEGER64) {
+			fprintf(stderr, "error: Test-Int64 did not parse to RADCLI_TYPE_INTEGER64\n");
+			exit(1);
+		}
+		/* Exercises both halves independently: a value with the high 32
+		 * bits set (0x0123456789abcdef) is not representable as, and would
+		 * be silently truncated by, any of the 32-bit setters. */
+		if (radcli_avp_add_uint64(l, d_int64, UINT64_C(0x0123456789abcdef)) != 0) {
+			fprintf(stderr, "error: radcli_avp_add_uint64() failed\n");
+			exit(1);
+		}
+		a = radcli_avp_get(l, d_int64, 0);
+		if (a == NULL || radcli_avp_get_uint64(a, &v64) != 0 ||
+		    v64 != UINT64_C(0x0123456789abcdef)) {
+			fprintf(stderr, "error: Test-Int64 did not round-trip\n");
+			exit(1);
+		}
+		/* Wrong-type rejection, both directions. */
+		if (radcli_avp_add_uint64(l, d_user, 1) == 0) {
+			fprintf(stderr, "error: radcli_avp_add_uint64() accepted a "
+					"non-integer64 attribute\n");
+			exit(1);
+		}
+		if (radcli_avp_get_uint32(a, &u) == 0) {
+			fprintf(stderr, "error: radcli_avp_get_uint32() accepted an "
+					"integer64 attribute\n");
+			exit(1);
+		}
+	}
+
+	/* --- Phase 2: the Gigawords helper --- */
+
+	{
+		const radcli_attr_def *d_octets = radcli_dict_lookup(ctx, "Test-Octets");
+		const radcli_attr_def *d_gigawords = radcli_dict_lookup(ctx, "Test-Gigawords");
+		const radcli_attr_def *d_unpaired = radcli_dict_lookup(ctx, "Test-Octets-Unpaired");
+		radcli_avp_list *cl;
+		uint64_t v64;
+
+		assert(d_octets != NULL && d_gigawords != NULL && d_unpaired != NULL);
+
+		/* A count over 2^32: both halves must be present and correct. */
+		cl = radcli_avp_list_new();
+		assert(cl != NULL);
+		if (radcli_avp_add_gigawords64(ctx, cl, d_octets, UINT64_C(5000000000)) != 0) {
+			fprintf(stderr, "error: radcli_avp_add_gigawords64() failed\n");
+			exit(1);
+		}
+		if (radcli_avp_get(cl, d_gigawords, 0) == NULL) {
+			fprintf(stderr, "error: radcli_avp_add_gigawords64() did not add the "
+					"Gigawords attribute for a value over 2^32\n");
+			exit(1);
+		}
+		if (radcli_avp_get_gigawords64(ctx, cl, d_octets, &v64) != 0 ||
+		    v64 != UINT64_C(5000000000)) {
+			fprintf(stderr, "error: radcli_avp_get_gigawords64() did not "
+					"reassemble a value over 2^32\n");
+			exit(1);
+		}
+		radcli_avp_list_free(cl);
+
+		/* A count under 2^32: the Gigawords attribute must be omitted --
+		 * matching how a real NAS sends it -- not added as zero. */
+		cl = radcli_avp_list_new();
+		assert(cl != NULL);
+		if (radcli_avp_add_gigawords64(ctx, cl, d_octets, 42) != 0) {
+			fprintf(stderr, "error: radcli_avp_add_gigawords64() failed (small value)\n");
+			exit(1);
+		}
+		if (radcli_avp_get(cl, d_gigawords, 0) != NULL) {
+			fprintf(stderr, "error: radcli_avp_add_gigawords64() added a zero "
+					"Gigawords attribute\n");
+			exit(1);
+		}
+		/* Reassembly must still work with the Gigawords half absent. */
+		if (radcli_avp_get_gigawords64(ctx, cl, d_octets, &v64) != 0 || v64 != 42) {
+			fprintf(stderr, "error: radcli_avp_get_gigawords64() failed with no "
+					"Gigawords attribute present\n");
+			exit(1);
+		}
+		radcli_avp_list_free(cl);
+
+		/* No gigawords= counterpart configured: an error, not a silent
+		 * truncation to 32 bits. */
+		cl = radcli_avp_list_new();
+		assert(cl != NULL);
+		if (radcli_avp_add_gigawords64(ctx, cl, d_unpaired, 42) == 0) {
+			fprintf(stderr, "error: radcli_avp_add_gigawords64() accepted an "
+					"attribute with no gigawords= counterpart\n");
+			exit(1);
+		}
+		if (radcli_avp_get_gigawords64(ctx, cl, d_unpaired, &v64) == 0) {
+			fprintf(stderr, "error: radcli_avp_get_gigawords64() accepted an "
+					"attribute with no gigawords= counterpart\n");
+			exit(1);
+		}
+		radcli_avp_list_free(cl);
 	}
 
 	/* --- teardown: a NULL list must be a no-op, not a crash --- */

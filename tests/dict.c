@@ -69,6 +69,20 @@ char radcli2_dict[] =
 "VENDOR          Testvendor       19999     Large\n"
 "ATTRIBUTE	Test-Vendor-Attr		5	string Testvendor\n";
 
+/* Phase 2: the "integer64" keyword. Deliberately declares Test-Int64-Attr
+ * before Test-Int64-Gigawords (attr 253), the same order etc/dictionary's
+ * real Acct-Input-Octets/-Gigawords pair uses -- the paired attribute is
+ * looked up by id, not by pointer, precisely so this ordering is fine. */
+char counter64_dict[] =
+"ATTRIBUTE	Test-Int64-Attr		251	integer64\n"
+"ATTRIBUTE	Test-Counter-Octets	252	integer gigawords=253\n"
+"ATTRIBUTE	Test-Counter-Gigawords	253	integer\n"
+"ATTRIBUTE	Test-Counter-Unpaired	254	integer\n";
+char bad_integer64_dict[] =
+"ATTRIBUTE	Bad-Int64-Attr		251	integer65\n";
+char bad_gigawords_dict[] =
+"ATTRIBUTE	Bad-Gigawords-Attr	251	integer gigawords=notanumber\n";
+
 int main(int argc, char **argv)
 {
 	rc_handle 	*rh = NULL;
@@ -374,6 +388,50 @@ int main(int argc, char **argv)
 		}
 	}
 
+	rc_dict_free(rh);
+
+	/* Phase 2: the "integer64" keyword and "gigawords=" pairing. */
+	{
+		const radcli_attr_def *d;
+
+		ret = rc_read_dictionary_from_buffer(rh, counter64_dict, sizeof(counter64_dict));
+		if (ret != 0) {
+			fprintf(stderr, "error: dictionary with a valid \"integer64\" line "
+					"and \"gigawords=\" pairing was rejected\n");
+			exit(1);
+		}
+
+		d = radcli_dict_lookup(rh, "Test-Int64-Attr");
+		if (d == NULL || radcli_attr_def_type(d) != RADCLI_TYPE_INTEGER64) {
+			fprintf(stderr, "error: \"integer64\" did not parse to RADCLI_TYPE_INTEGER64\n");
+			exit(1);
+		}
+
+		/* Test-Counter-Octets/-Unpaired exercise radcli_avp_add_gigawords64()/
+		 * _get_counter64() (the only public way to reach the internal
+		 * gigawords= pairing) -- see tests/avp.c. */
+
+		rc_dict_free(rh);
+	}
+
+	/* An unrecognised type string ("integer65") is rejected, not silently
+	 * treated as some other type. */
+	ret = rc_read_dictionary_from_buffer(rh, bad_integer64_dict, sizeof(bad_integer64_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: dictionary with an unrecognised type "
+				"(\"integer65\") was accepted\n");
+		exit(1);
+	}
+	rc_dict_free(rh);
+
+	/* A non-numeric gigawords= value is rejected, not silently ignored --
+	 * matches encrypt='s own validation, not a new convention. */
+	ret = rc_read_dictionary_from_buffer(rh, bad_gigawords_dict, sizeof(bad_gigawords_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: dictionary with a non-numeric \"gigawords=\" "
+				"value was accepted\n");
+		exit(1);
+	}
 	rc_dict_free(rh);
 
 	rc_destroy(rh);

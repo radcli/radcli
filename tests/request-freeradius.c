@@ -51,6 +51,11 @@
  *      Accounting-Response", after this program exits. That is what
  *      actually proves the fire-and-forget send was received and
  *      processed by a real server, not merely handed to the local kernel.
+ *   4. An Accounting-Request carrying an Acct-Input-Octets/-Gigawords pair
+ *      built by radcli_avp_add_gigawords64() for a value over 2^32, checking
+ *      a real server accepts it -- Phase 2's Gigawords helper is "the part
+ *      that actually interoperates" precisely because no standard
+ *      attribute counts octets as a genuine 64-bit integer.
  */
 
 #include <config.h>
@@ -212,6 +217,45 @@ int main(int argc, char **argv)
 		die("radcli_request_send_noreply did not return RADCLI_OK");
 	radcli_request_free(r);
 	printf("OK: radcli_request_send_noreply() transmitted the no_wait Accounting-Request\n");
+
+	/* --- 4: the Gigawords helper -- an Acct-Input-Octets/-Gigawords pair
+	 * built by radcli_avp_add_gigawords64() for a value over 2^32 is
+	 * accepted by a real server, not just self-consistent with this
+	 * implementation's own decoder ("the part that actually
+	 * interoperates", per doc/plan-api-modernization.md's own framing) --- */
+
+	{
+		const radcli_attr_def *d_octets = radcli_dict_lookup(ctx, "Acct-Input-Octets");
+
+		if (d_octets == NULL)
+			die("Acct-Input-Octets not in the loaded dictionary");
+
+		send_list = radcli_avp_list_new();
+		if (send_list == NULL)
+			die("radcli_avp_list_new");
+		if (radcli_avp_add_str(send_list, d_user, "test") != 0)
+			die("radcli_avp_add_str(User-Name)");
+		if (radcli_avp_add_uint32(send_list, d_acct_status, 1 /* Start */) != 0)
+			die("radcli_avp_add_uint32(Acct-Status-Type)");
+		if (radcli_avp_add_gigawords64(ctx, send_list, d_octets, UINT64_C(5000000000)) != 0)
+			die("radcli_avp_add_gigawords64(Acct-Input-Octets)");
+
+		r = radcli_request_new(ctx, RADCLI_CODE_ACCOUNTING_REQUEST, send_list);
+		radcli_avp_list_free(send_list);
+		if (r == NULL)
+			die("radcli_request_new(RADCLI_CODE_ACCOUNTING_REQUEST) for the Gigawords check");
+
+		if (radcli_request_perform(r) != RADCLI_OK)
+			die("radcli_request_perform did not return RADCLI_OK for the "
+			    "Acct-Input-Octets/-Gigawords Accounting-Request");
+		if (radcli_request_code(r) != RADCLI_CODE_ACCOUNTING_RESPONSE) {
+			fprintf(stderr, "error: expected RADCLI_CODE_ACCOUNTING_RESPONSE, got %d\n",
+				(int)radcli_request_code(r));
+			exit(1);
+		}
+		radcli_request_free(r);
+	}
+	printf("OK: Acct-Input-Octets/-Gigawords (radcli_avp_add_gigawords64()) accepted by a real server\n");
 
 	rc_dict_free(rh);
 	rc_destroy(rh);

@@ -45,7 +45,8 @@ static char test_dict[] =
 "ATTRIBUTE	Framed-IPv6-Address	168	ipv6addr\n"
 "ATTRIBUTE	Tunnel-Password		69	string encrypt=Tunnel-Password\n"
 "VENDOR          DSL-Forum       3561     Large\n"
-"ATTRIBUTE	Agent-Circuit-Id		1	string DSL-Forum\n";
+"ATTRIBUTE	Agent-Circuit-Id		1	string DSL-Forum\n"
+"ATTRIBUTE	Test-Int64		251	integer64\n";
 
 int main(int argc, char **argv)
 {
@@ -223,6 +224,27 @@ int main(int argc, char **argv)
 
 		rc_avpair_free(out);
 		radcli_avp_list_free(l3);
+	}
+
+	/* --- Phase 2 legacy safety: a VALUE_PAIR-based caller cannot construct
+	 * an integer64 attribute (rc_attr_type has no such value; DICT_ATTR's
+	 * internal type field can hold PW_TYPE_MAX only because the bundled
+	 * dictionary parser writes it directly, bypassing rc_dict_addattr()'s
+	 * own type<PW_TYPE_MAX check). Adding it must fail cleanly through the
+	 * public legacy API, not silently construct a VALUE_PAIR with
+	 * uninitialised/garbage strvalue/lvalue content. --- */
+
+	{
+		uint64_t v64 = 1;
+		VALUE_PAIR *legacy_list = NULL;
+		VALUE_PAIR *vp = rc_avpair_add(rh, &legacy_list, 251, &v64, 0, 0);
+
+		if (vp != NULL || legacy_list != NULL) {
+			fprintf(stderr, "error: rc_avpair_add() constructed a VALUE_PAIR "
+					"for an integer64 attribute instead of failing\n");
+			rc_avpair_free(legacy_list);
+			exit(1);
+		}
 	}
 
 	rc_dict_free(rh);

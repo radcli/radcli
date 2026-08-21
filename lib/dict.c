@@ -190,6 +190,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 	int             type;
 	int             encrypt_type;
 	int             has_tag_flag;
+	uint32_t        gigawords_attrid;
 	unsigned attr_vendorspec = 0;
 	const char *pfilename = filename;
 
@@ -309,6 +310,19 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			{
 				type = PW_TYPE_DATE;
 			}
+			else if (strcmp (typestr, "integer64") == 0)
+			{
+				/* RFC 8044 SS3.3 "integer64" data type (8 octets, network
+				 * byte order) -- see radcli2.h's RADCLI_TYPE_INTEGER64.
+				 * Internal-only sentinel: PW_TYPE_MAX (6) is not a legal
+				 * rc_attr_type value -- rc_dict_addattr() (the public,
+				 * programmatic attribute API) rejects any type >= PW_TYPE_MAX,
+				 * so no VALUE_PAIR-based caller can ever construct a
+				 * DICT_ATTR with this type, only the bundled dictionary file
+				 * parsed here can. radcli2.h's RADCLI_TYPE_INTEGER64 is the
+				 * only way to see one; see dict_type_to_radcli() below. */
+				type = PW_TYPE_MAX;
+			}
 			else
 			{
 				rc_log(LOG_ERR,
@@ -320,6 +334,7 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 			dvend = NULL;
 			encrypt_type = 0;
 			has_tag_flag = 0;
+			gigawords_attrid = 0;
 			if (optstr[0] != '\0') {
 				char *cp1;
 				for (cp1 = optstr; cp1 != NULL; cp1 = cp) {
@@ -362,6 +377,29 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 							"encrypt=Tunnel-Password are implemented)",
 							cp1 + 8, line_no, pfilename);
 						goto error;
+					}
+
+					if (strncmp(cp1, "gigawords=", 10) == 0) {
+						char *endp;
+						long v = strtol(cp1 + 10, &endp, 10);
+
+						/* RFC 2866 SS5.3/5.4 Octets + RFC 2869 SS5.1/5.2
+						 * Gigawords pairing. The attribute id (within
+						 * this line's own vendor scope, if any) of this
+						 * attribute's Gigawords counterpart -- e.g.
+						 * "gigawords=52" on the
+						 * Acct-Input-Octets (42) line, naming
+						 * Acct-Input-Gigawords (52). Not resolved to a
+						 * DICT_ATTR* here: see struct dict_counter64_pair's
+						 * comment (include/includes.h) for why. */
+						if (*endp != '\0' || v <= 0 || v > 0xff) {
+							rc_log(LOG_ERR,
+								"rc_dict_init: invalid gigawords=%s on line %d "
+								"of dictionary %s", cp1 + 10, line_no, pfilename);
+							goto error;
+						}
+						gigawords_attrid = (uint32_t)v;
+						continue;
 					}
 
 					if (strncmp(cp1, "vendor=", 7) == 0)
@@ -407,6 +445,23 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 				ef->has_tag = has_tag_flag;
 				ef->next = rh->dictionary_encrypt;
 				rh->dictionary_encrypt = ef;
+			}
+
+			if (gigawords_attrid != 0) {
+				struct dict_counter64_pair *gp = malloc(sizeof(*gp));
+
+				if (gp == NULL) {
+					rc_log(LOG_CRIT, "rc_dict_init: out of memory");
+					goto error;
+				}
+				gp->octets = attr;
+				/* Same vendor scope as this ATTRIBUTE line itself -- a VSA's
+				 * gigawords= counterpart is another sub-attribute of the
+				 * same vendor, not a standard attribute. */
+				gp->gigawords_attrid = RADCLI_VENDOR_ATTR_SET(gigawords_attrid,
+									      VENDOR(attr->value));
+				gp->next = rh->dictionary_gigawords;
+				rh->dictionary_gigawords = gp;
 			}
 		}
 		else if (strcmp (tok, "VALUE") == 0)
@@ -791,6 +846,7 @@ void rc_dict_free(rc_handle *rh)
 	DICT_VALUE	*val, *nval;
 	DICT_VENDOR	*vend, *nvend;
 	struct dict_encrypt_flag *ef, *nef;
+	struct dict_counter64_pair *gp, *ngp;
 
 	for (attr = rh->dictionary_attributes; attr != NULL; attr = nattr) {
 		nattr = attr->next;
@@ -808,10 +864,15 @@ void rc_dict_free(rc_handle *rh)
 		nef = ef->next;
 		free(ef);
 	}
+	for (gp = rh->dictionary_gigawords; gp != NULL; gp = ngp) {
+		ngp = gp->next;
+		free(gp);
+	}
 	rh->dictionary_attributes = NULL;
 	rh->dictionary_values = NULL;
 	rh->dictionary_vendors = NULL;
 	rh->dictionary_encrypt = NULL;
+	rh->dictionary_gigawords = NULL;
 }
 
 /* Internal only -- see the declaration in include/includes.h, shared with
@@ -859,6 +920,21 @@ int rc_dict_attr_has_tag(rc_handle const *rh, const DICT_ATTR *attr)
 	}
 	return 0;
 }
+
+/* Internal only -- see the declaration in include/includes.h. */
+const DICT_ATTR *rc_dict_attr_gigawords(rc_handle const *rh, const DICT_ATTR *octets)
+{
+	struct dict_counter64_pair *gp;
+
+	if (rh == NULL || octets == NULL)
+		return NULL;
+
+	for (gp = rh->dictionary_gigawords; gp != NULL; gp = gp->next) {
+		if (gp->octets == octets)
+			return rc_dict_getattr(rh, gp->gigawords_attrid);
+	}
+	return NULL;
+}
 /** @} */
 
 /**
@@ -890,9 +966,16 @@ static radcli_attr_type dict_type_to_radcli(rc_attr_type t)
 		return RADCLI_TYPE_IPV6ADDR;
 	case PW_TYPE_IPV6PREFIX:
 		return RADCLI_TYPE_IPV6PREFIX;
+	case PW_TYPE_MAX:
+		/* The internal-only "integer64" sentinel -- see the "integer64"
+		 * keyword's comment above (rc_dict_init()). rc_dict_addattr()
+		 * (the public, programmatic attribute API) still rejects
+		 * type >= PW_TYPE_MAX, so this value can only ever come from the
+		 * bundled dictionary file. */
+		return RADCLI_TYPE_INTEGER64;
 	default:
-		/* unreachable: rc_dict_addattr() rejects type >= PW_TYPE_MAX
-		 * before a DICT_ATTR with an out-of-range type can exist. */
+		/* unreachable: every legal DICT_ATTR.type value (0..PW_TYPE_MAX
+		 * inclusive) is handled above. */
 		return RADCLI_TYPE_STRING;
 	}
 }

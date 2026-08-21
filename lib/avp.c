@@ -45,11 +45,11 @@
  * commit. Typed setters/getters interpret those bytes according to the
  * attribute's radcli_attr_type, validated against radcli_attr_def_type().
  *
- * radcli_avp_add_uint64()/radcli_avp_get_uint64() are deliberately not
- * implemented yet: they would only be meaningful for RADCLI_TYPE_INTEGER64,
- * which Phase 2 introduces alongside the dictionary attribute that needs it
- * (MIP6-Feature-Vector). Adding them now would be dead API surface with no
- * type that could use it.
+ * radcli_avp_add_uint64()/radcli_avp_get_uint64() are meaningful only for
+ * RADCLI_TYPE_INTEGER64 (RFC 8044 SS3.3's "integer64" data type; see
+ * radcli2.h), the dictionary attribute type introduced alongside them for
+ * MIP6-Feature-Vector (RFC 5447 SS4.2.5), the one standard attribute of
+ * this type.
  */
 
 /* Doubly-linked via ccan/list rather than a hand-rolled next-only chain, to
@@ -212,6 +212,13 @@ int radcli_avp_add_uint32(radcli_avp_list *l, const radcli_attr_def *def, uint32
 	return radcli_avp_add_bytes(l, def, &value, sizeof(value));
 }
 
+int radcli_avp_add_uint64(radcli_avp_list *l, const radcli_attr_def *def, uint64_t value)
+{
+	if (def == NULL || radcli_attr_def_type(def) != RADCLI_TYPE_INTEGER64)
+		return -1;
+	return radcli_avp_add_bytes(l, def, &value, sizeof(value));
+}
+
 int radcli_avp_add_ipaddr(radcli_avp_list *l, const radcli_attr_def *def, struct in_addr value)
 {
 	uint32_t hostval;
@@ -323,6 +330,22 @@ int radcli_avp_get_uint32(const radcli_avp *a, uint32_t *out)
 	return 0;
 }
 
+int radcli_avp_get_uint64(const radcli_avp *a, uint64_t *out)
+{
+	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
+
+	if (avp == NULL || avp->def == NULL)
+		return -1;
+	if (radcli_attr_def_type(avp->def) != RADCLI_TYPE_INTEGER64)
+		return -1;
+	if (avp->len != sizeof(uint64_t))
+		return -1;
+
+	if (out)
+		memcpy(out, avp->data, sizeof(uint64_t));
+	return 0;
+}
+
 int radcli_avp_get_in6(const radcli_avp *a, struct in6_addr *out, unsigned *prefix)
 {
 	const struct radcli_avp_st *avp = (const struct radcli_avp_st *)a;
@@ -371,6 +394,65 @@ int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
 		*out = avp->data;
 	if (len)
 		*len = avp->len;
+	return 0;
+}
+
+/* RFC 2866 SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2
+ * Acct-Input/Output-Gigawords: see radcli2.h's doc comment. */
+int radcli_avp_add_gigawords64(radcli_ctx *ctx, radcli_avp_list *list,
+			     const radcli_attr_def *octets, uint64_t value)
+{
+	rc_handle *rh = (rc_handle *)ctx;
+	const radcli_attr_def *gigawords;
+
+	if (rh == NULL || octets == NULL || radcli_attr_def_type(octets) != RADCLI_TYPE_INTEGER)
+		return -1;
+
+	gigawords = (const radcli_attr_def *)rc_dict_attr_gigawords(rh, (const DICT_ATTR *)octets);
+	if (gigawords == NULL) {
+		rc_log(LOG_ERR, "radcli_avp_add_gigawords64: %s has no gigawords= "
+		    "counterpart configured", radcli_attr_def_name(octets));
+		return -1;
+	}
+
+	if (radcli_avp_add_uint32(list, octets, (uint32_t)value) != 0)
+		return -1;
+	if (value > UINT32_MAX) {
+		/* Omitted when it would be zero, matching how a real NAS sends
+		 * it -- the previous call already added the octets attribute
+		 * either way, so a receiver with no Gigawords support still
+		 * gets the low 32 bits it always got. */
+		if (radcli_avp_add_uint32(list, gigawords, (uint32_t)(value >> 32)) != 0)
+			return -1;
+	}
+	return 0;
+}
+
+int radcli_avp_get_gigawords64(const radcli_ctx *ctx, const radcli_avp_list *list,
+			     const radcli_attr_def *octets, uint64_t *out)
+{
+	const rc_handle *rh = (const rc_handle *)ctx;
+	const radcli_attr_def *gigawords;
+	const radcli_avp *a;
+	uint32_t lo, hi = 0;
+
+	if (rh == NULL || octets == NULL)
+		return -1;
+
+	gigawords = (const radcli_attr_def *)rc_dict_attr_gigawords(rh, (const DICT_ATTR *)octets);
+	if (gigawords == NULL)
+		return -1;
+
+	a = radcli_avp_get(list, octets, 0);
+	if (a == NULL || radcli_avp_get_uint32(a, &lo) != 0)
+		return -1;
+
+	a = radcli_avp_get(list, gigawords, 0);
+	if (a != NULL && radcli_avp_get_uint32(a, &hi) != 0)
+		return -1; /* present but not a 32-bit integer: malformed, not "absent" */
+
+	if (out)
+		*out = ((uint64_t)hi << 32) | lo;
 	return 0;
 }
 
@@ -618,7 +700,32 @@ static int avp_decode_into(rc_handle const *rh, const char *secret,
 		{
 			radcli_attr_type t = radcli_attr_def_type(def);
 
-			if ((t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE)
+			if (t == RADCLI_TYPE_INTEGER64) {
+				/* RFC 8044 SS3.3: integer64 is 8 octets, network byte
+				 * order (high 32 bits first), unlike the four-octet
+				 * numeric types below. Also a strict length check: no
+				 * VALUE_PAIR-based caller could ever
+				 * have been compiled against RADCLI_TYPE_INTEGER64 (it
+				 * does not exist in the legacy rc_attr_type enum), so
+				 * there is no reason to store a malformed one for a
+				 * getter to reject later -- skip it here, like an
+				 * unrecognised attribute. */
+				uint32_t hi, lo;
+				uint64_t hostval;
+
+				if (attrlen != (int)sizeof(uint64_t)) {
+					rc_log(LOG_WARNING, "radcli_avp_decode: %s has an invalid "
+					    "integer64 length (%d, expected 8)",
+					    radcli_attr_def_name(def), attrlen);
+					continue;
+				}
+				memcpy(&hi, ptr, sizeof(hi));
+				memcpy(&lo, ptr + sizeof(hi), sizeof(lo));
+				hostval = ((uint64_t)ntohl(hi) << 32) | ntohl(lo);
+				if (radcli_avp_add_bytes((radcli_avp_list *)list, def,
+							 &hostval, sizeof(hostval)) != 0)
+					return -1; /* allocation failure; already logged */
+			} else if ((t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE)
 			    && attrlen == (int)sizeof(uint32_t)) {
 				uint32_t netval, hostval;
 
@@ -811,7 +918,23 @@ int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *l, con
 		if (pb_put_byte(&pb, 2) < 0) goto too_large; /* placeholder; patched below */
 
 		t = radcli_attr_def_type(a->def);
-		if (t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE) {
+		if (t == RADCLI_TYPE_INTEGER64) {
+			/* RFC 8044 SS3.3: 8 octets, network byte order, high 32
+			 * bits first -- mirrors the decode side above. */
+			uint64_t hostval;
+			uint32_t hi, lo;
+
+			if (a->len != sizeof(uint64_t)) {
+				rc_log(LOG_ERR, "radcli_avp_encode: %s has the wrong stored "
+				    "length for its type", def->name);
+				return -1;
+			}
+			memcpy(&hostval, a->data, sizeof(hostval));
+			hi = htonl((uint32_t)(hostval >> 32));
+			lo = htonl((uint32_t)hostval);
+			if (pb_put_bytes(&pb, &hi, sizeof(hi)) < 0) goto too_large;
+			if (pb_put_bytes(&pb, &lo, sizeof(lo)) < 0) goto too_large;
+		} else if (t == RADCLI_TYPE_INTEGER || t == RADCLI_TYPE_IPADDR || t == RADCLI_TYPE_DATE) {
 			uint32_t hostval;
 
 			if (a->len != sizeof(uint32_t)) {

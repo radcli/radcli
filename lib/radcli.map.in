@@ -82,6 +82,7 @@ RADCLI_@LIBMAJOR@
 	radcli_avp_add_bytes;
 	radcli_avp_add_str;
 	radcli_avp_add_uint32;
+	radcli_avp_add_uint64;
 	radcli_avp_add_ipaddr;
 	radcli_avp_add_in6;
 	radcli_avp_get;
@@ -89,8 +90,11 @@ RADCLI_@LIBMAJOR@
 	radcli_avp_iter_next;
 	radcli_avp_def;
 	radcli_avp_get_uint32;
+	radcli_avp_get_uint64;
 	radcli_avp_get_in6;
 	radcli_avp_get_bytes;
+	radcli_avp_add_gigawords64;
+	radcli_avp_get_gigawords64;
 	radcli_request_new;
 	radcli_request_perform;
 	radcli_request_send_noreply;

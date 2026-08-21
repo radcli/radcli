@@ -198,6 +198,27 @@ struct dict_encrypt_flag {
 	struct dict_encrypt_flag *next;
 };
 
+/* Octets-attribute -> Gigawords-attribute pairing for 64-bit accounting
+ * counters (RFC 2866 SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2
+ * Acct-Input/Output-Gigawords), set by a "gigawords=<attrid>" token on a
+ * dictionary ATTRIBUTE line (lib/dict.c) -- e.g. Acct-Input-Octets (42)
+ * paired with Acct-Input-Gigawords (52). Kept as a side list, like dict_encrypt_flag
+ * above and for the same reason (the public DICT_ATTR struct never changes
+ * layout). gigawords_attrid is stored raw, not resolved to a DICT_ATTR* at
+ * parse time, because the paired attribute's own ATTRIBUTE line has often
+ * not been parsed yet (e.g. Acct-Input-Octets precedes Acct-Input-Gigawords
+ * in etc/dictionary); resolution happens lazily, by rc_dict_getattr(), once
+ * the whole dictionary is loaded -- see rc_dict_attr_gigawords() below,
+ * used from lib/avp.c. Stored as the same vendor-combined uint64_t
+ * DICT_ATTR.value/rc_dict_getattr() use (RADCLI_VENDOR_ATTR_SET()), not a
+ * bare attribute number, so a VSA's gigawords= counterpart -- another
+ * sub-attribute of the same vendor -- resolves correctly too. */
+struct dict_counter64_pair {
+	const struct dict_attr *octets;
+	uint64_t gigawords_attrid;
+	struct dict_counter64_pair *next;
+};
+
 struct rc_conf
 {
 	struct _option		*config_options;
@@ -215,6 +236,7 @@ struct rc_conf
 	struct dict_value	*dictionary_values;
 	struct dict_vendor	*dictionary_vendors;
 	struct dict_encrypt_flag *dictionary_encrypt;
+	struct dict_counter64_pair *dictionary_gigawords;
 
 	rc_sockets_override	so;
 	unsigned		so_type; /* rc_socket_type */
@@ -238,6 +260,35 @@ int rc_dict_attr_encrypt_type(rc_handle const *rh, const struct dict_attr *attr)
  * lib/dict.c); used by radcli_avp_decode() (lib/avp.c). See the definition
  * in lib/dict.c. */
 int rc_dict_attr_has_tag(rc_handle const *rh, const struct dict_attr *attr);
+
+/* Looks up the "gigawords=" pairing (lib/dict.c) recorded for octets, and
+ * resolves it, via rc_dict_getattr(), to the paired attribute's DICT_ATTR
+ * in rh's now-fully-loaded dictionary. Returns NULL if octets has no
+ * gigawords= pairing configured, or if the configured attribute id does
+ * not (or no longer) exist in the dictionary. Internal only -- used by
+ * radcli_avp_add_gigawords64()/_get_counter64() (lib/avp.c). */
+const struct dict_attr *rc_dict_attr_gigawords(rc_handle const *rh, const struct dict_attr *octets);
+
+/* Projection between radcli_avp_list and VALUE_PAIR (lib/avp.c), internal
+ * only. Neither aliases the other's storage; each call produces a fresh,
+ * independently-owned list.
+ *
+ * radcli_avp_list_to_value_pairs() copies list into a newly allocated
+ * VALUE_PAIR chain in *out (NULL if list is empty or every attribute was
+ * omitted). An attribute VALUE_PAIR's fixed-size fields cannot hold -- a
+ * string/IPv6-prefix value longer than VALUE_PAIR's 253-octet strvalue
+ * allows for that attribute's wire framing, or a value whose stored length
+ * does not match its type's fixed size -- is omitted, exactly as an
+ * attribute the legacy decoder does not recognise is already omitted
+ * today. Returns 0 on success, -1 on allocation failure (*out then freed
+ * and left unset) or a NULL rh/out.
+ *
+ * radcli_value_pairs_to_avp_list() is the reverse: copies vp into a newly
+ * allocated radcli_avp_list in *out, re-deriving each attribute's
+ * radcli_attr_def from rh's dictionary by (attribute, vendor) identity.
+ * Returns 0 on success, -1 on allocation failure or a NULL rh/out. */
+int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *list, VALUE_PAIR **out);
+int radcli_value_pairs_to_avp_list(rc_handle const *rh, VALUE_PAIR *vp, radcli_avp_list **out);
 
 /* lib/sendserver.c internals, exposed (no longer static) so
  * radcli_transport_exchange() can reuse the exact RFC 2865 SS3 Response

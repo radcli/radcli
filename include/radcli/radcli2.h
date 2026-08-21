@@ -70,10 +70,16 @@ typedef struct rc_conf radcli_ctx;
 
 /** \enum radcli_attr_type Attribute types recognised by the new API.
  *
- * Independent of radcli.h's rc_attr_type: it grows on its own schedule (see
- * doc/plan-api-modernization.md Phase 2 for RADCLI_TYPE_INTEGER64) rather
- * than forcing the legacy enum, and therefore the legacy PW_TYPE_MAX, to
- * change.
+ * Independent of radcli.h's rc_attr_type: it grows on its own schedule
+ * rather than forcing the legacy enum, and therefore the legacy
+ * PW_TYPE_MAX, to change -- RADCLI_TYPE_INTEGER64 is the first payoff of
+ * that split: the dictionary can carry an attribute no VALUE_PAIR-based
+ * caller could ever have been compiled against.
+ *
+ * RADCLI_TYPE_INTEGER64 implements the "integer64" data type of RFC 8044
+ * (Data Types for RADIUS, SS3.3): an 8-octet unsigned integer in network
+ * byte order. MIP6-Feature-Vector (etc/dictionary attribute 124, RFC 5447
+ * SS4.2.5) is, per IANA, the only standard attribute of this type.
  */
 typedef enum radcli_attr_type {
 	RADCLI_TYPE_STRING = 0,     //!< A printable string.
@@ -81,7 +87,8 @@ typedef enum radcli_attr_type {
 	RADCLI_TYPE_IPADDR = 2,     //!< An IPv4 address in host byte order.
 	RADCLI_TYPE_DATE = 3,       //!< Seconds since epoch, as a 32-bit integer.
 	RADCLI_TYPE_IPV6ADDR = 4,   //!< A 128-bit IPv6 address.
-	RADCLI_TYPE_IPV6PREFIX = 5  //!< An IPv6 prefix (RFC 3162 wire format).
+	RADCLI_TYPE_IPV6PREFIX = 5, //!< An IPv6 prefix (RFC 3162 wire format).
+	RADCLI_TYPE_INTEGER64 = 6   //!< A 64-bit integer.
 } radcli_attr_type;
 
 /** Opaque dictionary attribute definition.
@@ -211,6 +218,13 @@ int radcli_avp_add_str(radcli_avp_list *list, const radcli_attr_def *def, const 
  */
 int radcli_avp_add_uint32(radcli_avp_list *list, const radcli_attr_def *def, uint32_t value);
 
+/** @brief Append a 64-bit integer-typed attribute.
+ * @param list destination list.
+ * @param def the attribute; must be RADCLI_TYPE_INTEGER64.
+ * @return 0 on success, -1 on failure (def is not RADCLI_TYPE_INTEGER64, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_uint64(radcli_avp_list *list, const radcli_attr_def *def, uint64_t value);
+
 /** @brief Append an IPv4-address-typed attribute from a struct in_addr.
  * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_IPADDR.
@@ -293,6 +307,13 @@ const radcli_attr_def *radcli_avp_def(const radcli_avp *a);
  */
 int radcli_avp_get_uint32(const radcli_avp *a, uint32_t *out);
 
+/** @brief Read an attribute's value as a 64-bit integer.
+ * @param a the attribute; radcli_avp_def(a) must be RADCLI_TYPE_INTEGER64.
+ * @param out where to write the value; may be NULL to just check validity.
+ * @return 0 on success, -1 if a's type does not match.
+ */
+int radcli_avp_get_uint64(const radcli_avp *a, uint64_t *out);
+
 /** @brief Read an attribute's value as an IPv6 address or prefix.
  * @param a the attribute; radcli_avp_def(a) must be RADCLI_TYPE_IPV6ADDR or
  *  RADCLI_TYPE_IPV6PREFIX.
@@ -317,6 +338,57 @@ int radcli_avp_get_in6(const radcli_avp *a, struct in6_addr *out, unsigned *pref
  * @return 0 on success, -1 if a is NULL.
  */
 int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len);
+
+/** @brief Append a 64-bit counter as an Octets/Gigawords attribute pair.
+ *
+ * No standard RADIUS attribute counts octets as a 64-bit integer; real
+ * 64-bit accounting is done with a pair of 32-bit attributes -- e.g.
+ * Acct-Input-Octets (the low 32 bits) and Acct-Input-Gigawords (the high
+ * 32 bits) -- which is what every deployed server actually implements.
+ * This is the one call an accounting caller needs instead of computing and
+ * adding both halves by hand.
+ *
+ * Implements the Acct-Input/Output-Octets (RFC 2866 SS5.3/5.4) plus
+ * Acct-Input/Output-Gigawords (RFC 2869 SS5.1/5.2) pairing: Gigawords holds
+ * the number of times its Octets counterpart has wrapped past 2^32, so the
+ * pair together give a 64-bit octet count. Not RADCLI_TYPE_INTEGER64/RFC
+ * 8044 -- no standard accounting attribute uses that type.
+ *
+ * octets' Gigawords counterpart is looked up from the dictionary (an
+ * ATTRIBUTE line's "gigawords=" option, etc/dictionary), not derived from
+ * its name, so passing an attribute with no such counterpart configured is
+ * an error rather than a silent truncation to 32 bits. The gigawords
+ * attribute is omitted from list when it would be zero (value fits in 32
+ * bits), matching how a real NAS sends it.
+ *
+ * @param ctx the context octets was looked up from -- the gigawords=
+ *  pairing is recorded per dictionary, not on radcli_attr_def itself (that
+ *  would need a public struct field, and the struct is frozen ABI), so
+ *  finding it means searching ctx's loaded dictionary.
+ * @param list destination list.
+ * @param octets the octets attribute (e.g. Acct-Input-Octets); its
+ *  dictionary entry must declare a gigawords= counterpart.
+ * @param value the full 64-bit count.
+ * @return 0 on success, -1 on failure (octets has no configured gigawords
+ *  counterpart, or as radcli_avp_add_bytes()).
+ */
+int radcli_avp_add_gigawords64(radcli_ctx *ctx, radcli_avp_list *list,
+			     const radcli_attr_def *octets, uint64_t value);
+
+/** @brief Reassemble a 64-bit counter from an Octets/Gigawords attribute pair.
+ *
+ * @param ctx the context octets was looked up from; see radcli_avp_add_gigawords64().
+ * @param list the list to search (via radcli_avp_get()).
+ * @param octets the octets attribute; its dictionary entry must declare a
+ *  gigawords= counterpart, as for radcli_avp_add_gigawords64().
+ * @param out where to write the reassembled value; may be NULL to just
+ *  check validity.
+ * @return 0 on success, -1 if octets has no configured gigawords
+ *  counterpart, list has no octets attribute, or the gigawords attribute
+ *  is present but has the wrong type.
+ */
+int radcli_avp_get_gigawords64(const radcli_ctx *ctx, const radcli_avp_list *list,
+			     const radcli_attr_def *octets, uint64_t *out);
 
 /** \enum radcli_code RADIUS packet codes (RFC 2865 SS3).
  *
