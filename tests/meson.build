@@ -10,6 +10,7 @@ shell_tests = [
   'skip-unknown-vsa.sh', 'namespace-tests.sh', 'radembedded-tests.sh',
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
   'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
+  'dae-tests.sh',
 ]
 
 if have_gnutls
@@ -41,6 +42,9 @@ if have_gnutls
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
   auth_userpass_len = executable('auth-userpass-len', 'auth-userpass-len.c',
+    include_directories: tests_incdirs, link_with: libradcli_shared,
+    dependencies: link_libs, install: false)
+  dae = executable('dae', 'dae.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
   # Links against the static archive directly so the non-exported
@@ -76,8 +80,16 @@ if have_gnutls
   config_unit = executable('config-unit', 'config-unit.c',
     include_directories: tests_incdirs, link_with: libradcli_shared,
     dependencies: link_libs, install: false)
+  # radcli_ctx_dispatch()'s validation pipeline over a real loopback UDP
+  # socket. Needs ../lib for rc-md5.h (rc_md5_calc(), to build/verify wire
+  # authenticators) and libradcli_static for the same internal-only
+  # add_msg_auth_attr()/radcli_avp_encode() reason as avp_codec_freeradius.
+  dae_codec = executable('dae-codec', 'dae-codec.c',
+    include_directories: tests_incdirs + [include_directories('../lib')],
+    link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
 
-  foreach t : [avpair, dict, avp, request, dict_add, auth_userpass_len, pack, avp_codec, avp_legacy, config_unit]
+  foreach t : [avpair, dict, avp, request, dict_add, auth_userpass_len, dae, dae_codec, pack, avp_codec, avp_legacy, config_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

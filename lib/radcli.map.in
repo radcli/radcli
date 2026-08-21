@@ -102,6 +102,24 @@ RADCLI_@LIBMAJOR@
 	radcli_request_attrs;
 	radcli_request_server;
 	radcli_request_free;
+	radcli_dae_new;
+	radcli_dae_set_handler;
+	radcli_dae_start;
+	radcli_dae_free;
+	radcli_ctx_get_poll;
+	radcli_ctx_dispatch;
+	radcli_dae_req_code;
+	radcli_dae_req_attrs;
+	radcli_dae_req_session_id;
+	radcli_dae_req_user_name;
+	radcli_dae_req_framed_ip;
+	radcli_dae_req_nas_port;
+	radcli_dae_req_check_nas;
+	radcli_dae_reply;
+	radcli_dae_reply_error;
+	radcli_dae_request_free;
+	radcli_dae_reply_to_buffer;
+	radcli_dae_process;
   local:
     *;
 };

@@ -16,6 +16,7 @@
 #             (informational only — no new attributes defined)
 #   RFC 3162  RADIUS and IPv6
 #   RFC 3576  Dynamic Authorization Extensions to Remote Access Dial In User Service
+#   RFC 5176  Dynamic Authorization Extensions to RADIUS (obsoletes RFC 3576)
 #   RFC 3579  RADIUS Support For EAP
 #             (attributes EAP-Message and Message-Authenticator defined in RFC 2869)
 #   RFC 3580  IEEE 802.1X RADIUS Usage Guidelines
@@ -427,7 +428,7 @@ VALUE	Tunnel-Medium-Type	Banyan-Vines		14
 VALUE	Tunnel-Medium-Type	E.164-NSAP		15
 
 #
-# RFC 3576 — Error-Cause
+# RFC 3576 — Error-Cause (508 added by RFC 5176 SS3.5)
 #
 VALUE	Error-Cause	Residual-Session-Context-Removed	201
 VALUE	Error-Cause	Invalid-EAP-Packet			202
@@ -444,6 +445,7 @@ VALUE	Error-Cause	Session-Context-Not-Removable		504
 VALUE	Error-Cause	Other-Proxy-Processing-Error		505
 VALUE	Error-Cause	Resources-Unavailable			506
 VALUE	Error-Cause	Request-Initiated			507
+VALUE	Error-Cause	Multiple-Session-Selection-Unsupported	508
 
 #
 # RFC 4675 — Ingress-Filters

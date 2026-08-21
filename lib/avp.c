@@ -525,11 +525,8 @@ static void salt_decrypt(unsigned char *plaintext, const unsigned char *cipherte
 {
 	unsigned char keybuf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN + 2];
 	unsigned char b[16];
-	size_t secretlen = strlen(secret);
+	size_t secretlen = rc_secret_len(secret);
 	size_t i;
-
-	if (secretlen > MAX_SECRET_LENGTH)
-		secretlen = MAX_SECRET_LENGTH;
 
 	memcpy(keybuf, secret, secretlen);
 	memcpy(keybuf + secretlen, request_authenticator, AUTH_VECTOR_LEN);
@@ -567,11 +564,8 @@ static void user_password_encrypt(unsigned char *ciphertext, const unsigned char
 {
 	unsigned char keybuf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN];
 	unsigned char b[16];
-	size_t secretlen = strlen(secret);
+	size_t secretlen = rc_secret_len(secret);
 	size_t i;
-
-	if (secretlen > MAX_SECRET_LENGTH)
-		secretlen = MAX_SECRET_LENGTH;
 
 	memcpy(keybuf, secret, secretlen);
 	memcpy(keybuf + secretlen, request_authenticator, AUTH_VECTOR_LEN);

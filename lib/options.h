@@ -51,6 +51,17 @@ static OPTION config_options_default[] = {
 {"radius_deadtime",	OT_INT, ST_UNDEF, NULL},
 {"bindaddr",		OT_STR, ST_UNDEF, NULL},
 {"clientdebug",		OT_INT, ST_UNDEF, NULL},
+/* RFC 5176 dynamic authorization (CoA/Disconnect) -- see lib/dae.c.
+ * dae-server is a comma-separated list of "address_or_hostname[:secret]"
+ * entries (no port: it identifies an authorized sender, not something
+ * radcli connects to); parsing, prefix rejection, and hostname
+ * resolution are lib/dae.c's job, not the generic config layer's. */
+{"dae-accept",		OT_STR, ST_UNDEF, NULL},
+{"dae-listen",		OT_STR, ST_UNDEF, NULL},
+{"dae-secret",		OT_STR, ST_UNDEF, NULL},
+{"dae-server",		OT_STR, ST_UNDEF, NULL},
+{"dae-max-clock-skew",	OT_INT, ST_UNDEF, NULL},
+{"dae-require-message-authenticator", OT_STR, ST_UNDEF, NULL},
 /* Deprecated options */
 {"login_radius",	OT_STR, ST_UNDEF, NULL},
 {"seqfile",		OT_STR, ST_UNDEF, NULL},

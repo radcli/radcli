@@ -94,3 +94,39 @@ tls-key-file	@pkgsysconfdir@/key.pem
 # CVE-2024-3596 (BLAST RADIUS). Enabled by default; set to 'no' only
 # when communicating with legacy servers that do not send this attribute.
 #require-message-authenticator	no
+
+# RFC 5176 dynamic authorization (CoA-Request / Disconnect-Request), receive
+# side only. Off by default: enabling it opens a channel that can terminate
+# user sessions, so both the authorized sender(s) and their secret must be
+# set explicitly -- neither is inherited from authserver/acctserver.
+#dae-accept	no
+
+# Bind address/port for the dae-accept listener.
+#dae-listen	:3799
+
+# Shared secret used to verify incoming CoA/Disconnect requests and to sign
+# replies. Required when dae-accept is 'yes'. Deliberately not shared with
+# authserver/acctserver's secret -- trusting a server to answer our
+# Access-Requests is not the same as trusting it to command us to drop
+# sessions.
+#dae-secret	testing123
+
+# Comma-separated list of addresses or hostnames authorized to send
+# CoA/Disconnect requests, each optionally followed by ":secret" to
+# override dae-secret for that sender. No network prefixes (e.g. /24) are
+# accepted: this is a short, explicitly known list (one DAC, or two or
+# three in an HA pair), not a NAS client table. Required when dae-accept
+# is 'yes'.
+#dae-server	dac.example.com
+
+# Largest clock difference, in seconds, tolerated between this host and the
+# sender when checking a request's Event-Timestamp (RFC 5176 SS6.3 suggests
+# 300s). Set it to the worst-case skew between the two clocks plus a margin
+# for network delay; leave at the default if unsure. 0 disables the check.
+#dae-max-clock-skew	300
+
+# Discard a CoA/Disconnect request that lacks a Message-Authenticator
+# attribute instead of accepting it. Off by default for interoperability
+# with RFC 5176 SS3-compliant senders that omit it (a MAY, not a MUST);
+# enable if you control the sender and know it always sends the attribute.
+#dae-require-message-authenticator	no

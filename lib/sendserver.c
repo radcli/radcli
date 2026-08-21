@@ -146,9 +146,7 @@ int rc_pack_list(rc_handle *rh, VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, 
 			memset((char *)passbuf, '\0', AUTH_PASS_LEN);
 			memcpy((char *)passbuf, vp->strvalue, (size_t) length);
 
-			secretlen = strlen(secret);
-			if (secretlen > MAX_SECRET_LENGTH)
-				secretlen = MAX_SECRET_LENGTH;
+			secretlen = rc_secret_len(secret);
 			vector = (unsigned char *)auth->vector;
 			for (i = 0; i < padded_length; i += AUTH_VECTOR_LEN) {
 				/* Build hash input: secret || vector */
@@ -348,7 +346,7 @@ int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 int add_msg_auth_attr(rc_handle * rh, char * secret,
 		      AUTH_HDR *auth, int total_length)
 {
-	size_t secretlen = strlen(secret);
+	size_t secretlen = rc_secret_len(secret);
 	uint8_t *msg_auth = (uint8_t *)auth + total_length;
 	msg_auth[0] = PW_MESSAGE_AUTHENTICATOR;
 	msg_auth[1] = 18;
@@ -420,7 +418,7 @@ int validate_message_authenticator(const uint8_t *recv_buffer,
 	if (!ma_found)
 		return -1;
 
-	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, strlen(secret), digest);
+	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, rc_secret_len(secret), digest);
 	return rc_memcmp(ma_copy, digest, MD5_DIGEST_SIZE);
 }
 
@@ -1055,7 +1053,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		memcpy(&auth->length, &tlen, sizeof(uint16_t));
 
 		memset((char *)auth->vector, 0, AUTH_VECTOR_LEN);
-		secretlen = strlen(secret);
+		secretlen = rc_secret_len(secret);
 		memcpy((char *)auth + total_length, secret, secretlen);
 		rc_md5_calc(vector, (unsigned char *)auth,
 			    total_length + secretlen);

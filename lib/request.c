@@ -196,9 +196,7 @@ static int do_exchange(radcli_request *r, int no_wait,
 		tlen = htons((uint16_t)total_length);
 		memcpy(&auth->length, &tlen, sizeof(tlen));
 
-		secretlen = strlen(r->secret);
-		if (secretlen > MAX_SECRET_LENGTH)
-			secretlen = MAX_SECRET_LENGTH;
+		secretlen = rc_secret_len(r->secret);
 		memcpy(send_buffer + total_length, r->secret, secretlen);
 		rc_md5_calc(vector_out, send_buffer, (size_t)total_length + secretlen);
 		memcpy(auth->vector, vector_out, AUTH_VECTOR_LEN);

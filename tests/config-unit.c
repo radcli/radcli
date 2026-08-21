@@ -415,6 +415,69 @@ static void test_acctserver_log_suppression(void)
 	}
 }
 
+/* The dae-* option names must be registered in lib/options.h -- a config
+ * file that sets all six must be accepted (no "unrecognized option"), and
+ * rc_conf_str()/rc_conf_int() must read back exactly what was set. Actual
+ * validation (dae-accept gating, dae-server/dae-secret required together,
+ * dae-server prefix rejection) is lib/dae.c's job, not the generic config
+ * layer's, so it is not exercised here. */
+static void test_dae_options_registered(void)
+{
+	rc_handle *rh;
+	char *path, *v;
+	const char conf[] =
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n"
+		"dae-accept yes\n"
+		"dae-listen 0.0.0.0:3799\n"
+		"dae-secret testing123\n"
+		"dae-server 192.0.2.1,192.0.2.2:othersecret\n"
+		"dae-max-clock-skew 60\n"
+		"dae-require-message-authenticator yes\n";
+
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: a config file setting all dae-* options was rejected\n");
+		exit(1);
+	}
+
+	v = rc_conf_str(rh, "dae-accept");
+	if (v == NULL || strcmp(v, "yes") != 0) {
+		fprintf(stderr, "error: dae-accept: expected \"yes\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-listen");
+	if (v == NULL || strcmp(v, "0.0.0.0:3799") != 0) {
+		fprintf(stderr, "error: dae-listen: expected \"0.0.0.0:3799\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-secret");
+	if (v == NULL || strcmp(v, "testing123") != 0) {
+		fprintf(stderr, "error: dae-secret: expected \"testing123\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-server");
+	if (v == NULL || strcmp(v, "192.0.2.1,192.0.2.2:othersecret") != 0) {
+		fprintf(stderr, "error: dae-server: expected \"192.0.2.1,192.0.2.2:othersecret\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	if (rc_conf_int(rh, "dae-max-clock-skew") != 60) {
+		fprintf(stderr, "error: dae-max-clock-skew: expected 60, got %d\n",
+			rc_conf_int(rh, "dae-max-clock-skew"));
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-require-message-authenticator");
+	if (v == NULL || strcmp(v, "yes") != 0) {
+		fprintf(stderr, "error: dae-require-message-authenticator: expected \"yes\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 int main(void)
 {
 	openlog(NULL, LOG_PERROR, LOG_USER);
@@ -426,6 +489,7 @@ int main(void)
 	test_long_line_no_truncation();
 	test_keyword_trailing_whitespace_only();
 	test_acctserver_log_suppression();
+	test_dae_options_registered();
 
 	printf("config-unit: all tests passed\n");
 	return 0;

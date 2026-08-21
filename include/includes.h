@@ -219,6 +219,8 @@ struct dict_counter64_pair {
 	struct dict_counter64_pair *next;
 };
 
+struct radcli_dae_st; /* lib/dae.c; opaque here, ctx just tracks the pointer */
+
 struct rc_conf
 {
 	struct _option		*config_options;
@@ -240,6 +242,16 @@ struct rc_conf
 
 	rc_sockets_override	so;
 	unsigned		so_type; /* rc_socket_type */
+
+	/* radcli2.h's radcli_ctx_get_poll()/radcli_ctx_dispatch() (lib/dae.c)
+	 * operate on ctx, not on a radcli_dae, so that a future dynamic-
+	 * authorization transport sharing one descriptor with the request
+	 * path never has two independent accessors aliasing it -- see
+	 * radcli_ctx_get_poll()'s doc comment. At most one radcli_dae may be
+	 * active per ctx at a time, since these two calls need a single
+	 * descriptor to report. */
+	struct radcli_dae_st	*active_dae;
+	unsigned		in_dispatch; /* radcli_ctx_dispatch() reentrancy guard */
 };
 
 /* older compilers don't like seeing this typedef along with the one in radcli.h */
@@ -338,5 +350,9 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      const uint8_t *send_buf, int send_len,
 			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
 			      uint8_t *out_code);
+
+/* Like rc_conf_int() (radcli.h), but returns def instead of logging an
+ * error when optname was never set (lib/config.c). */
+int rc_conf_int_def(rc_handle const *rh, char const *optname, int def);
 
 #endif
