@@ -434,6 +434,67 @@ int main(int argc, char **argv)
 		rc_destroy(rh2);
 	}
 
+	/* --- rc_dict_attr_encrypt_type()/rc_dict_attr_has_tag() match by
+	 * attr->value (attribute id + vendor), not DICT_ATTR pointer identity:
+	 * two DICT_ATTR objects for the same wire attribute -- whether the
+	 * built-in "Password"/"User-Password" id-2 alias pair (etc/dictionary),
+	 * or a later-loaded dictionary redefining an already-flagged id -- must
+	 * both see the flag, not just whichever DICT_ATTR happened to register
+	 * it. See the discussion in the commit introducing this. --- */
+
+	{
+		rc_handle *rh4 = rc_new();
+		const radcli_attr_def *pw;
+		char dict_path[PATH_MAX];
+		const char *sd = getenv("srcdir");
+
+		snprintf(dict_path, sizeof(dict_path), "%s/../etc/dictionary", sd ? sd : ".");
+
+		assert(rh4 != NULL);
+		rc_config_init(rh4);
+		if (rc_read_dictionary(rh4, dict_path) != 0) {
+			fprintf(stderr, "error: %s failed to load\n", dict_path);
+			exit(1);
+		}
+
+		/* "Password" (etc/dictionary's legacy Cistron-era alias for id 2)
+		 * carries no encrypt= of its own -- only "User-Password" does. A
+		 * pointer-identity match would report it unencrypted. */
+		pw = radcli_dict_lookup(rh4, "Password");
+		if (pw == NULL || rc_dict_attr_encrypt_type(rh4, (const DICT_ATTR *)pw) != 1) {
+			fprintf(stderr, "error: the \"Password\" id-2 alias was not "
+					"reported as encrypt=User-Password\n");
+			exit(1);
+		}
+
+		/* A dictionary loaded afterwards that redefines Tunnel-Password (69)
+		 * without repeating encrypt=/has_tag must not turn off encryption
+		 * for it: rc_dict_findattr()/rc_dict_getattr() now resolve "Tunnel-
+		 * Password" to this new, unflagged DICT_ATTR (most-recently-loaded
+		 * wins), but the built-in definition's dictionary_encrypt entry for
+		 * id 69 must still be found by value. */
+		{
+			static const char shadow_dict[] =
+"ATTRIBUTE	Tunnel-Password		69	string\n";
+			const radcli_attr_def *tp;
+
+			if (rc_read_dictionary_from_buffer(rh4, shadow_dict, sizeof(shadow_dict) - 1) != 0) {
+				fprintf(stderr, "error: failed to load the shadowing dictionary\n");
+				exit(1);
+			}
+
+			tp = radcli_dict_lookup(rh4, "Tunnel-Password");
+			if (tp == NULL || rc_dict_attr_encrypt_type(rh4, (const DICT_ATTR *)tp) != 2) {
+				fprintf(stderr, "error: a Tunnel-Password redefinition without "
+						"encrypt= silently disabled encryption for id 69\n");
+				exit(1);
+			}
+		}
+
+		rc_dict_free(rh4);
+		rc_destroy(rh4);
+	}
+
 	/* --- lib/dict.c's uint32/has_tag/encrypt=<name> grammar, exercised
 	 * against a verbatim excerpt of FreeRADIUS's own
 	 * share/dictionary/radius/dictionary.rfc2868 (fetched from the

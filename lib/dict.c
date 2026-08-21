@@ -815,7 +815,20 @@ void rc_dict_free(rc_handle *rh)
 }
 
 /* Internal only -- see the declaration in include/includes.h, shared with
- * lib/avp.c the way rc_send_server_ctx is. */
+ * lib/avp.c the way rc_send_server_ctx is.
+ *
+ * Matches by attr->value (attribute id + vendor, RADCLI_VENDOR_ATTR_SET()-
+ * combined), not by DICT_ATTR pointer identity: rc_dict_addattr()/
+ * rc_dict_init() never dedup redefinitions of the same (id, vendor) under a
+ * new name or from a later-loaded dictionary (e.g. a caller's supplemental
+ * dictionary loaded after the built-in one, or the built-in "Password"/
+ * "User-Password" id-2 alias pair -- see etc/dictionary), so two distinct
+ * DICT_ATTR objects can legitimately mean the same wire attribute. Matching
+ * by value means any dictionary_encrypt entry ever registered for that id
+ * still applies, regardless of which same-id DICT_ATTR a caller resolved
+ * through -- fail-safe: a redefinition that omits encrypt=/has_tag cannot
+ * silently turn off encryption for an id another loaded definition already
+ * flagged. */
 int rc_dict_attr_encrypt_type(rc_handle const *rh, const DICT_ATTR *attr)
 {
 	struct dict_encrypt_flag *ef;
@@ -824,14 +837,15 @@ int rc_dict_attr_encrypt_type(rc_handle const *rh, const DICT_ATTR *attr)
 		return 0;
 
 	for (ef = rh->dictionary_encrypt; ef != NULL; ef = ef->next) {
-		if (ef->attr == attr)
+		if (ef->attr->value == attr->value)
 			return ef->encrypt_type;
 	}
 	return 0;
 }
 
 /* Internal only -- see the declaration in include/includes.h, shared with
- * lib/avp.c the way rc_send_server_ctx is. */
+ * lib/avp.c the way rc_send_server_ctx is. Matches by attr->value, not
+ * pointer identity -- see rc_dict_attr_encrypt_type() above for why. */
 int rc_dict_attr_has_tag(rc_handle const *rh, const DICT_ATTR *attr)
 {
 	struct dict_encrypt_flag *ef;
@@ -840,7 +854,7 @@ int rc_dict_attr_has_tag(rc_handle const *rh, const DICT_ATTR *attr)
 		return 0;
 
 	for (ef = rh->dictionary_encrypt; ef != NULL; ef = ef->next) {
-		if (ef->attr == attr)
+		if (ef->attr->value == attr->value)
 			return ef->has_tag;
 	}
 	return 0;
