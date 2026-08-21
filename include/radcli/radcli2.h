@@ -387,6 +387,24 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
  */
 int radcli_request_perform(radcli_request *r);
 
+/** @brief Send a request once, without waiting for or expecting a reply.
+ *
+ * The fire-and-forget counterpart to radcli_request_perform(): transmits r
+ * a single time (no retries -- there is no reply to judge one by) and
+ * returns immediately. Intended for a best-effort notification whose
+ * outcome the caller does not act on, e.g. an accounting stop sent during
+ * shutdown; radcli.h's rc_acct_async() is the equivalent call in the
+ * legacy API.
+ *
+ * May be called only once per request; construct a new radcli_request to
+ * send again.
+ *
+ * @param r a request from radcli_request_new().
+ * @return RADCLI_OK once the packet is handed to the network, RADCLI_ERROR
+ *  on failure (e.g. name resolution or encoding failed). Never RADCLI_TIMEOUT.
+ */
+int radcli_request_send_noreply(radcli_request *r);
+
 /** @brief Return the reply's RADIUS code.
  * @param r a request radcli_request_perform() returned RADCLI_OK for.
  * @return the code (e.g. RADCLI_CODE_ACCESS_ACCEPT), or 0 if r has not yet

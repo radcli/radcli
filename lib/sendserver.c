@@ -30,7 +30,10 @@
 #endif
 
 
-#define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
+/* Resets fd to -1 after closing so a later unconditional cleanup (e.g. the
+ * shared `cleanup:` label's `if (sockfd >= 0) SCLOSE(sockfd)`) cannot close
+ * the same descriptor a second time. */
+#define SCLOSE(fd) do { if (sfuncs->close_fd) sfuncs->close_fd(fd); (fd) = -1; } while (0)
 
 /* rc_check_reply(), populate_ctx(), add_msg_auth_attr(),
  * validate_message_authenticator() are declared in include/includes.h (no
@@ -701,7 +704,6 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 		}
 
 		SCLOSE(sockfd);
-		sockfd = -1;
 	}
 
 	/* Every resolved address was tried without a valid reply. */

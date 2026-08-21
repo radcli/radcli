@@ -302,25 +302,28 @@ found), enforcement of this requirement is code-review only.
 
 ### REQ-NET-NET-017 — `rc_send_server_ctx()`'s `no_wait` parameter is an explicit fire-and-forget mode: transmit once and return `OK_RC` without waiting for a reply, never `TIMEOUT_RC`
 
-**Requirement:** `rc_send_server_ctx()` (internal-only: declared in `include/includes.h`, not
-`include/radcli/radcli.h`/`lib/radcli.map.in`, so its signature carries no ABI obligation) takes
-an explicit `int no_wait` parameter rather than inferring fire-and-forget mode from
-`data->timeout == 0`. When `no_wait` is non-zero, immediately after the single `sendto()` call
+**Requirement:** `radcli_transport_exchange()` (the socket/retry/receive step both
+`rc_send_server_ctx()` and `radcli2.h`'s `radcli_request_perform()`/`radcli_request_send_noreply()`
+delegate to) takes an explicit `int no_wait` parameter rather than inferring fire-and-forget mode
+from a zero timeout. When `no_wait` is non-zero, immediately after the single `sendto()` call
 succeeds the function MUST close the socket, capture the request's own secret/vector into `*ctx`
 if non-NULL (`populate_ctx()`, mirroring the normal path's teardown obligations —
 `REQ-NET-TEARDOWN-001`, `REQ-NET-SEC-009`), and return `OK_RC` — it MUST NOT enter the
 `poll()`/retry-budget loop (`REQ-NET-NET-009`) at all, and MUST NOT consult or require any
-particular value of `data->timeout`/`data->retries`. Because the retry/poll loop that produces
-`TIMEOUT_RC` is structurally unreachable when `no_wait` is set, `TIMEOUT_RC` MUST NOT be returned
-under `no_wait` — the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
+particular value of `timeout`/`retries`. Because the retry/poll loop that produces `TIMEOUT_RC` is
+structurally unreachable when `no_wait` is set, `TIMEOUT_RC` MUST NOT be returned under `no_wait` —
+the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
 (`ERROR_RC`/`NETUNREACH_RC`), preserving `REQ-NET-ERR-001`'s single, unconditional meaning for
 `TIMEOUT_RC` everywhere else in the function.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:423-424 (`no_wait` parameter), lib/sendserver.c:696-708 (early
-`SCLOSE`/`populate_ctx`/`OK_RC` branch, taken before the retry/poll loop at 710-736 that produces
-`TIMEOUT_RC`); lib/buildreq.c:392-411 (`rc_aaa_ctx_server_async()` calling `rc_send_server_ctx(rh,
-NULL, &data, NULL, type, 1)` and treating only `OK_RC` as per-server success)
+**Source:** lib/sendserver.c:470 (`no_wait` parameter), lib/sendserver.c:625-630 (early
+`SCLOSE`/`populate_ctx`/`OK_RC` branch, taken before the retry/poll loop that produces
+`TIMEOUT_RC` at lines 692-702); lib/buildreq.c:363-411 (`rc_aaa_ctx_server_async()` calling
+`rc_send_server_ctx(rh, NULL, &data, NULL, type, 1)` and treating only `OK_RC` as per-server
+success); lib/request.c:171-227, 260-274 (`do_exchange()`/`radcli_request_send_noreply()` calling
+`radcli_transport_exchange()` with `no_wait = 1` directly — see `REQ-NET2-SEND-012` in `net2.md`
+for that caller's own contract)
 **Acceptance:** [NET] unit, local — calling `rc_send_server_ctx()` with `no_wait=1` against an
 unreachable server returns `OK_RC` (not `TIMEOUT_RC`) without a `poll()` call blocking
 (measurable: wall-clock duration of the call is well under any nonzero timeout value), regardless
@@ -756,21 +759,34 @@ Response Authenticator) yields `BADRESP_RC`.
 
 ## TEARDOWN — socket, session, and namespace lifecycle
 
-### REQ-NET-TEARDOWN-001 — The UDP/TCP socket opened for a request is always closed via `sfuncs->close_fd`, on every exit path after `get_fd()` succeeds
+### REQ-NET-TEARDOWN-001 — The UDP/TCP socket opened for a request is closed via `sfuncs->close_fd` exactly once, on every exit path after `get_fd()` succeeds
 
-**Requirement:** Every error and success path in `rc_send_server_ctx()` reached after
-`sfuncs->get_fd()` returns a valid descriptor MUST call `SCLOSE(sockfd)`
-(`sfuncs->close_fd(sockfd)`, a no-op if `close_fd` is NULL) before returning, so a plain UDP/TCP
-socket is never leaked across repeated `rc_auth()`/`rc_acct()` calls. This requirement does not
-apply to the TLS/DTLS vtable, whose `close_fd` is intentionally NULL — see
+**Requirement:** Every error and success path in `radcli_transport_exchange()` (the socket/retry/
+receive step `rc_send_server_ctx()` and `radcli_request_perform()`/`radcli_request_send_noreply()`
+all delegate to) reached after `sfuncs->get_fd()` returns a valid descriptor MUST call
+`SCLOSE(sockfd)` exactly once before returning — a plain UDP/TCP socket MUST NOT be leaked (never
+closed) across repeated `rc_auth()`/`rc_acct()`/`radcli_request_*()` calls, and MUST NOT be closed
+twice: closing an already-closed fd risks closing an unrelated descriptor that another allocation
+(in this process, or another thread, since radcli is called from caller-created threads) has since
+been given that same, now-freed fd number — a real hazard, not just a leak. The `SCLOSE(fd)` macro
+itself enforces the "at most once" half of this: it calls `sfuncs->close_fd(fd)` (a no-op if
+`close_fd` is NULL) and then sets `fd = -1`, so a later unconditional close guarded by
+`if (sockfd >= 0)` (the shared `cleanup:` label) cannot repeat an already-done close — this is
+enforced once, in the macro, rather than by convention at each of its call sites. This requirement
+does not apply to the TLS/DTLS vtable, whose `close_fd` is intentionally NULL — see
 `REQ-NET-TEARDOWN-002`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:32 (`SCLOSE` macro definition, guards on `sfuncs->close_fd`
-non-NULL), 719,744,757,788,812,821,830,839,855 (9 call sites); lib/config.c:500-512 (`close_fd`
-set to `plain_close_fd` for UDP/TCP)
-**Acceptance:** [TEARDOWN] code-review — every new early-return in `rc_send_server_ctx()` after
-`get_fd()` succeeds must be checked for a preceding `SCLOSE(sockfd)`.
+**Source:** lib/sendserver.c:33-36 (`SCLOSE(fd)` macro: closes via `sfuncs->close_fd` if set, then
+`fd = -1`); call sites at lines 576, 586 (both `continue` to the next resolved address, which
+re-acquires `sockfd` before it could reach `cleanup:`), 626, 650, 670, 682, 706 (mid-function
+closes, each safe to immediately follow with `cleanup:`'s own guarded close since the macro already
+nulled `sockfd`), and 845 (`cleanup:` label's own close, guarded by `if (sockfd >= 0)`);
+lib/config.c:500-512 (`close_fd` set to `plain_close_fd` for UDP/TCP, so `SCLOSE` is a real
+`close(2)`, not a no-op, for the default transport)
+**Acceptance:** [TEARDOWN] code-review — every new early-return in `radcli_transport_exchange()`
+after `get_fd()` succeeds must be checked for a preceding `SCLOSE(sockfd)` (no leak); the
+no-double-close half no longer needs a per-call-site check, since the macro enforces it structurally.
 
 ### REQ-NET-TEARDOWN-002 — TLS/DTLS sockets are NOT closed per-request; they persist across calls and are torn down only by `rc_deinit_tls()`/session restart
 

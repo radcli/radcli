@@ -216,23 +216,53 @@ implicit coverage (a fixed/predictable ID would still interoperate with
 FreeRADIUS); `Needs-domain-check` whether this project wants a dedicated
 statistical/uniqueness test.
 
-### REQ-NET2-SEND-011 — a request may be performed at most once
+### REQ-NET2-SEND-011 — a request may be performed at most once, across either send function
 
-**Requirement:** `radcli_request_perform()` MUST return `RADCLI_ERROR`
+**Requirement:** `radcli_request_perform()` and `radcli_request_send_noreply()`
+share one `r->performed` flag: either call MUST return `RADCLI_ERROR`
 immediately, without sending anything, if called on a request that has
-already been performed (`r->performed` already set) or if `r` is `NULL`. A
-caller needing a retransmission with different content MUST construct a new
-`radcli_request` via `radcli_request_new()`.
+already been performed by *either* function (`r->performed` already set) or
+if `r` is `NULL`. A caller needing a retransmission with different content
+MUST construct a new `radcli_request` via `radcli_request_new()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:172-174; contract restated in
-`include/radcli/radcli2.h`'s `radcli_request_perform()` doc comment ("May be
+**Source:** lib/request.c:236 (`radcli_request_perform()`), lib/request.c:267
+(`radcli_request_send_noreply()`) — both check/set the same `r->performed`;
+contract restated in `include/radcli/radcli2.h`'s doc comments ("May be
 called only once per request")
 **Acceptance:** [SEND] unit, local — `tests/request.c` calls
 `radcli_request_perform()` twice on the same request (second call without
 network access available) and confirms the second returns `RADCLI_ERROR`
-without hanging or crashing.
-**Links:** REQ-NET2-ERR-012
+without hanging or crashing; a second test constructs a request, calls
+`radcli_request_send_noreply()`, then confirms both a second
+`radcli_request_send_noreply()` call and a `radcli_request_perform()` call on
+the same (now-performed) request return `RADCLI_ERROR`.
+**Links:** REQ-NET2-ERR-012, REQ-NET2-SEND-012
+
+### REQ-NET2-SEND-012 — radcli_request_send_noreply() transmits once, with no retry and no reply wait
+
+**Requirement:** `radcli_request_send_noreply()` MUST build the same wire
+packet `radcli_request_perform()` would (shared `do_exchange()` helper, same
+Request/Accounting-Request Authenticator and Message-Authenticator rules as
+REQ-NET2-SEND-008/009/010), then call `radcli_transport_exchange()` with
+`no_wait = 1` — a single transmission to the first resolved address, no
+retry loop, and no wait for a reply. It MUST return `RADCLI_OK` once the
+packet is handed to the socket layer, `RADCLI_ERROR` on any earlier failure
+(name resolution, packet encoding, or the send itself), and MUST NEVER
+return `RADCLI_TIMEOUT` (there is no reply to time out on). `r->reply_code`
+and `r->reply_attrs` MUST remain unchanged (this function does not decode a
+reply).
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/request.c:171-227 (`do_exchange()`), lib/request.c:260-274
+(`radcli_request_send_noreply()`); lib/sendserver.c:622-627
+(`radcli_transport_exchange()`'s `no_wait` branch, first-address-only, no
+retry/poll)
+**Acceptance:** [SEND] unit, local — `tests/request.c` sends a no-wait
+Accounting-Request to an unreachable address (192.0.2.1, RFC 5737) and
+confirms `RADCLI_OK` is returned promptly (no timeout wait).
+**Links:** REQ-NET2-SEND-008, REQ-NET2-SEND-009, REQ-NET2-SEND-010,
+REQ-NET2-SEND-011
 
 ---
 
@@ -338,16 +368,19 @@ exceed `RC_MAX_PACKET_LEN` once encoded (e.g. a large binary attribute
 repeated many times) and confirm `radcli_request_perform()` returns
 `RADCLI_ERROR` with no observable network I/O.
 
-### REQ-NET2-ERR-012 — a double-perform or NULL-request perform is RADCLI_ERROR, not undefined behavior
+### REQ-NET2-ERR-012 — a double-send or NULL-request send/perform is RADCLI_ERROR, not undefined behavior
 
 **Requirement:** See REQ-NET2-SEND-011; restated here as the ERR-category
-contract: `radcli_request_perform(NULL)` and a second
-`radcli_request_perform()` call on the same request MUST both return
-`RADCLI_ERROR` deterministically, never crash or resend.
+contract: `radcli_request_perform(NULL)`/`radcli_request_send_noreply(NULL)`,
+a second call to either function on the same request, and a
+`radcli_request_perform()` call after a prior `radcli_request_send_noreply()`
+on the same request (or vice versa) MUST all return `RADCLI_ERROR`
+deterministically, never crash or resend.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:172-174
-**Acceptance:** [ERR] unit, local — same test as REQ-NET2-SEND-011's
-acceptance criterion; listed separately here because it is also the
+**Source:** lib/request.c:236 (`radcli_request_perform()`), lib/request.c:267
+(`radcli_request_send_noreply()`)
+**Acceptance:** [ERR] unit, local — same tests as REQ-NET2-SEND-011's
+acceptance criteria; listed separately here because it is also the
 NULL-safety/no-UB contract `REQ-GEN-MEM-002`-style requirements care about.
-**Links:** REQ-NET2-SEND-011, REQ-GEN-MEM-002
+**Links:** REQ-NET2-SEND-011, REQ-NET2-SEND-012, REQ-GEN-MEM-002

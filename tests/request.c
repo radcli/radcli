@@ -102,6 +102,7 @@ int main(int argc, char **argv)
 	assert(rc_add_config(rh, "radius_timeout", "1", "config", 0) == 0);
 	assert(rc_add_config(rh, "radius_retries", "0", "config", 0) == 0);
 	assert(rc_add_config(rh, "authserver", "192.0.2.1:1812:testing123", "config", 0) == 0);
+	assert(rc_add_config(rh, "acctserver", "192.0.2.1:1813:testing123", "config", 0) == 0);
 	assert(rc_apply_config(rh) == 0);
 
 	r = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, send_list);
@@ -157,6 +158,47 @@ int main(int argc, char **argv)
 
 	/* --- radcli_request_free(NULL) is a no-op --- */
 	radcli_request_free(NULL);
+
+	/* --- radcli_request_send_noreply(): transmits once and returns
+	 * RADCLI_OK without waiting, even though nothing is listening at
+	 * 192.0.2.1 -- unlike perform(), there is no reply to time out on --- */
+
+	{
+		radcli_avp_list *send_list2 = radcli_avp_list_new();
+
+		assert(send_list2 != NULL);
+		assert(radcli_avp_add_str(send_list2, d_user, "bob") == 0);
+
+		r = radcli_request_new(ctx, RADCLI_CODE_ACCOUNTING_REQUEST, send_list2);
+		radcli_avp_list_free(send_list2);
+		if (r == NULL) {
+			fprintf(stderr, "error: radcli_request_new(RADCLI_CODE_ACCOUNTING_REQUEST) "
+					"failed with an acctserver configured\n");
+			exit(1);
+		}
+
+		if (radcli_request_send_noreply(r) != RADCLI_OK) {
+			fprintf(stderr, "error: radcli_request_send_noreply() did not "
+					"return RADCLI_OK\n");
+			exit(1);
+		}
+
+		/* Calling either send function a second time on an
+		 * already-performed request must fail. */
+		if (radcli_request_send_noreply(r) != RADCLI_ERROR) {
+			fprintf(stderr, "error: a second radcli_request_send_noreply() "
+					"call did not return RADCLI_ERROR\n");
+			exit(1);
+		}
+		if (radcli_request_perform(r) != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_perform() after "
+					"radcli_request_send_noreply() did not return "
+					"RADCLI_ERROR\n");
+			exit(1);
+		}
+
+		radcli_request_free(r);
+	}
 
 	rc_dict_free(rh);
 	rc_destroy(rh);

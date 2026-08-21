@@ -93,6 +93,7 @@ RADCLI_@LIBMAJOR@
 	radcli_avp_get_bytes;
 	radcli_request_new;
 	radcli_request_perform;
+	radcli_request_send_noreply;
 	radcli_request_code;
 	radcli_request_attrs;
 	radcli_request_server;

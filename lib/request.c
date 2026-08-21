@@ -159,20 +159,22 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	return r;
 }
 
-/** @brief Send a request and wait for the reply. See the doc comment in radcli2.h. */
-int radcli_request_perform(radcli_request *r)
+/* Builds the wire packet from r->send and hands it to radcli_transport_exchange(),
+ * shared by radcli_request_perform() (no_wait = 0) and
+ * radcli_request_send_noreply() (no_wait = 1). Sets r->reply_code as a side
+ * effect (unchanged when no_wait, per radcli_transport_exchange()'s own
+ * contract); the request-authenticator vector used, needed by a caller that
+ * goes on to decode the reply, is written to vector_out. Returns whatever
+ * radcli_transport_exchange() itself returns (OK_RC/REJECT_RC/CHALLENGE_RC/
+ * TIMEOUT_RC/ERROR_RC/...), not a radcli_result -- callers translate. */
+/// @cond INTERNAL
+static int do_exchange(radcli_request *r, int no_wait,
+		       uint8_t *recv_buffer, size_t recv_buffer_cap, size_t *recv_len,
+		       unsigned char vector_out[AUTH_VECTOR_LEN])
 {
 	uint8_t send_buffer[RC_BUFFER_LEN];
-	uint8_t recv_buffer[RC_BUFFER_LEN];
 	AUTH_HDR *auth = (AUTH_HDR *)send_buffer;
-	unsigned char vector[AUTH_VECTOR_LEN];
 	int encoded_len, total_length;
-	size_t recv_len = 0;
-	int result;
-
-	if (r == NULL || r->performed)
-		return RADCLI_ERROR;
-	r->performed = 1;
 
 	auth->code = r->code;
 	auth->id = rc_get_random_byte();
@@ -181,14 +183,14 @@ int radcli_request_perform(radcli_request *r)
 		size_t secretlen;
 		uint16_t tlen;
 
-		memset(vector, 0, AUTH_VECTOR_LEN);
-		memcpy(auth->vector, vector, AUTH_VECTOR_LEN);
+		memset(vector_out, 0, AUTH_VECTOR_LEN);
+		memcpy(auth->vector, vector_out, AUTH_VECTOR_LEN);
 
-		encoded_len = radcli_avp_encode_rfc2865(r->rh, r->send, r->secret, vector,
+		encoded_len = radcli_avp_encode_rfc2865(r->rh, r->send, r->secret, vector_out,
 						send_buffer + AUTH_HDR_LEN,
 						RC_MAX_PACKET_LEN - AUTH_HDR_LEN, NULL);
 		if (encoded_len < 0)
-			return RADCLI_ERROR;
+			return ERROR_RC;
 		total_length = AUTH_HDR_LEN + encoded_len;
 
 		tlen = htons((uint16_t)total_length);
@@ -198,28 +200,44 @@ int radcli_request_perform(radcli_request *r)
 		if (secretlen > MAX_SECRET_LENGTH)
 			secretlen = MAX_SECRET_LENGTH;
 		memcpy(send_buffer + total_length, r->secret, secretlen);
-		rc_md5_calc(vector, send_buffer, (size_t)total_length + secretlen);
-		memcpy(auth->vector, vector, AUTH_VECTOR_LEN);
+		rc_md5_calc(vector_out, send_buffer, (size_t)total_length + secretlen);
+		memcpy(auth->vector, vector_out, AUTH_VECTOR_LEN);
 	} else {
-		rc_get_random_bytes(vector, AUTH_VECTOR_LEN);
-		memcpy(auth->vector, vector, AUTH_VECTOR_LEN);
+		rc_get_random_bytes(vector_out, AUTH_VECTOR_LEN);
+		memcpy(auth->vector, vector_out, AUTH_VECTOR_LEN);
 
 		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below). */
-		encoded_len = radcli_avp_encode_rfc2865(r->rh, r->send, r->secret, vector,
+		encoded_len = radcli_avp_encode_rfc2865(r->rh, r->send, r->secret, vector_out,
 						send_buffer + AUTH_HDR_LEN,
 						RC_MAX_PACKET_LEN - AUTH_HDR_LEN - (2 + MD5_DIGEST_SIZE), NULL);
 		if (encoded_len < 0)
-			return RADCLI_ERROR;
+			return ERROR_RC;
 		total_length = AUTH_HDR_LEN + encoded_len;
 
 		total_length = add_msg_auth_attr(r->rh, r->secret, auth, total_length);
 		auth->length = htons((uint16_t)total_length);
 	}
 
-	result = radcli_transport_exchange(r->rh, NULL, r->server, r->svc_port,
-					   r->secret, 0, r->timeout, r->retries, 0, r->type,
-					   send_buffer, total_length,
-					   recv_buffer, sizeof(recv_buffer), &recv_len, &r->reply_code);
+	return radcli_transport_exchange(r->rh, NULL, r->server, r->svc_port,
+					 r->secret, 0, r->timeout, r->retries, no_wait, r->type,
+					 send_buffer, total_length,
+					 recv_buffer, recv_buffer_cap, recv_len, &r->reply_code);
+}
+/// @endcond
+
+/** @brief Send a request and wait for the reply. See the doc comment in radcli2.h. */
+int radcli_request_perform(radcli_request *r)
+{
+	uint8_t recv_buffer[RC_BUFFER_LEN];
+	unsigned char vector[AUTH_VECTOR_LEN];
+	size_t recv_len = 0;
+	int result;
+
+	if (r == NULL || r->performed)
+		return RADCLI_ERROR;
+	r->performed = 1;
+
+	result = do_exchange(r, 0, recv_buffer, sizeof(recv_buffer), &recv_len, vector);
 
 	switch (result) {
 	case OK_RC:
@@ -236,6 +254,23 @@ int radcli_request_perform(radcli_request *r)
 	default:
 		return RADCLI_ERROR;
 	}
+}
+
+/** @brief Send a request without waiting for a reply. See the doc comment in radcli2.h. */
+int radcli_request_send_noreply(radcli_request *r)
+{
+	uint8_t recv_buffer[RC_BUFFER_LEN];
+	unsigned char vector[AUTH_VECTOR_LEN];
+	size_t recv_len = 0;
+	int result;
+
+	if (r == NULL || r->performed)
+		return RADCLI_ERROR;
+	r->performed = 1;
+
+	result = do_exchange(r, 1, recv_buffer, sizeof(recv_buffer), &recv_len, vector);
+
+	return result == OK_RC ? RADCLI_OK : RADCLI_ERROR;
 }
 
 /** @brief Return the reply's RADIUS code. See the doc comment in radcli2.h. */
