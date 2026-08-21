@@ -9,6 +9,9 @@ categories:
   CFG: interaction with rc_read_config and the build-time dictionary generator
 sources:
   - lib/dict.c
+  - lib/dict2.c
+  - lib/dict2.h
+  - lib/uthash/uthash.h
   - lib/dict_rfc_gen.h
   - lib/gen-dict.awk
   - include/radcli/radcli.h
@@ -33,9 +36,34 @@ precondition for attribute handling (e.g. a name must resolve via
 the dictionary-side guarantee and `attrs.md` states the attribute-side
 consumption of it.
 
+**Implementation split (as of the dict2 rewrite):** `lib/dict2.c`/`lib/dict2.h`
+are now the canonical implementation -- parsing, `$INCLUDE` resolution, and
+O(1) uthash-indexed lookup by name/id/vendor (`lib/uthash/uthash.h`, BSD-1-
+Clause, vendored the way `lib/ccan/list/` already was) in place of the
+former linear-scanned `next`-chains. `rc_read_dictionary()`,
+`rc_read_dictionary_from_buffer()`, and `rc_dict_free()` -- the only three
+entry points any external caller checked (including ocserv's
+`src/acct/radius.c`/`src/auth/radius.c`) actually uses -- are defined
+directly in `lib/dict2.c` under their existing public names/signatures, with
+identical documented behavior (guard/`$INCLUDE`/ownership semantics
+unchanged). `lib/dict.c` is now a thin compatibility shim: its remaining
+`rc_dict_addattr`/`addval`/`addvend`/`getattr`/`findattr`/`findval`/`getval`/
+`findvend`/`getvend` forward to `lib/dict2.h` and lazily materialize a cached
+`DICT_ATTR`/`DICT_VALUE`/`DICT_VENDOR` shadow struct, kept only because those
+structs are frozen public ABI returned by pointer. No public symbol, struct
+layout, or documented behavior changed; every requirement below still holds
+of the public API. `radcli2.h`'s `radcli_dict_lookup()`/`_lookup_num()`/
+`_lookup_oid()` (declared in `lib/dict.c`, `doc/requirements/avp2.md`'s
+scope) still resolve through the same legacy-shadow path as
+`rc_dict_findattr()`/`rc_dict_getattr()` today, since `lib/avp.c` casts a
+`radcli_attr_def*` straight to `DICT_ATTR*` in several places; routing them
+(and `lib/avp.c`) directly through `lib/dict2.h` instead is separate,
+not-yet-done follow-up work.
+
 Cross-cutting memory-safety and unsafe-string-function rules
-(`REQ-GEN-MEM-002`, `REQ-GEN-MEM-004`) apply throughout `lib/dict.c` and are
-linked from individual requirements below rather than restated.
+(`REQ-GEN-MEM-002`, `REQ-GEN-MEM-004`) apply throughout `lib/dict.c`/
+`lib/dict2.c` and are linked from individual requirements below rather than
+restated.
 
 ---
 
@@ -53,7 +81,7 @@ successful call, `filename` MUST be recorded via `strdup()` into
 `rh->first_dict_read`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:521-544 (`rc_read_dictionary`); include/includes.h:196
+**Source:** lib/dict2.c:566-582 (`rc_read_dictionary`); include/includes.h
 (`first_dict_read` field)
 **Acceptance:** [INIT] positive, local — load a dictionary file twice via two
 `rc_read_dictionary` calls with the same path; second call returns `0` without
@@ -74,8 +102,8 @@ directives — such a line is silently skipped by falling through the
 so it is ignored) rather than being an error.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:556-573 (`rc_read_dictionary_from_buffer`);
-lib/dict.c:394-427 (`$INCLUDE` branch guarded by `filename != NULL`)
+**Source:** lib/dict2.c:594-613 (`rc_read_dictionary_from_buffer`);
+lib/dict2.c:442-476 (`$INCLUDE` branch guarded by `filename != NULL`)
 **Acceptance:** [INIT] positive, local — call with a buffer containing a
 single `$INCLUDE some/path` line; call returns `0` (line ignored, not an
 error) and no attributes from `some/path` are loaded.
@@ -112,7 +140,7 @@ last `/`) and appending `<path>`; if the including filename has no `/`, the
 raw token is used as read into `ifilename`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:394-427
+**Source:** lib/dict2.c:442-476
 **Acceptance:** [INIT] positive, local — a dictionary at `dir/a` containing
 `$INCLUDE b` successfully loads `dir/b`; a dictionary containing
 `$INCLUDE /abs/path` loads `/abs/path` regardless of the including file's
@@ -133,7 +161,7 @@ paths specifically (the 64-byte `RC_NAME_LENGTH` bound legitimately applies
 to attribute/value/vendor *names*, not include paths — see REQ-DICT-ERR-001).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:166, 399-422; git log `d5b1713` (regression this
+**Source:** lib/dict2.c:90, 447-470; git log `d5b1713` (regression this
 supersedes)
 **Acceptance:** [INIT] positive, local — a dictionary with
 `$INCLUDE some/very/long/relative/path...` (>63, <1024 bytes total including
@@ -162,7 +190,7 @@ dictionaries, e.g. `share/dictionary/radius/dictionary.rfc2868`, use for the
 same type). Any other type keyword MUST be rejected.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:209-332 (`ATTRIBUTE` branch); include/radcli/radcli.h:120-128
+**Source:** lib/dict2.c:137-377 (`ATTRIBUTE` branch); include/radcli/radcli.h:120-128
 (`rc_attr_type`/`PW_TYPE_*`)
 **Acceptance:** [DATA] positive, local — `ATTRIBUTE Foo 1 ipv4addr` and
 `ATTRIBUTE Foo 1 ipaddr` both produce a `DICT_ATTR` with `type ==
@@ -206,7 +234,7 @@ bare `<name>`); when present, that vendor (again resolved via
 ambient `BEGIN-VENDOR` context.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:294-312 (per-line `vendor=` option), 429-457
+**Source:** lib/dict2.c:318-328 (per-line `vendor=` option), 477-504
 (`BEGIN-VENDOR`/`END-VENDOR`)
 **Acceptance:** [DATA] positive, local — verify an `ATTRIBUTE` line inside a
 `BEGIN-VENDOR`/`END-VENDOR` block picks up the block's PEN; verify a
@@ -224,7 +252,7 @@ order is load order, see REQ-DICT-DATA-005). `<pec>` MUST begin with a digit;
 non-numeric values are rejected.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:458-506
+**Source:** lib/dict2.c:506-555
 **Acceptance:** [DATA] positive, local — `VENDOR V 99` followed anywhere
 later by `BEGIN-VENDOR V` succeeds; `rc_dict_findvend(rh, "v")` (any case)
 returns the entry with `vendorpec == 99`.
@@ -234,22 +262,26 @@ returns the entry with `vendorpec == 99`.
 
 **Requirement:** Every successful `ATTRIBUTE`/`VALUE`/`VENDOR` parse, and
 every `rc_dict_addattr()`/`rc_dict_addval()`/`rc_dict_addvend()` call, MUST
-insert the new `DICT_ATTR`/`DICT_VALUE`/`DICT_VENDOR` node at the *head* of
-`rh->dictionary_attributes`/`dictionary_values`/`dictionary_vendors`
-(`node->next = rh->list; rh->list = node`). Because the lookup functions
-(`rc_dict_getattr`, `rc_dict_findattr`, `rc_dict_findval`, `rc_dict_findvend`,
-`rc_dict_getvend`, `rc_dict_getval`) all scan from the head forward and
-return on first match, a later-loaded entry with the same name/value/ID as an
-earlier one MUST shadow the earlier one for all lookup purposes — the earlier
-entry is not removed, just unreachable by lookup. This gives the built-in RFC
-dictionary + subsequently-loaded config `dictionary` file (REQ-DICT-INIT-003)
-override semantics: user-supplied redefinitions of a standard attribute take
-priority over the built-in one.
+insert the new attribute/value/vendor entry such that a later-loaded entry
+with the same name/value/ID as an earlier one shadows the earlier one for
+all lookup purposes — the earlier entry is not removed, just unreachable by
+lookup. This gives the built-in RFC dictionary + subsequently-loaded config
+`dictionary` file (REQ-DICT-INIT-003) override semantics: user-supplied
+redefinitions of a standard attribute take priority over the built-in one.
+Implementation: `lib/dict2.c`'s six `struct radcli_dict` tables are uthash
+(`lib/uthash/uthash.h`) hash tables, each `HASH_ADD()`ed to by name, id, or
+vendor key; uthash's `HASH_ADD_TO_BKT()` prepends a new entry to its
+bucket's chain, so `HASH_FIND()` -- called by every lookup function below --
+always returns the most-recently-inserted match first, the same
+"newest-shadows-oldest" semantics the pre-dict2 next-chain + head-to-tail
+scan gave, without needing an explicit replace/dedup step.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:66-67, 108-109, 143-145 (`rc_dict_addattr`/`addval`/`addvend`
-head-insertion); 330-331, 391-392, 504-506 (parser head-insertion);
-581-696 (head-to-tail scan in all lookup functions)
+**Source:** lib/dict2.c:355-356, 396-397, 514-515 (parser `HASH_ADD()`
+insertion); lib/dict2.c:661-757 (`radcli_dict_attr_add`/`value_add`/
+`vendor_add` `HASH_ADD()` insertion); lib/dict2.c:762-865 (`HASH_FIND()` in
+all `radcli_dict_*_by_*()` lookup functions); lib/uthash/uthash.h:417-424,
+767-787 (`HASH_ADD`/`HASH_ADD_TO_BKT`, newest-first bucket order)
 **Acceptance:** [DATA] positive, local — load the built-in dictionary, then
 load a second dictionary redefining `User-Name`'s numeric ID; `rc_dict_findattr(rh,
 "User-Name")` returns the second definition's `value`, not the built-in one.
@@ -264,8 +296,12 @@ exact 64-bit encoded numeric value (`==`), and `rc_dict_getvend()` matches by
 exact 32-bit PEN (`==`) — both case-independent since they take no string.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:604-618 (`rc_dict_findattr`); 627-640
-(`rc_dict_findval`); 648-656 (`rc_dict_findvend`); 681-696 (`rc_dict_getval`)
+**Source:** lib/dict.c:63-85 (`rc_dict_findattr`/`findval`/`findvend`/`getval`
+shim, forwarding to the `radcli_dict_*_by_name`/`_by_attr` lookups below);
+lib/dict2.c:37-43 (`dict2_lc()`, the lowercased hash key every name lookup
+builds before `HASH_FIND()`), 762-772 (`radcli_dict_attr_by_name`), 786-798
+(`radcli_dict_value_by_name`), 799-813 (`radcli_dict_value_by_attr`),
+815-825 (`radcli_dict_vendor_by_name`)
 **Acceptance:** [DATA] positive, local — `rc_dict_findattr(rh, "user-name")`
 and `rc_dict_findattr(rh, "User-Name")` both resolve the same entry;
 `rc_dict_getval(rh, 1, "user-name")` resolves the same entry as
@@ -285,29 +321,35 @@ bounds the file/buffer parser enforces (REQ-DICT-ERR-001, REQ-DICT-DATA-001).
 `RADCLI_VENDOR_ATTR_SET()` exactly as in file parsing (REQ-DICT-DATA-002).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:38-146
+**Source:** lib/dict.c:43-56 (`rc_dict_addattr`/`addval`/`addvend` shim);
+lib/dict2.c:661-757 (`radcli_dict_attr_add`/`value_add`/`vendor_add`)
 **Acceptance:** [DATA] positive, local — `rc_dict_addattr(rh, "X-Attr", 1,
 PW_TYPE_INTEGER, 0)` returns a non-NULL `DICT_ATTR*` findable via
 `rc_dict_findattr(rh, "X-Attr")`. [ERR] negative — a 65+ character name or
 `type == PW_TYPE_MAX` returns `NULL`.
 **Links:** REQ-DICT-DATA-005, REQ-DICT-ERR-001
 
-### REQ-DICT-DATA-008 — `rc_dict_free` releases all three dictionary lists and resets the handle to an empty dictionary state
+### REQ-DICT-DATA-008 — `rc_dict_free` releases the whole dictionary and resets the handle to an empty dictionary state
 
-**Requirement:** `rc_dict_free(rh)` MUST walk and `free()` every node in
-`rh->dictionary_attributes`, `rh->dictionary_values`, `rh->dictionary_vendors`,
-and `rh->dictionary_encrypt` (the `encrypt=`/`has_tag` side list — see
-REQ-DICT-DATA-009), then set all four list heads to `NULL`, leaving `rh` in a
-state where dictionary lookups return no matches until a new
+**Requirement:** `rc_dict_free(rh)` MUST empty and free every one of
+`rh->dict`'s six uthash tables (attributes by name/id, values by name/
+attribute, vendors by name/PEC) plus the `encrypt=`/`has_tag`/`gigawords=`
+side tables (REQ-DICT-DATA-009, REQ-DICT-DATA-011), free every entry's
+lazily-materialized legacy `DICT_ATTR`/`DICT_VALUE`/`DICT_VENDOR` shadow
+(freed by `rc_dict_free()` itself, never by a caller of
+`rc_dict_findattr()`/etc.), then free `rh->dict` and set it `NULL`, leaving
+`rh` in a state where dictionary lookups return no matches until a new
 `rc_read_dictionary()`/`rc_read_dictionary_from_buffer()`/`rc_dict_add*()`
-call repopulates them. It MUST NOT free `rh->first_dict_read` (that string is
-owned and released separately, e.g. `rc_destroy()`/`config.c:1177`) —
-callers wanting a fully-reset "no dictionary has ever been read" state must
-also clear `first_dict_read` themselves if they intend to call
-`rc_read_dictionary()` again with the same filename and have it re-parse.
+call repopulates them (lazily reallocating `rh->dict`). It MUST NOT free
+`rh->first_dict_read` (that string is owned and released separately, e.g.
+`rc_destroy()`/`lib/config.c`'s `rc_config_free()`) — callers wanting a
+fully-reset "no dictionary has ever been read" state must also clear
+`first_dict_read` themselves if they intend to call `rc_read_dictionary()`
+again with the same filename and have it re-parse.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:786-813; lib/config.c:1177-1179
+**Source:** lib/dict2.c:616-649 (`rc_dict_free`); lib/config.c:1220
+(`rc_config_free()`'s separate `free(rh->first_dict_read)`)
 **Acceptance:** [DATA] positive, local — after `rc_dict_free(rh)`,
 `rc_dict_findattr(rh, "User-Name")` returns `NULL`. [REVIEW-adjacent, not
 flagged] — calling `rc_read_dictionary(rh, samepath)` again after
@@ -336,19 +378,23 @@ contain:
   scheme is implemented (see `lib/avp.c`'s `radcli_avp_decode()`).
 Both flags MAY appear on the same line, in either order, and are independent
 of any `vendor=`/bare-vendor-name token also present. Neither flag is stored
-on the public `DICT_ATTR` struct (`include/radcli/radcli.h`); both live in the
-internal `struct dict_encrypt_flag` side list keyed by `DICT_ATTR*` identity
-(`rh->dictionary_encrypt`), queryable via `rc_dict_attr_has_tag()`/
-`rc_dict_attr_encrypt_type()` (`include/includes.h`, internal only — not
-exported). An attribute with neither flag set returns `0`/false from both
-accessors. `radcli_avp_decode()` (`lib/avp.c`) consults `rc_dict_attr_has_tag()`
-to decide whether a salt-encrypted attribute's ciphertext is preceded by a
-one-octet Tag, rather than checking the attribute's identity.
+on the public `DICT_ATTR` struct (`include/radcli/radcli.h`), nor on
+`lib/dict2.h`'s `struct radcli_dict_attr`; both live in the internal
+`struct radcli_dict_flags` side table, keyed by attribute id (not by node
+identity — see REQ-DICT-DATA-005's comment on `struct radcli_dict_flags`),
+queryable via `rc_dict_attr_has_tag()`/`rc_dict_attr_encrypt_type()`
+(`include/includes.h`, internal only — not exported), which resolve through
+`lib/dict2.h`'s `radcli_dict_flags_by_id()`. An attribute with neither flag
+set returns `0`/false from both accessors. `radcli_avp_decode()`
+(`lib/avp.c`) consults `rc_dict_attr_has_tag()` to decide whether a
+salt-encrypted attribute's ciphertext is preceded by a one-octet Tag, rather
+than checking the attribute's identity.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:322-405 (`has_tag`/`encrypt=` option parsing), 817-845
-(`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag`); include/includes.h
-(`struct dict_encrypt_flag`, accessor declarations); lib/avp.c:453-464
+**Source:** lib/dict2.c:258-278 (`has_tag`/`encrypt=` option parsing),
+351-360 (`flags_by_attr_id` `HASH_ADD()`), 839-847 (`radcli_dict_flags_by_id`);
+lib/dict.c:105-128 (`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag` shim);
+include/includes.h (accessor declarations); lib/avp.c:453-464
 (`avp_decode_into()`'s use of `rc_dict_attr_has_tag()`)
 **Acceptance:** [DATA] positive, local — loading a verbatim excerpt of
 FreeRADIUS's `share/dictionary/radius/dictionary.rfc2868` (which uses `uint32`
@@ -381,9 +427,10 @@ construct a `DICT_ATTR` of this type; only the bundled dictionary file,
 parsed directly into `DICT_ATTR` bypassing that check, can.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:313-325 (`"integer64"` token parsing), lib/dict.c:50
-(`rc_dict_addattr()`'s `type >= PW_TYPE_MAX` rejection), lib/dict.c:955-980
-(`dict_type_to_radcli()`'s `PW_TYPE_MAX` -> `RADCLI_TYPE_INTEGER64` mapping)
+**Source:** lib/dict2.c:224-236 (`"integer64"` token parsing); lib/dict2.c:667
+(`radcli_dict_attr_add()`'s -- `rc_dict_addattr()`'s real implementation --
+`type >= PW_TYPE_MAX` rejection); lib/dict.c:161-186 (`dict_type_to_radcli()`'s
+`PW_TYPE_MAX` -> `RADCLI_TYPE_INTEGER64` mapping)
 **Acceptance:** [DATA] positive, local — a synthetic `integer64` line
 (`Test-Int64-Attr`, `tests/dict.c`'s Phase 2 section) loads and
 `radcli_attr_def_type()` reports `RADCLI_TYPE_INTEGER64`. `[UNDOCUMENTED]`
@@ -407,17 +454,31 @@ SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2 Acct-Input/Output-Gigawo
 `Acct-Input-Gigawords`). `<attrid>` MUST be a decimal integer in `1..255`;
 anything else (non-numeric, `0`, or `> 255`) MUST cause `rc_dict_init()` to
 return `-1`. The pairing is recorded, vendor-combined via
-`RADCLI_VENDOR_ATTR_SET()`, in the internal `struct dict_counter64_pair` side
-list (`rh->dictionary_gigawords`, `include/includes.h`) keyed by the octets
-attribute's `DICT_ATTR*`, not stored on the public `DICT_ATTR` struct, and
-resolved lazily to a `DICT_ATTR*` by `rc_dict_attr_gigawords()`
-(`include/includes.h`, internal only) rather than at parse time, since the
-named counterpart's own `ATTRIBUTE` line may not have been parsed yet.
+`RADCLI_VENDOR_ATTR_SET()`, in the internal `struct radcli_dict_gigawords`
+side table (`rh->dict->gigawords_by_attr_id`, `lib/dict2.h`) keyed by the
+octets attribute's id, not stored on `DICT_ATTR` or on `lib/dict2.h`'s
+`struct radcli_dict_attr`, and resolved lazily to a
+`struct radcli_dict_attr`/`DICT_ATTR*` by `radcli_dict_attr_gigawords()`/
+`rc_dict_attr_gigawords()` rather than at parse time, since the named
+counterpart's own `ATTRIBUTE` line may not have been parsed yet.
+**Behavior note (dict2 rewrite):** the pre-dict2 implementation keyed
+`dictionary_gigawords` by the octets `DICT_ATTR*`'s pointer identity (exact
+struct instance from the `ATTRIBUTE` line that set `gigawords=`), not by id
+value -- unlike `encrypt=`/`has_tag` (REQ-DICT-DATA-009), which already
+matched by id. This was not exercised by any existing test and is not
+documented as intentional anywhere the requirements-extraction process could
+find; `lib/dict2.c` deliberately matches by id instead (identical to
+`encrypt=`/`has_tag`'s existing "sticky" semantics: a redefinition of the
+same id that omits `gigawords=` does not lose the pairing), for
+consistency with REQ-DICT-DATA-009 and because it avoids a seventh hash
+table needed only to reconstruct the discarded pointer-identity behavior.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:380-401 (`gigawords=` option parsing), lib/dict.c:449-463
-(`struct dict_counter64_pair` construction), lib/dict.c:921-933
-(`rc_dict_attr_gigawords()`); include/includes.h (`struct dict_counter64_pair`)
+**Source:** lib/dict2.c:292-306 (`gigawords=` option parsing), 362-376
+(`struct radcli_dict_gigawords` construction), 861-869
+(`radcli_dict_attr_gigawords()`), 850-859 (`radcli_dict_gigawords_by_id()`);
+lib/dict.c:130-139 (`rc_dict_attr_gigawords()` shim); lib/dict2.h
+(`struct radcli_dict_gigawords`)
 **Acceptance:** [DATA] positive, local — `tests/dict.c`'s `counter64_dict`
 (`Test-Counter-Octets` (252) `gigawords=253` paired with
 `Test-Counter-Gigawords` (253)) loads; `radcli_avp_add_gigawords64()`/
@@ -428,8 +489,11 @@ server (`tests/request-freeradius.c`, SS4) — `etc/dictionary`'s actual
 round-trips a value over 2^32 through a live server via
 `radcli_avp_add_gigawords64()`. [ERR] negative, local — `tests/dict.c`'s
 `bad_gigawords_dict` (`gigawords=notanumber`) is rejected. `[UNDOCUMENTED]`
-gap: the numeric-range validation (`v <= 0 || v > 0xff`, lib/dict.c:396) has
-no dedicated `gigawords=0`/`gigawords=256` negative test.
+gap: the numeric-range validation (`v <= 0 || v > 0xff`, lib/dict2.c:307) has
+no dedicated `gigawords=0`/`gigawords=256` negative test. No test exercises
+the pointer-identity-vs-id-matching behavior note above either (a
+redefinition of an id that had `gigawords=` set, via a second `ATTRIBUTE`
+line without it).
 **Links:** REQ-DICT-DATA-009, REQ-AVP2-DATA-012
 
 ---
@@ -444,11 +508,12 @@ reject (return `NULL`/`-1`, log `LOG_ERR`) any name/attribute token whose
 `strlen()` exceeds `RC_NAME_LENGTH` (64).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:42-46 (`rc_dict_addattr`), 85-95 (`rc_dict_addval`),
-126-130 (`rc_dict_addvend`); lib/dict.c:170-185 (`rc_dict_init` buffer
-declarations), 243 (`ATTRIBUTE` length check, before `strlcpy`), 367,375
-(`VALUE` attr/name length checks, before `strlcpy`), 490 (`VENDOR` length
-check, before `strlcpy`)
+**Source:** lib/dict2.c:665-670 (`radcli_dict_attr_add`), 701-711
+(`radcli_dict_value_add`), 738-742 (`radcli_dict_vendor_add`) -- the real
+implementation behind `lib/dict.c`'s `rc_dict_addattr`/`addval`/`addvend`
+shim; lib/dict2.c:83-91 (`dict2_parse` buffer declarations), 163 (`ATTRIBUTE`
+length check, before `strlcpy`), 400,408 (`VALUE` attr/name length checks,
+before `strlcpy`), 522 (`VENDOR` length check, before `strlcpy`)
 **Acceptance:** [ERR] negative, local — a 65-character name to
 `rc_dict_addattr()` returns `NULL`; a dictionary file containing `ATTRIBUTE
 <65-char-name> 1 integer` is rejected by `rc_dict_init()` (returns `-1`,
@@ -462,9 +527,9 @@ value, `VALUE`'s value, `VENDOR`'s PEC), it MUST reject the line unless every
 character of the token is a digit, then convert with `atoi()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:159-168 (`is_unsigned_decimal()` helper, validates
-every character); call sites at lib/dict.c:263 (`ATTRIBUTE`), 387 (`VALUE`),
-501 (`VENDOR`)
+**Source:** lib/dict2.c:63-71 (`is_unsigned_decimal()` helper, validates
+every character); call sites at lib/dict2.c:180 (`ATTRIBUTE`), 417 (`VALUE`),
+533 (`VENDOR`)
 **Acceptance:** [ERR] negative, local — `ATTRIBUTE Foo abc integer` is
 rejected (not a digit); `ATTRIBUTE Foo 12abc integer` is also rejected
 (trailing non-digit characters).
@@ -474,19 +539,20 @@ rejected (not a digit); `ATTRIBUTE Foo 12abc integer` is also rejected
 
 **Requirement:** On the first malformed line (missing required tokens per
 line type, invalid numeric field, unknown `TYPE` keyword, or an unresolved
-vendor reference in `vendor=`/`BEGIN-VENDOR`), `rc_dict_init()` MUST return
-`-1` immediately without processing further lines of that file. Because
-`$INCLUDE` recursion propagates the `-1` up through `rc_read_dictionary()`
-(dict.c:424-427), an error in an included file aborts the entire top-level
-load. Entries already inserted into `rh->dictionary_*` from lines processed
+vendor reference in `vendor=`/`BEGIN-VENDOR`), `dict2_parse()` (the
+`rc_dict_init()`-descended parser, `lib/dict2.c`) MUST return `-1`
+immediately without processing further lines of that file. Because
+`$INCLUDE` recursion propagates the `-1` up through `rc_read_dictionary()`,
+an error in an included file aborts the entire top-level load. Entries
+already inserted into `rh->dict`'s uthash tables from lines processed
 *before* the failing line (in this file or an earlier-processed included
 file) are NOT rolled back — the handle is left with a partially-populated,
 inconsistent dictionary after a failed load.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:185-509 (`rc_dict_init` — every validation branch
-`return -1`s directly, no cleanup); dict.c:424-427 (`$INCLUDE` error
-propagation)
+**Source:** lib/dict2.c:83-564 (`dict2_parse` — every validation branch
+`goto error`s directly, no cleanup); lib/dict2.c:472-474 (`$INCLUDE` error
+propagation, `rc_read_dictionary(rh, ifilename) < 0`)
 **Acceptance:** [ERR] negative, local — a dictionary with a valid
 `ATTRIBUTE` line followed by a malformed one: `rc_read_dictionary()` returns
 `-1`, but `rc_dict_findattr()` for the *first* (valid) attribute still
@@ -506,9 +572,11 @@ checked; on failure, `rc_log(LOG_CRIT, ...)` MUST be logged and the function
 MUST return `-1`/`NULL` rather than dereferencing the failed allocation.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict.c:529-534, 561-566 (open failures); 56-59, 98-101,
-133-138 (`rc_dict_add*` allocation checks); 315-319, 381-385, 494-499
-(parser allocation checks)
+**Source:** lib/dict2.c:576-581, 604-609 (open failures, `rc_read_dictionary`/
+`_from_buffer`); lib/dict2.c:683, 719, 750 (`radcli_dict_attr_add`/
+`value_add`/`vendor_add` allocation checks, behind the `lib/dict.c`
+`rc_dict_add*` shim); lib/dict2.c:333, 353, 366, 429, 546 (parser allocation
+checks)
 **Acceptance:** [ERR] negative, local — point `rc_read_dictionary()` at a
 nonexistent path; confirm `-1` return and an `LOG_ERR` log line containing
 the path and `strerror`.
@@ -602,19 +670,19 @@ REQ-DICT-ERR-001. `PW_TYPE_*`/`rc_attr_type` covered by REQ-DICT-DATA-001,
 
 **Gaps / flags carried from the body of this document**:
 
-- `[REVIEW]` REQ-DICT-DATA-006 — `rc_dict_getval()`'s case-sensitive
-  `attrname` match is inconsistent with the case-insensitive matching of
-  every sibling lookup function; unclear if intentional.
-- `[REVIEW]` REQ-DICT-ERR-001 — in-parser name-length validation
-  (`rc_dict_init()`) is dead code: the preceding fixed-size `strlcpy()` into
-  an `AUTH_ID_LEN`-sized buffer already truncates any over-long token before
-  the `> RC_NAME_LENGTH` check can observe the original length, so
-  dictionary-file names are silently truncated to 63 characters rather than
-  rejected — unlike `rc_dict_addattr()`/`addval()`/`addvend()`, which check
-  the caller's untruncated string and do reject.
-- `[REVIEW]` REQ-DICT-ERR-002 — numeric field validation checks only the
-  first character is a digit; a value like `12abc` is silently accepted as
-  `12` via `atoi()`.
+- The three `[REVIEW]` items previously carried here (REQ-DICT-DATA-006's
+  `rc_dict_getval()` case-sensitivity, REQ-DICT-ERR-001's pre-truncation
+  length-check "dead code" claim, REQ-DICT-ERR-002's first-character-only
+  numeric validation claim) do not match the current implementation, ported
+  verbatim into `lib/dict2.c`'s `dict2_parse()`: `rc_dict_getval()` compares
+  `attrname` with `strcasecmp()` (case-insensitive, consistent with every
+  sibling lookup, REQ-DICT-DATA-006's own main text); every `ATTRIBUTE`/
+  `VALUE`/`VENDOR` length check runs against the original `strtok_r()` token
+  before any truncating `strlcpy()`, exactly as REQ-DICT-ERR-001's main text
+  and REQ-DICT-INIT-005 already describe; and `is_unsigned_decimal()`
+  (`lib/dict2.c`) rejects on the first non-digit character anywhere in the
+  token, not just the first character, matching REQ-DICT-ERR-002's own main
+  text. Resolved as stale flags, not as changes made in the dict2 rewrite.
 - No `[UNDOCUMENTED]` behaviors were found — every parser branch and lookup
   function corresponds to a documented dictionary-file construct or a
   Doxygen-commented public function.

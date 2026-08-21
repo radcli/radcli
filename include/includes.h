@@ -182,44 +182,16 @@ typedef struct rc_sockets_override {
 	int (*unlock)(void *ptr);
 } rc_sockets_override;
 
-/* Per-attribute wire-encryption scheme and RFC 2868 SS3.1 tag flag, keyed by
- * DICT_ATTR identity, set by "encrypt=N"/"encrypt=<name>" and "has_tag"
- * tokens on a dictionary ATTRIBUTE line (lib/dict.c). Kept as a side list
- * rather than DICT_ATTR fields so the public DICT_ATTR struct
- * (include/radcli/radcli.h) never changes layout -- this list is reachable
- * only through the internal rc_conf a caller never sees the definition of.
- * encrypt_type's only value is 2 (RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3
- * salt-encryption); see radcli_avp_decode() in lib/avp.c. An attribute may
- * set either flag alone or both together (Tunnel-Password sets both). */
-struct dict_encrypt_flag {
-	const struct dict_attr *attr;
-	int encrypt_type;
-	int has_tag;
-	struct dict_encrypt_flag *next;
-};
-
-/* Octets-attribute -> Gigawords-attribute pairing for 64-bit accounting
- * counters (RFC 2866 SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2
- * Acct-Input/Output-Gigawords), set by a "gigawords=<attrid>" token on a
- * dictionary ATTRIBUTE line (lib/dict.c) -- e.g. Acct-Input-Octets (42)
- * paired with Acct-Input-Gigawords (52). Kept as a side list, like dict_encrypt_flag
- * above and for the same reason (the public DICT_ATTR struct never changes
- * layout). gigawords_attrid is stored raw, not resolved to a DICT_ATTR* at
- * parse time, because the paired attribute's own ATTRIBUTE line has often
- * not been parsed yet (e.g. Acct-Input-Octets precedes Acct-Input-Gigawords
- * in etc/dictionary); resolution happens lazily, by rc_dict_getattr(), once
- * the whole dictionary is loaded -- see rc_dict_attr_gigawords() below,
- * used from lib/avp.c. Stored as the same vendor-combined uint64_t
- * DICT_ATTR.value/rc_dict_getattr() use (RADCLI_VENDOR_ATTR_SET()), not a
- * bare attribute number, so a VSA's gigawords= counterpart -- another
- * sub-attribute of the same vendor -- resolves correctly too. */
-struct dict_counter64_pair {
-	const struct dict_attr *octets;
-	uint64_t gigawords_attrid;
-	struct dict_counter64_pair *next;
-};
-
 struct radcli_dae_st; /* lib/dae.c; opaque here, ctx just tracks the pointer */
+struct radcli_dict; /* lib/dict2.h; opaque here, ctx just tracks the pointer.
+		      * Per-attribute encrypt_type/has_tag/gigawords_attrid --
+		      * formerly side lists (dict_encrypt_flag/
+		      * dict_counter64_pair) keyed by DICT_ATTR identity, kept
+		      * separate only because the public DICT_ATTR struct
+		      * (include/radcli/radcli.h) could never change layout --
+		      * are now plain fields on dict2.h's own
+		      * struct radcli_dict_attr, which carries no such
+		      * constraint. */
 
 struct rc_conf
 {
@@ -232,13 +204,11 @@ struct rc_conf
 
 	 /* we keep a copy of the filename to avoid re-reading a dictionary,
 	  * for applications relying on the old API which required explicit
-	  * load of it. */
+	  * load of it. Independent of dict's own lifetime: rc_dict_free()
+	  * (lib/dict2.c) MUST NOT clear this (REQ-DICT-DATA-008) -- only
+	  * rc_config_free() does, via rc_destroy(). */
 	char			*first_dict_read;
-	struct dict_attr	*dictionary_attributes;
-	struct dict_value	*dictionary_values;
-	struct dict_vendor	*dictionary_vendors;
-	struct dict_encrypt_flag *dictionary_encrypt;
-	struct dict_counter64_pair *dictionary_gigawords;
+	struct radcli_dict	*dict; /* lib/dict2.h; NULL until first load */
 
 	rc_sockets_override	so;
 	unsigned		so_type; /* rc_socket_type */
