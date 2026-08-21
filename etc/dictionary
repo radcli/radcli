@@ -51,7 +51,7 @@ ATTRIBUTE	User-Name			1	string
 # BEGIN-COMPAT: legacy alias for attr 2; remove in a future major version
 ATTRIBUTE	Password			2	string
 # END-COMPAT
-ATTRIBUTE	User-Password			2	string
+ATTRIBUTE	User-Password			2	string encrypt=User-Password
 ATTRIBUTE	CHAP-Password			3	string
 ATTRIBUTE	NAS-IP-Address			4	ipv4addr
 ATTRIBUTE	NAS-Port			5	integer

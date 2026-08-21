@@ -36,8 +36,8 @@ int radcli_avp_decode(rc_handle const *rh, const char *secret,
                       const uint8_t request_authenticator[AUTH_VECTOR_LEN],
                       const uint8_t *ptr, size_t length,
                       uint32_t vendorspec, radcli_avp_list **out);
-int radcli_avp_encode(const radcli_avp_list *list, const char *secret,
+int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *list, const char *secret,
                       const uint8_t request_authenticator[AUTH_VECTOR_LEN],
-                      uint8_t *buf, size_t buflen);
+                      uint8_t *buf, size_t buflen, size_t *n_encrypted);
 
 #endif /* AVP_H */

@@ -376,7 +376,8 @@ int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
 
 /** @} */
 
-/* --- radcli_avp_decode()/radcli_avp_encode(): wire codec (internal only) --
+/* --- radcli_avp_decode()/radcli_avp_encode_rfc2865(): wire codec (internal
+ * only) --
  *
  * Not part of the public radcli2 API -- declared in lib/avp.h, not in
  * radcli2.h or radcli.map. Mirrors lib/avpair.c's rc_avpair_gen2()/
@@ -406,34 +407,26 @@ int radcli_avp_get_bytes(const radcli_avp *a, const void **out, size_t *len)
  * transparently reverses the RFC 2868 SS3.5 / RFC 2548 salt-encryption
  * scheme using the caller-supplied secret and request authenticator, and
  * radcli_avp_get_bytes() then returns the plaintext. Only decryption is
- * implemented; radcli_avp_encode() still refuses these attributes (see
- * attr_requires_encryption() below) -- encrypting to originate a request
- * carrying one is not something a RADIUS client needs to do.
+ * implemented; radcli_avp_encode_rfc2865() still refuses to originate any
+ * encrypt=Tunnel-Password-flagged attribute (Tunnel-Password,
+ * MS-MPPE-Send-Key, MS-MPPE-Recv-Key) -- a RADIUS client has not needed to
+ * send one. radcli_avp_encode_rfc2865() dispatches on
+ * rc_dict_attr_encrypt_type() too, the same lookup this decode path uses:
+ * this is a whitelist, not a blocklist -- an attribute is encoded
+ * unencrypted only because the dictionary says it needs no encryption,
+ * never because radcli_avp_encode_rfc2865() simply did not recognise that
+ * it does. Note that this whitelist only guards against attributes this
+ * function *refuses*; it does not by itself guarantee the dictionary is
+ * *correct* -- a dictionary missing "encrypt=User-Password" on
+ * User-Password would send it as plaintext, no differently than any other
+ * unflagged attribute, and this function has no way to tell that apart
+ * from a legitimately unflagged one. The n_encrypted out-parameter below
+ * exists for exactly that: a caller who knows how many attributes in
+ * their own list *should* be RFC 2865 SS5.2-encrypted can compare against
+ * it and refuse to send on a mismatch, catching a misloaded or
+ * mis-edited dictionary that this function's own whitelist logic cannot
+ * detect from the inside.
  */
-
-/// @cond INTERNAL
-static int attr_is_user_password(const DICT_ATTR *def)
-{
-	return VENDOR(def->value) == 0 && ATTRID(def->value) == PW_USER_PASSWORD;
-}
-
-/* Attributes radcli_avp_encode() refuses unconditionally: User-Password has
- * its own RFC 2865 SS5.2 handling (attr_is_user_password() above, checked
- * separately and first); Tunnel-Password/MS-MPPE-*-Key use RFC 2868 SS3.5 /
- * RFC 2548 salt-encryption, which radcli_avp_decode() reverses but this
- * function does not originate (see doc/plan-api-modernization.md's
- * "Retiring RC_AAA_CTX" section -- a client has not needed to send these). */
-static int attr_requires_encryption(const DICT_ATTR *def)
-{
-	uint32_t vendor = VENDOR(def->value);
-	uint32_t attrid = ATTRID(def->value);
-
-	if (vendor == 0)
-		return attrid == PW_USER_PASSWORD || attrid == PW_TUNNEL_PASSWORD;
-	if (vendor == VENDOR_MICROSOFT)
-		return attrid == PW_MS_MPPE_SEND_KEY || attrid == PW_MS_MPPE_RECV_KEY;
-	return 0;
-}
 
 /* RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3 "salt-encryption" keystream:
  *   b(1) = MD5(secret || request_authenticator || salt)
@@ -679,19 +672,32 @@ int radcli_avp_decode(rc_handle const *rh, const char *secret,
 }
 
 /* Writes list's wire encoding into buf (capacity buflen) -- attribute bytes
- * only, no packet header. secret/request_authenticator are used only to
- * encrypt a User-Password attribute (RFC 2865 SS5.2); pass secret == NULL
- * if the list carries none (radcli_avp_encode() then refuses one if
- * present, rather than sending it unencrypted). Returns the number of
- * bytes written, or -1 on overflow, on User-Password without a secret
- * supplied or longer than AUTH_PASS_LEN (128) bytes, or on an attribute
- * that requires salt-encryption this function does not perform
- * (Tunnel-Password, MS-MPPE-Send-Key, MS-MPPE-Recv-Key --
- * radcli_avp_decode() reverses that scheme; encoding to originate a
- * request carrying one is not implemented). */
-int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
+ * only, no packet header. rh's dictionary decides which attributes need
+ * special handling, via rc_dict_attr_encrypt_type(): an unflagged attribute
+ * is encoded as-is; an "encrypt=User-Password" attribute (RFC 2865 SS5.2 --
+ * the one obfuscation scheme this function implements, hence the _rfc2865
+ * suffix) is encrypted using secret/request_authenticator (pass secret ==
+ * NULL if the list carries none of those -- encoding then fails if it
+ * does, rather than sending it unencrypted); any other flagged value,
+ * including "encrypt=Tunnel-Password" (Tunnel-Password, MS-MPPE-Send-Key,
+ * MS-MPPE-Recv-Key -- RFC 2868 SS3.5 / RFC 2548 salt-encryption, which
+ * radcli_avp_decode() reverses but this function does not originate), is
+ * refused outright. This is a whitelist: an attribute is only ever encoded
+ * unencrypted because the dictionary says it needs no encryption, never
+ * because this function failed to recognise that it does -- but the
+ * whitelist can only catch attributes it knows to refuse, not a dictionary
+ * that is simply missing "encrypt=User-Password" on an attribute that
+ * should have it (see the wire-codec comment above for why). If
+ * n_encrypted is non-NULL, it is set to the number of attributes this call
+ * routed through the RFC 2865 SS5.2 path -- a caller who knows how many
+ * User-Password-like attributes their own list should contain can compare
+ * against it and refuse to send on a mismatch, rather than trusting the
+ * dictionary blindly. Returns the number of bytes written, or -1 on
+ * overflow, on User-Password without a secret supplied or longer than
+ * AUTH_PASS_LEN (128) bytes, or on any other encrypt-flagged attribute. */
+int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *l, const char *secret,
 		      const uint8_t request_authenticator[AUTH_VECTOR_LEN],
-		      uint8_t *buf, size_t buflen)
+		      uint8_t *buf, size_t buflen, size_t *n_encrypted)
 {
 	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
 	const struct radcli_avp_st *a = NULL;
@@ -700,8 +706,11 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 	uint32_t vendor, attrid, netval;
 	radcli_attr_type t;
 
-	if (list == NULL)
+	if (rh == NULL || list == NULL)
 		return -1;
+
+	if (n_encrypted != NULL)
+		*n_encrypted = 0;
 
 	pb_init(&pb, buf, buflen);
 
@@ -711,13 +720,27 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 		vendor = VENDOR(def->value);
 		attrid = ATTRID(def->value);
 
-		if (attr_is_user_password(def)) {
+		/* Whitelist, not a blocklist: only an attribute the dictionary does
+		 * NOT flag for encryption, or flags encrypt=User-Password
+		 * specifically (which this function implements), is safe to send.
+		 * Anything else -- encrypt=Tunnel-Password (Tunnel-Password,
+		 * MS-MPPE-Send-Key, MS-MPPE-Recv-Key today; RFC 2868 SS3.5
+		 * salt-encryption, which this function does not originate), or any
+		 * future encrypt=N this function has no code for -- is refused.
+		 * Driving this off rc_dict_attr_encrypt_type() rather than an
+		 * enumerated attribute list means a dictionary addition can never
+		 * silently start sending something in the clear that was supposed
+		 * to be encrypted. */
+		switch (rc_dict_attr_encrypt_type(rh, def)) {
+		case 0:
+			break;
+		case 1: {
 			unsigned char passbuf[AUTH_PASS_LEN];
 			unsigned char cipher[AUTH_PASS_LEN];
 			size_t padded_len;
 
 			if (secret == NULL || request_authenticator == NULL) {
-				rc_log(LOG_ERR, "radcli_avp_encode: %s requires the shared "
+				rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s requires the shared "
 				    "secret and request authenticator, which were not supplied",
 				    def->name);
 				return -1;
@@ -728,7 +751,7 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 				 * authenticates a different, shorter password than the
 				 * caller believes it sent), not behaviour worth repeating
 				 * here. Reject instead. */
-				rc_log(LOG_ERR, "radcli_avp_encode: %s is %zu bytes, longer "
+				rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s is %zu bytes, longer "
 				    "than the %d-byte RFC 2865 SS5.2 maximum",
 				    def->name, a->len, AUTH_PASS_LEN);
 				return -1;
@@ -752,21 +775,23 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 			if (pb_put_byte(&pb, 2) < 0) goto too_large; /* placeholder; patched below */
 			if (pb_put_bytes(&pb, cipher, (int)padded_len) < 0) goto too_large;
 			*attr_len_ptr = (uint8_t)(pb.tail - attr_start);
+			if (n_encrypted != NULL)
+				(*n_encrypted)++;
 			continue;
 		}
-
-		if (attr_requires_encryption(def)) {
-			rc_log(LOG_ERR, "radcli_avp_encode: %s requires per-request "
+		default:
+			rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s requires per-request "
 			    "encryption, which this function does not perform", def->name);
 			return -1;
 		}
+
 		if (vendor == 0 && attrid > 0xff) {
 			/* An RFC 6929 extended attribute number: not encodable in the
 			 * classic RFC 2865 TLV this function writes. The bundled
 			 * dictionary carries none today (Phase 1 scope note), so this
 			 * is unreachable in practice; kept as a defensive guard rather
 			 * than an assumption. */
-			rc_log(LOG_ERR, "radcli_avp_encode: %s has an attribute number "
+			rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s has an attribute number "
 			    "outside the classic RADIUS TLV range", def->name);
 			return -1;
 		}
@@ -790,7 +815,7 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 			uint32_t hostval;
 
 			if (a->len != sizeof(uint32_t)) {
-				rc_log(LOG_ERR, "radcli_avp_encode: %s has the wrong stored "
+				rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s has the wrong stored "
 				    "length for its type", def->name);
 				return -1;
 			}
@@ -799,7 +824,7 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 			if (pb_put_bytes(&pb, &netval, sizeof(netval)) < 0) goto too_large;
 		} else {
 			if (a->len > AUTH_STRING_LEN - (vendor != 0 ? VSA_HDR_LEN : 0)) {
-				rc_log(LOG_ERR, "radcli_avp_encode: %s value too long (%zu bytes)",
+				rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: %s value too long (%zu bytes)",
 				    def->name, a->len);
 				return -1;
 			}
@@ -814,7 +839,7 @@ int radcli_avp_encode(const radcli_avp_list *l, const char *secret,
 	return (int)pb_written(&pb);
 
 too_large:
-	rc_log(LOG_ERR, "radcli_avp_encode: attribute value too large or buffer "
+	rc_log(LOG_ERR, "radcli_avp_encode_rfc2865: attribute value too large or buffer "
 	    "would exceed %zu bytes", buflen);
 	return -1;
 }

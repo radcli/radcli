@@ -340,20 +340,26 @@ static int rc_dict_init(rc_handle *rh, FILE *dictfd, char const *filename)
 						/* FreeRADIUS's dictionaries name an encryption scheme
 						 * by the attribute that first defines it, e.g.
 						 * "encrypt=Tunnel-Password" for the RFC 2868 SS3.5 /
-						 * RFC 2548 SS2.4.2-2.4.3 salt-encryption scheme (see
-						 * share/dictionary/radius/dictionary.rfc2868 and
-						 * dictionary.microsoft upstream) -- matched here so a
+						 * RFC 2548 SS2.4.2-2.4.3 salt-encryption scheme, and
+						 * "encrypt=User-Password" for the RFC 2865 SS5.2
+						 * scheme (see share/dictionary/radius/dictionary.rfc2865
+						 * and dictionary.rfc2868 upstream) -- matched here so a
 						 * real FreeRADIUS dictionary loads unmodified. No
 						 * other scheme name has a matching implementation
-						 * yet (see radcli_avp_decode() in lib/avp.c). */
+						 * yet (see radcli_avp_decode()/radcli_avp_encode_rfc2865()
+						 * in lib/avp.c). */
+						if (strcmp(cp1 + 8, "User-Password") == 0) {
+							encrypt_type = 1;
+							continue;
+						}
 						if (strcmp(cp1 + 8, "Tunnel-Password") == 0) {
 							encrypt_type = 2;
 							continue;
 						}
 						rc_log(LOG_ERR,
 							"rc_dict_init: unsupported encrypt=%s on line %d "
-							"of dictionary %s (only encrypt=Tunnel-Password "
-							"is implemented)",
+							"of dictionary %s (only encrypt=User-Password and "
+							"encrypt=Tunnel-Password are implemented)",
 							cp1 + 8, line_no, pfilename);
 						goto error;
 					}

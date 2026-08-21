@@ -22,9 +22,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Unit test for radcli_avp_decode()/radcli_avp_encode() (lib/avp.c): the
- * radcli2.h wire codec. Both are internal-only (declared in lib/avp.h, not
- * exported), so this links against libradcli_static directly, the same
+/* Unit test for radcli_avp_decode()/radcli_avp_encode_rfc2865() (lib/avp.c):
+ * the radcli2.h wire codec. Both are internal-only (declared in lib/avp.h,
+ * not exported), so this links against libradcli_static directly, the same
  * pattern tests/pack.c uses for rc_pack_list(). */
 
 #include <stdio.h>
@@ -37,11 +37,11 @@
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
 #include <includes.h>
-#include "avp.h" /* radcli_avp_decode(), radcli_avp_encode() */
+#include "avp.h" /* radcli_avp_decode(), radcli_avp_encode_rfc2865() */
 
 static char test_dict[] =
 "ATTRIBUTE	User-Name		1	string\n"
-"ATTRIBUTE	User-Password		2	string\n"
+"ATTRIBUTE	User-Password		2	string encrypt=User-Password\n"
 "ATTRIBUTE	NAS-IP-Address		4	ipaddr\n"
 "ATTRIBUTE	Session-Timeout		27	integer\n"
 "ATTRIBUTE	Framed-IPv6-Address	168	ipv6addr\n"
@@ -101,14 +101,23 @@ int main(int argc, char **argv)
 	assert(radcli_avp_add_in6(l, d_v6, &i6, 0) == 0);
 	assert(radcli_avp_add_str(l, d_agent, "circuit-42") == 0); /* VSA */
 
-	n = radcli_avp_encode(l, NULL, NULL, buf, sizeof(buf));
-	if (n <= 0) {
-		fprintf(stderr, "error: radcli_avp_encode() failed (%d)\n", n);
-		exit(1);
+	{
+		size_t n_enc = 1; /* poisoned; radcli_avp_encode_rfc2865() must zero it */
+
+		n = radcli_avp_encode_rfc2865(rh, l, NULL, NULL, buf, sizeof(buf), &n_enc);
+		if (n <= 0) {
+			fprintf(stderr, "error: radcli_avp_encode_rfc2865() failed (%d)\n", n);
+			exit(1);
+		}
+		if (n_enc != 0) {
+			fprintf(stderr, "error: n_encrypted was %zu for a list with no "
+					"RFC 2865 SS5.2-flagged attribute\n", n_enc);
+			exit(1);
+		}
 	}
 
 	if (radcli_avp_decode(rh, NULL, NULL, buf, (size_t)n, 0, &decoded) != 0) {
-		fprintf(stderr, "error: radcli_avp_decode() failed on radcli_avp_encode()'s own output\n");
+		fprintf(stderr, "error: radcli_avp_decode() failed on radcli_avp_encode_rfc2865()'s own output\n");
 		exit(1);
 	}
 
@@ -582,9 +591,10 @@ int main(int argc, char **argv)
 			};
 			radcli_avp_list *l3 = radcli_avp_list_new();
 			int len;
+			size_t n_enc = 0;
 
 			assert(radcli_avp_add_str(l3, d_pass, "s3cr3t!") == 0);
-			len = radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf));
+			len = radcli_avp_encode_rfc2865(rh, l3, secret, req_auth, buf, sizeof(buf), &n_enc);
 			if (len != 2 + (int)sizeof(want_cipher) ||
 			    buf[0] != 2 /* User-Password */ ||
 			    buf[1] != (uint8_t)len ||
@@ -592,6 +602,10 @@ int main(int argc, char **argv)
 				fprintf(stderr, "error: User-Password (1 block) did not "
 						"encrypt to the expected ciphertext\n");
 
+				exit(1);
+			}
+			if (n_enc != 1) {
+				fprintf(stderr, "error: n_encrypted was %zu, want 1\n", n_enc);
 				exit(1);
 			}
 			radcli_avp_list_free(l3);
@@ -606,14 +620,19 @@ int main(int argc, char **argv)
 			};
 			radcli_avp_list *l3 = radcli_avp_list_new();
 			int len;
+			size_t n_enc = 0;
 
 			assert(radcli_avp_add_str(l3, d_pass, "abcdefghijklmnopqrst") == 0);
-			len = radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf));
+			len = radcli_avp_encode_rfc2865(rh, l3, secret, req_auth, buf, sizeof(buf), &n_enc);
 			if (len != 2 + (int)sizeof(want_cipher) ||
 			    memcmp(buf + 2, want_cipher, sizeof(want_cipher)) != 0) {
 				fprintf(stderr, "error: User-Password (2 blocks) did not "
 						"encrypt to the expected ciphertext\n");
 
+				exit(1);
+			}
+			if (n_enc != 1) {
+				fprintf(stderr, "error: n_encrypted was %zu, want 1\n", n_enc);
 				exit(1);
 			}
 			radcli_avp_list_free(l3);
@@ -628,7 +647,7 @@ int main(int argc, char **argv)
 			toolong[sizeof(toolong) - 1] = '\0';
 			assert(strlen(toolong) == AUTH_PASS_LEN + 1);
 			assert(radcli_avp_add_str(l3, d_pass, toolong) == 0);
-			if (radcli_avp_encode(l3, secret, req_auth, buf, sizeof(buf)) >= 0) {
+			if (radcli_avp_encode_rfc2865(rh, l3, secret, req_auth, buf, sizeof(buf), NULL) >= 0) {
 				fprintf(stderr, "error: an over-length User-Password was "
 						"accepted instead of rejected\n");
 
@@ -645,8 +664,8 @@ int main(int argc, char **argv)
 		radcli_avp_list *l2 = radcli_avp_list_new();
 
 		assert(radcli_avp_add_str(l2, d_pass, "hunter2") == 0);
-		if (radcli_avp_encode(l2, NULL, NULL, buf, sizeof(buf)) >= 0) {
-			fprintf(stderr, "error: radcli_avp_encode() sent User-Password in "
+		if (radcli_avp_encode_rfc2865(rh, l2, NULL, NULL, buf, sizeof(buf), NULL) >= 0) {
+			fprintf(stderr, "error: radcli_avp_encode_rfc2865() sent User-Password in "
 					"plaintext instead of refusing it\n");
 			exit(1);
 		}

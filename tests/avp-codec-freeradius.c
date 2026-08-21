@@ -27,7 +27,7 @@
  * needs root and a real radiusd/freeradius binary -- see tests/ns.sh).
  *
  * This does not go through any of radcli's own transport code: it builds
- * and parses RADIUS packets by hand with radcli_avp_encode()/_decode()
+ * and parses RADIUS packets by hand with radcli_avp_encode_rfc2865()/_decode()
  * (internal, reached via libradcli_static, as tests/avp-codec.c already
  * does) over a plain UDP socket, so that the codec's output is judged by
  * an independent RADIUS implementation rather than only by radcli itself.
@@ -115,10 +115,18 @@ static int do_auth(int sock, struct sockaddr_in *server, radcli_ctx *ctx,
 	if (radcli_avp_add_str(send_list, d_pass, password) != 0)
 		die("radcli_avp_add_str(User-Password)");
 
-	attrlen = radcli_avp_encode(send_list, SECRET, request_authenticator,
-				    packet + AUTH_HDR_LEN, sizeof(packet) - AUTH_HDR_LEN);
-	if (attrlen < 0)
-		die("radcli_avp_encode");
+	{
+		size_t n_enc = 0;
+
+		attrlen = radcli_avp_encode_rfc2865(ctx, send_list, SECRET, request_authenticator,
+					    packet + AUTH_HDR_LEN, sizeof(packet) - AUTH_HDR_LEN, &n_enc);
+		if (attrlen < 0)
+			die("radcli_avp_encode_rfc2865");
+		if (n_enc != 1)
+			die("radcli_avp_encode_rfc2865: expected exactly one RFC 2865 SS5.2 "
+			    "encrypted attribute (User-Password) -- etc/dictionary may be "
+			    "missing its encrypt=User-Password flag");
+	}
 	radcli_avp_list_free(send_list);
 
 	packet[0] = 1; /* Access-Request */
