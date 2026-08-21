@@ -13,7 +13,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-static-analyzer-clang-clang-tools-libgnutls28-dev-meson-ninja-build-v1
@@ -29,7 +29,7 @@ jobs:
                   scan-build --status-bugs -o analyzer ninja -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: analyzer output
                   path: analyzer/
@@ -41,7 +41,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-gcc-freeradius-libgnutls28-dev-python3-meson-ninja-build-v1
@@ -58,10 +58,11 @@ jobs:
                   sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (asan)
                   path: build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
 
     tests-ubsan:
@@ -70,7 +71,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   # Same package list as tests-asan: sharing the key lets whichever
@@ -93,10 +94,11 @@ jobs:
                   sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (ubsan)
                   path: build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
 
     tests:
@@ -105,7 +107,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-v1
@@ -128,10 +130,11 @@ jobs:
                   ninja -C build compare-exported
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (tests)
                   path: build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
 
     # meson dist requires -Ddocs=enabled (see doc/meson.build,
@@ -146,7 +149,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-distcheck-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-doxygen-perl-qt5-v1
@@ -171,10 +174,22 @@ jobs:
                   meson dist -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (distcheck)
-                  path: build/meson-logs/testlog.txt
+                  # "meson dist" runs its own configure/build/test cycle against
+                  # the unpacked tarball in a private builddir (meson's mdist.py:
+                  # <builddir>/meson-private/dist-build), left in place on failure
+                  # specifically so it can be inspected -- that is where its
+                  # testlog.txt lands, not the outer build/ used only to invoke
+                  # "meson dist" itself (which never runs "meson test" directly,
+                  # so build/meson-logs/testlog.txt is never created). Listing
+                  # both paths covers a test failure inside the dist build as
+                  # well as a plain configure/compile failure in the outer one.
+                  path: |
+                      build/meson-private/dist-build/meson-logs/testlog.txt
+                      build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
 
     tests-msan:
@@ -183,7 +198,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-clang-freeradius-python3-meson-ninja-build-v1
@@ -202,10 +217,11 @@ jobs:
                   sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (msan)
                   path: build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
 
     tests-notls:
@@ -214,7 +230,7 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v5
             - name: Cache APT packages
-              uses: actions/cache@v4
+              uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
                   key: apt-gcc-freeradius-python3-meson-ninja-build-v1
@@ -231,8 +247,9 @@ jobs:
                   sudo meson test -C build
             - name: Upload artifacts
               if: failure()
-              uses: actions/upload-artifact@v5
+              uses: actions/upload-artifact@v7
               with:
                   name: test-suite log (notls)
                   path: build/meson-logs/testlog.txt
+                  if-no-files-found: ignore
                   retention-days: 5
