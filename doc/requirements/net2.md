@@ -170,7 +170,7 @@ clean, per `REQ-GEN-MEM-*`).
 ### REQ-NET2-SEND-008 — Access-Request uses a random Request Authenticator and carries Message-Authenticator
 
 **Requirement:** For `RADCLI_CODE_ACCESS_REQUEST`, `radcli_request_perform()`
-MUST fill the Request Authenticator with `rc_random_vector()` output (not a
+MUST fill the Request Authenticator with `rc_get_random_bytes()` output (not a
 predictable value), encode attributes with `radcli_avp_encode_rfc2865()`
 reserving `2 + MD5_DIGEST_SIZE` bytes, and append a Message-Authenticator
 attribute via `add_msg_auth_attr()` before transmission — mirroring

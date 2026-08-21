@@ -18,6 +18,7 @@
 #include "util.h"
 #include "rc-md5.h"
 #include "rc-hmac.h"
+#include "rc-random.h"
 
 #if defined(HAVE_GNUTLS)
 # include <gnutls/gnutls.h>
@@ -31,7 +32,7 @@
 
 #define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
 
-/* rc_random_vector(), rc_check_reply(), populate_ctx(), add_msg_auth_attr(),
+/* rc_check_reply(), populate_ctx(), add_msg_auth_attr(),
  * validate_message_authenticator() are declared in include/includes.h (no
  * longer static): they operate purely on raw bytes/AUTH_HDR/secret/vector,
  * never on VALUE_PAIR, so radcli_transport_exchange() below reuses them
@@ -316,23 +317,6 @@ int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 
 	return OK_RC;
 
-}
-/// @endcond
-
-/* Generates a random vector of AUTH_VECTOR_LEN octets
- *
- * @param vector a buffer with at least %AUTH_VECTOR_LEN bytes.
- */
-/// @cond INTERNAL
-void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN])
-{
-#if defined(HAVE_GNUTLS)
-	int ret = gnutls_rnd(GNUTLS_RND_NONCE, vector, AUTH_VECTOR_LEN);
-	assert(ret >= 0);
-#else
-	int ret = getentropy(vector, AUTH_VECTOR_LEN);
-	assert(ret == 0);
-#endif
 }
 /// @endcond
 
@@ -1049,7 +1033,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 			    total_length + secretlen);
 		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
 	} else {
-		rc_random_vector(vector);
+		rc_get_random_bytes(vector, AUTH_VECTOR_LEN);
 		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
 
 		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below) */

@@ -371,20 +371,23 @@ the corresponding positive (MUST) behavior, per `doc/requirements/README.md`.
 
 ### REQ-NET-SEC-001 — An Access-Request/Accounting-Request Authenticator MUST NOT be predictable, and MUST use a cryptographic RNG
 
-**Requirement:** `rc_random_vector()` MUST NOT derive the Access-Request Authenticator from a
-non-cryptographic source (`rand()`/counters/time); it MUST use `gnutls_rnd(GNUTLS_RND_NONCE, ...)`
-when built with GnuTLS, or `getentropy()` otherwise, and MUST treat a negative/nonzero return as
-fatal (`assert`) rather than silently proceeding with a partially- or un-randomized buffer. A
-predictable Request Authenticator would let an off-path attacker precompute a valid
-User-Password obfuscation XOR-mask or Response Authenticator MD5 input.
+**Requirement:** The Access-Request Authenticator MUST NOT be derived from a
+non-cryptographic source (`rand()`/counters/time); it MUST be filled via
+`rc_get_random_bytes()` (`lib/rc-random.c`), which uses
+`gnutls_rnd(GNUTLS_RND_NONCE, ...)` when built with GnuTLS, or `getentropy()`
+otherwise, and MUST treat a negative/nonzero return as fatal (`assert`) rather
+than silently proceeding with a partially- or un-randomized buffer. A
+predictable Request Authenticator would let an off-path attacker precompute a
+valid User-Password obfuscation XOR-mask or Response Authenticator MD5 input.
 **Strength:** MUST NOT (weak RNG) ; MUST (gnutls_rnd/getentropy, fail on error)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:295-310 (`rc_random_vector`); lib/sendserver.c:650-651 (call site
-for Access-Request); REQ-GEN-TECH-001
-**Acceptance:** [SEC] code-review — `rc_random_vector()`'s only entropy source is
-`gnutls_rnd`/`getentropy`; the `assert` is not compiled out (`NDEBUG` builds are not the
-project's release configuration — flag if this changes).
-**Links:** REQ-GEN-TECH-001
+**Source:** lib/rc-random.c:40 (`rc_get_random_bytes`); lib/sendserver.c:1036
+(call site for Access-Request); REQ-GEN-TECH-001, REQ-GEN-SEC-007
+**Acceptance:** [SEC] code-review — `rc_get_random_bytes()`'s only entropy
+source is `gnutls_rnd`/`getentropy`; the `assert` is not compiled out
+(`NDEBUG` builds are not the project's release configuration — flag if this
+changes).
+**Links:** REQ-GEN-TECH-001, REQ-GEN-SEC-007 (general.md)
 
 ### REQ-NET-SEC-002 — Accounting-Request Authenticator MUST be computed as MD5(code‖id‖length‖zero-vector‖attrs‖secret), never left zero or reused
 

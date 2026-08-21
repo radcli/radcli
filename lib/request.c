@@ -47,6 +47,7 @@
 #include "rc-hmac.h" /* MD5_DIGEST_SIZE: only nettle/md5.h defines it directly;
                       * the non-nettle build gets it from this header's own
                       * fallback #define instead (see lib/rc-hmac.h). */
+#include "rc-random.h"
 
 struct radcli_request_st {
 	rc_handle *rh;
@@ -174,7 +175,7 @@ int radcli_request_perform(radcli_request *r)
 	r->performed = 1;
 
 	auth->code = r->code;
-	auth->id = (uint8_t)(random() & 0xff);
+	auth->id = rc_get_random_byte();
 
 	if (r->code == RADCLI_CODE_ACCOUNTING_REQUEST) {
 		size_t secretlen;
@@ -200,7 +201,7 @@ int radcli_request_perform(radcli_request *r)
 		rc_md5_calc(vector, send_buffer, (size_t)total_length + secretlen);
 		memcpy(auth->vector, vector, AUTH_VECTOR_LEN);
 	} else {
-		rc_random_vector(vector);
+		rc_get_random_bytes(vector, AUTH_VECTOR_LEN);
 		memcpy(auth->vector, vector, AUTH_VECTOR_LEN);
 
 		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below). */

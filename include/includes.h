@@ -261,12 +261,6 @@ int populate_ctx(RC_AAA_CTX **ctx, char secret[MAX_SECRET_LENGTH + 1],
 int rc_check_reply(AUTH_HDR *auth, int bufferlen, char const *secret,
 		   unsigned char const *vector, uint8_t seq_nbr);
 
-/* Fills vector with AUTH_VECTOR_LEN cryptographically random bytes (a
- * request's Request Authenticator, for any request type other than
- * Accounting-Request, whose own Request Authenticator is instead computed
- * from the encoded packet -- see rc_check_reply()'s caller). */
-void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN]);
-
 /* Appends a Message-Authenticator attribute (RFC 2869 SS5.14: type 80,
  * length 18, an HMAC-MD5 over the packet with the attribute's own value
  * field zeroed during computation) to the packet at auth, whose first

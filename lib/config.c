@@ -1230,7 +1230,6 @@ rc_handle *rc_new(void)
 			return NULL;
 		}
 #endif
-		srandom((unsigned int)(time(NULL)+getpid()));
 	}
 	_initialized++;
 
