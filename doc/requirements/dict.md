@@ -59,13 +59,23 @@ shadow is ever materialized for a `radcli2.h` caller. `lib/avp.c`'s casts
 of a `radcli_attr_def*` (which `radcli_dict_lookup()`/etc. hand back) were
 migrated from `(const DICT_ATTR *)` to `(const struct radcli_dict_attr *)`
 in the same follow-up, and its `rc_dict_attr_encrypt_type()`/
-`rc_dict_attr_has_tag()`/`rc_dict_attr_gigawords()` calls (which take a
+`rc_dict_attr_has_tag()`/`rc_dict_attr_gigawords()` calls (which took a
 genuine `DICT_ATTR*`, not the opaque `radcli_attr_def`) replaced with
 direct `lib/dict2.h` `radcli_dict_flags_by_id()`/`radcli_dict_attr_gigawords()`
-calls. `lib/avpair.c`, `lib/sendserver.c`, and `src/radacct.c` still go
-through the `lib/dict.c` shim (they operate on the legacy `DICT_ATTR`-based
-`VALUE_PAIR` API, where a real `DICT_ATTR*` is the correct, not incidental,
-representation) -- migrating them is not applicable the way `avp.c`'s was.
+calls. `lib/avpair.c` and `lib/sendserver.c` were migrated the same way in a
+later follow-up -- their `VALUE_PAIR` construction only ever read
+`name`/`value`/`type` fields, which `lib/dict2.h`'s
+`struct radcli_dict_attr`/`_value`/`_vendor` carry under the same names, so
+no legacy shadow was actually required there either. Once both stopped
+calling `rc_dict_attr_encrypt_type()`/`_has_tag()`/`_gigawords()`, those
+three internal-only (unexported) `lib/dict.c` functions had no remaining
+callers and were deleted as dead code -- not a behavior or ABI change, since
+they were never part of the public symbol table. `src/radacct.c` is the one
+file that stays on the shim, for a different reason than "not applicable":
+it is a separate executable linking against `libradcli`'s public shared-
+library ABI, and `lib/dict2.h`'s functions are deliberately unexported, so
+it is in the same position as any external consumer (ocserv included) --
+calling them directly is a link error, not a design choice.
 
 Cross-cutting memory-safety and unsafe-string-function rules
 (`REQ-GEN-MEM-002`, `REQ-GEN-MEM-004`) apply throughout `lib/dict.c`/
@@ -389,29 +399,37 @@ on the public `DICT_ATTR` struct (`include/radcli/radcli.h`), nor on
 `lib/dict2.h`'s `struct radcli_dict_attr`; both live in the internal
 `struct radcli_dict_flags` side table, keyed by attribute id (not by node
 identity — see REQ-DICT-DATA-005's comment on `struct radcli_dict_flags`),
-queryable via `rc_dict_attr_has_tag()`/`rc_dict_attr_encrypt_type()`
-(`include/includes.h`, internal only — not exported), which resolve through
-`lib/dict2.h`'s `radcli_dict_flags_by_id()`. An attribute with neither flag
-set returns `0`/false from both accessors. `radcli_avp_decode()`
-(`lib/avp.c`) consults the `has_tag` flag (via `radcli_dict_flags_by_id()`,
-same as `rc_dict_attr_has_tag()`'s shim) to decide whether a salt-encrypted
-attribute's ciphertext is preceded by a one-octet Tag, rather than checking
-the attribute's identity.
+queryable via `radcli_dict_flags_by_id()` (`lib/dict2.h`, internal only —
+not exported). An attribute with neither flag set has no
+`struct radcli_dict_flags` entry at all (`radcli_dict_flags_by_id()` returns
+`NULL`). `radcli_avp_decode()` (`lib/avp.c`) consults the `has_tag` flag via
+`radcli_dict_flags_by_id()` to decide whether a salt-encrypted attribute's
+ciphertext is preceded by a one-octet Tag, rather than checking the
+attribute's identity; `lib/sendserver.c`'s `rc_pack_list()` consults
+`encrypt_type` the same way to refuse sending an attribute it cannot
+encrypt. (An earlier `rc_dict_attr_encrypt_type()`/`rc_dict_attr_has_tag()`
+pair of internal, unexported shim functions in `lib/dict.c` existed only to
+let those two call sites reach this table through a `DICT_ATTR*`-typed
+wrapper; once both were migrated to call `radcli_dict_flags_by_id()`
+directly, the wrapper functions had zero remaining callers and were
+removed — dead code, not a behavior change, since they were never part of
+the public ABI.)
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dict2.c:258-278 (`has_tag`/`encrypt=` option parsing),
 351-360 (`flags_by_attr_id` `HASH_ADD()`), 839-847 (`radcli_dict_flags_by_id`);
-lib/dict.c:105-128 (`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag` shim,
-still used by `lib/sendserver.c`'s `rc_pack_list()`); include/includes.h
-(accessor declarations);
-lib/avp.c:653 (`avp_decode_into()`'s direct `radcli_dict_flags_by_id()` call)
+lib/avp.c:653 (`avp_decode_into()`'s `radcli_dict_flags_by_id()` call);
+lib/sendserver.c (`rc_pack_list()`'s `radcli_dict_flags_by_id()` call)
 **Acceptance:** [DATA] positive, local — loading a verbatim excerpt of
 FreeRADIUS's `share/dictionary/radius/dictionary.rfc2868` (which uses `uint32`
 and `has_tag`/`encrypt=Tunnel-Password` throughout) succeeds; its
-`Tunnel-Password` line reports `rc_dict_attr_encrypt_type() == 2` and
-`rc_dict_attr_has_tag() == 1`, identical to radcli's own `etc/dictionary`
-(same spelling: `encrypt=Tunnel-Password,has_tag`); its `Tunnel-Type` line
-reports `has_tag == 1`, `encrypt_type == 0`. [DATA] positive — a
+`Tunnel-Password` line reports `encrypt_type == 2` and `has_tag == 1` (via
+`tests/avp-codec.c`'s local `def_encrypt_type()`/`def_has_tag()` helpers,
+which call `radcli_dict_flags_by_id()` directly since `radcli_dict_lookup()`
+hands back a `struct radcli_dict_attr*`, not a `DICT_ATTR*`), identical to
+radcli's own `etc/dictionary` (same spelling:
+`encrypt=Tunnel-Password,has_tag`); its `Tunnel-Type` line reports
+`has_tag == 1`, `encrypt_type == 0`. [DATA] positive — a
 Tunnel-Password AVP salt-encrypted per RFC 2868 decodes to the same
 plaintext whether its definition came from radcli's own `etc/dictionary` or
 the real upstream excerpt (option token order differs between the two: flags
@@ -485,9 +503,9 @@ table needed only to reconstruct the discarded pointer-identity behavior.
 **Status:** DERIVED
 **Source:** lib/dict2.c:292-306 (`gigawords=` option parsing), 362-376
 (`struct radcli_dict_gigawords` construction), 861-869
-(`radcli_dict_attr_gigawords()`), 850-859 (`radcli_dict_gigawords_by_id()`);
-lib/dict.c:130-139 (`rc_dict_attr_gigawords()` shim); lib/dict2.h
-(`struct radcli_dict_gigawords`)
+(`radcli_dict_attr_gigawords()`), 850-859 (`radcli_dict_gigawords_by_id()`),
+called directly by `lib/avp.c`'s `radcli_avp_add_gigawords64()`/
+`_get_gigawords64()`; lib/dict2.h (`struct radcli_dict_gigawords`)
 **Acceptance:** [DATA] positive, local — `tests/dict.c`'s `counter64_dict`
 (`Test-Counter-Octets` (252) `gigawords=253` paired with
 `Test-Counter-Gigawords` (253)) loads; `radcli_avp_add_gigawords64()`/

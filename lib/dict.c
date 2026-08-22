@@ -85,57 +85,6 @@ DICT_VALUE *rc_dict_getval(rc_handle const *rh, uint32_t value, char const *attr
 	return radcli_dict_value_to_legacy(radcli_dict_value_by_attr(rh, attrname, value));
 }
 
-/* Internal only -- see the declaration in include/includes.h, shared with
- * lib/avp.c the way rc_send_server_ctx is.
- *
- * Matches by attr->value (attribute id + vendor, RADCLI_VENDOR_ATTR_SET()-
- * combined), not by DICT_ATTR pointer identity: rc_dict_addattr()/
- * rc_read_dictionary() never dedup redefinitions of the same (id, vendor)
- * under a new name or from a later-loaded dictionary (e.g. a caller's
- * supplemental dictionary loaded after the built-in one, or the built-in
- * "Password"/"User-Password" id-2 alias pair -- see etc/dictionary), so two
- * distinct DICT_ATTR objects can legitimately mean the same wire attribute.
- * Matching by value, via dict2.h's flags_by_attr_id side table, means the
- * flag stays set for that id for as long as any loaded ATTRIBUTE line ever
- * set it -- fail-safe, a redefinition that omits encrypt=/has_tag cannot
- * silently turn off encryption for an id another loaded definition already
- * flagged (see struct radcli_dict_flags's comment, lib/dict2.h). */
-int rc_dict_attr_encrypt_type(rc_handle const *rh, const DICT_ATTR *attr)
-{
-	struct radcli_dict_flags *fl;
-
-	if (rh == NULL || attr == NULL)
-		return 0;
-
-	fl = radcli_dict_flags_by_id(rh, attr->value);
-	return fl ? fl->encrypt_type : 0;
-}
-
-/* Internal only -- see the declaration in include/includes.h, shared with
- * lib/avp.c the way rc_send_server_ctx is. Matches by attr->value, not
- * pointer identity -- see rc_dict_attr_encrypt_type() above for why. */
-int rc_dict_attr_has_tag(rc_handle const *rh, const DICT_ATTR *attr)
-{
-	struct radcli_dict_flags *fl;
-
-	if (rh == NULL || attr == NULL)
-		return 0;
-
-	fl = radcli_dict_flags_by_id(rh, attr->value);
-	return fl ? fl->has_tag : 0;
-}
-
-/* Internal only -- see the declaration in include/includes.h. */
-const DICT_ATTR *rc_dict_attr_gigawords(rc_handle const *rh, const DICT_ATTR *octets)
-{
-	struct radcli_dict_attr *a;
-
-	if (rh == NULL || octets == NULL)
-		return NULL;
-
-	a = radcli_dict_attr_by_id(rh, octets->value);
-	return radcli_dict_attr_to_legacy(radcli_dict_attr_gigawords(rh, a));
-}
 /** @} */
 
 /**

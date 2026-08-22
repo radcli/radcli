@@ -179,8 +179,8 @@ struct radcli_dict_flags *radcli_dict_flags_by_id(rc_handle const *rh, uint64_t 
 struct radcli_dict_gigawords *radcli_dict_gigawords_by_id(rc_handle const *rh, uint64_t attr_id);
 
 /* Resolves octets's gigawords pairing, if any, to the paired attribute --
- * used by radcli_avp_add_gigawords64()/_get_gigawords64() (lib/avp.c) via
- * the lib/dict.c shim's rc_dict_attr_gigawords(). */
+ * used directly by radcli_avp_add_gigawords64()/_get_gigawords64()
+ * (lib/avp.c). */
 struct radcli_dict_attr *radcli_dict_attr_gigawords(rc_handle const *rh, const struct radcli_dict_attr *octets);
 
 /* Legacy-shim support: lazily materializes (and caches on ->legacy) a

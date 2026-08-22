@@ -39,9 +39,12 @@
 #include <includes.h>
 #include "avp.h" /* radcli_avp_decode(), radcli_avp_encode_rfc2865() */
 #include "dict2.h" /* radcli_dict_flags_by_id(): radcli_dict_lookup() returns a
-                     * struct radcli_dict_attr*, not a DICT_ATTR*, so
-                     * rc_dict_attr_encrypt_type()/_has_tag() (which expect a
-                     * real DICT_ATTR*) cannot be called on it directly. */
+                     * struct radcli_dict_attr*, not a DICT_ATTR*, and there is
+                     * no rc_dict_attr_encrypt_type()/_has_tag() equivalent
+                     * that takes one -- those legacy shim functions were
+                     * removed once lib/avp.c/lib/sendserver.c stopped
+                     * calling them, so this reads the flags_by_attr_id side
+                     * table directly instead. */
 
 static int def_encrypt_type(rc_handle const *rh, const radcli_attr_def *def)
 {

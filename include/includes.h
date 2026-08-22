@@ -234,23 +234,6 @@ struct rc_aaa_ctx_st
 int rc_send_server_ctx (rc_handle *rh, RC_AAA_CTX **ctx, SEND_DATA *data,
                         char *msg, rc_type type, int no_wait);
 
-/* Looks up attr's "encrypt=N" flag (lib/dict.c); used by radcli_avp_decode()
- * (lib/avp.c). See the definition in lib/dict.c. */
-int rc_dict_attr_encrypt_type(rc_handle const *rh, const struct dict_attr *attr);
-
-/* Looks up attr's "has_tag" flag (RFC 2868 SS3.1 tunnel-attribute tagging;
- * lib/dict.c); used by radcli_avp_decode() (lib/avp.c). See the definition
- * in lib/dict.c. */
-int rc_dict_attr_has_tag(rc_handle const *rh, const struct dict_attr *attr);
-
-/* Looks up the "gigawords=" pairing (lib/dict.c) recorded for octets, and
- * resolves it, via rc_dict_getattr(), to the paired attribute's DICT_ATTR
- * in rh's now-fully-loaded dictionary. Returns NULL if octets has no
- * gigawords= pairing configured, or if the configured attribute id does
- * not (or no longer) exist in the dictionary. Internal only -- used by
- * radcli_avp_add_gigawords64()/_get_counter64() (lib/avp.c). */
-const struct dict_attr *rc_dict_attr_gigawords(rc_handle const *rh, const struct dict_attr *octets);
-
 /* Projection between radcli_avp_list and VALUE_PAIR (lib/avp.c), internal
  * only. Neither aliases the other's storage; each call produces a fresh,
  * independently-owned list.

@@ -15,6 +15,7 @@
 #include <radcli/radcli.h>
 #include <pathnames.h>
 #include <poll.h>
+#include "dict2.h"
 #include "util.h"
 #include "avp.h"
 #include "rc-md5.h"
@@ -108,9 +109,10 @@ int rc_pack_list(rc_handle *rh, VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, 
 		 * flagged attribute this function does not specifically know how
 		 * to encrypt, including one a future dictionary change adds. */
 		if (vp->attribute != PW_USER_PASSWORD) {
-			DICT_ATTR *def = rc_dict_getattr(rh, vp->attribute);
+			struct radcli_dict_attr *def = radcli_dict_attr_by_id(rh, vp->attribute);
+			struct radcli_dict_flags *fl = def != NULL ? radcli_dict_flags_by_id(rh, def->value) : NULL;
 
-			if (def != NULL && rc_dict_attr_encrypt_type(rh, def) != 0) {
+			if (fl != NULL && fl->encrypt_type != 0) {
 				rc_log(LOG_ERR, "rc_pack_list: %s requires encryption this "
 				    "function does not implement; refusing to send it "
 				    "unencrypted", def->name);
