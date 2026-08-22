@@ -247,7 +247,10 @@ Six jobs run on every push (`.github/workflows/tests.yaml`):
 
 - C99, BSD 2-clause license for new files
 - All public functions prefixed `rc_`, macros in `UPPER_CASE`
-- Doxygen comments on all public API (`@param`, `@return`, `@defgroup`)
+- Doxygen comments on all public API (`@param`, `@return`, `@defgroup`). Non-public
+  functions get the same description of purpose/params/return, but as a plain
+  comment, not Doxygen form — start it with `/*-` instead of `/**` so Doxygen
+  skips it.
 - Comments: prefer self-documenting code (meaningful names, short single-purpose
   functions) over comments. Where used, a comment should explain something not
   obvious from the code itself — a non-obvious constraint, the reason for an
