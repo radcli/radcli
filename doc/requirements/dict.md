@@ -54,11 +54,18 @@ structs are frozen public ABI returned by pointer. No public symbol, struct
 layout, or documented behavior changed; every requirement below still holds
 of the public API. `radcli2.h`'s `radcli_dict_lookup()`/`_lookup_num()`/
 `_lookup_oid()` (declared in `lib/dict.c`, `doc/requirements/avp2.md`'s
-scope) still resolve through the same legacy-shadow path as
-`rc_dict_findattr()`/`rc_dict_getattr()` today, since `lib/avp.c` casts a
-`radcli_attr_def*` straight to `DICT_ATTR*` in several places; routing them
-(and `lib/avp.c`) directly through `lib/dict2.h` instead is separate,
-not-yet-done follow-up work.
+scope) now resolve straight to `lib/dict2.h` -- no legacy `DICT_ATTR`
+shadow is ever materialized for a `radcli2.h` caller. `lib/avp.c`'s casts
+of a `radcli_attr_def*` (which `radcli_dict_lookup()`/etc. hand back) were
+migrated from `(const DICT_ATTR *)` to `(const struct radcli_dict_attr *)`
+in the same follow-up, and its `rc_dict_attr_encrypt_type()`/
+`rc_dict_attr_has_tag()`/`rc_dict_attr_gigawords()` calls (which take a
+genuine `DICT_ATTR*`, not the opaque `radcli_attr_def`) replaced with
+direct `lib/dict2.h` `radcli_dict_flags_by_id()`/`radcli_dict_attr_gigawords()`
+calls. `lib/avpair.c`, `lib/sendserver.c`, and `src/radacct.c` still go
+through the `lib/dict.c` shim (they operate on the legacy `DICT_ATTR`-based
+`VALUE_PAIR` API, where a real `DICT_ATTR*` is the correct, not incidental,
+representation) -- migrating them is not applicable the way `avp.c`'s was.
 
 Cross-cutting memory-safety and unsafe-string-function rules
 (`REQ-GEN-MEM-002`, `REQ-GEN-MEM-004`) apply throughout `lib/dict.c`/
@@ -386,16 +393,18 @@ queryable via `rc_dict_attr_has_tag()`/`rc_dict_attr_encrypt_type()`
 (`include/includes.h`, internal only — not exported), which resolve through
 `lib/dict2.h`'s `radcli_dict_flags_by_id()`. An attribute with neither flag
 set returns `0`/false from both accessors. `radcli_avp_decode()`
-(`lib/avp.c`) consults `rc_dict_attr_has_tag()` to decide whether a
-salt-encrypted attribute's ciphertext is preceded by a one-octet Tag, rather
-than checking the attribute's identity.
+(`lib/avp.c`) consults the `has_tag` flag (via `radcli_dict_flags_by_id()`,
+same as `rc_dict_attr_has_tag()`'s shim) to decide whether a salt-encrypted
+attribute's ciphertext is preceded by a one-octet Tag, rather than checking
+the attribute's identity.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dict2.c:258-278 (`has_tag`/`encrypt=` option parsing),
 351-360 (`flags_by_attr_id` `HASH_ADD()`), 839-847 (`radcli_dict_flags_by_id`);
-lib/dict.c:105-128 (`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag` shim);
-include/includes.h (accessor declarations); lib/avp.c:453-464
-(`avp_decode_into()`'s use of `rc_dict_attr_has_tag()`)
+lib/dict.c:105-128 (`rc_dict_attr_encrypt_type`/`rc_dict_attr_has_tag` shim,
+still used by `lib/sendserver.c`'s `rc_pack_list()`); include/includes.h
+(accessor declarations);
+lib/avp.c:653 (`avp_decode_into()`'s direct `radcli_dict_flags_by_id()` call)
 **Acceptance:** [DATA] positive, local — loading a verbatim excerpt of
 FreeRADIUS's `share/dictionary/radius/dictionary.rfc2868` (which uses `uint32`
 and `has_tag`/`encrypt=Tunnel-Password` throughout) succeeds; its

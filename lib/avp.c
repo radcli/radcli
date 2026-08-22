@@ -27,6 +27,7 @@
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
 #include <ccan/list/list.h>
+#include "dict2.h"
 #include "util.h"
 #include "rc-md5.h"
 #include "avp.h"
@@ -408,7 +409,7 @@ int radcli_avp_add_gigawords64(radcli_ctx *ctx, radcli_avp_list *list,
 	if (rh == NULL || octets == NULL || radcli_attr_def_type(octets) != RADCLI_TYPE_INTEGER)
 		return -1;
 
-	gigawords = (const radcli_attr_def *)rc_dict_attr_gigawords(rh, (const DICT_ATTR *)octets);
+	gigawords = (const radcli_attr_def *)radcli_dict_attr_gigawords(rh, (const struct radcli_dict_attr *)octets);
 	if (gigawords == NULL) {
 		rc_log(LOG_ERR, "radcli_avp_add_gigawords64: %s has no gigawords= "
 		    "counterpart configured", radcli_attr_def_name(octets));
@@ -439,7 +440,7 @@ int radcli_avp_get_gigawords64(const radcli_ctx *ctx, const radcli_avp_list *lis
 	if (rh == NULL || octets == NULL)
 		return -1;
 
-	gigawords = (const radcli_attr_def *)rc_dict_attr_gigawords(rh, (const DICT_ATTR *)octets);
+	gigawords = (const radcli_attr_def *)radcli_dict_attr_gigawords(rh, (const struct radcli_dict_attr *)octets);
 	if (gigawords == NULL)
 		return -1;
 
@@ -485,7 +486,7 @@ int radcli_avp_get_gigawords64(const radcli_ctx *ctx, const radcli_avp_list *lis
  * The other exception is an attribute the dictionary marks
  * "encrypt=Tunnel-Password" (Tunnel-Password, MS-MPPE-Send-Key,
  * MS-MPPE-Recv-Key -- see
- * etc/dictionary and lib/dict.c's rc_dict_attr_encrypt_type()): decode
+ * etc/dictionary and lib/dict2.h's radcli_dict_flags_by_id()): decode
  * transparently reverses the RFC 2868 SS3.5 / RFC 2548 salt-encryption
  * scheme using the caller-supplied secret and request authenticator, and
  * radcli_avp_get_bytes() then returns the plaintext. Only decryption is
@@ -493,7 +494,7 @@ int radcli_avp_get_gigawords64(const radcli_ctx *ctx, const radcli_avp_list *lis
  * encrypt=Tunnel-Password-flagged attribute (Tunnel-Password,
  * MS-MPPE-Send-Key, MS-MPPE-Recv-Key) -- a RADIUS client has not needed to
  * send one. radcli_avp_encode_rfc2865() dispatches on
- * rc_dict_attr_encrypt_type() too, the same lookup this decode path uses:
+ * radcli_dict_flags_by_id() too, the same lookup this decode path uses:
  * this is a whitelist, not a blocklist -- an attribute is encoded
  * unencrypted only because the dictionary says it needs no encryption,
  * never because radcli_avp_encode_rfc2865() simply did not recognise that
@@ -625,7 +626,7 @@ static int avp_decode_into(rc_handle const *rh, const char *secret,
 			}
 			memcpy(&lvalue, ptr, 4);
 			lvalue = ntohl(lvalue);
-			if (rc_dict_getvend(rh, lvalue) == NULL) {
+			if (radcli_dict_vendor_by_pec(rh, lvalue) == NULL) {
 				rc_log(LOG_WARNING, "radcli_avp_decode: received VSA attribute "
 				    "with unknown Vendor-Id %u", lvalue);
 				continue;
@@ -648,7 +649,10 @@ static int avp_decode_into(rc_handle const *rh, const char *secret,
 			continue;
 		}
 
-		if (rc_dict_attr_encrypt_type(rh, (const DICT_ATTR *)def) == 2) {
+		{
+		struct radcli_dict_flags *fl = radcli_dict_flags_by_id(rh, ((const struct radcli_dict_attr *)def)->value);
+
+		if (fl != NULL && fl->encrypt_type == 2) {
 			/* RFC 2868 SS3.5 / RFC 2548 SS2.4.2-2.4.3 salt-encryption.
 			 * Whether a one-octet Tag precedes the Salt is dictionary data
 			 * (the "has_tag" ATTRIBUTE option -- RFC 2868 SS3.1), not an
@@ -659,8 +663,7 @@ static int avp_decode_into(rc_handle const *rh, const char *secret,
 			 * as an unrecognised attribute -- logged and skipped, not a
 			 * hard decode error, since it is a property of this one
 			 * attribute, not of the packet. */
-			int has_tag = rc_dict_attr_has_tag(rh, (const DICT_ATTR *)def);
-			size_t off = has_tag ? 1 : 0;
+			size_t off = fl->has_tag ? 1 : 0;
 
 			if (secret == NULL || request_authenticator == NULL) {
 				rc_log(LOG_WARNING, "radcli_avp_decode: %s is salt-encrypted "
@@ -689,6 +692,7 @@ static int avp_decode_into(rc_handle const *rh, const char *secret,
 				}
 			}
 			continue;
+		}
 		}
 
 		{
@@ -774,7 +778,7 @@ int radcli_avp_decode(rc_handle const *rh, const char *secret,
 
 /* Writes list's wire encoding into buf (capacity buflen) -- attribute bytes
  * only, no packet header. rh's dictionary decides which attributes need
- * special handling, via rc_dict_attr_encrypt_type(): an unflagged attribute
+ * special handling, via radcli_dict_flags_by_id(): an unflagged attribute
  * is encoded as-is; an "encrypt=User-Password" attribute (RFC 2865 SS5.2 --
  * the one obfuscation scheme this function implements, hence the _rfc2865
  * suffix) is encrypted using secret/request_authenticator (pass secret ==
@@ -816,7 +820,8 @@ int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *l, con
 	pb_init(&pb, buf, buflen);
 
 	list_for_each(&list->head, a, node) {
-		const DICT_ATTR *def = (const DICT_ATTR *)a->def;
+		const struct radcli_dict_attr *def = (const struct radcli_dict_attr *)a->def;
+		struct radcli_dict_flags *fl = radcli_dict_flags_by_id(rh, def->value);
 
 		vendor = VENDOR(def->value);
 		attrid = ATTRID(def->value);
@@ -828,11 +833,11 @@ int radcli_avp_encode_rfc2865(rc_handle const *rh, const radcli_avp_list *l, con
 		 * MS-MPPE-Send-Key, MS-MPPE-Recv-Key today; RFC 2868 SS3.5
 		 * salt-encryption, which this function does not originate), or any
 		 * future encrypt=N this function has no code for -- is refused.
-		 * Driving this off rc_dict_attr_encrypt_type() rather than an
+		 * Driving this off the flags_by_attr_id side table rather than an
 		 * enumerated attribute list means a dictionary addition can never
 		 * silently start sending something in the clear that was supposed
 		 * to be encrypted. */
-		switch (rc_dict_attr_encrypt_type(rh, def)) {
+		switch (fl ? fl->encrypt_type : 0) {
 		case 0:
 			break;
 		case 1: {
@@ -1003,7 +1008,7 @@ int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *l
 	}
 
 	list_for_each(&list->head, a, node) {
-		const DICT_ATTR *def = (const DICT_ATTR *)a->def;
+		const struct radcli_dict_attr *def = (const struct radcli_dict_attr *)a->def;
 		unsigned max_vlen = (VENDOR(def->value) != 0) ? (AUTH_STRING_LEN - VSA_HDR_LEN) : AUTH_STRING_LEN;
 		VALUE_PAIR *vp;
 

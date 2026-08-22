@@ -38,6 +38,24 @@
 #include <radcli/radcli2.h>
 #include <includes.h>
 #include "avp.h" /* radcli_avp_decode(), radcli_avp_encode_rfc2865() */
+#include "dict2.h" /* radcli_dict_flags_by_id(): radcli_dict_lookup() returns a
+                     * struct radcli_dict_attr*, not a DICT_ATTR*, so
+                     * rc_dict_attr_encrypt_type()/_has_tag() (which expect a
+                     * real DICT_ATTR*) cannot be called on it directly. */
+
+static int def_encrypt_type(rc_handle const *rh, const radcli_attr_def *def)
+{
+	struct radcli_dict_flags *fl =
+		radcli_dict_flags_by_id(rh, ((const struct radcli_dict_attr *)def)->value);
+	return fl ? fl->encrypt_type : 0;
+}
+
+static int def_has_tag(rc_handle const *rh, const radcli_attr_def *def)
+{
+	struct radcli_dict_flags *fl =
+		radcli_dict_flags_by_id(rh, ((const struct radcli_dict_attr *)def)->value);
+	return fl ? fl->has_tag : 0;
+}
 
 static char test_dict[] =
 "ATTRIBUTE	User-Name		1	string\n"
@@ -474,21 +492,21 @@ int main(int argc, char **argv)
 		}
 
 		dd = radcli_dict_lookup(rh2, "Tunnel-Password");
-		if (dd == NULL || rc_dict_attr_encrypt_type(rh2, (const DICT_ATTR *)dd) != 2) {
+		if (dd == NULL || def_encrypt_type(rh2, dd) != 2) {
 			fprintf(stderr, "error: etc/dictionary's Tunnel-Password is not "
 					"marked encrypt=Tunnel-Password\n");
 			exit(1);
 		}
 
 		dd = radcli_dict_lookup(rh2, "MS-MPPE-Send-Key");
-		if (dd == NULL || rc_dict_attr_encrypt_type(rh2, (const DICT_ATTR *)dd) != 2) {
+		if (dd == NULL || def_encrypt_type(rh2, dd) != 2) {
 			fprintf(stderr, "error: etc/dictionary's MS-MPPE-Send-Key is not "
 					"marked encrypt=Tunnel-Password\n");
 			exit(1);
 		}
 
 		dd = radcli_dict_lookup(rh2, "MS-MPPE-Recv-Key");
-		if (dd == NULL || rc_dict_attr_encrypt_type(rh2, (const DICT_ATTR *)dd) != 2) {
+		if (dd == NULL || def_encrypt_type(rh2, dd) != 2) {
 			fprintf(stderr, "error: etc/dictionary's MS-MPPE-Recv-Key is not "
 					"marked encrypt=Tunnel-Password\n");
 			exit(1);
@@ -496,7 +514,7 @@ int main(int argc, char **argv)
 
 		/* An ordinary attribute must not come back flagged. */
 		dd = radcli_dict_lookup(rh2, "User-Name");
-		if (dd == NULL || rc_dict_attr_encrypt_type(rh2, (const DICT_ATTR *)dd) != 0) {
+		if (dd == NULL || def_encrypt_type(rh2, dd) != 0) {
 			fprintf(stderr, "error: User-Name was unexpectedly reported "
 					"as encrypt-flagged\n");
 			exit(1);
@@ -506,9 +524,9 @@ int main(int argc, char **argv)
 		rc_destroy(rh2);
 	}
 
-	/* --- rc_dict_attr_encrypt_type()/rc_dict_attr_has_tag() match by
-	 * attr->value (attribute id + vendor), not DICT_ATTR pointer identity:
-	 * two DICT_ATTR objects for the same wire attribute -- whether the
+	/* --- radcli_dict_flags_by_id() (def_encrypt_type()/def_has_tag() above)
+	 * match by attribute id (attribute id + vendor), not node identity:
+	 * two attribute definitions for the same wire attribute -- whether the
 	 * built-in "Password"/"User-Password" id-2 alias pair (etc/dictionary),
 	 * or a later-loaded dictionary redefining an already-flagged id -- must
 	 * both see the flag, not just whichever DICT_ATTR happened to register
@@ -533,7 +551,7 @@ int main(int argc, char **argv)
 		 * carries no encrypt= of its own -- only "User-Password" does. A
 		 * pointer-identity match would report it unencrypted. */
 		pw = radcli_dict_lookup(rh4, "Password");
-		if (pw == NULL || rc_dict_attr_encrypt_type(rh4, (const DICT_ATTR *)pw) != 1) {
+		if (pw == NULL || def_encrypt_type(rh4, pw) != 1) {
 			fprintf(stderr, "error: the \"Password\" id-2 alias was not "
 					"reported as encrypt=User-Password\n");
 			exit(1);
@@ -556,7 +574,7 @@ int main(int argc, char **argv)
 			}
 
 			tp = radcli_dict_lookup(rh4, "Tunnel-Password");
-			if (tp == NULL || rc_dict_attr_encrypt_type(rh4, (const DICT_ATTR *)tp) != 2) {
+			if (tp == NULL || def_encrypt_type(rh4, tp) != 2) {
 				fprintf(stderr, "error: a Tunnel-Password redefinition without "
 						"encrypt= silently disabled encryption for id 69\n");
 				exit(1);
@@ -605,8 +623,8 @@ int main(int argc, char **argv)
 					"RADCLI_TYPE_INTEGER\n");
 			exit(1);
 		}
-		if (rc_dict_attr_has_tag(rh3, (const DICT_ATTR *)dt) != 1 ||
-		    rc_dict_attr_encrypt_type(rh3, (const DICT_ATTR *)dt) != 0) {
+		if (def_has_tag(rh3, dt) != 1 ||
+		    def_encrypt_type(rh3, dt) != 0) {
 			fprintf(stderr, "error: Tunnel-Type should be has_tag only, "
 					"not encrypt-flagged\n");
 			exit(1);
@@ -614,8 +632,8 @@ int main(int argc, char **argv)
 
 		/* has_tag alone, no encrypt=, on a plain string attribute. */
 		dc = radcli_dict_lookup(rh3, "Tunnel-Client-Endpoint");
-		if (dc == NULL || rc_dict_attr_has_tag(rh3, (const DICT_ATTR *)dc) != 1 ||
-		    rc_dict_attr_encrypt_type(rh3, (const DICT_ATTR *)dc) != 0) {
+		if (dc == NULL || def_has_tag(rh3, dc) != 1 ||
+		    def_encrypt_type(rh3, dc) != 0) {
 			fprintf(stderr, "error: Tunnel-Client-Endpoint should be has_tag "
 					"only\n");
 			exit(1);
@@ -625,8 +643,8 @@ int main(int argc, char **argv)
 		 * order -- flags first, encrypt= second, the reverse of this test's
 		 * other fixtures) must parse identically regardless of order. */
 		dp = radcli_dict_lookup(rh3, "Tunnel-Password");
-		if (dp == NULL || rc_dict_attr_encrypt_type(rh3, (const DICT_ATTR *)dp) != 2 ||
-		    rc_dict_attr_has_tag(rh3, (const DICT_ATTR *)dp) != 1) {
+		if (dp == NULL || def_encrypt_type(rh3, dp) != 2 ||
+		    def_has_tag(rh3, dp) != 1) {
 			fprintf(stderr, "error: Tunnel-Password (encrypt=Tunnel-Password) "
 					"did not resolve to encrypt_type 2 with has_tag\n");
 			exit(1);

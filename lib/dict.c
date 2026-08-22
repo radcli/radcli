@@ -149,13 +149,11 @@ const DICT_ATTR *rc_dict_attr_gigawords(rc_handle const *rh, const DICT_ATTR *oc
  * definition is a DICT_ATTR, and the "opaque handle" is that same pointer
  * under a name radcli2.h does not define. This keeps the new lookup API
  * from duplicating the dictionary (contrib/ai/personas/radcli-core-dev.md,
- * Design Review / Dependency growth). lib/avp.c casts a radcli_attr_def
- * straight to DICT_ATTR in several places (radcli_avp_add_gigawords64(),
- * radcli_avp_encode_rfc2865(), ...), so this must keep returning the
- * legacy shadow, not a bare struct radcli_dict_attr -- migrating avp.c off
- * that assumption, so this can go straight to dict2.h like
- * rc_dict_attr_encrypt_type()'s shim callers already conceptually could,
- * is separate follow-up work, not bundled into this change. */
+ * Design Review / Dependency growth). Unlike rc_dict_findattr()/
+ * rc_dict_getattr(), these go straight to dict2.h -- no legacy DICT_ATTR
+ * shadow is ever materialized for a radcli2.h caller. lib/avp.c casts a
+ * radcli_attr_def straight to struct radcli_dict_attr (not DICT_ATTR) to
+ * match. */
 
 /// @cond INTERNAL
 static radcli_attr_type dict_type_to_radcli(rc_attr_type t)
@@ -237,16 +235,15 @@ const radcli_attr_def *radcli_dict_lookup(const radcli_ctx *ctx, const char *nam
 {
 	if (ctx == NULL || name == NULL)
 		return NULL;
-	return (const radcli_attr_def *)radcli_dict_attr_to_legacy(
-		radcli_dict_attr_by_name((rc_handle const *)ctx, name));
+	return (const radcli_attr_def *)radcli_dict_attr_by_name((rc_handle const *)ctx, name);
 }
 
 const radcli_attr_def *radcli_dict_lookup_num(const radcli_ctx *ctx, uint32_t attrid, uint32_t vendor)
 {
 	if (ctx == NULL)
 		return NULL;
-	return (const radcli_attr_def *)radcli_dict_attr_to_legacy(
-		radcli_dict_attr_by_id((rc_handle const *)ctx, RADCLI_VENDOR_ATTR_SET(attrid, vendor)));
+	return (const radcli_attr_def *)radcli_dict_attr_by_id((rc_handle const *)ctx,
+								RADCLI_VENDOR_ATTR_SET(attrid, vendor));
 }
 
 const radcli_attr_def *radcli_dict_lookup_oid(const radcli_ctx *ctx, const char *oid)
@@ -276,19 +273,19 @@ const radcli_attr_def *radcli_dict_lookup_oid(const radcli_ctx *ctx, const char 
 
 const char *radcli_attr_def_name(const radcli_attr_def *def)
 {
-	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	const struct radcli_dict_attr *a = (const struct radcli_dict_attr *)def;
 	return a ? a->name : NULL;
 }
 
 radcli_attr_type radcli_attr_def_type(const radcli_attr_def *def)
 {
-	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	const struct radcli_dict_attr *a = (const struct radcli_dict_attr *)def;
 	return dict_type_to_radcli(a ? a->type : PW_TYPE_STRING);
 }
 
 int radcli_attr_def_oid(const radcli_attr_def *def, char *buf, size_t buflen)
 {
-	const DICT_ATTR *a = (const DICT_ATTR *)def;
+	const struct radcli_dict_attr *a = (const struct radcli_dict_attr *)def;
 	uint32_t vendor, attrid;
 
 	if (a == NULL)
