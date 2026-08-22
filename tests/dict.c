@@ -30,6 +30,7 @@
 #include <assert.h>
 
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h>
 
 char large_value_dict[] =
 "ATTRIBUTE	Sip-Method		101	integer\n"
@@ -61,6 +62,26 @@ char bad_value_value_dict[] =
 "VALUE	Framed-Protocol		PPP	1x\n";
 char bad_vendor_pec_dict[] =
 "VENDOR          Bogus       18311x     Large\n";
+
+/* radcli2.h dictionary lookup (radcli_dict_lookup*, radcli_attr_def_*) */
+char radcli2_dict[] =
+"ATTRIBUTE	Test-Std-Attr		250	integer\n"
+"VENDOR          Testvendor       19999     Large\n"
+"ATTRIBUTE	Test-Vendor-Attr		5	string Testvendor\n";
+
+/* Phase 2: the "integer64" keyword. Deliberately declares Test-Int64-Attr
+ * before Test-Int64-Gigawords (attr 253), the same order etc/dictionary's
+ * real Acct-Input-Octets/-Gigawords pair uses -- the paired attribute is
+ * looked up by id, not by pointer, precisely so this ordering is fine. */
+char counter64_dict[] =
+"ATTRIBUTE	Test-Int64-Attr		251	integer64\n"
+"ATTRIBUTE	Test-Counter-Octets	252	integer gigawords=253\n"
+"ATTRIBUTE	Test-Counter-Gigawords	253	integer\n"
+"ATTRIBUTE	Test-Counter-Unpaired	254	integer\n";
+char bad_integer64_dict[] =
+"ATTRIBUTE	Bad-Int64-Attr		251	integer65\n";
+char bad_gigawords_dict[] =
+"ATTRIBUTE	Bad-Gigawords-Attr	251	integer gigawords=notanumber\n";
 
 int main(int argc, char **argv)
 {
@@ -273,6 +294,145 @@ int main(int argc, char **argv)
 		fprintf(stderr, "error: VENDOR with malformed numeric PEC was accepted\n");
 		exit(1);
 	}
+
+	rc_dict_free(rh);
+
+	/* radcli2.h: radcli_dict_lookup()/_oid()/_num() and radcli_attr_def_*() */
+	ret = rc_read_dictionary_from_buffer(rh, radcli2_dict, sizeof(radcli2_dict));
+	if (ret != 0) {
+		fprintf(stderr, "error in %d\n", __LINE__);
+		exit(1);
+	}
+
+	{
+		const radcli_attr_def *d;
+		char buf[64];
+
+		/* by name */
+		d = radcli_dict_lookup(rh, "Test-Std-Attr");
+		if (d == NULL || strcmp(radcli_attr_def_name(d), "Test-Std-Attr") != 0) {
+			fprintf(stderr, "error: radcli_dict_lookup() by name failed\n");
+			exit(1);
+		}
+		if (radcli_attr_def_type(d) != RADCLI_TYPE_INTEGER) {
+			fprintf(stderr, "error: radcli_attr_def_type() wrong for Test-Std-Attr\n");
+			exit(1);
+		}
+
+		/* by legacy numeric id/vendor */
+		d = radcli_dict_lookup_num(rh, 250, 0);
+		if (d == NULL || strcmp(radcli_attr_def_name(d), "Test-Std-Attr") != 0) {
+			fprintf(stderr, "error: radcli_dict_lookup_num() failed\n");
+			exit(1);
+		}
+
+		/* by OID: standard attribute, with round-trip text */
+		d = radcli_dict_lookup_oid(rh, "250");
+		if (d == NULL || strcmp(radcli_attr_def_name(d), "Test-Std-Attr") != 0) {
+			fprintf(stderr, "error: radcli_dict_lookup_oid() standard failed\n");
+			exit(1);
+		}
+		ret = radcli_attr_def_oid(d, buf, sizeof(buf));
+		if (ret <= 0 || strcmp(buf, "250") != 0) {
+			fprintf(stderr, "error: radcli_attr_def_oid() standard round-trip got '%s'\n", buf);
+			exit(1);
+		}
+
+		/* by OID: vendor attribute ("26.<vendor>.<type>"), with round-trip text */
+		d = radcli_dict_lookup_oid(rh, "26.19999.5");
+		if (d == NULL || strcmp(radcli_attr_def_name(d), "Test-Vendor-Attr") != 0) {
+			fprintf(stderr, "error: radcli_dict_lookup_oid() vendor failed\n");
+			exit(1);
+		}
+		if (radcli_attr_def_type(d) != RADCLI_TYPE_STRING) {
+			fprintf(stderr, "error: radcli_attr_def_type() wrong for Test-Vendor-Attr\n");
+			exit(1);
+		}
+		ret = radcli_attr_def_oid(d, buf, sizeof(buf));
+		if (ret <= 0 || strcmp(buf, "26.19999.5") != 0) {
+			fprintf(stderr, "error: radcli_attr_def_oid() vendor round-trip got '%s'\n", buf);
+			exit(1);
+		}
+
+		/* malformed OIDs and absent names must all miss, not crash */
+		if (radcli_dict_lookup_oid(rh, "") != NULL) {
+			fprintf(stderr, "error: empty OID unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup_oid(rh, "1.2.3.4.5.6") != NULL) {
+			fprintf(stderr, "error: over-long OID unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup_oid(rh, "250x") != NULL) {
+			fprintf(stderr, "error: non-numeric OID unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup_oid(rh, "241.1") != NULL) {
+			fprintf(stderr, "error: well-formed but unloaded extended-attribute OID unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup_oid(rh, "26.19999") != NULL) {
+			fprintf(stderr, "error: vendor-only OID (naming the vendor, not an attribute) unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup(rh, "Not-A-Real-Attribute") != NULL) {
+			fprintf(stderr, "error: unknown attribute name unexpectedly matched\n");
+			exit(1);
+		}
+		if (radcli_dict_lookup(NULL, "Test-Std-Attr") != NULL ||
+		    radcli_dict_lookup(rh, NULL) != NULL ||
+		    radcli_dict_lookup_num(NULL, 250, 0) != NULL ||
+		    radcli_dict_lookup_oid(NULL, "250") != NULL) {
+			fprintf(stderr, "error: a NULL ctx/name argument unexpectedly matched\n");
+			exit(1);
+		}
+	}
+
+	rc_dict_free(rh);
+
+	/* Phase 2: the "integer64" keyword and "gigawords=" pairing. */
+	{
+		const radcli_attr_def *d;
+
+		ret = rc_read_dictionary_from_buffer(rh, counter64_dict, sizeof(counter64_dict));
+		if (ret != 0) {
+			fprintf(stderr, "error: dictionary with a valid \"integer64\" line "
+					"and \"gigawords=\" pairing was rejected\n");
+			exit(1);
+		}
+
+		d = radcli_dict_lookup(rh, "Test-Int64-Attr");
+		if (d == NULL || radcli_attr_def_type(d) != RADCLI_TYPE_INTEGER64) {
+			fprintf(stderr, "error: \"integer64\" did not parse to RADCLI_TYPE_INTEGER64\n");
+			exit(1);
+		}
+
+		/* Test-Counter-Octets/-Unpaired exercise radcli_avp_add_gigawords64()/
+		 * _get_counter64() (the only public way to reach the internal
+		 * gigawords= pairing) -- see tests/avp.c. */
+
+		rc_dict_free(rh);
+	}
+
+	/* An unrecognised type string ("integer65") is rejected, not silently
+	 * treated as some other type. */
+	ret = rc_read_dictionary_from_buffer(rh, bad_integer64_dict, sizeof(bad_integer64_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: dictionary with an unrecognised type "
+				"(\"integer65\") was accepted\n");
+		exit(1);
+	}
+	rc_dict_free(rh);
+
+	/* A non-numeric gigawords= value is rejected, not silently ignored --
+	 * matches encrypt='s own validation, not a new convention. */
+	ret = rc_read_dictionary_from_buffer(rh, bad_gigawords_dict, sizeof(bad_gigawords_dict));
+	if (ret == 0) {
+		fprintf(stderr, "error: dictionary with a non-numeric \"gigawords=\" "
+				"value was accepted\n");
+		exit(1);
+	}
+	rc_dict_free(rh);
 
 	rc_destroy(rh);
 

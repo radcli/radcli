@@ -126,10 +126,10 @@ adding further global state:
     from `lib/config.c:760` and read from `lib/sendserver.c:666`) — a single
     debug-verbosity flag with no correctness impact.
   - `_initialized` (`lib/config.c:1182`, `static int`) — a process-wide
-    reference count guarding GnuTLS global init/deinit and `srandom()`
-    seeding idempotency across multiple `rc_handle` instances in one process.
-    Accepted because it only guards one-time process-wide init/deinit calls;
-    see `REQ-CONFIG-SEC-004` in `config.md`.
+    reference count guarding GnuTLS global init/deinit idempotency across
+    multiple `rc_handle` instances in one process. Accepted because it only
+    guards one-time process-wide init/deinit calls; see `REQ-CONFIG-SEC-004`
+    in `config.md`.
 
 `rc_mksid()`'s `static char buf[15]`/`static unsigned short int cnt`
 (`lib/util.c:105-106`) is a third pre-existing instance, also accepted as-is:
@@ -172,6 +172,34 @@ Vulnerability Taxonomy" — RADIUS shared secret exposure)
 (`SEND_DATA.secret`/`rc_handle` secret storage) in every new `rc_log`/`DEBUG`
 call site and every new comparison; flag any hit.
 **Links:** REQ-NET-SEC-* (Message-Authenticator validation, see `net.md`)
+
+### REQ-GEN-SEC-007 — `random()`, `rand()`, `srandom()`, and other non-cryptographic PRNGs MUST NOT be used
+
+**Requirement:** No function in `lib/` or `src/` MUST call `rand()`, `random()`,
+`srand()`, `srandom()`, `rand_r()`, `random_r()`, `initstate()`/`setstate()`,
+or the `drand48`/`erand48`/`lrand48`/`nrand48`/`mrand48`/`jrand48`/`srand48`/
+`seed48`/`lcong48` family. These are non-cryptographic, seed-predictable
+generators; any RADIUS protocol field derived from one (packet identifier,
+Request Authenticator, any value an off-path attacker could otherwise brute
+force or predict from `time()`/`getpid()`) weakens response spoofing and
+replay resistance, since guessing the next value narrows an attacker's search
+space independently of the shared secret. Any code path that needs a random
+value not itself covered by RFC 2865/2866 packet-authenticator hashing MUST
+obtain it through a CSPRNG: `rc_get_random_bytes(buf, len)` /
+`rc_get_random_byte()` (`lib/rc-random.c`), which use
+`gnutls_rnd(GNUTLS_RND_NONCE, ...)` when built with GnuTLS, `getentropy()`
+otherwise, and treat a negative/nonzero return as fatal (`assert`). Neither
+is public ABI (no `lib/radcli.map` entry; declared only in `rc-random.h`).
+**Strength:** MUST NOT
+**Status:** DERIVED — enforced
+**Source:** Maintainer directive (2026-08-21): ban weak PRNGs project-wide,
+require a CSPRNG alternative.
+**Acceptance:** [SEC] negative, local —
+`grep -nE '\b(rand|random|srand|srandom|rand_r|random_r|initstate|setstate|d?rand48|[jlmn]rand48|seed48|lcong48)\s*\(' lib/*.c lib/*.h src/*.c`
+returns no matches other than `rc_get_random_bytes()`'s own use of
+`gnutls_rnd`/`getentropy` (which does not match this pattern).
+**Links:** REQ-GEN-SEC-005, REQ-CONFIG-SEC-004 (config.md), REQ-GEN-ABI-001,
+REQ-NET-SEC-* (Request Authenticator generation, see `net.md`)
 
 ---
 

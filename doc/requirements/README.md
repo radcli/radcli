@@ -36,7 +36,8 @@ These documents are generated and maintained using the reasoning protocols in
 | Document | Protocol | Produces |
 |----------|----------|----------|
 | `general.md` | `requirements-elicitation.md` | Library-invariant / cross-cutting requirements derived from `AGENTS.md` and `contrib/ai/personas/radcli-core-dev.md`'s Design Review checklists: process-state neutrality, ABI stability, memory/string safety, canonical technology choices. |
-| `config.md`, `dict.md`, `attrs.md`, `net.md`, `util.md` | `requirements-from-implementation.md` | Requirements derived from the current `lib/`/`include/radcli/radcli.h` source: what each public function and data structure actually guarantees. |
+| `config.md`, `dict.md`, `attrs.md`, `net.md`, `util.md`, `avp2.md`, `net2.md` | `requirements-from-implementation.md` | Requirements derived from the current `lib/`/`include/radcli/radcli.h` source: what each public function and data structure actually guarantees. |
+| `dae.md` | `requirements-elicitation.md` | Requirements written ahead of implementation, from RFC 5176 and `doc/plan-api-modernization.md`'s Phase 3 design. Construction, the request-validation/reply pipeline, the session-selector accessors, and the L0 buffer entry point are now implemented and tested (their requirements carry `DERIVED`); only the RadSec-anticipating requirements remain `PLANNED`, with no code yet to derive them from. |
 
 When adding to or updating a document, re-apply the protocol that generated it —
 do not hand-write requirements in a different style than the rest of the file.
@@ -51,6 +52,9 @@ do not hand-write requirements in a different style than the rest of the file.
 | `attrs.md` | `REQ-ATTR` | `lib/avpair.c`, `lib/buildreq.c`, `lib/aaa_ctx.c`, `include/radcli/radcli.h` (`VALUE_PAIR`, `rc_avpair_*`, `rc_auth`, `rc_acct`, `rc_aaa`, `rc_aaa_ctx_*`) |
 | `net.md` | `REQ-NET` | `lib/sendserver.c`, `lib/tls.c`, `lib/tls.h`, `include/radcli/radcli.h` (`rc_send_server`, `SEND_DATA`, `rc_sockets_override`, `rc_check_tls`) |
 | `util.md` | `REQ-UTIL` | `lib/util.c`, `lib/util.h` (`pkt_buf`), `lib/ip_util.c`, `lib/log.c`, `lib/md5.c`, `lib/rc-md5.c`, `lib/hmac.c`, `lib/nettle-hmac.c` |
+| `avp2.md` | `REQ-AVP2` | `lib/avp.c`, `include/radcli/radcli2.h` (`radcli_avp_list`, `radcli_avp_add_*`, `radcli_avp_get`, `radcli_avp_iter`/`radcli_avp_list_iter`/`radcli_avp_iter_next`) |
+| `net2.md` | `REQ-NET2` | `lib/request.c`, `include/radcli/radcli2.h` (`radcli_request_new`, `radcli_request_perform`, `radcli_request_code`, `radcli_request_attrs`, `radcli_request_server`, `radcli_request_free`), `lib/sendserver.c` (`radcli_transport_exchange`, cited not owned) |
+| `dae.md` | `REQ-DAE` | RFC 5176; `doc/plan-api-modernization.md`; `include/radcli/radcli2.h`; `lib/dae.c`; `tests/dae.c`; `tests/dae-codec.c`; `src/raddaeserver.c`; `tests/dae-client.py`; `tests/dae-tests.sh` |
 
 Every public symbol in `include/radcli/radcli.h` and `lib/radcli.map` MUST be cited
 by at least one `REQ-*` across these documents (see "Completeness" below).
@@ -89,6 +93,7 @@ Every requirement carries a `Status`:
 | `AMBIGUOUS` | Cannot be classified as essential/incidental without domain knowledge; two interpretations given. |
 | `UNDOCUMENTED` | Behavior exists in code with no doc, test, or evident purpose. |
 | `WITHDRAWN` | Previously published requirement no longer applies; kept for ID stability, with a note explaining why. |
+| `PLANNED` | Specified ahead of implementation, from an external normative source or an accepted design document. No code implements it yet; becomes `DERIVED` when the code and its tests land. |
 
 ## Per-requirement format
 
@@ -98,7 +103,7 @@ Every requirement carries a `Status`:
 **Requirement:** <library/function> MUST/SHOULD/MAY <behavior> when
 <condition>, so that <rationale>.
 **Strength:** MUST | SHOULD | MAY | MUST NOT | SHOULD NOT
-**Status:** DERIVED | REVIEW | AMBIGUOUS | UNDOCUMENTED | WITHDRAWN
+**Status:** DERIVED | REVIEW | AMBIGUOUS | UNDOCUMENTED | WITHDRAWN | PLANNED
 **Source:** <file>:<line> [, ...]
 **Acceptance:** <test path or description> — positive|negative|unit ;
   local | CI (root/full stack, if applicable)

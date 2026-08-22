@@ -4,7 +4,7 @@ src_cargs = [
 ]
 src_incdirs = [config_inc, include_dirs]
 
-foreach prog : ['radstatus', 'radacct', 'radexample', 'radiusclient', 'radembedded', 'radembedded_dict']
+foreach prog : ['radstatus', 'radacct', 'radexample', 'radiusclient', 'radembedded', 'radembedded_dict', 'raddaeserver']
   executable(prog, prog + '.c',
     include_directories: src_incdirs,
     c_args: src_cargs,

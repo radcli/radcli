@@ -138,19 +138,197 @@ main (int argc, char **argv)
         }
     }
 
-    DICT_ATTR *attr;
-    /* Check dict */
+    /* Check dict: rc_dict_getattr() (numeric lookup) and rc_dict_findattr()
+     * (name lookup) must both resolve every rc_dict_addattr()'d entry, and
+     * must agree with each other -- the pointer returned by each call is a
+     * lazily-materialized, cached shim shadow (lib/dict.c), so calling
+     * either twice for the same entry must also return the identical
+     * pointer, not a fresh allocation each time. */
     for (int i = 0; i < sizeof(entries)/sizeof(entries[0]); ++i)
     {
-        if ((attr = rc_dict_getattr(rh, entries[i].val)) != 0)
+        DICT_ATTR *by_id, *by_id2, *by_name;
+
+        if ((by_id = rc_dict_getattr(rh, entries[i].val)) == NULL)
         {
-            if (attr->value != entries[i].val || attr->type != entries[i].type)
-            {
-                printf("ERROR: Wrong attribute %s.\n", entries[i].name);
-                rc_destroy(rh);
-                exit(1);
-            }
+            printf("ERROR: rc_dict_getattr() could not find attribute %s.\n", entries[i].name);
+            rc_destroy(rh);
+            exit(1);
         }
+        if (by_id->value != (uint64_t)entries[i].val || by_id->type != entries[i].type)
+        {
+            printf("ERROR: Wrong attribute %s.\n", entries[i].name);
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        if ((by_name = rc_dict_findattr(rh, entries[i].name)) == NULL)
+        {
+            printf("ERROR: rc_dict_findattr() could not find attribute %s.\n", entries[i].name);
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (by_name != by_id)
+        {
+            printf("ERROR: rc_dict_getattr()/rc_dict_findattr() returned different "
+                   "pointers for the same attribute %s (shim cache not stable).\n",
+                   entries[i].name);
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        if ((by_id2 = rc_dict_getattr(rh, entries[i].val)) != by_id)
+        {
+            printf("ERROR: rc_dict_getattr() returned a different pointer on a "
+                   "second call for %s (shim cache not stable).\n", entries[i].name);
+            rc_destroy(rh);
+            exit(1);
+        }
+    }
+
+    /* rc_dict_addattr() with a non-zero vendorspec, and rc_dict_addvend():
+     * neither is exercised anywhere else, so a vendor-scoped attribute
+     * lookup regression in the shim would otherwise go unnoticed. */
+    {
+        DICT_VENDOR *vend;
+        DICT_ATTR *vattr;
+
+        if (rc_dict_addvend(rh, "Test-Vendor", 99999) == NULL)
+        {
+            printf("ERROR: Can not add vendor Test-Vendor.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_addattr(rh, "Test-Vendor-Attr", 1, PW_TYPE_STRING, 99999) == NULL)
+        {
+            printf("ERROR: Can not add vendor-scoped attribute Test-Vendor-Attr.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        if ((vend = rc_dict_findvend(rh, "test-vendor")) == NULL || vend->vendorpec != 99999)
+        {
+            printf("ERROR: rc_dict_findvend() (case-insensitive) did not resolve Test-Vendor.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_getvend(rh, 99999) != vend)
+        {
+            printf("ERROR: rc_dict_getvend() did not agree with rc_dict_findvend() for Test-Vendor.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_findvend(rh, "No-Such-Vendor") != NULL)
+        {
+            printf("ERROR: rc_dict_findvend() matched a vendor that was never added.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        if ((vattr = rc_dict_getattr(rh, RADCLI_VENDOR_ATTR_SET(1, 99999))) == NULL ||
+            VENDOR(vattr->value) != 99999 || ATTRID(vattr->value) != 1)
+        {
+            printf("ERROR: rc_dict_getattr() did not resolve the vendor-scoped attribute "
+                   "by its RADCLI_VENDOR_ATTR_SET()-combined id.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_findattr(rh, "Test-Vendor-Attr") != vattr)
+        {
+            printf("ERROR: rc_dict_findattr() did not agree with rc_dict_getattr() for "
+                   "the vendor-scoped attribute.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+    }
+
+    /* rc_dict_addval()/rc_dict_findval()/rc_dict_getval(): the third leg of
+     * the programmatic API, otherwise untested anywhere in the suite. */
+    {
+        DICT_VALUE *val, *val2;
+
+        if (rc_dict_addval(rh, "Service-Type", "Login-User", 1) == NULL)
+        {
+            printf("ERROR: Can not add value Login-User.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_addval(rh, "Service-Type", "Framed-User", 2) == NULL)
+        {
+            printf("ERROR: Can not add value Framed-User.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        if ((val = rc_dict_findval(rh, "login-user")) == NULL || val->value != 1 ||
+            strcmp(val->attrname, "Service-Type") != 0)
+        {
+            printf("ERROR: rc_dict_findval() (case-insensitive) did not resolve Login-User.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+
+        /* rc_dict_getval() takes (value, attrname) -- the reverse order of
+         * rc_dict_findval()'s single name argument -- and must resolve by
+         * the (attribute, value) pair, not just the value, since two
+         * different attributes can legitimately share a numeric value. */
+        if ((val2 = rc_dict_getval(rh, 1, "Service-Type")) != val)
+        {
+            printf("ERROR: rc_dict_getval() did not agree with rc_dict_findval() for "
+                   "Login-User (or shim cache not stable).\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_getval(rh, 1, "No-Such-Attribute") != NULL)
+        {
+            printf("ERROR: rc_dict_getval() matched a value under the wrong attribute name.\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+        if (rc_dict_getval(rh, 2, "Service-Type") == NULL)
+        {
+            printf("ERROR: rc_dict_getval() could not find Framed-User (value 2).\n");
+            rc_destroy(rh);
+            exit(1);
+        }
+    }
+
+    /* rc_dict_free(): every rc_dict_addattr()/addval()/addvend()'d entry
+     * above must become unreachable, and the handle must still accept a
+     * fresh rc_dict_addattr() afterwards (rh->dict is recreated lazily). */
+    rc_dict_free(rh);
+
+    if (rc_dict_findattr(rh, "User-Name") != NULL)
+    {
+        printf("ERROR: rc_dict_findattr() still resolved User-Name after rc_dict_free().\n");
+        rc_destroy(rh);
+        exit(1);
+    }
+    if (rc_dict_findvend(rh, "Test-Vendor") != NULL)
+    {
+        printf("ERROR: rc_dict_findvend() still resolved Test-Vendor after rc_dict_free().\n");
+        rc_destroy(rh);
+        exit(1);
+    }
+    if (rc_dict_findval(rh, "Login-User") != NULL)
+    {
+        printf("ERROR: rc_dict_findval() still resolved Login-User after rc_dict_free().\n");
+        rc_destroy(rh);
+        exit(1);
+    }
+
+    if (rc_dict_addattr(rh, "Post-Free-Attr", 1, PW_TYPE_STRING, 0) == NULL)
+    {
+        printf("ERROR: rc_dict_addattr() failed after rc_dict_free() (rh->dict not "
+               "recreated lazily).\n");
+        rc_destroy(rh);
+        exit(1);
+    }
+    if (rc_dict_findattr(rh, "Post-Free-Attr") == NULL)
+    {
+        printf("ERROR: rc_dict_findattr() could not find an attribute added after "
+               "rc_dict_free().\n");
+        rc_destroy(rh);
+        exit(1);
     }
 
     rc_destroy(rh);

@@ -206,11 +206,12 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
 
     return packet
 
-def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0'):
+    family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('0.0.0.0', port))
-    print(f"radius-server: listening on port {port}, msg-auth={msg_auth_mode}, "
+    sock.bind((bind_addr, port))
+    print(f"radius-server: listening on {bind_addr}:{port}, msg-auth={msg_auth_mode}, "
           f"attrs={attrs_mode}, no-reply={no_reply}", flush=True)
 
     while True:
@@ -302,6 +303,9 @@ def main():
                         help='Log each received Access-/Accounting-Request but send no response '
                              '(models a slow/unresponsive accounting server for testing a '
                              'non-blocking client path). UDP transport only.')
+    parser.add_argument('--bind', default='0.0.0.0',
+                        help='Local address to bind to (default 0.0.0.0). An address '
+                             'containing \':\' selects AF_INET6, e.g. \'::1\'. UDP transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
@@ -311,7 +315,7 @@ def main():
             parser.error('--no-reply is only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
-        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply)
+        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind)
 
 if __name__ == '__main__':
     main()

@@ -10,6 +10,7 @@
 #include <includes.h>
 #include <radcli/radcli.h>
 #include "util.h"
+#include "rc-random.h"
 
 /**
  * @defgroup radcli-api Main API
@@ -17,17 +18,6 @@
  *
  * @{
  */
-
-/* Generates a random ID
- *
- * @return the random ID.
- */
-/// @cond INTERNAL
-static unsigned char rc_get_id()
-{
-	return (unsigned char)(random() & UCHAR_MAX);
-}
-/// @endcond
 
 /** @brief Build a skeleton RADIUS request using information from the config file
  *
@@ -50,7 +40,7 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
 	data->server = server;
 	data->secret = secret;
 	data->svc_port = port;
-	data->seq_nbr = rc_get_id();
+	data->seq_nbr = rc_get_random_byte();
 	data->timeout = timeout;
 	data->retries = retries;
 	data->code = code;

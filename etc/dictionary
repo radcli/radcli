@@ -16,6 +16,7 @@
 #             (informational only — no new attributes defined)
 #   RFC 3162  RADIUS and IPv6
 #   RFC 3576  Dynamic Authorization Extensions to Remote Access Dial In User Service
+#   RFC 5176  Dynamic Authorization Extensions to RADIUS (obsoletes RFC 3576)
 #   RFC 3579  RADIUS Support For EAP
 #             (attributes EAP-Message and Message-Authenticator defined in RFC 2869)
 #   RFC 3580  IEEE 802.1X RADIUS Usage Guidelines
@@ -24,6 +25,8 @@
 #   RFC 4679  DSL Forum Vendor-Specific RADIUS Attributes
 #   RFC 4818  RADIUS Delegated-IPv6-Prefix Attribute
 #   RFC 4849  RADIUS Filter Rule Attribute
+#   RFC 5447  Diameter Mobile IPv6: Support for NAS to Diameter Server
+#             Interaction (MIP6-Feature-Vector only)
 #   RFC 4950  (ICMP Extensions for MPLS — not a RADIUS specification)
 #   RFC 5080  Common RADIUS Implementation Issues and Suggested Fixes
 #             (clarification document — no new attributes defined)
@@ -51,7 +54,7 @@ ATTRIBUTE	User-Name			1	string
 # BEGIN-COMPAT: legacy alias for attr 2; remove in a future major version
 ATTRIBUTE	Password			2	string
 # END-COMPAT
-ATTRIBUTE	User-Password			2	string
+ATTRIBUTE	User-Password			2	string encrypt=User-Password
 ATTRIBUTE	CHAP-Password			3	string
 ATTRIBUTE	NAS-IP-Address			4	ipv4addr
 ATTRIBUTE	NAS-Port			5	integer
@@ -101,8 +104,8 @@ ATTRIBUTE	Login-LAT-Port			63	string
 
 ATTRIBUTE	Acct-Status-Type		40	integer
 ATTRIBUTE	Acct-Delay-Time			41	integer
-ATTRIBUTE	Acct-Input-Octets		42	integer
-ATTRIBUTE	Acct-Output-Octets		43	integer
+ATTRIBUTE	Acct-Input-Octets		42	integer gigawords=52
+ATTRIBUTE	Acct-Output-Octets		43	integer gigawords=53
 ATTRIBUTE	Acct-Session-Id			44	string
 ATTRIBUTE	Acct-Authentic			45	integer
 ATTRIBUTE	Acct-Session-Time		46	integer
@@ -162,7 +165,7 @@ ATTRIBUTE	Tunnel-Type			64	integer
 ATTRIBUTE	Tunnel-Medium-Type		65	integer
 ATTRIBUTE	Tunnel-Client-Endpoint		66	string
 ATTRIBUTE	Tunnel-Server-Endpoint		67	string
-ATTRIBUTE	Tunnel-Password			69	string
+ATTRIBUTE	Tunnel-Password			69	string encrypt=Tunnel-Password,has_tag
 ATTRIBUTE	Tunnel-Private-Group-ID		81	string
 ATTRIBUTE	Tunnel-Assignment-ID		82	string
 ATTRIBUTE	Tunnel-Preference		83	integer
@@ -206,6 +209,14 @@ ATTRIBUTE	User-Priority-Table		59	string
 ##############################################################################
 
 ATTRIBUTE	Delegated-IPv6-Prefix		123	ipv6prefix
+
+##############################################################################
+# RFC 5447 — Diameter Mobile IPv6: Support for NAS to Diameter Server
+#            Interaction (the RADIUS attribute it defines, MIP6-Feature-
+#            Vector, is the only integer64 attribute in the standard space)
+##############################################################################
+
+ATTRIBUTE	MIP6-Feature-Vector		124	integer64
 
 ##############################################################################
 # RFC 6911 — RADIUS Attributes for IPv6 Access Networks
@@ -417,7 +428,7 @@ VALUE	Tunnel-Medium-Type	Banyan-Vines		14
 VALUE	Tunnel-Medium-Type	E.164-NSAP		15
 
 #
-# RFC 3576 — Error-Cause
+# RFC 3576 — Error-Cause (508 added by RFC 5176 SS3.5)
 #
 VALUE	Error-Cause	Residual-Session-Context-Removed	201
 VALUE	Error-Cause	Invalid-EAP-Packet			202
@@ -434,6 +445,7 @@ VALUE	Error-Cause	Session-Context-Not-Removable		504
 VALUE	Error-Cause	Other-Proxy-Processing-Error		505
 VALUE	Error-Cause	Resources-Unavailable			506
 VALUE	Error-Cause	Request-Initiated			507
+VALUE	Error-Cause	Multiple-Session-Selection-Unsupported	508
 
 #
 # RFC 4675 — Ingress-Filters
@@ -471,3 +483,25 @@ ATTRIBUTE	Access-Loop-Encapsulation		144	string
 ATTRIBUTE	IWF-Session				254	string
 
 END-VENDOR	DSL-Forum
+
+##############################################################################
+# RFC 2548 — Microsoft Vendor-specific RADIUS Attributes
+# Vendor: Microsoft, IANA Enterprise Number 311
+#
+# Only the two attributes radcli's decoder currently needs are listed here:
+# MS-MPPE-Send-Key and MS-MPPE-Recv-Key, RFC 2548 SS2.4.2/2.4.3, both using
+# the RFC 2868 SS3.5 salt-encryption scheme (encrypt=Tunnel-Password, the
+# same spelling FreeRADIUS's dictionary.microsoft uses for these two lines).
+# radcli.h's rc_vendor_attr_microsoft enum defines the wider MS-CHAP*/
+# MS-MPPE-* constant set for callers building VALUE_PAIRs directly without a
+# dictionary lookup; this block does not attempt to mirror all of it.
+##############################################################################
+
+VENDOR	Microsoft	311
+
+BEGIN-VENDOR	Microsoft
+
+ATTRIBUTE	MS-MPPE-Send-Key		16	string encrypt=Tunnel-Password
+ATTRIBUTE	MS-MPPE-Recv-Key		17	string encrypt=Tunnel-Password
+
+END-VENDOR	Microsoft

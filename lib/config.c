@@ -866,6 +866,19 @@ int rc_conf_int(rc_handle const *rh, char const *optname)
         return rc_conf_int_2(rh, optname, TRUE);
 }
 
+/* Like rc_conf_int(), but returns def instead of logging an error when
+ * optname was never set -- for internal callers with a real default (e.g.
+ * dae-max-clock-skew), where an unset option is normal, not a
+ * misconfiguration worth an ERROR-level log line. */
+int rc_conf_int_def(rc_handle const *rh, char const *optname, int def)
+{
+	OPTION *option = find_option(rh, optname, OT_INT | OT_AUO);
+
+	if (option != NULL && option->val)
+		return *((int *)option->val);
+	return def;
+}
+
 /** @brief Get the value of a config option
  *
  * @param rh a handle to parsed configuration.
@@ -1230,7 +1243,6 @@ rc_handle *rc_new(void)
 			return NULL;
 		}
 #endif
-		srandom((unsigned int)(time(NULL)+getpid()));
 	}
 	_initialized++;
 

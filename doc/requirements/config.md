@@ -524,12 +524,12 @@ shows only the Doxygen comment, no parsing logic.
 ### REQ-CONFIG-SEC-004 — `_initialized` is an accepted exception to `REQ-GEN-SEC-005`'s "no new global state" rule
 
 **Requirement:** `_initialized` (`static int`, `lib/config.c:1182`) is a
-process-wide reference count guarding GnuTLS global init/deinit and
-`srandom()` seeding idempotency across multiple `rc_handle` instances in one
-process. It is an accepted, documented exception to `REQ-GEN-SEC-005`,
-alongside `radcli_debug`: it has no correctness impact on any individual
-`rc_handle`'s behavior (it only guards one-time process-wide init/deinit
-calls) and is not a precedent for adding further arbitrary global state.
+process-wide reference count guarding GnuTLS global init/deinit idempotency
+across multiple `rc_handle` instances in one process. It is an accepted,
+documented exception to `REQ-GEN-SEC-005`, alongside `radcli_debug`: it has
+no correctness impact on any individual `rc_handle`'s behavior (it only
+guards one-time process-wide init/deinit calls) and is not a precedent for
+adding further arbitrary global state.
 **Strength:** N/A (accepted exception, not a defect)
 **Status:** DERIVED
 **Source:** lib/config.c:1182 (`static int _initialized = 0;`);
@@ -537,7 +537,7 @@ doc/requirements/general.md `REQ-GEN-SEC-005`
 **Acceptance:** [SEC] documentation consistency — `general.md`'s
 `REQ-GEN-SEC-005` enumerates this exception explicitly alongside
 `radcli_debug`.
-**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001
+**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001, REQ-GEN-SEC-007 (general.md)
 
 ---
 

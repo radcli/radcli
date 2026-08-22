@@ -15,6 +15,7 @@
 #include <config.h>
 #include <includes.h>
 #include <radcli/radcli.h>
+#include "dict2.h"
 #include "util.h"
 
 #define PARSE_MODE_NAME		0
@@ -196,7 +197,7 @@ int rc_avpair_assign (VALUE_PAIR *vp, void const *pval, int len)
 VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pval, int len, uint32_t vendorspec)
 {
 	VALUE_PAIR     *vp = NULL;
-	DICT_ATTR      *pda;
+	struct radcli_dict_attr *pda;
 	uint64_t vattrid;
 
 	if(vendorspec != VENDOR_NONE) {
@@ -205,12 +206,12 @@ VALUE_PAIR *rc_avpair_new (rc_handle const *rh, uint32_t attrid, void const *pva
 		vattrid = attrid;
 	}
 
-	if ((pda = rc_dict_getattr (rh, vattrid)) == NULL)
+	if ((pda = radcli_dict_attr_by_id (rh, vattrid)) == NULL)
 	{
 		rc_log(LOG_ERR,"rc_avpair_new: no attribute %d/%u in dictionary", vendorspec, attrid);
 		return NULL;
 	}
-	if (vendorspec != 0 && rc_dict_getvend(rh, vendorspec) == NULL)
+	if (vendorspec != 0 && radcli_dict_vendor_by_pec(rh, vendorspec) == NULL)
 	{
 		rc_log(LOG_ERR,"rc_avpair_new: no Vendor-Id %d in dictionary", vendorspec);
 		return NULL;
@@ -273,7 +274,7 @@ static int rc_avpair_gen2(rc_handle const *rh, VALUE_PAIR *pair,
 	int attrlen;
 	uint64_t attribute;
 	uint32_t lvalue;
-	DICT_ATTR *attr;
+	struct radcli_dict_attr *attr;
 	VALUE_PAIR *rpair;
 	char buffer[(AUTH_STRING_LEN * 2) + 1];
 
@@ -310,7 +311,7 @@ static int rc_avpair_gen2(rc_handle const *rh, VALUE_PAIR *pair,
 			}
 			memcpy(&lvalue, ptr, 4);
 			lvalue = ntohl(lvalue);
-			if (rc_dict_getvend(rh, lvalue) == NULL) {
+			if (radcli_dict_vendor_by_pec(rh, lvalue) == NULL) {
 				rc_log(LOG_WARNING, "rc_avpair_gen: received VSA "
 				    "attribute with unknown Vendor-Id %d", lvalue);
 				continue;
@@ -336,7 +337,7 @@ static int rc_avpair_gen2(rc_handle const *rh, VALUE_PAIR *pair,
 		}
 
 		/* Normal attribute */
-		attr = rc_dict_getattr(rh, attribute);
+		attr = radcli_dict_attr_by_id(rh, attribute);
 		if (attr == NULL) {
 			rc_bin2hex(buffer, sizeof(buffer), ptr, (size_t)attrlen);
 			if (vendorspec == 0) {
@@ -652,8 +653,8 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 	int             mode;
 	char            attrstr[AUTH_ID_LEN];
 	char            valstr[AUTH_STRING_LEN + 1], *p;
-	DICT_ATTR      *attr = NULL;
-	DICT_VALUE     *dval;
+	struct radcli_dict_attr  *attr = NULL;
+	struct radcli_dict_value *dval;
 	VALUE_PAIR     *pair;
 	VALUE_PAIR     *link;
 	struct tm      *tm, _tm;
@@ -673,7 +674,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 		    case PARSE_MODE_NAME:		/* Attribute Name */
 			rc_fieldcpy (attrstr, &buffer, " \t\n=,", sizeof(attrstr));
 			if ((attr =
-				rc_dict_findattr (rh, attrstr)) == NULL)
+				radcli_dict_attr_by_name (rh, attrstr)) == NULL)
 			{
 				rc_log(LOG_ERR, "rc_avpair_parse: unknown attribute");
 				if (*first_pair) {
@@ -736,7 +737,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
 				}
 				else
 				{
-					if ((dval = rc_dict_findval (rh, valstr))
+					if ((dval = radcli_dict_value_by_name (rh, valstr))
 							== NULL)
 					{
 						rc_log(LOG_ERR, "rc_avpair_parse: unknown attribute value: %s", valstr);
@@ -882,7 +883,7 @@ int rc_avpair_parse (rc_handle const *rh, char const *buffer, VALUE_PAIR **first
  */
 int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, char *value, int lv)
 {
-	DICT_VALUE     *dval;
+	struct radcli_dict_value *dval;
 	struct in_addr  inad;
 	unsigned char  *ptr;
 	unsigned int    pos;
@@ -936,7 +937,7 @@ int rc_avpair_tostr (rc_handle const *rh, VALUE_PAIR *pair, char *name, int ln, 
 		break;
 
 		case PW_TYPE_INTEGER:
-		dval = rc_dict_getval (rh, pair->lvalue, pair->name);
+		dval = radcli_dict_value_by_attr (rh, pair->name, pair->lvalue);
 		if (dval != NULL)
 		{
 			strlcpy(value, dval->name, (size_t) lv);

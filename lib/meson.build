@@ -22,8 +22,9 @@ dict_rfc_gen_h = custom_target('dict_rfc_gen_h',
 )
 
 lib_sources = [
-  'buildreq.c', 'sendserver.c', 'avpair.c', 'config.c', 'dict.c',
-  'ip_util.c', 'log.c', 'util.c', 'rc-md5.c', 'tls.c', 'aaa_ctx.c',
+  'buildreq.c', 'sendserver.c', 'avpair.c', 'avp.c', 'request.c', 'config.c', 'dict.c', 'dict2.c',
+  'ip_util.c', 'log.c', 'util.c', 'rc-md5.c', 'rc-random.c', 'tls.c', 'aaa_ctx.c',
+  'ccan/list/list.c', 'dae.c',
   dict_rfc_gen_h,
 ]
 

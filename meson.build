@@ -1,6 +1,6 @@
 project('radcli', 'c',
   version: '1.5.3',
-  license: 'BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston',
+  license: 'BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston AND BSD-MIT AND CC0-1.0 AND BSD-1-Clause',
   default_options: ['c_std=gnu99', 'warning_level=1'],
   meson_version: '>=1.1.0',
 )
@@ -139,9 +139,10 @@ endif
 
 run_target('compare-exported',
   command: [find_program('meson-scripts/compare-exported.sh'),
-            meson.current_source_dir() / 'include/radcli/radcli.h',
             radcli_map_path,
-            meson.current_source_dir() / 'doc/scripts'])
+            meson.current_source_dir() / 'doc/scripts',
+            meson.current_source_dir() / 'include/radcli/radcli.h',
+            meson.current_source_dir() / 'include/radcli/radcli2.h'])
 
 summary({
   'TLS (gnutls)': have_gnutls,

@@ -489,18 +489,17 @@ always be present, since `sendserver.c` unconditionally requires
 `-Dnettle=disabled` links `hmac.o`/`md5.o`, not `nettle-hmac.o`.
 **Links:** REQ-GEN-TECH-001, REQ-UTIL-SEC-001, REQ-UTIL-SEC-002
 
-### REQ-UTIL-SEC-006 — `rc_random_vector`'s entropy source is not part of this document's scope but its consumers (`rc_md5_calc`/`rc_hmac_md5`) MUST treat the vector as opaque input [UNDOCUMENTED cross-reference]
+### REQ-UTIL-SEC-006 — `rc_get_random_bytes()`'s entropy source is not part of this document's scope but its consumers (`rc_md5_calc`/`rc_hmac_md5`) MUST treat the vector as opaque input [UNDOCUMENTED cross-reference]
 
-**Requirement:** N/A — this entry exists only to record a Phase-5 boundary
-decision: `rc_random_vector()` (`lib/sendserver.c:293-303`, using
-`gnutls_rnd()`/`getentropy()`) generates the Request Authenticator that
-`rc_md5_calc`/`rc_hmac_md5` consume, but the function itself lives in and is
-covered by `lib/sendserver.c` / `net.md`, not `lib/util.c`/`util.h`. Listed
-here so a completeness sweep of `util.md` does not mistake its absence for a
-gap.
+**Requirement:** N/A — boundary note: `rc_get_random_bytes()`
+(`lib/rc-random.c`, using `gnutls_rnd()`/`getentropy()`) generates the
+Request Authenticator that `rc_md5_calc`/`rc_hmac_md5` consume, but the
+function lives in and is covered by `lib/rc-random.c` / `net.md`, not
+`lib/util.c`/`util.h`. Listed here so a completeness sweep of `util.md` does
+not mistake its absence for a gap.
 **Strength:** n/a
 **Status:** DERIVED
-**Source:** lib/sendserver.c:293-303
+**Source:** lib/rc-random.c
 **Acceptance:** n/a (cross-reference only)
 **Links:** REQ-NET-* (entropy source for Request Authenticator, `net.md`
 when written)

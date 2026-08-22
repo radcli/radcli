@@ -143,6 +143,7 @@
 #endif
 
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h>
 
 #define GETSTR_LENGTH		128	//!< must be bigger than AUTH_PASS_LEN.
 
@@ -181,6 +182,17 @@ typedef struct rc_sockets_override {
 	int (*unlock)(void *ptr);
 } rc_sockets_override;
 
+struct radcli_dae_st; /* lib/dae.c; opaque here, ctx just tracks the pointer */
+struct radcli_dict; /* lib/dict2.h; opaque here, ctx just tracks the pointer.
+		      * Per-attribute encrypt_type/has_tag/gigawords_attrid --
+		      * formerly side lists (dict_encrypt_flag/
+		      * dict_counter64_pair) keyed by DICT_ATTR identity, kept
+		      * separate only because the public DICT_ATTR struct
+		      * (include/radcli/radcli.h) could never change layout --
+		      * are now plain fields on dict2.h's own
+		      * struct radcli_dict_attr, which carries no such
+		      * constraint. */
+
 struct rc_conf
 {
 	struct _option		*config_options;
@@ -192,14 +204,24 @@ struct rc_conf
 
 	 /* we keep a copy of the filename to avoid re-reading a dictionary,
 	  * for applications relying on the old API which required explicit
-	  * load of it. */
+	  * load of it. Independent of dict's own lifetime: rc_dict_free()
+	  * (lib/dict2.c) MUST NOT clear this (REQ-DICT-DATA-008) -- only
+	  * rc_config_free() does, via rc_destroy(). */
 	char			*first_dict_read;
-	struct dict_attr	*dictionary_attributes;
-	struct dict_value	*dictionary_values;
-	struct dict_vendor	*dictionary_vendors;
+	struct radcli_dict	*dict; /* lib/dict2.h; NULL until first load */
 
 	rc_sockets_override	so;
 	unsigned		so_type; /* rc_socket_type */
+
+	/* radcli2.h's radcli_ctx_get_poll()/radcli_ctx_dispatch() (lib/dae.c)
+	 * operate on ctx, not on a radcli_dae, so that a future dynamic-
+	 * authorization transport sharing one descriptor with the request
+	 * path never has two independent accessors aliasing it -- see
+	 * radcli_ctx_get_poll()'s doc comment. At most one radcli_dae may be
+	 * active per ctx at a time, since these two calls need a single
+	 * descriptor to report. */
+	struct radcli_dae_st	*active_dae;
+	unsigned		in_dispatch; /* radcli_ctx_dispatch() reentrancy guard */
 };
 
 /* older compilers don't like seeing this typedef along with the one in radcli.h */
@@ -211,5 +233,79 @@ struct rc_aaa_ctx_st
 
 int rc_send_server_ctx (rc_handle *rh, RC_AAA_CTX **ctx, SEND_DATA *data,
                         char *msg, rc_type type, int no_wait);
+
+/* Projection between radcli_avp_list and VALUE_PAIR (lib/avp.c), internal
+ * only. Neither aliases the other's storage; each call produces a fresh,
+ * independently-owned list.
+ *
+ * radcli_avp_list_to_value_pairs() copies list into a newly allocated
+ * VALUE_PAIR chain in *out (NULL if list is empty or every attribute was
+ * omitted). An attribute VALUE_PAIR's fixed-size fields cannot hold -- a
+ * string/IPv6-prefix value longer than VALUE_PAIR's 253-octet strvalue
+ * allows for that attribute's wire framing, or a value whose stored length
+ * does not match its type's fixed size -- is omitted, exactly as an
+ * attribute the legacy decoder does not recognise is already omitted
+ * today. Returns 0 on success, -1 on allocation failure (*out then freed
+ * and left unset) or a NULL rh/out.
+ *
+ * radcli_value_pairs_to_avp_list() is the reverse: copies vp into a newly
+ * allocated radcli_avp_list in *out, re-deriving each attribute's
+ * radcli_attr_def from rh's dictionary by (attribute, vendor) identity.
+ * Returns 0 on success, -1 on allocation failure or a NULL rh/out. */
+int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *list, VALUE_PAIR **out);
+int radcli_value_pairs_to_avp_list(rc_handle const *rh, VALUE_PAIR *vp, radcli_avp_list **out);
+
+/* lib/sendserver.c internals, exposed (no longer static) so
+ * radcli_transport_exchange() can reuse the exact RFC 2865 SS3 Response
+ * Authenticator and Message-Authenticator/Blast-RADIUS logic
+ * rc_send_server_ctx() uses, rather than a second, independently-written
+ * copy of security-sensitive code. None of the five takes or returns a
+ * VALUE_PAIR; all operate on raw bytes, AUTH_HDR, secret, and vector. */
+
+/* Fills a freshly allocated *ctx (if ctx != NULL and *ctx == NULL) with a
+ * copy of secret/vector; a no-op returning OK_RC if ctx == NULL. ERROR_RC
+ * if *ctx is already non-NULL or on allocation failure. */
+int populate_ctx(RC_AAA_CTX **ctx, char secret[MAX_SECRET_LENGTH + 1],
+		 uint8_t vector[AUTH_VECTOR_LEN]);
+
+/* Verifies a reply's Response Authenticator (RFC 2865 SS3: MD5 over Code,
+ * Identifier, Length, the Request Authenticator (vector) the request was
+ * sent with, the reply attributes, and secret) and that its Identifier
+ * matches seq_nbr. Returns OK_RC if both check out, BADRESPID_RC if the
+ * Identifier does not match, BADRESP_RC if the Response Authenticator does
+ * not verify. */
+int rc_check_reply(AUTH_HDR *auth, int bufferlen, char const *secret,
+		   unsigned char const *vector, uint8_t seq_nbr);
+
+/* Appends a Message-Authenticator attribute (RFC 2869 SS5.14: type 80,
+ * length 18, an HMAC-MD5 over the packet with the attribute's own value
+ * field zeroed during computation) to the packet at auth, whose first
+ * total_length bytes (header + attributes already encoded) must already be
+ * written. Returns the new total length, including the appended attribute. */
+int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_length);
+
+/* Verifies a received Message-Authenticator attribute against recv_buffer
+ * (length bytes, header included), given secret and the request's own
+ * Request Authenticator (req_auth) -- required for a reply to an
+ * Access-Request, RFC 2869 SS5.14. Returns 0 if it verifies (or is absent:
+ * the caller decides whether that is acceptable), non-zero if present and
+ * wrong. */
+int validate_message_authenticator(const uint8_t *recv_buffer, size_t length,
+				   const char *secret, const unsigned char *req_auth);
+
+/* Representation-agnostic send/retry/receive core (lib/sendserver.c),
+ * shared by rc_send_server_ctx() and lib/request.c's radcli_request_perform();
+ * see its own doc comment for the full contract. */
+int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
+			      char *server_name, unsigned short svc_port,
+			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
+			      int timeout, int retries, int no_wait, rc_type type,
+			      const uint8_t *send_buf, int send_len,
+			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
+			      uint8_t *out_code);
+
+/* Like rc_conf_int() (radcli.h), but returns def instead of logging an
+ * error when optname was never set (lib/config.c). */
+int rc_conf_int_def(rc_handle const *rh, char const *optname, int def);
 
 #endif
