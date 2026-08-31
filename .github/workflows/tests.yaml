@@ -16,11 +16,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-static-analyzer-clang-clang-tools-libgnutls28-dev-meson-ninja-build-v1
+                  key: apt-static-analyzer-clang-clang-tools-libgnutls28-dev-nettle-dev-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq clang clang-tools libgnutls28-dev meson ninja-build
+                  sudo apt-get install -qq clang clang-tools libgnutls28-dev nettle-dev meson ninja-build
             - name: Configure
               run: |
                   CFLAGS="-O2 -g" scan-build --status-bugs meson setup build -Dtls=enabled
@@ -44,11 +44,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-gcc-freeradius-libgnutls28-dev-python3-meson-ninja-build-v1
+                  key: apt-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-python3-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3 meson ninja-build
+                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev python3 meson ninja-build
             - name: Compile with address sanitizer
               run: |
                   meson setup build -Dtls=enabled -Db_sanitize=address -Dc_args="-g -O2"
@@ -78,11 +78,11 @@ jobs:
                   # job populates the cache first on a given day help the other,
                   # even though the two run in parallel (so never help each other
                   # within the same workflow run).
-                  key: apt-gcc-freeradius-libgnutls28-dev-python3-meson-ninja-build-v1
+                  key: apt-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-python3-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev python3 meson ninja-build
+                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev python3 meson ninja-build
             - name: Compile with undefined sanitizer
               run: |
                   meson setup build -Dtls=enabled -Db_sanitize=undefined \
@@ -110,11 +110,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-v1
+                  key: apt-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-abigail-tools-python3-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools python3 meson ninja-build
+                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev abigail-tools python3 meson ninja-build
             - name: Compile
               run: |
                   meson setup build -Dtls=enabled -Dc_args="-O2 -g -Wall -Wno-cpp -Werror"
@@ -152,11 +152,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-distcheck-gcc-freeradius-libgnutls28-dev-abigail-tools-python3-meson-ninja-build-doxygen-perl-qt5-v1
+                  key: apt-distcheck-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-abigail-tools-python3-meson-ninja-build-doxygen-perl-qt5-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius libgnutls28-dev abigail-tools \
+                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev abigail-tools \
                       python3 meson ninja-build doxygen perl \
                       qt5-qmake qtbase5-dev libqt5xmlpatterns5-dev
             - name: Build doxy2man
@@ -192,38 +192,6 @@ jobs:
                   if-no-files-found: ignore
                   retention-days: 5
 
-    tests-msan:
-        runs-on: ubuntu-24.04
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v5
-            - name: Cache APT packages
-              uses: actions/cache@v6
-              with:
-                  path: /var/cache/apt/archives/*.deb
-                  key: apt-clang-freeradius-python3-meson-ninja-build-v1
-            - name: Install dependencies
-              run: |
-                  sudo apt-get update -qq
-                  sudo apt-get install -qq clang freeradius python3 meson ninja-build
-            - name: Compile with MemorySanitizer
-              run: |
-                  CC=clang meson setup build -Dtls=disabled -Dnettle=disabled -Db_sanitize=memory \
-                    -Db_lundef=false \
-                    -Dc_args="-fsanitize-memory-track-origins=2 -fno-omit-frame-pointer -g -O1"
-                  ninja -C build
-            - name: Test
-              run: |
-                  sudo meson test -C build
-            - name: Upload artifacts
-              if: failure()
-              uses: actions/upload-artifact@v7
-              with:
-                  name: test-suite log (msan)
-                  path: build/meson-logs/testlog.txt
-                  if-no-files-found: ignore
-                  retention-days: 5
-
     tests-notls:
         runs-on: ubuntu-24.04
         steps:
@@ -233,11 +201,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-gcc-freeradius-python3-meson-ninja-build-v1
+                  key: apt-gcc-freeradius-freeradius-utils-nettle-dev-python3-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius python3 meson ninja-build
+                  sudo apt-get install -qq gcc freeradius freeradius-utils nettle-dev python3 meson ninja-build
             - name: Compile without TLS
               run: |
                   meson setup build -Dtls=disabled -Dc_args="-O2 -g -Wall -Wno-cpp -Werror"

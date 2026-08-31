@@ -1,0 +1,155 @@
+#
+# The symbol version must be updated on every libradcli2 major number
+# change.
+#
+# RADCLI2_PRIVATE holds symbols libradcli.so needs across the library
+# split (lib/legacy/*.c calling into lib/dict2.c/dict2-parse.c/
+# sendserver.c/avp.c/config.c/tls.c/ip_util.c/log.c/util.c internals, and
+# the radcli2_priv_* renamed implementations lib/legacy/compat.c
+# wraps under their original rc_* names) -- NOT part of the public,
+# documented radcli2.h API and not covered by any ABI-stability promise;
+# do not link against these from outside this source tree.
+
+RADCLI2_@LIBMAJOR2@
+{
+  global:
+	radcli_ctx_new;
+	radcli_ctx_read_config;
+	radcli_ctx_read_dictionary;
+	radcli_ctx_read_dictionary_from_buffer;
+	radcli_ctx_apply;
+	radcli_ctx_free;
+	radcli_ctx_set_opt_str;
+	radcli_ctx_set_opt_int;
+	radcli_ctx_get_opt_str;
+	radcli_ctx_get_opt_int;
+	radcli_ctx_set_secret;
+	radcli_ctx_set_tls_psk;
+	radcli_dict_lookup;
+	radcli_dict_lookup_oid;
+	radcli_dict_lookup_num;
+	radcli_dict_lookup_value;
+	radcli_attr_def_name;
+	radcli_attr_def_type;
+	radcli_attr_def_oid;
+	radcli_avp_list_new;
+	radcli_avp_list_free;
+	radcli_avp_add_bytes;
+	radcli_avp_add_str;
+	radcli_avp_add_uint32;
+	radcli_avp_add_uint64;
+	radcli_avp_add_ip4;
+	radcli_avp_add_ip6;
+	radcli_avp_add_ip4prefix;
+	radcli_avp_add_bytes_by_num;
+	radcli_avp_add_str_by_num;
+	radcli_avp_add_uint32_by_num;
+	radcli_avp_add_uint64_by_num;
+	radcli_avp_add_ip4_by_num;
+	radcli_avp_add_ip6_by_num;
+	radcli_avp_add_ip4prefix_by_num;
+	radcli_avp_add_username;
+	radcli_avp_get;
+	radcli_avp_list_iter;
+	radcli_avp_iter_next;
+	radcli_avp_def;
+	radcli_avp_get_uint32;
+	radcli_avp_get_uint64;
+	radcli_avp_get_ip6;
+	radcli_avp_get_ip4prefix;
+	radcli_avp_get_bytes;
+	radcli_avp_get_cstr;
+	radcli_avp_get_by_num;
+	radcli_avp_get_uint32_by_num;
+	radcli_avp_get_uint64_by_num;
+	radcli_avp_get_ip6_by_num;
+	radcli_avp_get_ip4prefix_by_num;
+	radcli_avp_get_bytes_by_num;
+	radcli_avp_get_cstr_by_num;
+	radcli_avp_concat_str;
+	radcli_avp_concat_str_by_num;
+	radcli_avp_list_error;
+	radcli_avp_add_gigawords64;
+	radcli_avp_get_gigawords64;
+	radcli_avp_add_gigawords64_by_num;
+	radcli_avp_get_gigawords64_by_num;
+	radcli_request_new;
+	radcli_request_perform;
+	radcli_request_fd;
+	radcli_request_poll_events;
+	radcli_request_timeout_ms;
+	radcli_request_wait;
+	radcli_request_code;
+	radcli_request_attrs;
+	radcli_request_server;
+	radcli_request_free;
+	radcli_aaa;
+	radcli_dae_new;
+	radcli_dae_set_handler;
+	radcli_dae_start;
+	radcli_dae_free;
+	radcli_ctx_get_poll;
+	radcli_ctx_dispatch;
+	radcli_ctx_send_watchdog;
+	radcli_dae_req_code;
+	radcli_dae_req_attrs;
+	radcli_dae_req_session_id;
+	radcli_dae_req_user_name;
+	radcli_dae_req_framed_ip;
+	radcli_dae_req_nas_port;
+	radcli_dae_reply;
+	radcli_dae_reply_error;
+	radcli_dae_request_free;
+	radcli_dae_reply_to_buffer;
+	radcli_dae_process;
+  local:
+    *;
+};
+
+RADCLI2_PRIVATE
+{
+  global:
+	radcli_dict_attr_add;
+	radcli_dict_attr_by_id;
+	radcli_dict_attr_by_name;
+	radcli_dict_attr_to_legacy;
+	radcli_dict_value_add;
+	radcli_dict_value_by_attr;
+	radcli_dict_value_by_name;
+	radcli_dict_value_to_legacy;
+	radcli_dict_vendor_add;
+	radcli_dict_vendor_by_name;
+	radcli_dict_vendor_by_pec;
+	radcli_dict_vendor_to_legacy;
+	radcli_dict_flags_by_id;
+	radcli_transport_exchange;
+	add_msg_auth_attr;
+	radcli_avp_encode;
+	radcli2_priv_add_config;
+	radcli2_priv_apply_config;
+	radcli2_priv_check_tls;
+	radcli2_priv_config_free;
+	radcli2_priv_config_init;
+	radcli2_priv_conf_int;
+	radcli2_priv_conf_srv;
+	radcli2_priv_conf_str;
+	radcli2_priv_destroy;
+	radcli2_priv_dict_free;
+	radcli2_priv_find_server_addr;
+	radcli2_priv_get_srcaddr;
+	radcli2_priv_new;
+	radcli2_priv_read_config;
+	radcli2_priv_read_dictionary;
+	radcli2_priv_read_dictionary_from_buffer;
+	radcli2_priv_test_config;
+	radcli2_priv_tls_fd;
+	rc_get_random_byte;
+	rc_get_random_bytes;
+	rc_getmtime;
+	rc_conf_int_id;
+	rc_str2tm;
+	rc_strlcpy;
+	rc_md5_calc;
+	rc_getaddrinfo;
+	rc_own_bind_addr;
+} RADCLI2_@LIBMAJOR2@;
