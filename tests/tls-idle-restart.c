@@ -34,12 +34,19 @@
  *  4. Make request 2 - fails because server closed the TLS connection.
  *     need_restart flag is set.
  *  5. Make request 3 - restart_session() is called, but server is still down,
- *     so init_session() fails and last_restart is set to now.
+ *     so init_session() fails; need_restart stays set.
  *  6. Signal shell: "restart_server".
  *  7. Wait for shell: "server_up" - shell has restarted radiusd.
- *  8. Make request 4 - this is the key: need_restart=1 but last_restart was
- *     just set. With the bug, the TIME_ALIVE time guard in restart_session()
- *     prevents reconnection and the request fails. After the fix it succeeds.
+ *  8. Make request 4 - this is the key: need_restart is still set from
+ *     request 3's own failed attempt moments earlier. Originally (issue #89),
+ *     a TIME_ALIVE-based rate-limit in restart_session() blocked this
+ *     immediate retry regardless of need_restart, so the request failed even
+ *     though the server was back up. The fix made restart_session() bypass
+ *     that limit whenever need_restart is set; the throttle itself (along
+ *     with the TLS heartbeat probe that was its only other caller) has since
+ *     been removed outright, so restart_session() now always reinitializes
+ *     unconditionally -- this test still guards the same regression: request
+ *     4 must succeed.
  *
  * Exit code: 0 on success (request 4 succeeded), 1 on failure (bug present).
  */
@@ -197,8 +204,8 @@ int main(int argc, char **argv)
 
 	/*
 	 * Request 3: need_restart=1 from request 2.  restart_session() is
-	 * called, sets last_restart=now, but init_session() fails because
-	 * the server is still down.  Expected to fail.
+	 * called, but init_session() fails because the server is still down;
+	 * need_restart stays set.  Expected to fail.
 	 */
 	ret = do_auth(rh, send, nas_port);
 	if (ret == OK_RC) {
@@ -211,20 +218,24 @@ int main(int argc, char **argv)
 	wait_for_flag(statedir, STATE_SERVER_UP);
 
 	/*
-	 * Request 4: need_restart=1, but last_restart was set only seconds
-	 * ago by the failed restart_session() call in request 3.
+	 * Request 4: need_restart is still set from request 3's own failed
+	 * attempt moments earlier.
 	 *
-	 * Bug: the TIME_ALIVE time guard in restart_session() blocks
-	 * reconnection because (now - last_restart) < 120s, so
-	 * gnutls_record_send() is called on the still-dead session and fails.
+	 * Bug (issue #89): a TIME_ALIVE-based rate-limit in restart_session()
+	 * blocked this immediate retry regardless of need_restart, so
+	 * gnutls_record_send() was called on the still-dead session and failed.
 	 *
-	 * Fix: bypass the time guard when need_restart is explicitly set.
+	 * Fix: bypass the rate-limit when need_restart is explicitly set (the
+	 * rate-limit itself, along with the TLS heartbeat probe that was its
+	 * only other caller, has since been removed outright -- restart_session()
+	 * now always reinitializes unconditionally, so this is simply the
+	 * default behavior rather than a special-cased bypass).
 	 */
 	ret = do_auth(rh, send, nas_port);
 	if (ret != OK_RC) {
 		fprintf(stderr,
 			"tls-idle-restart: request 4 failed after server "
-			"restart - time guard blocked reconnection (issue #89)\n");
+			"restart - reconnection was blocked (issue #89)\n");
 		exit_code = 1;
 		goto cleanup;
 	}
