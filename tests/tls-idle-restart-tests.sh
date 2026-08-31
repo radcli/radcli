@@ -28,13 +28,16 @@
 # Test for TLS reconnection after server-side idle close (issue #89).
 #
 # This test verifies that after the RADIUS/TLS server closes an idle
-# connection, radcli can reconnect and serve subsequent requests within
-# the TIME_ALIVE (120s) window.
+# connection, radcli can reconnect and serve subsequent requests right away,
+# even immediately after a previous reconnection attempt already failed.
 #
 # The test kills radiusd after the first request and restarts it after
 # two failed reconnection attempts by the client.  The third attempt
-# (request 4 in the client) must succeed; with the bug it fails because
-# the TIME_ALIVE time guard in restart_session() blocks reconnection.
+# (request 4 in the client) must succeed; with the original bug it failed
+# because a TIME_ALIVE-based rate-limit in restart_session() blocked
+# reconnection regardless of how badly it was needed (that rate-limit, along
+# with the TLS heartbeat probe that was its only other caller, has since
+# been removed outright).
 
 srcdir="${srcdir:-.}"
 STATEDIR=$(mktemp -d /tmp/tls-idle-restart-XXXXXX)
@@ -48,6 +51,10 @@ function finish {
 	rm -f "$CONFFILE" "$SERVERSFILE"
 	rm -rf "$STATEDIR"
 }
+# ns.sh only registers its own EXIT trap (which calls finish) after its
+# root/radiusd/ip-netns checks; without this, an early "exit 77" from one
+# of those checks would skip finish() and leak STATEDIR.
+trap finish EXIT
 
 . ${srcdir}/ns.sh
 
@@ -111,11 +118,11 @@ touch "$STATEDIR/server_killed"
 
 # Step 3: wait for the client to finish its two failing requests
 # (request 2 detects the FIN; request 3 tries restart_session which
-# fails because the server is still down, setting last_restart=now).
+# fails because the server is still down; need_restart stays set).
 wait_for_state "restart_server" "client restart signal"
 
 # Step 4: bring radiusd back.  The client will now attempt request 4
-# within the TIME_ALIVE window (last_restart was set moments ago).
+# moments after request 3's own failed reconnect attempt.
 echo " * Restarting radiusd..."
 ${CMDNS2} ${RADIUSD} -d "${srcdir}"/raddb/ -fxx -l stdout 2>&1 &
 RADIUSPID=$!
@@ -130,7 +137,7 @@ wait "$TESTPID"
 RET=$?
 
 if test "$RET" != 0; then
-	echo "FAIL: TLS did not reconnect after server restart within TIME_ALIVE window (issue #89)"
+	echo "FAIL: TLS did not reconnect immediately after server restart (issue #89)"
 	exit 1
 fi
 
