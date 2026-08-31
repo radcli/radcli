@@ -15,6 +15,7 @@
 #include <config.h>
 #include <includes.h>
 #include <radcli/radcli.h>
+#include "options.h"
 #include "util.h"
 
 #define HOSTBUF_SIZE 1024
@@ -50,92 +51,27 @@ struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags)
 	return res;
 }
 
-/**
- * @defgroup misc-api Miscellaneous API
+/*- Find the local source address the system would use to reach ria.
  *
- * @{
- */
-
-/** @brief Get the port number for the supplied request type
- *
- * @param type %AUTH or %ACCT.
- * @return the port number.
- */
-unsigned short rc_getport(int type)
-{
-	struct servent *svp;
-
-	if ((svp = getservbyname ((type==AUTH)?"radius" : "radacct", "udp")) == NULL)
-	{
-		return (type==AUTH) ? PW_AUTH_UDP_PORT : PW_ACCT_UDP_PORT;
-	} else {
-		return ntohs ((unsigned short) svp->s_port);
-	}
-}
-
-/** @brief Get the hostname of this machine
- *
- * @param hostname will hold the name of the host.
- * @param len the size of hostname.
- * @return -1 on failure, 0 on success.
- */
-int rc_own_hostname(char *hostname, int len)
-{
-#ifdef HAVE_UNAME
-	struct	utsname uts;
-#endif
-
-#if defined(HAVE_UNAME)
-	if (uname(&uts) < 0)
-	{
-		rc_log(LOG_ERR,"rc_own_hostname: couldn't get own hostname");
-		return -1;
-	}
-	strlcpy(hostname, uts.nodename, len);
-#elif defined(HAVE_GETHOSTNAME)
-	if (gethostname(hostname, len) < 0)
-	{
-		rc_log(LOG_ERR,"rc_own_hostname: couldn't get own hostname");
-		return -1;
-	}
-#elif defined(HAVE_SYSINFO)
-	if (sysinfo(SI_HOSTNAME, hostname, len) < 0)
-	{
-		rc_log(LOG_ERR,"rc_own_hostname: couldn't get own hostname");
-		return -1;
-	}
-#else
-	return -1;
-#endif
-
-	return 0;
-}
-
-/** @brief Find outbound interface address for a given destination
- *
- * Given remote address find local address which the system will use as a source address for sending
- * datagrams to that remote address.
- *
- * @param[out] lia local address.
- * @param[in]  ria the remote address.
- * @return OK_RC on success. NETUNREACH_RC if network is unreachable (i.e.
- *         no route to destination). ERROR_RC for all other failures.
- *         Address is filled into the first argument.
- */
-int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
+ * @param lia set to the local address on success.
+ * @param ria the remote address to probe a route towards.
+ * @return OK_RC on success; NETUNREACH_RC if there is no route to ria;
+ * ERROR_RC for any other failure.
+ -*/
+int radcli2_priv_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 {
 	int temp_sock;
 	socklen_t namelen;
 
 	temp_sock = socket(ria->sa_family, SOCK_DGRAM, 0);
 	if (temp_sock == -1) {
-		rc_log(LOG_ERR, "rc_get_srcaddr: socket: %s", strerror(errno));
+		rc_log(LOG_ERR, "radcli2_priv_get_srcaddr: socket: %s", strerror(errno));
 		return ERROR_RC;
 	}
 
 	if (connect(temp_sock, ria, SA_LEN(ria)) != 0) {
 		int rc = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
-		rc_log(LOG_ERR, "rc_get_srcaddr: connect: %s",
+		rc_log(LOG_ERR, "radcli2_priv_get_srcaddr: connect: %s",
 		    strerror(errno));
 		close(temp_sock);
 		return rc;
@@ -143,7 +79,7 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 
 	namelen = SA_LEN(ria);
 	if (getsockname(temp_sock, lia, &namelen) != 0) {
-		rc_log(LOG_ERR, "rc_get_srcaddr: getsockname: %s",
+		rc_log(LOG_ERR, "radcli2_priv_get_srcaddr: getsockname: %s",
 		    strerror(errno));
 		close(temp_sock);
 		return ERROR_RC;
@@ -153,19 +89,14 @@ int rc_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria)
 	return OK_RC;
 }
 
-/* Find our source address
+/*- Determine the local address to bind as a source for outgoing requests.
  *
- * Get the IP address to be used as a source address
- * for sending requests in host order.
- *
- * @param rh a handle to parsed configuration
- * @param lia the local address to listen to
- *
- **/
-/// @cond INTERNAL
+ * @param rh a handle to parsed configuration.
+ * @param lia set to the resolved local bind address.
+ -*/
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 {
-	char *txtaddr = rc_conf_str(rh, "bindaddr");
+	char *txtaddr = rc_conf_str_id(rh, OPT_BINDADDR);
 	struct addrinfo *info;
 
 	if (rh->own_bind_addr_set) {
@@ -191,5 +122,3 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
 
        return;
 }
-/// @endcond
-/** @} */

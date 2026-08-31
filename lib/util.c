@@ -89,32 +89,6 @@ double rc_getmtime(void)
 #endif
 }
 
-/** @brief Generate a "unique" session-ID string
- *
- * @deprecated This function is retained only for source compatibility with
- * freeradius-client and radiusclient-ng.  It returns a pointer to a static
- * non-reentrant buffer that is overwritten on each call, making it unsafe in
- * multi-threaded applications.  Use @c snprintf into your own buffer instead:
- * @code
- * char sid[15];
- * snprintf(sid, sizeof(sid), "%08lX%04X", (unsigned long)time(NULL), getpid());
- * @endcode
- *
- * @return pointer to a static buffer containing the ID string; overwritten by
- *   subsequent calls.
- */
-char *
-rc_mksid (void)
-{
-  static char buf[15];
-  static unsigned short int cnt = 0;
-  snprintf (buf, sizeof(buf), "%08lX%04X%02hX",
-	   (unsigned long int) time (NULL),
-	   (unsigned int) getpid (),
-	   cnt & 0xFF);
-  cnt++;
-  return buf;
-}
 /*
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  *
@@ -168,13 +142,14 @@ rc_strlcpy(char *dst, char const *src, size_t siz)
 
 #endif /* RC_NEED_STRLCPY */
 
-/** Set the network namespace for the current thread (or process - if single threaded).
+/*- Set the network namespace for the current thread (or process, if
+ * single-threaded).
  *
- * @param net_namespace - New network namespace to set.
- * @param prev_ns_handle - Handle to previous network namespace.
- *
- * @return 0 on success, -1 when failure.
- */
+ * @param net_namespace the name of the namespace to switch into.
+ * @param prev_ns_handle set to a handle for the namespace active before
+ * the switch, for a later rc_reset_netns() call.
+ * @return 0 on success, -1 on failure.
+ -*/
 int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
 {
     int rc = 0;
@@ -227,13 +202,12 @@ int rc_set_netns(const char *net_namespace, int *prev_ns_handle)
     return rc;
 }
 
-/** Reset the network name space for the current thread (or process - if single threaded).
- *  'prev_ns_handle' becomes invalid after this call.
+/*- Restore the network namespace saved by rc_set_netns(); prev_ns_handle
+ * is invalid after this call.
  *
- * @param  prev_ns_handle - Handle to previous network name space.
- *
- * @return 0 on success, -1 when failure.
- */
+ * @param prev_ns_handle a handle from rc_set_netns().
+ * @return 0 on success, -1 on failure.
+ -*/
 int rc_reset_netns(int *prev_ns_handle)
 {
     int rc = 0;

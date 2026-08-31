@@ -26,7 +26,10 @@
 #include <config.h>
 #include <includes.h>
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h> /* RADCLI_DISCONNECT_REQUEST/RADCLI_COA_REQUEST,
+                             * for tls_recvfrom()'s DAE-over-RadSec demux */
 #include "util.h"
+#include "options.h"
 #include "tls.h"
 
 #ifdef HAVE_GNUTLS
@@ -67,8 +70,8 @@ typedef struct tls_int_st {
 	unsigned need_restart;
 	unsigned skip_hostname_check; /* whether to verify hostname */
 	pthread_mutex_t lock;
-	time_t last_msg;
-	time_t last_restart;
+	time_t last_msg;	/* last send OR receive -- when the next watchdog is due */
+	time_t last_recv;	/* last receive only -- REQ-WATCHDOG-NET-003's dead-peer clock */
 } tls_int_st;
 
 typedef struct tls_st {
@@ -79,11 +82,17 @@ typedef struct tls_st {
 	rc_handle *rh; /* a pointer to our owner */
 } tls_st;
 
-/// @cond INTERNAL
-static int restart_session(rc_handle *rh, tls_st *st);
-/// @endcond
+/** @} */
 
-/// @cond INTERNAL
+static int restart_session(rc_handle *rh, tls_st *st);
+
+/*- rc_sockets_override.get_fd: return st's session socket, restarting the
+ * session first if it was marked for restart.
+ *
+ * @param ptr the tls_st for this session.
+ * @param our_sockaddr unused; part of the get_fd calling convention.
+ * @return the session socket, or -1 if a needed restart failed.
+ -*/
 static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 {
 	tls_st *st = ptr;
@@ -93,34 +102,39 @@ static int tls_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	}
 	return st->ctx.sockfd;
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- rc_sockets_override.get_active_fd: return st's current session socket
+ * without attempting a restart.
+ *
+ * @param ptr the tls_st for this session.
+ * @return the session socket.
+ -*/
 static int tls_get_active_fd(void *ptr)
 {
 	tls_st *st = ptr;
 	return st->ctx.sockfd;
 }
-/// @endcond
 
 /* Used from the GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED retry branches of
  * tls_sendto()/tls_recvfrom(): GnuTLS requires retrying the record call
- * with the same arguments once @events is ready on the session fd.
- * Waits up to the configured radius_timeout, safe against poll() itself
- * being interrupted by a signal (retried against the same, non-extending
+ * with the same arguments once events is ready on the session fd. Waits
+ * up to the configured radius_timeout, safe against poll() itself being
+ * interrupted by a signal (retried against the same, non-extending
  * deadline, so neither a signal nor a run of spurious EAGAINs can make
- * the wait unbounded). On timeout or error, logs, marks the session for
- * restart and sets errno=EIO.
+ * the wait unbounded). */
+/*- Wait for a session socket to become ready for a retried GnuTLS record
+ * call, or mark the session for restart on timeout/error.
  *
- * Returns 1 if the caller should retry the gnutls_record_*() call, or -1
- * if it should give up (matching the calling convention of tls_sendto()/
- * tls_recvfrom() themselves).
- */
-/// @cond INTERNAL
+ * @param st the session to wait on.
+ * @param events POLLIN or POLLOUT, matching the record call being retried.
+ * @param what a short verb ("send"/"receive") for the timeout log message.
+ * @return 1 if the caller should retry the gnutls_record_*() call, or -1
+ * if it should give up (errno set to EIO, session marked for restart).
+ -*/
 static int tls_wait_or_give_up(tls_st *st, short events, const char *what)
 {
 	double start_time = rc_getmtime();
-	int timeout = rc_conf_int(st->rh, "radius_timeout");
+	int timeout = rc_conf_int_id(st->rh, OPT_RADIUS_TIMEOUT);
 
 	if (timeout <= 0)
 		timeout = 1;
@@ -146,9 +160,20 @@ give_up:
 	st->ctx.need_restart = 1;
 	return -1;
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- rc_sockets_override.sendto: send buf over st's GnuTLS session,
+ * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via
+ * tls_wait_or_give_up(), restarting the session first if needed.
+ *
+ * @param ptr the tls_st for this session.
+ * @param sockfd unused; part of the sendto calling convention.
+ * @param buf the data to send.
+ * @param len buf's length in bytes.
+ * @param flags unused; part of the sendto calling convention.
+ * @param dest_addr unused; part of the sendto calling convention.
+ * @param addrlen unused; part of the sendto calling convention.
+ * @return the number of bytes sent, or -1 on failure (errno set to EIO).
+ -*/
 static ssize_t tls_sendto(void *ptr, int sockfd,
 			   const void *buf, size_t len,
 			   int flags, const struct sockaddr *dest_addr,
@@ -186,27 +211,48 @@ static ssize_t tls_sendto(void *ptr, int sockfd,
 	st->ctx.last_msg = time(0);
 	return ret;
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- rc_sockets_override.lock: acquire st's session lock.
+ *
+ * @param ptr the tls_st for this session.
+ * @return pthread_mutex_lock()'s return value.
+ -*/
 static int tls_lock(void *ptr)
 {
 	tls_st *st = ptr;
 
 	return pthread_mutex_lock(&st->ctx.lock);
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- rc_sockets_override.unlock: release st's session lock.
+ *
+ * @param ptr the tls_st for this session.
+ * @return pthread_mutex_unlock()'s return value.
+ -*/
 static int tls_unlock(void *ptr)
 {
 	tls_st *st = ptr;
 
 	return pthread_mutex_unlock(&st->ctx.lock);
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- rc_sockets_override.recvfrom: read one reply from st's GnuTLS session,
+ * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via tls_wait_or_give_up(),
+ * and diverting a DAE-over-RadSec CoA/Disconnect
+ * packet straight to lib/dae.c's pipeline instead of returning it here
+ * (RFC 6614 §2.1/§2.5, RFC 7360 §2.2: one connection carries every packet
+ * type).
+ *
+ * @param ptr the tls_st for this session.
+ * @param sockfd unused; part of the recvfrom calling convention.
+ * @param buf destination buffer for the received record.
+ * @param len buf's capacity in bytes.
+ * @param flags unused; part of the recvfrom calling convention.
+ * @param src_addr unused; part of the recvfrom calling convention.
+ * @param addrlen unused; part of the recvfrom calling convention.
+ * @return the number of bytes received, or -1 on failure (errno set to
+ * EINTR on a received alert, EIO otherwise).
+ -*/
 static ssize_t tls_recvfrom(void *ptr, int sockfd,
 			     void *buf, size_t len,
 			     int flags, struct sockaddr *src_addr,
@@ -217,10 +263,24 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 
 	for (;;) {
 		ret = gnutls_record_recv(st->ctx.session, buf, len);
-		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED ||
-		    ret == GNUTLS_E_HEARTBEAT_PING_RECEIVED || ret == GNUTLS_E_HEARTBEAT_PONG_RECEIVED) {
+		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
 			if (tls_wait_or_give_up(st, POLLIN, "receive") < 0)
 				return -1;
+			continue;
+		}
+
+		/* RFC 6614 SS2.1/SS2.5, RFC 7360 SS2.2: one port, one connection
+		 * carries every packet type. A Disconnect-Request/CoA-Request
+		 * arriving here is never the reply this caller (radcli_transport_
+		 * exchange(), waiting for an Access-Accept/Accounting-Response) is
+		 * waiting for -- hand it to lib/dae.c's RadSec pipeline right here
+		 * (the thread already holding this session's lock, mid-exchange,
+		 * is exactly the thread that must not miss it) and keep waiting
+		 * for the actual reply. */
+		if (ret >= 1 &&
+		    (((const uint8_t *)buf)[0] == RADCLI_DISCONNECT_REQUEST ||
+		     ((const uint8_t *)buf)[0] == RADCLI_COA_REQUEST)) {
+			radcli2_priv_dae_on_radsec_packet(st->rh, buf, (size_t)ret);
 			continue;
 		}
 		break;
@@ -254,14 +314,19 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 	}
 
 	st->ctx.last_msg = time(0);
+	st->ctx.last_recv = st->ctx.last_msg;
 	return ret;
 }
-/// @endcond
 
-/* This function will verify the peer's certificate, and check
- * if the hostname matches.
- */
-/// @cond INTERNAL
+/*- GnuTLS certificate-verification callback: verify the peer's
+ * certificate chain and, unless skip_hostname_check is set, that its
+ * hostname matches.
+ *
+ * @param session the GnuTLS session being handshaked; its tls_int_st is
+ * read back via gnutls_session_get_ptr().
+ * @return 0 if the certificate is acceptable, GNUTLS_E_CERTIFICATE_ERROR
+ * otherwise.
+ -*/
 static int cert_verify_callback(gnutls_session_t session)
 {
 	unsigned int status;
@@ -300,9 +365,13 @@ static int cert_verify_callback(gnutls_session_t session)
 
 	return 0;
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- Tear down a GnuTLS session: send close_notify (if the handshake
+ * completed), deinit the GnuTLS session, destroy the lock, and close the
+ * socket.
+ *
+ * @param ses the session to tear down; ses->init is left 0.
+ -*/
 static void deinit_session(tls_int_st *ses)
 {
 	if (ses->init != 0) {
@@ -327,9 +396,22 @@ static void deinit_session(tls_int_st *ses)
 			close(ses->sockfd);
 	}
 }
-/// @endcond
 
-/// @cond INTERNAL
+/*- Resolve hostname, open a socket, and complete the GnuTLS (D)TLS
+ * handshake, filling in ses on success.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param ses the session struct to initialize.
+ * @param hostname the server to resolve and connect to.
+ * @param port the server's TLS/DTLS port.
+ * @param our_sockaddr set to the local address the socket bound/connected
+ * from.
+ * @param timeout the handshake timeout in seconds.
+ * @param secflags PSK/certificate security flags controlling credential
+ * setup (see callers for the accepted bits).
+ * @return 0 on success, negative on failure (ses is left safe to pass to
+ * deinit_session()).
+ -*/
 static int init_session(rc_handle *rh, tls_int_st *ses,
 			const char *hostname, unsigned port,
 			struct sockaddr_storage *our_sockaddr,
@@ -347,7 +429,26 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 	ses->init = 1;
 	ses->handshake_done = 0;
 
-	pthread_mutex_init(&ses->lock, NULL);
+	{
+		/* Recursive, not the default (non-recursive) type: DAE-over-
+		 * RadSec's demux (lib/dae.c's radcli2_priv_dae_on_radsec_packet(),
+		 * called inline from tls_recvfrom() below) can itself need to
+		 * send an immediate reply -- a retransmission's cached ACK/NAK
+		 * (PROCESS_DUP_ANSWERED), or an RFC 6614 SS2.5 406 NAK when
+		 * dynamic authorization isn't enabled -- via this same rh's
+		 * so.sendto()/so.lock(), while tls_recvfrom() itself is being
+		 * called from inside radcli_transport_exchange() (lib/sendserver.c),
+		 * which already holds this exact lock for its entire send-and-
+		 * wait cycle, on this same thread. A plain mutex would deadlock
+		 * (or be undefined behavior) the moment that reply path is taken
+		 * from that call chain; a recursive one simply nests. */
+		pthread_mutexattr_t attr;
+
+		pthread_mutexattr_init(&attr);
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(&ses->lock, &attr);
+		pthread_mutexattr_destroy(&attr);
+	}
 	sockfd = socket(our_sockaddr->ss_family, (secflags&SEC_FLAG_DTLS)?SOCK_DGRAM:SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		rc_log(LOG_ERR,
@@ -390,10 +491,8 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 
 	gnutls_transport_set_int(ses->session, sockfd);
 	gnutls_session_set_ptr(ses->session, ses);
-	/* we only initiate heartbeat messages */
-	gnutls_heartbeat_enable(ses->session, GNUTLS_HB_LOCAL_ALLOWED_TO_SEND);
 
-	p = rc_conf_str(rh, "tls-verify-hostname");
+	p = rc_conf_str_id(rh, OPT_TLS_VERIFY_HOSTNAME);
 	if (p && (strcasecmp(p, "false") == 0 || strcasecmp(p, "no") == 0)) {
 		ses->skip_hostname_check = 1;
 	}
@@ -503,38 +602,40 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 	}
 
 	ses->handshake_done = 1;
+	/* A freshly completed handshake counts as session activity: without
+	 * this, last_msg stays at its zeroed-struct initial value until the
+	 * first actual send/receive, which radcli_ctx_get_poll()'s watchdog-
+	 * deadline math (lib/dae.c) would otherwise read as "session has been
+	 * idle since the epoch" and report an already-overdue deadline right
+	 * after radcli_dae_start()'s eager connect (REQ-DAE-INIT-010). */
+	ses->last_msg = time(0);
+	ses->last_recv = ses->last_msg;
 	return 0;
  cleanup:
 	deinit_session(ses);
 	return ret;
 
 }
-/// @endcond
 
-/* The time after the last message was received, that
- * we will try heartbeats */
-#define TIME_ALIVE 120
-
-/// @cond INTERNAL
+/*- Reconnect st's session in place, replacing its tls_int_st with a freshly
+ * established one. Every call site only ever calls this when the session is
+ * already known to need it (a send/recv failure already set need_restart,
+ * or rc_init_tls() preset it before the first connection), so this always
+ * reinitializes unconditionally -- no rate-limiting, nothing to bypass.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param st the session to restart.
+ * @return 0 on success, -1 if reinitialization failed (st is left unchanged
+ * on failure).
+ -*/
 static int restart_session(rc_handle *rh, tls_st *st)
 {
 	/* init_session() assumes a zeroed struct: REQ-NET-NET-016 */
 	struct tls_int_st tmps = { 0 };
-	time_t now = time(0);
 	int ret;
 	int timeout;
 
-	/* Bypass the time guard when need_restart is set: the session is
-	 * known to be broken (a send or recv already failed), so we must
-	 * attempt reconnection regardless of how recently we last tried.
-	 * When need_restart is 0 (proactive check from rc_check_tls via a
-	 * failed heartbeat), keep the guard to avoid rapid reconnect loops. */
-	if (now - st->ctx.last_restart < TIME_ALIVE && !st->ctx.need_restart)
-		return -1;
-
-	st->ctx.last_restart = now;
-
-	timeout = rc_conf_int(rh, "radius_timeout");
+	timeout = rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT);
 
 	/* reinitialize this session */
 	ret = init_session(rh, &tmps, st->ctx.hostname, st->ctx.port, &st->ctx.our_sockaddr, timeout, st->flags);
@@ -551,17 +652,14 @@ static int restart_session(rc_handle *rh, tls_st *st)
 
 	return 0;
 }
-/// @endcond
 
-/** @brief Returns the file descriptor of the TLS/DTLS session
+/*- Return the file descriptor of the TLS/DTLS session -- also usable as
+ * a test for whether TLS or DTLS are in use.
  *
- * This can also be used as a test for the application to see
- * whether TLS or DTLS are in use.
- *
- * @param rh a handle to parsed configuration
- * @return the file descriptor used by the TLS session, or -1 on error
- */
-int rc_tls_fd(rc_handle * rh)
+ * @param rh a handle to parsed configuration.
+ * @return the file descriptor used by the TLS session, or -1 on error.
+ -*/
+int radcli2_priv_tls_fd(rc_handle * rh)
 {
 	tls_st *st;
 
@@ -576,29 +674,20 @@ int rc_tls_fd(rc_handle * rh)
 	return -1;
 }
 
-/** @brief Check established TLS/DTLS channels for operation and reconnect if needed
+/*- Return the time of the last message sent or received on rh's TLS/DTLS
+ * session (tls_int_st.last_msg, updated by every successful send/receive
+ * on this session, including radcli2_priv_tls_dae_send()). Used by lib/
+ * dae.c's radcli_ctx_get_poll() to compute a watchdog deadline
+ * (watchdog-interval) without lib/dae.c needing to see the private
+ * tls_int_st layout.
  *
- * Probes the TLS or DTLS session with a TLS heartbeat and reconnects if the
- * session is dead.  Must be called when no other thread is using the session
- * (e.g., from a dedicated watchdog thread that holds the lock).
- *
- * @note It is recommended not to use this function.  The TLS heartbeat
- * extension (RFC 6520) has been disabled or removed by default in many
- * implementations following the Heartbleed vulnerability (CVE-2014-0160), and
- * may not be supported by the server.  Prefer relying on the built-in
- * auto-detection: a dead session is detected transparently on the next
- * rc_auth() or rc_acct() call, which reconnects automatically before sending
- * the request.
- *
- * @param rh a handle to parsed configuration
- * @return 0 on success or when TLS/DTLS is not in use, -1 if the session
- *   could not be re-established
- */
-int rc_check_tls(rc_handle * rh)
+ * @param rh a handle to parsed configuration.
+ * @return the last-activity timestamp, or 0 if rh's transport is not
+ * TLS/DTLS or the session is not yet initialized.
+ -*/
+time_t radcli2_priv_tls_last_msg(rc_handle * rh)
 {
 	tls_st *st;
-	time_t now = time(0);
-	int ret;
 
 	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
 		return 0;
@@ -606,20 +695,281 @@ int rc_check_tls(rc_handle * rh)
 	st = rh->so.ptr;
 
 	if (st->ctx.init != 0) {
-		if (st->ctx.need_restart != 0) {
-			restart_session(rh, st);
-		} else if (now - st->ctx.last_msg > TIME_ALIVE) {
-			ret = gnutls_heartbeat_ping(st->ctx.session, 64, 4, GNUTLS_HEARTBEAT_WAIT);
-			if (ret < 0) {
-				restart_session(rh, st);
-			}
-			st->ctx.last_msg = now;
-		}
+		return st->ctx.last_msg;
 	}
 	return 0;
 }
 
-/** @} */
+/*- Return the time of the last record actually *received* on rh's TLS/DTLS
+ * session (tls_int_st.last_recv) -- unlike radcli2_priv_tls_last_msg(),
+ * never advanced by a send. Used by lib/dae.c's radcli_ctx_send_watchdog()
+ * (REQ-WATCHDOG-NET-003) to detect a peer that has gone silent while the
+ * connection itself is still technically open: sending watchdogs into that
+ * silence would keep radcli2_priv_tls_last_msg() looking fresh forever,
+ * masking exactly the condition this is meant to catch.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return the last-receive timestamp, or 0 if rh's transport is not
+ * TLS/DTLS or the session is not yet initialized.
+ -*/
+time_t radcli2_priv_tls_last_recv(rc_handle * rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return 0;
+
+	st = rh->so.ptr;
+
+	if (st->ctx.init != 0) {
+		return st->ctx.last_recv;
+	}
+	return 0;
+}
+
+/*- Force rh's TLS/DTLS session to reconnect now, the same way an actual
+ * send/recv error already does (need_restart) -- used by lib/dae.c's
+ * radcli_ctx_send_watchdog() (REQ-WATCHDOG-NET-003) when the peer is presumed
+ * dead from elapsed time alone, with no socket-level error to set
+ * need_restart on its own.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return 0 on success, -1 if rh's transport is not TLS/DTLS or
+ * reconnection failed.
+ -*/
+int radcli2_priv_tls_force_reconnect(rc_handle * rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return -1;
+
+	st = rh->so.ptr;
+	st->ctx.need_restart = 1;
+	return restart_session(rh, st);
+}
+
+/*- Probe an established TLS/DTLS session's liveness and reconnect if it is
+ * dead. Once watchdog-interval has elapsed since the session's last
+ * activity, sends an RFC 5997 Status-Server watchdog
+ * (radcli_ctx_send_watchdog(), REQ-WATCHDOG-NET-001) -- which itself already
+ * detects and reconnects from a peer gone silent for 2.5x that interval
+ * (REQ-WATCHDOG-NET-003), so this one call covers both probing and recovering. A
+ * dead session is normally detected and reconnected transparently on the
+ * next request anyway; this exists for a caller that wants that detected
+ * proactively instead (e.g. from a dedicated watchdog thread), same as
+ * before this used a TLS heartbeat for it.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return 0 on success or when TLS/DTLS is not in use, -1 if a
+ * known-broken session could not be re-established.
+ -*/
+int radcli2_priv_check_tls(rc_handle * rh)
+{
+	tls_st *st;
+	int interval;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return 0;
+
+	st = rh->so.ptr;
+
+	if (st->ctx.init == 0)
+		return 0;
+
+	if (st->ctx.need_restart != 0)
+		return restart_session(rh, st) < 0 ? -1 : 0;
+
+	interval = rc_conf_int_id(rh, OPT_WATCHDOG_INTERVAL);
+	if (interval > 0 && time(0) - st->ctx.last_msg >= interval)
+		radcli_ctx_send_watchdog((radcli_ctx *)rh);
+
+	return 0;
+}
+
+/*- Force the TLS/DTLS handshake now, if it has not happened yet or the
+ * session needs reconnecting. See lib/includes.h's doc comment. */
+int radcli2_priv_tls_ensure_connected(rc_handle *rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return -1;
+
+	st = rh->so.ptr;
+
+	if (st->ctx.init != 0 && st->ctx.need_restart == 0)
+		return 0; /* already connected and healthy */
+
+	return restart_session(rh, st);
+}
+
+/*- Make one non-blocking attempt to read a DAE-over-RadSec record.
+ * See lib/includes.h's doc comment. */
+int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
+{
+	tls_st *st;
+	int ret;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return 0;
+
+	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
+		return 0; /* not connected -- nothing to poll; reconnecting is
+			   * radcli_dae_start()'s/an ordinary request's job, not
+			   * this opportunistic idle-time check's. */
+
+	/* A trylock, not a blocking lock: if radcli_transport_exchange() is
+	 * mid-exchange on another thread, it already owns this session's
+	 * only read path and will itself see and demux any DAE record that
+	 * arrives while it holds the lock (tls_recvfrom()'s own inline
+	 * demux, above) -- so contention here simply means "nothing new to
+	 * report this call", never a stall of the caller's event loop. */
+	if (pthread_mutex_trylock(&st->ctx.lock) != 0)
+		return 0;
+
+	ret = gnutls_record_recv(st->ctx.session, buf, cap);
+
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
+		pthread_mutex_unlock(&st->ctx.lock);
+		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
+	}
+
+	if (ret <= 0) {
+		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__,
+		       gnutls_strerror(ret));
+		st->ctx.need_restart = 1;
+		pthread_mutex_unlock(&st->ctx.lock);
+		return -1;
+	}
+
+	st->ctx.last_msg = time(0);
+	st->ctx.last_recv = st->ctx.last_msg;
+	/* Lock deliberately left held -- see lib/includes.h's doc comment on
+	 * this function and radcli2_priv_tls_dae_poll_done(). */
+	return ret;
+}
+
+/*- Release the lock radcli2_priv_tls_dae_poll() left held on success.
+ * See lib/includes.h's doc comment. */
+void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return;
+	st = rh->so.ptr;
+	pthread_mutex_unlock(&st->ctx.lock);
+}
+
+/*- Make one non-blocking attempt to send a DAE-over-RadSec reply.
+ *
+ * Unlike tls_sendto() (used for ordinary requests, where blocking until
+ * radius_timeout elapses waiting for POLLOUT is the caller's own,
+ * accepted contract), this never waits: a poll()-driven application's
+ * dispatch action (lib/dae.c's radcli_ctx_dispatch(), invoked only
+ * because the descriptor was reported readable) must not turn into a
+ * multi-second stall just because sending a reply as a side effect would
+ * otherwise block. On GNUTLS_E_AGAIN/_INTERRUPTED, the caller is expected
+ * to queue buf and retry this same call later (lib/dae.c's bounded
+ * radsec_reply_queue) rather than wait here.
+ *
+ * The session lock is a plain (recursive) lock, not a trylock: every
+ * caller of this function already holds it via the recursive session
+ * lock nesting radcli2_priv_tls_dae_poll()'s doc comment describes (this
+ * thread either came from tls_recvfrom()'s inline demux, which holds it
+ * for the whole enclosing radcli_transport_exchange() call, or from
+ * radcli_ctx_dispatch(), which holds it across radcli2_priv_dae_on_radsec_
+ * packet() precisely so this nests rather than deadlocking) -- so this
+ * never actually blocks waiting for another thread.
+ *
+ * @return the number of bytes GnuTLS accepted as one complete record
+ *  (matching gnutls_record_send()'s own return convention) on success, 0
+ *  if the send would block (nothing was sent; retry the identical buf/len
+ *  later), -1 on a session error (also marks the session for
+ *  reconnection, same as tls_sendto()'s own error handling).
+ -*/
+int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
+{
+	tls_st *st;
+	int ret;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return -1;
+
+	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
+		return -1;
+
+	pthread_mutex_lock(&st->ctx.lock);
+	ret = gnutls_record_send(st->ctx.session, buf, len);
+
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
+		pthread_mutex_unlock(&st->ctx.lock);
+		return 0;
+	}
+	if (ret < 0) {
+		rc_log(LOG_ERR, "%s: error in sending: %s", __func__, gnutls_strerror(ret));
+		st->ctx.need_restart = 1;
+		pthread_mutex_unlock(&st->ctx.lock);
+		return -1;
+	}
+
+	st->ctx.last_msg = time(0);
+	pthread_mutex_unlock(&st->ctx.lock);
+	return ret;
+}
+
+/*- One non-blocking attempt to read the reply an in-flight async
+ * request/reply exchange (lib/sendserver.c's radcli_transport_service_
+ * async()) is waiting for. See lib/includes.h's doc comment for why this,
+ * unlike radcli2_priv_tls_dae_poll(), does not take the session lock
+ * itself. -*/
+int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
+{
+	tls_st *st;
+	int ret;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return -1;
+
+	st = rh->so.ptr;
+
+	ret = gnutls_record_recv(st->ctx.session, buf, cap);
+
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
+		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
+
+	if (ret == GNUTLS_E_WARNING_ALERT_RECEIVED) {
+		rc_log(LOG_ERR, "%s: received alert: %s", __func__,
+		       gnutls_alert_get_name(gnutls_alert_get(st->ctx.session)));
+		return 0; /* transient, same as tls_recvfrom()'s own handling of this
+			   * alert -- not a reason to tear down the session */
+	}
+
+	/* RFC 6614 SS2.1/SS2.5, RFC 7360 SS2.2: one connection carries every
+	 * packet type. A Disconnect-Request/CoA-Request arriving here is
+	 * never the reply this exchange is waiting for -- hand it to lib/
+	 * dae.c's RadSec pipeline right here, exactly as tls_recvfrom()'s own
+	 * inline demux does, and report "not ready yet"; a genuine reply
+	 * queued right behind it is picked up on the next call. */
+	if (ret >= 1 &&
+	    (((const uint8_t *)buf)[0] == RADCLI_DISCONNECT_REQUEST ||
+	     ((const uint8_t *)buf)[0] == RADCLI_COA_REQUEST)) {
+		radcli2_priv_dae_on_radsec_packet(st->rh, buf, (size_t)ret);
+		return 0;
+	}
+
+	if (ret <= 0) {
+		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__, gnutls_strerror(ret));
+		st->ctx.need_restart = 1;
+		return -1;
+	}
+
+	st->ctx.last_msg = time(0);
+	return ret;
+}
 
 /*- This function will deinitialize a previously initialed DTLS or TLS session.
  *
@@ -632,7 +982,7 @@ void rc_deinit_tls(rc_handle * rh)
 	int ns_def_hdl = 0;
 
 	if (st) {
-		ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+		ns = rc_conf_str_id(rh, OPT_NAMESPACE); /* Check for namespace config */
 		if (ns != NULL) {
 			if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
 				rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
@@ -666,9 +1016,9 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	int ret;
 	tls_st *st = NULL;
 	struct sockaddr_storage our_sockaddr;
-	const char *ca_file = rc_conf_str(rh, "tls-ca-file");
-	const char *cert_file = rc_conf_str(rh, "tls-cert-file");
-	const char *key_file = rc_conf_str(rh, "tls-key-file");
+	const char *ca_file = rc_conf_str_id(rh, OPT_TLS_CA_FILE);
+	const char *cert_file = rc_conf_str_id(rh, OPT_TLS_CERT_FILE);
+	const char *key_file = rc_conf_str_id(rh, OPT_TLS_KEY_FILE);
 	const char *pskkey = NULL;
 	SERVER *authservers;
 	char hostname[256];	/* server's hostname */
@@ -678,7 +1028,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 
 	memset(&rh->so, 0, sizeof(rh->so));
 
-	ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+	ns = rc_conf_str_id(rh, OPT_NAMESPACE); /* Check for namespace config */
 	if (ns != NULL) {
 		if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
 			rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
@@ -751,7 +1101,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	}
 
 	/* Read the PSK key if any */
-	authservers = rc_conf_srv(rh, "authserver");
+	authservers = radcli2_priv_conf_srv(rh, "authserver");
 	if (authservers == NULL) {
 		rc_log(LOG_ERR,
 		       "%s: cannot find authserver", __func__);
@@ -767,6 +1117,89 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	}
 	strlcpy(hostname, authservers->name[0], sizeof(hostname));
 	port = authservers->port[0];
+
+	if (rh->tls_psk_key != NULL) {
+		/* radcli2.h's radcli_ctx_set_tls_psk(): identity/key set directly
+		 * as bytes, not parsed out of a "psk@user@hexkey" secret string --
+		 * takes priority over authservers->secret[0] below if both are
+		 * somehow set. */
+		gnutls_datum_t rawkey;
+
+		ret = gnutls_psk_allocate_client_credentials(&st->psk_cred);
+		if (ret < 0) {
+			ret = -1;
+			rc_log(LOG_ERR,
+			       "%s: error in setting PSK credentials: %s",
+			       __func__, gnutls_strerror(ret));
+			goto cleanup;
+		}
+
+		rawkey.data = rh->tls_psk_key;
+		rawkey.size = rh->tls_psk_key_len;
+
+		ret = gnutls_psk_set_client_credentials(st->psk_cred,
+							 rh->tls_psk_identity ? rh->tls_psk_identity : "",
+							 &rawkey, GNUTLS_PSK_KEY_RAW);
+		if (ret < 0) {
+			ret = -1;
+			rc_log(LOG_ERR,
+			       "%s: error in setting PSK key: %s",
+			       __func__, gnutls_strerror(ret));
+			goto cleanup;
+		}
+
+		goto psk_done;
+	}
+
+	{
+		/* Config-file equivalent of radcli_ctx_set_tls_psk(): identity as
+		 * plain text, key as hex text (RC_OPTION_TABLE's tls-psk-identity/
+		 * tls-psk-key, radcli-defs.h) -- takes priority over authservers->
+		 * secret[0]'s embedded "psk@username@hexkey" form below, but not
+		 * over rh->tls_psk_key set via the API call above. GNUTLS_PSK_KEY_HEX
+		 * lets gnutls parse the hex text directly, so no manual decoding
+		 * is needed here. */
+		const char *psk_identity = rc_conf_str_id(rh, OPT_TLS_PSK_IDENTITY);
+		const char *psk_key = rc_conf_str_id(rh, OPT_TLS_PSK_KEY);
+
+		if ((psk_identity != NULL) != (psk_key != NULL)) {
+			ret = -1;
+			rc_log(LOG_ERR,
+			       "%s: tls-psk-identity and tls-psk-key must both be set",
+			       __func__);
+			goto cleanup;
+		}
+
+		if (psk_identity != NULL && psk_key != NULL) {
+			gnutls_datum_t hexkey;
+
+			hexkey.data = (uint8_t *)psk_key;
+			hexkey.size = strlen(psk_key);
+
+			ret = gnutls_psk_allocate_client_credentials(&st->psk_cred);
+			if (ret < 0) {
+				ret = -1;
+				rc_log(LOG_ERR,
+				       "%s: error in setting PSK credentials: %s",
+				       __func__, gnutls_strerror(ret));
+				goto cleanup;
+			}
+
+			ret = gnutls_psk_set_client_credentials(st->psk_cred,
+								 psk_identity, &hexkey,
+								 GNUTLS_PSK_KEY_HEX);
+			if (ret < 0) {
+				ret = -1;
+				rc_log(LOG_ERR,
+				       "%s: error in setting PSK key: %s",
+				       __func__, gnutls_strerror(ret));
+				goto cleanup;
+			}
+
+			goto psk_done;
+		}
+	}
+
 	if (authservers->secret[0])
 		pskkey = authservers->secret[0];
 
@@ -829,6 +1262,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 		}
 	}
 
+ psk_done:
 	/* Defer TCP connect + TLS handshake to first use.
 	 * tls_sendto() checks need_restart != 0 and calls restart_session(),
 	 * which calls init_session() with these stored parameters. */
@@ -867,6 +1301,75 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 		rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
 	}
 	return ret;
+}
+
+#else /* !HAVE_GNUTLS */
+
+/* No-GnuTLS-build stubs: TLS/DTLS is never in use, so these report that
+ * unconditionally rather than implementing the HAVE_GNUTLS versions'
+ * behavior above. */
+
+int radcli2_priv_tls_fd(rc_handle * rh)
+{
+	return -1;
+}
+
+time_t radcli2_priv_tls_last_msg(rc_handle * rh)
+{
+	(void)rh;
+	return 0;
+}
+
+time_t radcli2_priv_tls_last_recv(rc_handle * rh)
+{
+	(void)rh;
+	return 0;
+}
+
+int radcli2_priv_tls_force_reconnect(rc_handle * rh)
+{
+	(void)rh;
+	return -1;
+}
+
+int radcli2_priv_check_tls(rc_handle * rh)
+{
+	return 0;
+}
+
+int radcli2_priv_tls_ensure_connected(rc_handle *rh)
+{
+	(void)rh;
+	return -1;
+}
+
+int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
+{
+	(void)rh;
+	(void)buf;
+	(void)cap;
+	return 0;
+}
+
+void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
+{
+	(void)rh;
+}
+
+int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
+{
+	(void)rh;
+	(void)buf;
+	(void)len;
+	return -1;
+}
+
+int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
+{
+	(void)rh;
+	(void)buf;
+	(void)cap;
+	return -1;
 }
 
 #endif

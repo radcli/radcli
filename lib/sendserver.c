@@ -13,11 +13,13 @@
 
 #include <includes.h>
 #include <radcli/radcli.h>
-#include <pathnames.h>
 #include <poll.h>
+#include "dict2.h"
+#include "options.h"
 #include "util.h"
-#include "rc-md5.h"
-#include "rc-hmac.h"
+#include "avp.h"
+#include "rc-crypto.h"
+#include "rc-random.h"
 
 #if defined(HAVE_GNUTLS)
 # include <gnutls/gnutls.h>
@@ -29,177 +31,31 @@
 #endif
 
 
-#define SCLOSE(fd) if (sfuncs->close_fd) sfuncs->close_fd(fd)
+/* Resets fd to -1 after closing so a later unconditional cleanup (e.g. the
+ * shared `cleanup:` label's `if (sockfd >= 0) SCLOSE(sockfd)`) cannot close
+ * the same descriptor a second time. */
+#define SCLOSE(fd) do { if (sfuncs->close_fd) sfuncs->close_fd(fd); (fd) = -1; } while (0)
 
-/// @cond INTERNAL
-static void rc_random_vector(unsigned char[AUTH_VECTOR_LEN]);
-/// @endcond
-/// @cond INTERNAL
-static int rc_check_reply(AUTH_HDR *, int, char const *, unsigned char const *,
-			  unsigned char);
-/// @endcond
+/* rc_check_reply(), populate_ctx(), add_msg_auth_attr(),
+ * validate_message_authenticator() are declared in include/includes.h (no
+ * longer static): they operate purely on raw bytes/AUTH_HDR/secret/vector,
+ * never on VALUE_PAIR, so radcli_transport_exchange() below reuses them
+ * directly instead of reimplementing the same RFC 2865 SS3 Response
+ * Authenticator and Message-Authenticator/Blast-RADIUS logic a second
+ * time. */
 
-/**
- * @defgroup radcli-api Main API
- * @brief Main API Functions
+/*- Allocate and fill an RC_AAA_CTX capturing the secret/vector used for a
+ * sent request, if the caller asked for one.
  *
- * @{
- */
-
-/* Packs an attribute value pair list into a buffer
- *
- * @param vp a pointer to a VALUE_PAIR.
- * @param secret the secret used by the server.
- * @param auth a pointer to AUTH_HDR.
- * @param max_len maximum total packet length in bytes (header + attributes);
- *        callers must subtract any bytes appended after this call (e.g. 18
- *        bytes for Message-Authenticator on auth requests).
- * @return The number of octets packed, or -1 if any attribute value exceeds
- *         253 bytes or the packet would exceed max_len.
- */
-/// @cond INTERNAL
-int rc_pack_list(VALUE_PAIR * vp, char *secret, AUTH_HDR * auth, int max_len)
-{
-	int length, i, pc, padded_length;
-	size_t secretlen;
-	uint32_t lvalue, vendor;
-	unsigned char passbuf[RC_MAX(AUTH_PASS_LEN, CHAP_VALUE_LENGTH)];
-	unsigned char md5buf[MAX_SECRET_LENGTH + AUTH_VECTOR_LEN];
-	unsigned char *vector;
-	pkt_buf pb;
-	uint8_t *attr_start, *attr_len_ptr, *vsa_len_ptr;
-
-	/* head = start of RADIUS packet; tail starts after the fixed header;
-	 * pb_written() will return the total packet length (header + attrs). */
-	pb.head = (uint8_t *)auth;
-	pb.data = (uint8_t *)auth;
-	pb.tail = auth->data;
-	pb.end  = (uint8_t *)auth + max_len;
-
-	while (vp != NULL) {
-		vsa_len_ptr = NULL;
-		unsigned max_vlen = AUTH_STRING_LEN;        /* 253: RFC 2865 per-attribute value limit */
-
-		if (VENDOR(vp->attribute) != 0) {
-			max_vlen = AUTH_STRING_LEN - VSA_HDR_LEN; /* 247: VSA envelope consumes 6 bytes */
-			if (pb_put_byte(&pb, PW_VENDOR_SPECIFIC) < 0) goto too_large;
-			vsa_len_ptr = pb.tail;
-			if (pb_put_byte(&pb, 6) < 0) goto too_large;
-			vendor = htonl(VENDOR(vp->attribute));
-			if (pb_put_bytes(&pb, &vendor, sizeof(uint32_t)) < 0) goto too_large;
-		}
-
-		attr_start = pb.tail;
-		if (pb_put_byte(&pb, vp->attribute & 0xff) < 0) goto too_large;
-		attr_len_ptr = pb.tail;
-		if (pb_put_byte(&pb, 2) < 0) goto too_large;  /* placeholder; patched below */
-
-		switch (vp->attribute) {
-		case PW_USER_PASSWORD:
-			length = vp->lvalue;
-			if (length > AUTH_PASS_LEN)
-				length = AUTH_PASS_LEN;
-			padded_length =
-			    (length + (AUTH_VECTOR_LEN - 1)) & ~(AUTH_VECTOR_LEN - 1);
-
-			if (pb.tail + padded_length > pb.end) goto too_large;
-
-			/* Pad the password with zeros */
-			memset((char *)passbuf, '\0', AUTH_PASS_LEN);
-			memcpy((char *)passbuf, vp->strvalue, (size_t) length);
-
-			secretlen = strlen(secret);
-			if (secretlen > MAX_SECRET_LENGTH)
-				secretlen = MAX_SECRET_LENGTH;
-			vector = (unsigned char *)auth->vector;
-			for (i = 0; i < padded_length; i += AUTH_VECTOR_LEN) {
-				/* Build hash input: secret || vector */
-				memcpy(md5buf, secret, secretlen);
-				memcpy(md5buf + secretlen, vector, AUTH_VECTOR_LEN);
-				rc_md5_calc(pb.tail, md5buf, secretlen + AUTH_VECTOR_LEN);
-
-				/* Remember the start of the digest */
-				vector = pb.tail;
-
-				/* Xor the password into the MD5 digest */
-				for (pc = i; pc < (i + AUTH_VECTOR_LEN); pc++)
-					*pb.tail++ ^= passbuf[pc];
-			}
-			break;
-
-		default:
-			switch (vp->type) {
-			case PW_TYPE_STRING:
-			case PW_TYPE_IPV6PREFIX:
-				if (vp->lvalue > max_vlen) goto too_large;
-				if (pb_put_bytes(&pb, vp->strvalue, (int)vp->lvalue) < 0)
-					goto too_large;
-				break;
-
-			case PW_TYPE_IPV6ADDR:
-				if (pb_put_bytes(&pb, vp->strvalue, 16) < 0)
-					goto too_large;
-				break;
-
-			case PW_TYPE_INTEGER:
-			case PW_TYPE_IPADDR:
-			case PW_TYPE_DATE:
-				lvalue = htonl(vp->lvalue);
-				if (pb_put_bytes(&pb, &lvalue, sizeof(uint32_t)) < 0)
-					goto too_large;
-				break;
-
-			default:
-				break;
-			}
-			break;
-		}
-
-		/* Patch back lengths: attr_len = type(1) + len(1) + value */
-		*attr_len_ptr = (uint8_t)(pb.tail - attr_start);
-		if (vsa_len_ptr != NULL)
-			*vsa_len_ptr += *attr_len_ptr;
-
-		vp = vp->next;
-	}
-	return (int)pb_written(&pb);  /* total packet bytes: AUTH_HDR_LEN + attrs */
-
-too_large:
-	rc_log(LOG_ERR, "rc_pack_list: attribute value too large or packet would exceed %d bytes", max_len);
-	return -1;
-}
-/// @endcond
-
-/* Appends a string to the provided buffer
- *
- * @param dest the destination buffer.
- * @param max_size the maximum size available in the destination buffer.
- * @param pos the current position in the dest buffer; initially must be zero.
- * @param src the source buffer to append.
- */
-/// @cond INTERNAL
-static void strappend(char *dest, unsigned max_size, int *pos, const char *src)
-{
-	unsigned len = strlen(src) + 1;
-
-	if (*pos == -1)
-		return;
-
-	if (len + *pos > max_size) {
-		*pos = -1;
-		return;
-	}
-
-	memcpy(&dest[*pos], src, len);
-	*pos += len - 1;
-	return;
-}
-/// @endcond
-
-
-/// @cond INTERNAL
-static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
-			uint8_t vector[AUTH_VECTOR_LEN])
+ * @param ctx if non-NULL and *ctx is NULL, allocated and filled; a no-op
+ * if ctx is NULL.
+ * @param secret the shared secret used for the request.
+ * @param vector the request authenticator vector used for the request.
+ * @return OK_RC on success (including the ctx == NULL no-op case),
+ * ERROR_RC if *ctx is already non-NULL or allocation failed.
+ -*/
+int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
+		 uint8_t vector[AUTH_VECTOR_LEN])
 {
 	if (ctx) {
 		if (*ctx != NULL)
@@ -216,35 +72,18 @@ static int populate_ctx(RC_AAA_CTX ** ctx, char secret[MAX_SECRET_LENGTH + 1],
 	}
 	return OK_RC;
 }
-/// @endcond
-
-/** @brief Sends a request to a RADIUS server and waits for the reply
- *
- * @param rh a handle to parsed configuration
- * @param data a pointer to a SEND_DATA structure
- * @param msg must be an array of %PW_MAX_MSG_SIZE or NULL; will contain the concatenation of
- *	any %PW_REPLY_MESSAGE received.
- * @param type must be %AUTH or %ACCT
- * @return OK_RC (0) on success, TIMEOUT_RC on timeout REJECT_RC on access reject, or negative
- *	on failure as return value.
- */
-int rc_send_server(rc_handle * rh, SEND_DATA * data, char *msg, rc_type type)
-{
-	return rc_send_server_ctx(rh, NULL, data, msg, type, 0);
-}
-
-/* Verify items in returned packet
+/*- Verify a reply packet's length, sequence number, and Response
+ * Authenticator digest.
  *
  * @param auth a pointer to AUTH_HDR.
  * @param bufferlen the available buffer length.
  * @param secret the secret used by the server.
- * @param vector a random vector of %AUTH_VECTOR_LEN.
+ * @param vector a random vector of AUTH_VECTOR_LEN.
  * @param seq_nbr a unique sequence number.
  * @return OK_RC upon success, BADRESP_RC if anything looks funny.
- */
-/// @cond INTERNAL
-static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
-			  unsigned char const *vector, uint8_t seq_nbr)
+ -*/
+int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
+		   unsigned char const *vector, uint8_t seq_nbr)
 {
 	int secretlen;
 	int totallen;
@@ -290,44 +129,21 @@ static int rc_check_reply(AUTH_HDR * auth, int bufferlen, char const *secret,
 	return OK_RC;
 
 }
-/// @endcond
 
-/* Generates a random vector of AUTH_VECTOR_LEN octets
+/*- Add a Message-Authenticator attribute to a message. Mandatory, for
+ * example, when sending a message containing an EAP-Message attribute.
  *
- * @param vector a buffer with at least %AUTH_VECTOR_LEN bytes.
- */
-/// @cond INTERNAL
-static void rc_random_vector(unsigned char vector[AUTH_VECTOR_LEN])
+ * @param rh a handle to parsed configuration.
+ * @param secret the server's secret string.
+ * @param auth pointer to the AUTH_HDR structure.
+ * @param total_length total packet length before Message-Authenticator is
+ * added.
+ * @return total packet length after Message-Authenticator is added.
+ -*/
+int add_msg_auth_attr(rc_handle * rh, char * secret,
+		      AUTH_HDR *auth, int total_length)
 {
-#if defined(HAVE_GNUTLS)
-	int ret = gnutls_rnd(GNUTLS_RND_NONCE, vector, AUTH_VECTOR_LEN);
-	assert(ret >= 0);
-#else
-	int ret = getentropy(vector, AUTH_VECTOR_LEN);
-	assert(ret == 0);
-#endif
-}
-/// @endcond
-
-/** @} */
-
-
-/** Add a Message-Authenticator attribute to a message. This is mandatory,
- *  for example, when sending a message containing an EAP-Message
- *  attribute.
- *
- * @param rh - A handle to parsed configuration
- * @param secret - The server's secret string
- * @param auth - Pointer to the AUTH_HDR structure
- * @param total_length - Total packet length before Message Authenticator
- *                is added.
- *
- * @return Total packet length after Message Authenticator is added.
- */
-static int add_msg_auth_attr(rc_handle * rh, char * secret,
-			AUTH_HDR *auth, int total_length)
-{
-	size_t secretlen = strlen(secret);
+	size_t secretlen = rc_secret_len(secret);
 	uint8_t *msg_auth = (uint8_t *)auth + total_length;
 	msg_auth[0] = PW_MESSAGE_AUTHENTICATOR;
 	msg_auth[1] = 18;
@@ -343,19 +159,22 @@ static int add_msg_auth_attr(rc_handle * rh, char * secret,
 	return total_length;
 }
 
-/** Validate the Message-Authenticator attribute
+/*- Validate a reply's Message-Authenticator attribute (RFC 2869 §5.14,
+ * RFC 3579 §3.2).
  *
- * @param recv_buffer The original packet
- * @param length The length of the attribute data (packet length minus AUTH_HDR_LEN)
- * @param secret The RADIUS secret
- * @param req_auth The request authenticator from the Access-Request (RFC 3579 §3.2
- *   requires MA in responses to be computed over the packet with the Request
- *   Authenticator in the Authenticator field, not the Response Authenticator)
- * @return zero on success, other values for failure
- */
-static int validate_message_authenticator(const uint8_t *recv_buffer,
-					  size_t length, const char *secret,
-					  const unsigned char *req_auth)
+ * @param recv_buffer the original packet.
+ * @param length the length of the attribute data (packet length minus
+ * AUTH_HDR_LEN).
+ * @param secret the RADIUS secret.
+ * @param req_auth the request authenticator from the Access-Request (RFC
+ * 3579 §3.2 requires MA in responses to be computed over the packet with
+ * the Request Authenticator in the Authenticator field, not the Response
+ * Authenticator).
+ * @return zero on success, other values for failure.
+ -*/
+int validate_message_authenticator(const uint8_t *recv_buffer,
+				   size_t length, const char *secret,
+				   const unsigned char *req_auth)
 {
 	uint8_t verify_buffer[RC_BUFFER_LEN];
 	pkt_buf vb;
@@ -399,104 +218,263 @@ static int validate_message_authenticator(const uint8_t *recv_buffer,
 	if (!ma_found)
 		return -1;
 
-	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, strlen(secret), digest);
+	rc_hmac_md5(verify_buffer, AUTH_HDR_LEN + length, (uint8_t *)secret, rc_secret_len(secret), digest);
 	return rc_memcmp(ma_copy, digest, MD5_DIGEST_SIZE);
 }
 
-/** Sends a request to a RADIUS server and waits for the reply
+/*- Representation-agnostic RADIUS request/reply exchange.
  *
- * @param rh a handle to parsed configuration
- * @param ctx if non-NULL it will contain the context of sent request; It must be released using rc_aaa_ctx_free().
- * @param data a pointer to a SEND_DATA structure.
- * @param msg must be an array of %PW_MAX_MSG_SIZE or NULL; will contain the concatenation of
- *	any %PW_REPLY_MESSAGE received.
- * @param type must be %AUTH or %ACCT
- * @param no_wait if non-zero, the request is transmitted once and this
- *  function returns OK_RC immediately without waiting for or expecting a
- *  reply; @c data->timeout and @c data->retries are not consulted in that
- *  case. Used by rc_acct_async() for best-effort, non-blocking
- *  notifications. TIMEOUT_RC is never returned when @p no_wait is set.
- * @return OK_RC (0) on success, CHALLENGE_RC when an Access-Challenge
- *  response is received, TIMEOUT_RC on timeout, REJECT_RC on access reject,
- *  or negative on failure as return value.
- */
-int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
-		       char *msg, rc_type type, int no_wait)
+ * Resolves server_name to every A/AAAA address it has and tries each in
+ * turn -- a fresh socket and re-derived source address per attempt, since
+ * a name can resolve to a mix of address families -- retrying up to
+ * `retries` times before moving to the next address. send_buf is a
+ * complete, pre-encoded packet (header included); code, Identifier, and
+ * Request Authenticator are read straight from its header rather than
+ * passed separately. mgmt_secret picks the resolution path: non-zero
+ * resolves server_name to an address only (rc_getaddrinfo()) and uses
+ * secret as given (the "management poll" case); zero resolves both
+ * address and secret via radcli2_priv_find_server_addr(), which overwrites secret
+ * if server_name matches a configured authserver/acctserver entry.
+ * no_wait is fire-and-forget (REQ-NET-NET-017): send once to the first
+ * resolved address and return without waiting for a reply.
+ *
+ * On a reply, validates framing, the Response Authenticator
+ * (rc_check_reply()), and -- for AUTH over UDP/TCP -- the
+ * Message-Authenticator and its Blast-RADIUS first-attribute position
+ * (validate_message_authenticator()). On success the reply's attribute
+ * region (header stripped) is left in recv_buf[0 .. *recv_len); this
+ * function does not encode or decode individual attributes.
+ *
+ * Deliberately does NOT scrub secret before returning: secret is caller
+ * memory (radcli_do_exchange() passes radcli2's own persistent r->secret
+ * through here by reference, not a copy), and this function has no way to
+ * know whether the caller is done with it -- radcli_do_exchange()'s own
+ * caller (radcli_request_perform()) still needs it one call later, to
+ * decode the very reply this function just validated. Wiping it here (as
+ * an earlier version of this function did) zeroed r->secret before that
+ * decode ran, silently corrupting any salt-encrypted reply attribute
+ * (Tunnel-Password, MS-MPPE-*-Key -- RFC 2868 SS3.5). Each caller that
+ * owns a secret buffer is responsible for clearing it once IT is actually
+ * done: rc_send_server_ctx() (lib/legacy/send.c) at its own end of
+ * function, radcli_request_free() (lib/request.c) at r's end of life.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param ctx if non-NULL, receives the context of the sent request; release with rc_aaa_ctx_free().
+ * @param server_name the server to resolve and contact.
+ * @param svc_port overrides the resolved port when non-zero.
+ * @param secret the shared secret; see mgmt_secret for how it is used/resolved.
+ * @param mgmt_secret non-zero for the "management poll" resolution path (see above).
+ * @param timeout per-address, per-attempt reply wait, in seconds.
+ * @param retries additional attempts per address after the first (0 = one attempt per address, no retry).
+ * @param no_wait fire-and-forget; see above.
+ * @param type AUTH or ACCT; selects the Message-Authenticator/Blast-RADIUS check.
+ * @param send_buf the complete, pre-built, pre-encoded packet to send.
+ * @param send_len send_buf's length in bytes.
+ * @param recv_buf destination for the reply's attribute region.
+ * @param recv_buf_cap recv_buf's capacity in bytes.
+ * @param recv_len set to the reply's attribute region length on success.
+ * @param out_code if non-NULL, set to the reply's raw wire Code octet
+ *  (e.g. PW_ACCESS_ACCEPT) whenever recv_len is also set, i.e. on
+ *  OK_RC/REJECT_RC/CHALLENGE_RC/BADRESP_RC; left untouched otherwise.
+ * @return OK_RC (0) on success, CHALLENGE_RC on Access-Challenge, TIMEOUT_RC
+ *  if every address's retries are exhausted, REJECT_RC on reject, or
+ *  negative on failure.
+ -*/
+/*- Validate and decode a reply already known to have the right Identifier
+ * and Response Authenticator (rc_check_reply() returned OK_RC) into
+ * recv_buf's attribute region, exactly as radcli_transport_exchange()'s own
+ * `got_reply:` block used to do inline. Factored out so
+ * radcli_transport_service_async() below can reuse the identical RFC
+ * 2865/2869/Blast-RADIUS validation instead of a second copy.
+ * secret/vector/type/server_name/svc_port are as radcli_transport_exchange()
+ * received them; recv_buf/recv_buf_cap/recv_len/out_code are as documented
+ * on radcli_transport_exchange() itself.
+ *
+ * Despite the above, this function does not simply trust its callers for the
+ * one property that would otherwise abort() the process if violated: whether
+ * recv_auth->length is at least AUTH_HDR_LEN. Both call sites only bound
+ * recv_auth->length against the bytes actually received, not against
+ * AUTH_HDR_LEN itself, and rc_check_reply()'s OK_RC does establish it -- but
+ * this function is static with exactly two callers, and REQ-GEN-STYLE-009
+ * treats a cross-function invariant on wire-controlled data as one reorg
+ * away from silently breaking, not as a fact to assert. Checked explicitly
+ * below instead.
+ *
+ * @return OK_RC/REJECT_RC/CHALLENGE_RC/BADRESP_RC/ERROR_RC -- never
+ *  TIMEOUT_RC or BADRESPID_RC, which are decided by the caller before this
+ *  is reached. A BADRESP_RC return here is this function's own verdict (an
+ *  unrecognized reply code), unrelated to rc_check_reply()'s BADRESP_RC,
+ *  which the caller must have already turned away before calling in.
+ -*/
+static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name,
+			unsigned short svc_port, rc_type type,
+			char secret[MAX_SECRET_LENGTH + 1], const unsigned char *vector,
+			uint8_t *recv_buf, size_t recv_buf_cap,
+			size_t *recv_len, uint8_t *out_code)
 {
-	int sockfd = -1;
-	AUTH_HDR *auth, *recv_auth;
-	char *server_name, *p;	/* Name of server to query */
-	struct sockaddr_storage our_sockaddr;
-	struct addrinfo *auth_addr = NULL;
-	socklen_t salen;
-	int result = 0;
-	int total_length;
-	int length, pos;
-	int retry_max;
-	const rc_sockets_override *sfuncs;
-	unsigned discover_local_ip;
-	size_t secretlen;
-	char secret[MAX_SECRET_LENGTH + 1];
-	unsigned char vector[AUTH_VECTOR_LEN];
-	uint8_t recv_buffer[RC_BUFFER_LEN];
-	uint8_t send_buffer[RC_BUFFER_LEN];
-	uint16_t tlen;
+	AUTH_HDR *recv_auth = (AUTH_HDR *)recv_buf;
+	int length = ntohs(recv_auth->length);
 	pkt_buf rb;
 	uint8_t attr_type, attr_len;
-	int retries;
-	VALUE_PAIR *vp;
-	struct pollfd pfd;
-	double start_time, timeout;
-	struct sockaddr_storage *ss_set = NULL;
-	char *server_type = "auth";
+	int result;
+
+	if ((size_t)length > recv_buf_cap)
+		length = (int)recv_buf_cap;
+
+	/* Verify it's a well-formed RADIUS packet before doing ANYTHING with it. */
+	pb_init_read(&rb, recv_buf, length, recv_buf_cap);
+	if (pb_pull(&rb, AUTH_HDR_LEN) != 0) {
+		rc_log(LOG_ERR, "%s: %s:%d: reply shorter than the RADIUS header",
+		       __func__, server_name, svc_port);
+		return ERROR_RC;
+	}
+	while (pb_len(&rb) > 0) {
+		if (pb_peek_byte(&rb, 0, &attr_type) < 0 || pb_peek_byte(&rb, 1, &attr_len) < 0) {
+			rc_log(LOG_ERR, "%s: %s:%d: truncated attribute", __func__, server_name, svc_port);
+			return ERROR_RC;
+		}
+		if (attr_type == 0) {
+			rc_log(LOG_ERR, "%s: %s:%d: attribute zero is invalid", __func__, server_name, svc_port);
+			return ERROR_RC;
+		}
+		if (attr_len < 2) {
+			rc_log(LOG_ERR, "%s: %s:%d: attribute length is too small", __func__, server_name, svc_port);
+			return ERROR_RC;
+		}
+		if (attr_len > pb_len(&rb)) {
+			rc_log(LOG_ERR, "%s: %s:%d: attribute overflows the packet", __func__, server_name, svc_port);
+			return ERROR_RC;
+		}
+		assert(pb_pull(&rb, attr_len) == 0);
+	}
+
+	length = ntohs(recv_auth->length) - AUTH_HDR_LEN;
+	if (length < 0)
+		length = 0;
+
+	result = populate_ctx(ctx, secret, (unsigned char *)vector);
+	if (result != OK_RC)
+		return result;
+
+	/* Per draft-ietf-radext-deprecating-radius, Message-Authenticator MUST
+	 * be the first attribute in Access-Request responses (BLAST RADIUS).
+	 * Not required for Accounting-Response. Unchanged from
+	 * rc_send_server_ctx()'s own, identical check (f6f2487). */
+	if (type == AUTH) {
+		pkt_buf mb;
+		uint8_t mtype, mlen;
+		int has_ma = 0;
+
+		pb_init_read(&mb, recv_buf + AUTH_HDR_LEN, (size_t)length, (size_t)length);
+		while (pb_len(&mb) > 0) {
+			assert(pb_peek_byte(&mb, 0, &mtype) == 0);
+			assert(pb_peek_byte(&mb, 1, &mlen) == 0);
+			if (mtype == PW_MESSAGE_AUTHENTICATOR) {
+				has_ma = 1;
+				break;
+			}
+			assert(pb_pull(&mb, mlen) == 0);
+		}
+
+		if (has_ma) {
+			if (validate_message_authenticator(recv_buf, (size_t)length, secret, vector)) {
+				rc_log(LOG_ERR, "%s: %s:%d: received attribute Message-Authenticator is incorrect",
+				       __func__, server_name, svc_port);
+				return ERROR_RC;
+			}
+		}
+
+		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS) {
+			if (length == 0 || recv_buf[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
+				char *p = rc_conf_str_id(rh, OPT_REQUIRE_MESSAGE_AUTHENTICATOR);
+				if (p == NULL || (strcasecmp(p, "false") != 0 &&
+						  strcasecmp(p, "no") != 0)) {
+					rc_log(LOG_ERR, "%s: %s:%d: required attribute Message-Authenticator "
+					       "is missing or not first", __func__, server_name, svc_port);
+					return ERROR_RC;
+				}
+			}
+		}
+	}
+
+	{
+		uint8_t code = recv_auth->code; /* memmove() below invalidates recv_auth */
+
+		*recv_len = (size_t)length;
+		if (out_code)
+			*out_code = code;
+		if (recv_buf_cap > (size_t)AUTH_HDR_LEN)
+			memmove(recv_buf, recv_buf + AUTH_HDR_LEN, (size_t)length);
+
+		switch (code) {
+		case PW_ACCESS_ACCEPT:
+		case PW_PASSWORD_ACK:
+		case PW_ACCOUNTING_RESPONSE:
+			return OK_RC;
+		case PW_ACCESS_REJECT:
+		case PW_PASSWORD_REJECT:
+			return REJECT_RC;
+		case PW_ACCESS_CHALLENGE:
+			return CHALLENGE_RC;
+		default:
+			rc_log(LOG_ERR, "%s: received RADIUS server response neither ACCEPT nor "
+			       "REJECT, code=%d is invalid", __func__, code);
+			return BADRESP_RC;
+		}
+	}
+}
+
+int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
+			      char *server_name, unsigned short svc_port,
+			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
+			      int timeout, int retries, int no_wait, rc_type type,
+			      const uint8_t *send_buf, int send_len,
+			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
+			      uint8_t *out_code)
+{
+	struct addrinfo *auth_addr = NULL, *cur_addr;
+	const rc_sockets_override *sfuncs;
+	int sockfd = -1;
+	int result = 0;
 	char *ns = NULL;
 	int ns_def_hdl = 0;
+	char *server_type = (type == ACCT) ? "acct" : "auth";
+	const unsigned char *vector = send_buf + 4; /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
+	uint8_t seq_nbr = send_buf[1];
 
-	server_name = data->server;
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
+	if (send_len < AUTH_HDR_LEN)
+		return ERROR_RC;
 
-	ns = rc_conf_str(rh, "namespace"); /* Check for namespace config */
+	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
 	if (ns != NULL) {
-		if(-1 == rc_set_netns(ns, &ns_def_hdl)) {
-			rc_log(LOG_ERR, "rc_send_server: namespace %s set failed", ns);
+		if (-1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "radcli_transport_exchange: namespace %s set failed", ns);
 			return ERROR_RC;
 		}
 	}
-	if ((vp = rc_avpair_get(data->send_pairs, PW_SERVICE_TYPE, 0)) &&
-	    (vp->lvalue == PW_ADMINISTRATIVE)) {
-		strlcpy(secret, MGMT_POLL_SECRET, sizeof(secret));
-		auth_addr =
-		    rc_getaddrinfo(server_name,
-				   type == AUTH ? PW_AI_AUTH : PW_AI_ACCT);
+
+	if (mgmt_secret) {
+		auth_addr = rc_getaddrinfo(server_name, type == AUTH ? PW_AI_AUTH : PW_AI_ACCT);
 		if (auth_addr == NULL) {
 			result = ERROR_RC;
 			goto exit_error;
 		}
 	} else {
-		if (data->secret != NULL) {
-			strlcpy(secret, data->secret, sizeof(secret));
-		}
-		/*
-		   else
-		   {
-		 */
-		if (rc_find_server_addr
-		    (rh, server_name, &auth_addr, secret, type) != 0) {
-			rc_log(LOG_ERR,
-			       "rc_send_server: unable to find server: %s",
+		if (radcli2_priv_find_server_addr(rh, server_name, &auth_addr, secret, type) != 0) {
+			rc_log(LOG_ERR, "radcli_transport_exchange: unable to find server: %s",
 			       server_name);
 			result = ERROR_RC;
 			goto exit_error;
 		}
-		/*} */
 	}
 
 	sfuncs = &rh->so;
 
 	if (sfuncs->static_secret) {
-		/* any static secret set in sfuncs overrides the configured */
-		strlcpy(secret, sfuncs->static_secret, sizeof(secret));
+		/* any static secret set in sfuncs overrides the configured/resolved one */
+		strlcpy(secret, sfuncs->static_secret, MAX_SECRET_LENGTH + 1);
 	}
 
 	if (sfuncs->lock) {
@@ -507,465 +485,516 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 		}
 	}
 
-	rc_own_bind_addr(rh, &our_sockaddr);
-	discover_local_ip = 0;
-	if (our_sockaddr.ss_family == AF_INET) {
-		if (((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr ==
-		    INADDR_ANY) {
+	result = TIMEOUT_RC; /* if every address is unreachable/times out */
+
+	for (cur_addr = auth_addr; cur_addr != NULL; cur_addr = cur_addr->ai_next) {
+		struct sockaddr_storage our_sockaddr;
+		unsigned discover_local_ip;
+		int retry_max = retries;
+		int this_retries = 0;
+
+		if (svc_port) {
+			if (cur_addr->ai_family == AF_INET)
+				((struct sockaddr_in *)cur_addr->ai_addr)->sin_port = htons(svc_port);
+			else
+				((struct sockaddr_in6 *)cur_addr->ai_addr)->sin6_port = htons(svc_port);
+		}
+
+		rc_own_bind_addr(rh, &our_sockaddr);
+		discover_local_ip = 0;
+		if (our_sockaddr.ss_family == AF_INET &&
+		    ((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr == INADDR_ANY)
 			discover_local_ip = 1;
-		}
-	}
 
-	DEBUG(LOG_ERR, "DEBUG: rc_send_server: creating socket to: %s",
-	      server_name);
-	if (discover_local_ip) {
-		result = rc_get_srcaddr(SA(&our_sockaddr), auth_addr->ai_addr);
-		if (result != OK_RC) {
-			memset(secret, '\0', sizeof(secret));
-			rc_log(LOG_ERR,
-			       "rc_send_server: cannot figure our own address");
-			goto cleanup;
+		if (discover_local_ip) {
+			result = radcli2_priv_get_srcaddr(SA(&our_sockaddr), cur_addr->ai_addr);
+			if (result != OK_RC) {
+				rc_log(LOG_ERR, "radcli_transport_exchange: cannot figure our own address");
+				continue; /* try the next resolved address, if any */
+			}
 		}
-	}
 
-	if (sfuncs->get_fd) {
-		sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
-		if (sockfd < 0) {
-			memset(secret, '\0', sizeof(secret));
-			rc_log(LOG_ERR, "rc_send_server: socket: %s",
-			       strerror(errno));
-			result = ERROR_RC;
-			goto cleanup;
+		if (sfuncs->get_fd) {
+			sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
+			if (sockfd < 0) {
+				rc_log(LOG_ERR, "radcli_transport_exchange: socket: %s", strerror(errno));
+				result = ERROR_RC;
+				continue;
+			}
 		}
-	}
 
-	if(our_sockaddr.ss_family  == AF_INET6) {
-		/* Check for IPv6 non-temporary address support */
-		char *non_temp_addr = rc_conf_str(rh, "use-public-addr");
-		if (non_temp_addr && (strcasecmp(non_temp_addr, "true") == 0)) {
+		if (our_sockaddr.ss_family == AF_INET6) {
+			char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
+			if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
 #if defined(__linux__)
-			int sock_opt = IPV6_PREFER_SRC_PUBLIC;
-			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
-					&sock_opt, sizeof(sock_opt)) != 0) {
-				rc_log(LOG_ERR, "rc_send_server: setsockopt: %s",
-					strerror(errno));
-				result = ERROR_RC;
-				goto cleanup;
-			}
-#elif defined(BSD) || defined(__APPLE__)
-			int sock_opt = 0;
-			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
-				&sock_opt, sizeof(sock_opt)) != 0) {
-				rc_log(LOG_ERR, "rc_send_server: setsockopt: %s",
-					strerror(errno));
-				result = ERROR_RC;
-				goto cleanup;
-			}
-#else
-			rc_log(LOG_INFO, "rc_send_server: Usage of non-temporary IPv6"
-					" address is not supported in this system");
-#endif
-		}
-	}
-
-	retry_max = data->retries;	/* Max. numbers to try for reply */
-	retries = 0;		/* Init retry cnt for blocking call */
-
-	if (data->svc_port) {
-		if (our_sockaddr.ss_family == AF_INET)
-			((struct sockaddr_in *)auth_addr->ai_addr)->sin_port =
-			    htons((unsigned short)data->svc_port);
-		else
-			((struct sockaddr_in6 *)auth_addr->ai_addr)->sin6_port =
-			    htons((unsigned short)data->svc_port);
-	}
-
-	/*
-	 * Fill in NAS-IP-Address (if needed)
-	 */
-	if (rh->nas_addr_set) {
-		rc_avpair_remove(&(data->send_pairs), PW_NAS_IP_ADDRESS, 0);
-		rc_avpair_remove(&(data->send_pairs), PW_NAS_IPV6_ADDRESS, 0);
-
-		ss_set = &rh->nas_addr;
-	} else if (rc_avpair_get(data->send_pairs, PW_NAS_IP_ADDRESS, 0) == NULL &&
-	    	   rc_avpair_get(data->send_pairs, PW_NAS_IPV6_ADDRESS, 0) == NULL) {
-
-	    	ss_set = &our_sockaddr;
-	}
-
-	if (ss_set) {
-		if (ss_set->ss_family == AF_INET) {
-			uint32_t ip;
-			ip = *((uint32_t
-				*) (&((struct sockaddr_in *)ss_set)->
-				    sin_addr));
-			ip = ntohl(ip);
-
-			rc_avpair_add(rh, &(data->send_pairs),
-				      PW_NAS_IP_ADDRESS, &ip, 0, 0);
-		} else {
-			void *p;
-			p = &((struct sockaddr_in6 *)ss_set)->sin6_addr;
-
-			rc_avpair_add(rh, &(data->send_pairs),
-				      PW_NAS_IPV6_ADDRESS, p, 16, 0);
-		}
-	}
-
-	/*
-	 * Fill in NAS-Identifier (if needed)
-	 */
-	p = rc_conf_str(rh, "nas-identifier");
-	if (p != NULL) {
-		rc_avpair_remove(&(data->send_pairs), PW_NAS_IDENTIFIER, 0);
-		rc_avpair_add(rh, &(data->send_pairs),
-			      PW_NAS_IDENTIFIER, p, -1, 0);
-	}
-
-	/* Build a request */
-	auth = (AUTH_HDR *) send_buffer;
-	auth->code = data->code;
-	auth->id = data->seq_nbr;
-
-	if (data->code == PW_ACCOUNTING_REQUEST) {
-		server_type = "acct";
-		total_length = rc_pack_list(data->send_pairs, secret, auth, RC_MAX_PACKET_LEN);
-		if (total_length < 0) {
-			result = ERROR_RC;
-			goto cleanup;
-		}
-
-		tlen = htons((unsigned short)total_length);
-		memcpy(&auth->length, &tlen, sizeof(uint16_t));
-
-		memset((char *)auth->vector, 0, AUTH_VECTOR_LEN);
-		secretlen = strlen(secret);
-		memcpy((char *)auth + total_length, secret, secretlen);
-		rc_md5_calc(vector, (unsigned char *)auth,
-			    total_length + secretlen);
-		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
-	} else {
-		rc_random_vector(vector);
-		memcpy((char *)auth->vector, (char *)vector, AUTH_VECTOR_LEN);
-
-		/* Leave 2+MD5_DIGEST_SIZE bytes for Message-Authenticator (added below) */
-		total_length = rc_pack_list(data->send_pairs, secret, auth,
-					    RC_MAX_PACKET_LEN - (2 + MD5_DIGEST_SIZE));
-		if (total_length < 0) {
-			result = ERROR_RC;
-			goto cleanup;
-		}
-
-		total_length = add_msg_auth_attr(rh, secret, auth, total_length);
-
-		auth->length = htons((unsigned short)total_length);
-	}
-
-	if (radcli_debug) {
-		char our_addr_txt[50] = "";	/* hold a text IP */
-		char auth_addr_txt[50] = "";	/* hold a text IP */
-
-		getnameinfo(SA(&our_sockaddr), SS_LEN(&our_sockaddr), NULL, 0,
-			    our_addr_txt, sizeof(our_addr_txt), NI_NUMERICHOST);
-		getnameinfo(auth_addr->ai_addr, auth_addr->ai_addrlen, NULL, 0,
-			    auth_addr_txt, sizeof(auth_addr_txt),
-			    NI_NUMERICHOST);
-
-		DEBUG(LOG_ERR,
-		      "DEBUG: timeout=%d retries=%d local %s : 0, remote %s : %u\n",
-		      data->timeout, retry_max, our_addr_txt, auth_addr_txt,
-		      data->svc_port);
-	}
-
-	for (;;) {
-		do {
-			result =
-			    sfuncs->sendto(sfuncs->ptr, sockfd, (char *)auth,
-					   (unsigned int)total_length, (int)0,
-					   SA(auth_addr->ai_addr),
-					   auth_addr->ai_addrlen);
-		} while (result == -1 && errno == EINTR);
-		if (result == -1) {
-			result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
-			rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__,
-			       strerror(errno));
-			goto cleanup;
-		}
-
-		if (no_wait) {
-			/* Fire-and-forget: no reply to wait for, so close the
-			 * socket and capture the request's own secret/vector
-			 * (REQ-NET-TEARDOWN-001, REQ-NET-SEC-009) right here,
-			 * instead of falling through to the receive/switch
-			 * path below that expects a parsed response. */
-			SCLOSE(sockfd);
-			result = populate_ctx(ctx, secret, vector);
-			memset(secret, '\0', sizeof(secret));
-			if (result != OK_RC)
-				goto cleanup;
-			result = OK_RC;
-			goto cleanup;
-		}
-
-		/* Re-fetch fd: sendto() may have triggered a TLS session
-		 * restart (restart_session), replacing the underlying socket. */
-		if (sfuncs->get_active_fd) {
-			int new_fd = sfuncs->get_active_fd(sfuncs->ptr);
-			if (new_fd >= 0)
-				sockfd = new_fd;
-		}
-		pfd.fd = sockfd;
-		pfd.events = POLLIN;
-		pfd.revents = 0;
-		start_time = rc_getmtime();
-		for (timeout = data->timeout; timeout > 0;
-		     timeout -= rc_getmtime() - start_time) {
-			result = poll(&pfd, 1, timeout * 1000);
-			if (result != -1 || errno != EINTR)
-				break;
-		}
-
-		if (result == -1) {
-			rc_log(LOG_ERR, "rc_send_server: poll: %s",
-			       strerror(errno));
-			memset(secret, '\0', sizeof(secret));
-			SCLOSE(sockfd);
-			result = ERROR_RC;
-			goto cleanup;
-		}
-
-		if (result == 1 && (pfd.revents & POLLIN) != 0) {
-			salen = auth_addr->ai_addrlen;
-			do {
-				length = sfuncs->recvfrom(sfuncs->ptr, sockfd,
-							  (char *)recv_buffer,
-							  (int)
-							  sizeof(recv_buffer),
-							  (int)0,
-							  SA(auth_addr->
-							     ai_addr), &salen);
-			} while (length == -1 && errno == EINTR);
-
-			if (length <= 0) {
-				int e = errno;
-				rc_log(LOG_ERR,
-				       "rc_send_server: recvfrom: %s:%d: %s",
-				       server_name, data->svc_port,
-				       strerror(e));
-				if (length == -1 && (e == EAGAIN || e == EINTR))
+				int sock_opt = IPV6_PREFER_SRC_PUBLIC;
+				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
+					       &sock_opt, sizeof(sock_opt)) != 0) {
+					rc_log(LOG_ERR, "radcli_transport_exchange: setsockopt: %s",
+					       strerror(errno));
+					result = ERROR_RC;
+					SCLOSE(sockfd);
 					continue;
+				}
+#elif defined(BSD) || defined(__APPLE__)
+				int sock_opt = 0;
+				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
+					       &sock_opt, sizeof(sock_opt)) != 0) {
+					rc_log(LOG_ERR, "radcli_transport_exchange: setsockopt: %s",
+					       strerror(errno));
+					result = ERROR_RC;
+					SCLOSE(sockfd);
+					continue;
+				}
+#else
+				rc_log(LOG_INFO, "radcli_transport_exchange: Usage of non-temporary "
+				       "IPv6 address is not supported in this system");
+#endif
+			}
+		}
+
+		if (rh->debug) {
+			char our_addr_txt[50] = "", addr_txt[50] = "";
+
+			getnameinfo(SA(&our_sockaddr), SS_LEN(&our_sockaddr), NULL, 0,
+				    our_addr_txt, sizeof(our_addr_txt), NI_NUMERICHOST);
+			getnameinfo(cur_addr->ai_addr, cur_addr->ai_addrlen, NULL, 0,
+				    addr_txt, sizeof(addr_txt), NI_NUMERICHOST);
+			DEBUG(rh, LOG_ERR,
+			      "DEBUG: radcli_transport_exchange: timeout=%d retries=%d local %s : 0, "
+			      "remote %s : %u\n", timeout, retry_max, our_addr_txt, addr_txt, svc_port);
+		}
+
+		for (;;) {
+			socklen_t salen;
+			int recv_length;
+			struct pollfd pfd;
+			double start_time, poll_timeout;
+
+			do {
+				result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
+							(unsigned int)send_len, 0,
+							SA(cur_addr->ai_addr), cur_addr->ai_addrlen);
+			} while (result == -1 && errno == EINTR);
+			if (result == -1) {
+				result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
+				rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__, strerror(errno));
+				break; /* try the next address */
+			}
+
+			if (no_wait) {
 				SCLOSE(sockfd);
-				memset(secret, '\0', sizeof(secret));
-				result = ERROR_RC;
-				goto cleanup;
+				result = populate_ctx(ctx, secret, (unsigned char *)vector);
+				goto cleanup; /* first address only -- no reply to judge a retry by */
 			}
 
-			recv_auth = (AUTH_HDR *) recv_buffer;
+			if (sfuncs->get_active_fd) {
+				int new_fd = sfuncs->get_active_fd(sfuncs->ptr);
+				if (new_fd >= 0)
+					sockfd = new_fd;
+			}
+			pfd.fd = sockfd;
+			pfd.events = POLLIN;
+			pfd.revents = 0;
+			start_time = rc_getmtime();
+			for (poll_timeout = timeout; poll_timeout > 0;
+			     poll_timeout -= rc_getmtime() - start_time) {
+				result = poll(&pfd, 1, poll_timeout * 1000);
+				if (result != -1 || errno != EINTR)
+					break;
+			}
 
-			if (length < AUTH_HDR_LEN
-			    || length < ntohs(recv_auth->length)) {
-				rc_log(LOG_ERR,
-				       "rc_send_server: recvfrom: %s:%d: reply is too short",
-				       server_name, data->svc_port);
+			if (result == -1) {
+				rc_log(LOG_ERR, "radcli_transport_exchange: poll: %s", strerror(errno));
 				SCLOSE(sockfd);
-				memset(secret, '\0', sizeof(secret));
 				result = ERROR_RC;
 				goto cleanup;
 			}
 
-			result =
-			    rc_check_reply(recv_auth, RC_BUFFER_LEN, secret,
-					   vector, data->seq_nbr);
-			if (result != BADRESPID_RC) {
-				/* if a message that doesn't match our ID was received, then ignore
-				 * it, and try to receive more, until timeout. That is because in
-				 * DTLS the channel is shared, and we may receive duplicates or
-				 * out-of-order packets. */
-				break;
-			}
-		}
+			if (result == 1 && (pfd.revents & POLLIN) != 0) {
+				salen = cur_addr->ai_addrlen;
+				do {
+					recv_length = sfuncs->recvfrom(sfuncs->ptr, sockfd,
+									(char *)recv_buf,
+									(int)recv_buf_cap, 0,
+									SA(cur_addr->ai_addr), &salen);
+				} while (recv_length == -1 && errno == EINTR);
 
-		/*
-		 * Timed out waiting for response.  Retry "retry_max" times
-		 * before giving up.  If retry_max = 0, don't retry at all.
-		 */
-		if (retries++ >= retry_max) {
-			char radius_server_ip[128];
-			struct sockaddr_in *si =
-			    (struct sockaddr_in *)auth_addr->ai_addr;
-			inet_ntop(auth_addr->ai_family, &si->sin_addr,
-				  radius_server_ip, sizeof(radius_server_ip));
-			rc_log(LOG_ERR,
-			       "rc_send_server: no reply from RADIUS %s server %s:%u",
-			       server_type, radius_server_ip, data->svc_port);
-			SCLOSE(sockfd);
-			memset(secret, '\0', sizeof(secret));
-			result = TIMEOUT_RC;
-			goto cleanup;
-		}
-	}
-
-	/*
-	 *      If UDP is larger than RADIUS, shorten it to RADIUS.
-	 */
-	if (length > ntohs(recv_auth->length))
-		length = ntohs(recv_auth->length);
-
-	/*
-	 *      Verify that it's a valid RADIUS packet before doing ANYTHING with it.
-	 */
-	pb_init_read(&rb, recv_buffer, length, RC_BUFFER_LEN);
-	assert(pb_pull(&rb, AUTH_HDR_LEN) == 0);
-	while (pb_len(&rb) > 0) {
-		if (pb_peek_byte(&rb, 0, &attr_type) < 0 ||
-		    pb_peek_byte(&rb, 1, &attr_len)  < 0) {
-			rc_log(LOG_ERR,
-			       "rc_send_server: recvfrom: %s:%d: truncated attribute",
-			       server_name, data->svc_port);
-			SCLOSE(sockfd);
-			memset(secret, '\0', sizeof(secret));
-			result = ERROR_RC;
-			goto cleanup;
-		}
-		if (attr_type == 0) {
-			rc_log(LOG_ERR,
-			       "rc_send_server: recvfrom: %s:%d: attribute zero is invalid",
-			       server_name, data->svc_port);
-			SCLOSE(sockfd);
-			memset(secret, '\0', sizeof(secret));
-			result = ERROR_RC;
-			goto cleanup;
-		}
-		if (attr_len < 2) {
-			rc_log(LOG_ERR,
-			       "rc_send_server: recvfrom: %s:%d: attribute length is too small",
-			       server_name, data->svc_port);
-			SCLOSE(sockfd);
-			memset(secret, '\0', sizeof(secret));
-			result = ERROR_RC;
-			goto cleanup;
-		}
-		if (attr_len > pb_len(&rb)) {
-			rc_log(LOG_ERR,
-			       "rc_send_server: recvfrom: %s:%d: attribute overflows the packet",
-			       server_name, data->svc_port);
-			SCLOSE(sockfd);
-			memset(secret, '\0', sizeof(secret));
-			result = ERROR_RC;
-			goto cleanup;
-		}
-		assert(pb_pull(&rb, attr_len) == 0);
-	}
-
-	length = ntohs(recv_auth->length) - AUTH_HDR_LEN;
-	if (length > 0) {
-		data->receive_pairs = rc_avpair_gen(rh, NULL, recv_auth->data,
-						    length, 0);
-	} else {
-		data->receive_pairs = NULL;
-	}
-
-	SCLOSE(sockfd);
-	result = populate_ctx(ctx, secret, vector);
-	if (result != OK_RC) {
-		memset(secret, '\0', sizeof(secret));
-		goto cleanup;
-	}
-
-	/* Per draft-ietf-radext-deprecating-radius, Message-Authenticator MUST
-	 * be the first attribute in Access-Request responses to prevent MD5
-	 * prefix attacks (BLAST RADIUS). Not required for Accounting-Response. */
-	if (type == AUTH) {
-		/* Verify MA whenever present, regardless of position.
-		 * An incorrect MA always causes rejection. */
-		if (rc_avpair_get(data->receive_pairs, PW_MESSAGE_AUTHENTICATOR, 0)) {
-			if (validate_message_authenticator(recv_buffer, length, secret, vector)) {
-				rc_log(LOG_ERR,
-				       "rc_send_server: recvfrom: %s:%d: received attribute Message-Authenticator is incorrect",
-				       server_name, data->svc_port);
-				memset(secret, '\0', sizeof(secret));
-				result = ERROR_RC;
-				goto cleanup;
-			}
-		}
-
-		/* Enforce BLAST RADIUS: MA must also be the first attribute.
-		 * Per draft-ietf-radext-deprecating-radius-10 Section 4, this
-		 * mitigation MUST be applied to RADIUS/UDP and RADIUS/TCP, and
-		 * MUST NOT be applied to RADIUS/TLS or RADIUS/DTLS: those
-		 * transports are already integrity-protected end-to-end, so the
-		 * MD5-prefix collision this guards against isn't reachable. */
-		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS) {
-			if (length == 0 ||
-			    recv_buffer[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
-				p = rc_conf_str(rh, "require-message-authenticator");
-				if (p == NULL || (strcasecmp(p, "false") != 0 && strcasecmp(p, "no") != 0)) {
-					rc_log(LOG_ERR,
-					       "rc_send_server: recvfrom: %s:%d: required attribute Message-Authenticator is missing or not first",
-					       server_name, data->svc_port);
-					memset(secret, '\0', sizeof(secret));
+				if (recv_length <= 0) {
+					int e = errno;
+					rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: %s:%d: %s",
+					       server_name, svc_port, strerror(e));
+					if (recv_length == -1 && (e == EAGAIN || e == EINTR))
+						continue;
+					SCLOSE(sockfd);
 					result = ERROR_RC;
 					goto cleanup;
 				}
+
+				{
+					AUTH_HDR *recv_auth = (AUTH_HDR *)recv_buf;
+
+					if (recv_length < AUTH_HDR_LEN ||
+					    recv_length < ntohs(recv_auth->length)) {
+						rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: "
+						       "%s:%d: reply is too short", server_name, svc_port);
+						SCLOSE(sockfd);
+						result = ERROR_RC;
+						goto cleanup;
+					}
+
+					result = rc_check_reply(recv_auth, (int)recv_buf_cap, secret,
+								vector, seq_nbr);
+					if (result == OK_RC)
+						goto got_reply; /* out of both loops */
+					/* BADRESPID_RC (some other packet arrived, e.g. a stale
+					 * retransmit's answer) and BADRESP_RC (bad length or
+					 * Response Authenticator -- possibly spoofed) are both
+					 * treated as "not our reply yet": keep waiting rather
+					 * than handing an unverified packet to decode_reply(),
+					 * which trusts its caller to have already validated it
+					 * (REQ-GEN-STYLE-009). */
+				}
+			}
+
+			if (this_retries++ >= retry_max) {
+				char server_ip[128];
+				struct sockaddr_in *si = (struct sockaddr_in *)cur_addr->ai_addr;
+
+				inet_ntop(cur_addr->ai_family, &si->sin_addr, server_ip, sizeof(server_ip));
+				rc_log(LOG_ERR, "radcli_transport_exchange: no reply from RADIUS "
+				       "%s server %s:%u", server_type, server_ip, svc_port);
+				result = TIMEOUT_RC;
+				break; /* try the next address */
 			}
 		}
+
+		SCLOSE(sockfd);
 	}
 
-	memset(secret, '\0', sizeof(secret));
+	/* Every resolved address was tried without a valid reply. */
+	goto cleanup_nosock;
 
-	if (msg) {
-		*msg = '\0';
-		pos = 0;
-		vp = data->receive_pairs;
-		while (vp) {
-			if ((vp = rc_avpair_get(vp, PW_REPLY_MESSAGE, 0))) {
-				strappend(msg, PW_MAX_MSG_SIZE, &pos,
-					  vp->strvalue);
-				strappend(msg, PW_MAX_MSG_SIZE, &pos, "\n");
-				vp = vp->next;
-			}
-		}
-	}
-
-	switch (recv_auth->code) {
-	case PW_ACCESS_ACCEPT:
-	case PW_PASSWORD_ACK:
-	case PW_ACCOUNTING_RESPONSE:
-		result = OK_RC;
-		break;
-
-	case PW_ACCESS_REJECT:
-	case PW_PASSWORD_REJECT:
-		result = REJECT_RC;
-		break;
-
-	case PW_ACCESS_CHALLENGE:
-		result = CHALLENGE_RC;
-		break;
-
-	default:
-		rc_log(LOG_ERR, "rc_send_server: received RADIUS server response neither ACCEPT nor REJECT, code=%d is invalid",
-		       recv_auth->code);
-		result = BADRESP_RC;
-	}
+ got_reply:
+	result = decode_reply(rh, ctx, server_name, svc_port, type, secret, vector,
+			      recv_buf, recv_buf_cap, recv_len, out_code);
 
  cleanup:
+	if (sockfd >= 0)
+		SCLOSE(sockfd);
+ cleanup_nosock:
 	if (auth_addr)
 		freeaddrinfo(auth_addr);
-
 	if (sfuncs->unlock) {
-		if (sfuncs->unlock(sfuncs->ptr) != 0) {
+		if (sfuncs->unlock(sfuncs->ptr) != 0)
 			rc_log(LOG_ERR, "%s: unlock error", __func__);
-		}
 	}
  exit_error:
 	if (ns != NULL) {
-		if(-1 == rc_reset_netns(&ns_def_hdl)) {
-			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
+		if (-1 == rc_reset_netns(&ns_def_hdl)) {
+			rc_log(LOG_ERR, "radcli_transport_exchange: namespace %s reset failed", ns);
 			result = ERROR_RC;
 		}
 	}
 
 	return result;
 }
+
+/* See lib/includes.h's doc comment. */
+int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short svc_port,
+				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
+				const uint8_t *send_buf, int send_len,
+				int timeout, int retries,
+				struct radcli_async_send_st *out)
+{
+	struct addrinfo *auth_addr = NULL;
+	const rc_sockets_override *sfuncs;
+	struct sockaddr_storage our_sockaddr;
+	unsigned discover_local_ip;
+	char *ns = NULL;
+	int ns_def_hdl = 0;
+	int sockfd = -1;
+	int result;
+
+	memset(out, 0, sizeof(*out));
+
+	if (server_name == NULL || server_name[0] == '\0')
+		return ERROR_RC;
+	if (send_len < AUTH_HDR_LEN || (size_t)send_len > sizeof(out->send_buf))
+		return ERROR_RC;
+
+	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
+	if (ns != NULL) {
+		if (-1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+			return ERROR_RC;
+		}
+	}
+
+	if (radcli2_priv_find_server_addr(rh, server_name, &auth_addr, secret, type) != 0) {
+		rc_log(LOG_ERR, "%s: unable to find server: %s", __func__, server_name);
+		result = ERROR_RC;
+		goto exit_error;
+	}
+
+	sfuncs = &rh->so;
+
+	if (sfuncs->static_secret)
+		strlcpy(secret, sfuncs->static_secret, MAX_SECRET_LENGTH + 1);
+
+	if (sfuncs->lock) {
+		if (sfuncs->lock(sfuncs->ptr) != 0) {
+			rc_log(LOG_ERR, "%s: lock error", __func__);
+			result = ERROR_RC;
+			goto fail_unlocked;
+		}
+	}
+
+	if (svc_port) {
+		if (auth_addr->ai_family == AF_INET)
+			((struct sockaddr_in *)auth_addr->ai_addr)->sin_port = htons(svc_port);
+		else
+			((struct sockaddr_in6 *)auth_addr->ai_addr)->sin6_port = htons(svc_port);
+	}
+
+	rc_own_bind_addr(rh, &our_sockaddr);
+	discover_local_ip = 0;
+	if (our_sockaddr.ss_family == AF_INET &&
+	    ((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr == INADDR_ANY)
+		discover_local_ip = 1;
+
+	if (discover_local_ip) {
+		result = radcli2_priv_get_srcaddr(SA(&our_sockaddr), auth_addr->ai_addr);
+		if (result != OK_RC) {
+			rc_log(LOG_ERR, "%s: cannot figure our own address", __func__);
+			result = ERROR_RC;
+			goto fail;
+		}
+	}
+
+	if (sfuncs->get_fd) {
+		sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
+		if (sockfd < 0) {
+			rc_log(LOG_ERR, "%s: socket: %s", __func__, strerror(errno));
+			result = ERROR_RC;
+			goto fail;
+		}
+	}
+
+	if (our_sockaddr.ss_family == AF_INET6) {
+		char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
+		if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
+#if defined(__linux__)
+			int sock_opt = IPV6_PREFER_SRC_PUBLIC;
+			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
+				       &sock_opt, sizeof(sock_opt)) != 0) {
+				rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+				result = ERROR_RC;
+				goto fail;
+			}
+#elif defined(BSD) || defined(__APPLE__)
+			int sock_opt = 0;
+			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
+				       &sock_opt, sizeof(sock_opt)) != 0) {
+				rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+				result = ERROR_RC;
+				goto fail;
+			}
+#else
+			rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
+			       "supported in this system", __func__);
+#endif
+		}
+	}
+
+	do {
+		result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
+					(unsigned int)send_len, 0,
+					SA(auth_addr->ai_addr), auth_addr->ai_addrlen);
+	} while (result == -1 && errno == EINTR);
+	if (result == -1) {
+		rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
+		result = ERROR_RC;
+		goto fail;
+	}
+
+	out->rh = rh;
+	out->sfuncs = sfuncs;
+	out->active = 1;
+	out->sockfd = sockfd;
+	memcpy(&out->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
+	out->peer_len = auth_addr->ai_addrlen;
+	memcpy(out->send_buf, send_buf, (size_t)send_len);
+	out->send_len = send_len;
+	memcpy(out->vector, send_buf + 4, AUTH_VECTOR_LEN); /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
+	out->seq_nbr = send_buf[1];
+	strlcpy(out->secret, secret, sizeof(out->secret));
+	strlcpy(out->server_name, server_name, sizeof(out->server_name));
+	out->svc_port = svc_port;
+	out->type = type;
+	out->timeout = timeout > 0 ? timeout : 1;
+	out->retries_left = retries;
+	out->deadline = rc_getmtime() + out->timeout;
+
+	result = OK_RC;
+	goto exit_ok;
+
+ fail:
+	if (sockfd >= 0 && sfuncs->close_fd)
+		sfuncs->close_fd(sockfd);
+	if (sfuncs->unlock)
+		sfuncs->unlock(sfuncs->ptr);
+ fail_unlocked:
+	memset(secret, '\0', MAX_SECRET_LENGTH + 1);
+ exit_ok:
+	if (auth_addr)
+		freeaddrinfo(auth_addr);
+ exit_error:
+	if (ns != NULL) {
+		if (-1 == rc_reset_netns(&ns_def_hdl))
+			rc_log(LOG_ERR, "%s: namespace %s reset failed", __func__, ns);
+	}
+	return result;
+}
+
+/* See lib/includes.h's doc comment. */
+int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready,
+				   uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
+				   uint8_t *out_code)
+{
+	char *ns;
+	int ns_def_hdl = 0;
+	int result;
+
+	if (st == NULL || !st->active)
+		return ERROR_RC;
+
+	ns = rc_conf_str_id(st->rh, OPT_NAMESPACE);
+
+	if (fd_ready) {
+		int sockfd = st->sockfd;
+		int recv_length;
+		socklen_t salen = st->peer_len;
+
+		if (st->sfuncs->get_active_fd) {
+			int new_fd = st->sfuncs->get_active_fd(st->sfuncs->ptr);
+			if (new_fd >= 0)
+				sockfd = st->sockfd = new_fd;
+		}
+
+		if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+			result = ERROR_RC;
+			goto terminal;
+		}
+
+		if (st->rh->so_type == RC_SOCKET_TLS || st->rh->so_type == RC_SOCKET_DTLS) {
+			recv_length = radcli2_priv_tls_try_recv(st->rh, recv_buf, (size_t)recv_buf_cap);
+		} else {
+			do {
+				recv_length = st->sfuncs->recvfrom(st->sfuncs->ptr, sockfd, (char *)recv_buf,
+								   (int)recv_buf_cap, 0,
+								   SA(&st->peer), &salen);
+			} while (recv_length == -1 && errno == EINTR);
+			if (recv_length == -1 && errno == EAGAIN)
+				recv_length = 0; /* not ready yet -- same "0 = not ready" contract
+						  * radcli2_priv_tls_try_recv() uses */
+		}
+
+		if (ns != NULL)
+			rc_reset_netns(&ns_def_hdl);
+
+		if (recv_length < 0) {
+			rc_log(LOG_ERR, "%s: recvfrom: %s:%d: %s", __func__,
+			       st->server_name, st->svc_port, strerror(errno));
+			result = ERROR_RC;
+			goto terminal;
+		}
+
+		if (recv_length > 0) {
+			AUTH_HDR *recv_auth = (AUTH_HDR *)recv_buf;
+
+			if (recv_length < AUTH_HDR_LEN || recv_length < ntohs(recv_auth->length)) {
+				rc_log(LOG_ERR, "%s: %s:%d: reply is too short", __func__,
+				       st->server_name, st->svc_port);
+				result = ERROR_RC;
+				goto terminal;
+			}
+
+			result = rc_check_reply(recv_auth, (int)recv_buf_cap, st->secret,
+						st->vector, st->seq_nbr);
+			if (result == OK_RC) {
+				result = decode_reply(st->rh, NULL, st->server_name, st->svc_port,
+						      st->type, st->secret, st->vector,
+						      recv_buf, recv_buf_cap, recv_len, out_code);
+				goto terminal;
+			}
+			/* BADRESPID_RC (some other packet arrived, e.g. a stale
+			 * retransmit's answer) and BADRESP_RC (bad length or Response
+			 * Authenticator -- possibly spoofed) both keep waiting rather
+			 * than handing an unverified packet to decode_reply(), matching
+			 * the blocking loop's own "if (result == OK_RC) goto got_reply;"
+			 * (REQ-GEN-STYLE-009). */
+		}
+	}
+
+	if (rc_getmtime() < st->deadline)
+		return RADCLI_ASYNC_AGAIN;
+
+	if (st->retries_left-- <= 0) {
+		rc_log(LOG_ERR, "%s: no reply from RADIUS server %s:%u", __func__,
+		       st->server_name, st->svc_port);
+		result = TIMEOUT_RC;
+		goto terminal;
+	}
+
+	if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
+		rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+		result = ERROR_RC;
+		goto terminal;
+	}
+	{
+		int sresult;
+
+		do {
+			sresult = st->sfuncs->sendto(st->sfuncs->ptr, st->sockfd,
+						     (const char *)st->send_buf, (unsigned int)st->send_len,
+						     0, SA(&st->peer), st->peer_len);
+		} while (sresult == -1 && errno == EINTR);
+		if (ns != NULL)
+			rc_reset_netns(&ns_def_hdl);
+		if (sresult == -1) {
+			rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
+			result = ERROR_RC;
+			goto terminal;
+		}
+	}
+	st->deadline = rc_getmtime() + st->timeout;
+	return RADCLI_ASYNC_AGAIN;
+
+ terminal:
+	if (st->sfuncs->close_fd)
+		st->sfuncs->close_fd(st->sockfd);
+	st->sockfd = -1;
+	if (st->sfuncs->unlock)
+		st->sfuncs->unlock(st->sfuncs->ptr);
+	memset(st->secret, '\0', sizeof(st->secret));
+	st->active = 0;
+	return result;
+}
+
+/* See lib/includes.h's doc comment. */
+void radcli_transport_async_abort(struct radcli_async_send_st *st)
+{
+	if (st == NULL || !st->active)
+		return;
+
+	if (st->sfuncs->close_fd)
+		st->sfuncs->close_fd(st->sockfd);
+	st->sockfd = -1;
+	if (st->sfuncs->unlock)
+		st->sfuncs->unlock(st->sfuncs->ptr);
+	memset(st->secret, '\0', sizeof(st->secret));
+	st->active = 0;
+}
+

@@ -34,6 +34,20 @@ static inline int rc_memcmp(const void *s1, const void *s2, size_t n)
 #endif
 }
 
+/* The shared secret's length, capped to MAX_SECRET_LENGTH (radcli.h):
+ * the one place every secret-into-a-fixed-buffer computation (RFC 2865
+ * SS5.2 User-Password/salt encryption, Request/Response Authenticator,
+ * Message-Authenticator HMAC key) must get its length from, so a
+ * configured secret longer than MAX_SECRET_LENGTH is truncated
+ * consistently everywhere instead of overflowing a MAX_SECRET_LENGTH-sized
+ * stack buffer in whichever call site forgot to clamp it locally. */
+static inline size_t rc_secret_len(const char *secret)
+{
+	size_t len = strlen(secret);
+
+	return len > MAX_SECRET_LENGTH ? (size_t)MAX_SECRET_LENGTH : len;
+}
+
 /* Use rc_strlcpy when there is no system strlcpy, or when compiling under MSan:
  * glibc's strlcpy has no MSan interceptor so it leaves shadow bits unset. */
 #if !defined(HAVE_STRLCPY) || __has_feature(memory_sanitizer)
@@ -90,9 +104,7 @@ int rc_reset_netns(int *prev_ns_handle);
 # endif
 #endif
 
-extern unsigned int radcli_debug;
-
-#define		DEBUG(args...)	if(radcli_debug) rc_log(args)
+#define		DEBUG(rh, args...)	if((rh)->debug) rc_log(args)
 
 /* sk_buff-style packet buffer.
  *

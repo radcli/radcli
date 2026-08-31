@@ -1,4 +1,4 @@
-install_headers('radcli/radcli.h', subdir: 'radcli')
+install_headers('radcli/radcli.h', 'radcli/radcli2.h', 'radcli/radcli-defs.h', subdir: 'radcli')
 
 if get_option('legacy-compat')
   install_headers('freeradius-client.h', 'radiusclient-ng.h')
