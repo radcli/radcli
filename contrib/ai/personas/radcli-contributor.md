@@ -39,8 +39,10 @@ The vtable is set at config time: UDP uses `default_socket_funcs`, TCP uses
 `default_tcp_socket_funcs`, TLS/DTLS use GnuTLS wrappers in `lib/tls.c`.
 
 **Ask yourself before coding:**
-- Does my change touch the RADIUS packet format? → `lib/sendserver.c`, `lib/buildreq.c`
-- Does it touch attribute handling? → `lib/avpair.c`, `lib/dict.c`
+- Does my change touch the RADIUS packet format? → `lib/sendserver.c`, `lib/legacy/buildreq.c`
+- Does it touch attribute handling? → `lib/avp.c` (new radcli2 API); `lib/legacy/avpair.c` +
+  `lib/legacy/avp-legacy-bridge.c` (old radcli API, implemented as a shim over `lib/avp.c`)
+- Does it touch dictionary parsing/lookup? → `lib/dict2.c` + `lib/dict2-parse.c` (canonical); `lib/legacy/dict.c` (old API shim)
 - Does it touch TLS/DTLS? → `lib/tls.c` (GnuTLS-guarded by `#ifdef HAVE_GNUTLS`)
 - Does it touch config parsing? → `lib/config.c`
 - Does it add a public API? → `include/radcli/radcli.h` + `lib/radcli.map`

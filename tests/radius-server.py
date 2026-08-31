@@ -204,13 +204,24 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
     # 'wrong':  MA value stays as 16 zero bytes — deliberately incorrect
     # 'absent': no MA attribute at all
 
+    if attrs_mode == 'short-header-length':
+        # Lie about the header's own Length field (claim 5 bytes, under the
+        # 20-byte RADIUS header) while the actual UDP datagram sent is a
+        # normal, full-size reply. Regresses the sendserver.c decode_reply()
+        # bug fixed under REQ-GEN-STYLE-009: rc_check_reply() flags this as
+        # BADRESP_RC (length < 20), but the earlier gating logic let it
+        # through anyway, and decode_reply() then asserted totallen >=
+        # AUTH_HDR_LEN and aborted the client process.
+        packet = struct.pack('!BBH', ACCESS_ACCEPT, ident, 5) + packet[4:]
+
     return packet
 
-def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0'):
+    family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
+    sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('0.0.0.0', port))
-    print(f"radius-server: listening on port {port}, msg-auth={msg_auth_mode}, "
+    sock.bind((bind_addr, port))
+    print(f"radius-server: listening on {bind_addr}:{port}, msg-auth={msg_auth_mode}, "
           f"attrs={attrs_mode}, no-reply={no_reply}", flush=True)
 
     while True:
@@ -293,7 +304,7 @@ def main():
     parser.add_argument('--attrs', dest='attrs',
                         choices=['normal', 'malformed-type-zero', 'malformed-len-one',
                                  'malformed-overflow', 'unknown-attrs', 'int-badlen',
-                                 'vsa-unknown-subattrs'],
+                                 'vsa-unknown-subattrs', 'short-header-length'],
                         default='normal')
     parser.add_argument('--transport', choices=['udp', 'tls'], default='udp')
     parser.add_argument('--tls-cert', help='PEM certificate file (required for --transport tls)')
@@ -302,6 +313,9 @@ def main():
                         help='Log each received Access-/Accounting-Request but send no response '
                              '(models a slow/unresponsive accounting server for testing a '
                              'non-blocking client path). UDP transport only.')
+    parser.add_argument('--bind', default='0.0.0.0',
+                        help='Local address to bind to (default 0.0.0.0). An address '
+                             'containing \':\' selects AF_INET6, e.g. \'::1\'. UDP transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
@@ -311,7 +325,7 @@ def main():
             parser.error('--no-reply is only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
-        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply)
+        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind)
 
 if __name__ == '__main__':
     main()

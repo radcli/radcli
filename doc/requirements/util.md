@@ -11,12 +11,8 @@ sources:
   - lib/util.h
   - lib/ip_util.c
   - lib/log.c
-  - lib/md5.c
-  - lib/rc-md5.c
-  - lib/rc-md5.h
-  - lib/hmac.c
-  - lib/rc-hmac.h
-  - lib/nettle-hmac.c
+  - lib/rc-crypto.c
+  - lib/rc-crypto.h
   - include/radcli/radcli.h
   - lib/radcli.map.in
 ---
@@ -26,18 +22,21 @@ sources:
 This document covers radcli's shared, low-level building blocks: the bounded
 packet-buffer API (`pkt_buf` in `lib/util.h`), the `rc_strlcpy` bounded-string
 polyfill, IP address / hostname resolution helpers (`lib/ip_util.c`), the
-`rc_log`/`DEBUG` logging macros and `radcli_debug` flag (`lib/log.c`), and the
-MD5/HMAC-MD5 primitives (`lib/md5.c`, `lib/rc-md5.c`, `lib/hmac.c`,
-`lib/nettle-hmac.c`) that `lib/sendserver.c` uses to compute the RADIUS
+`rc_log`/`DEBUG` logging macros and `struct rc_conf`'s per-handle `debug`
+field (`lib/util.h`, `lib/includes.h`), and the
+MD5/HMAC-MD5/SHA-256 primitives (`lib/rc-crypto.c`, backed unconditionally by
+nettle per `REQ-GEN-TECH-006`) that `lib/sendserver.c` uses to compute the RADIUS
 Response Authenticator (RFC 2865 §3), encrypt `User-Password` (RFC 2865
 §5.2), and compute/verify the Message-Authenticator attribute (RFC 2869
 §5.14, RFC 3579 §3.2). These are implementation-level requirements that
 justify `general.md`'s `REQ-GEN-MEM-004` (banned unsafe string functions /
 `rc_strlcpy`) and `REQ-GEN-MEM-005` (`pkt_buf` bounds checking) — this
 document should be read together with those two entries, not as a
-restatement of them. `radcli_debug` (`lib/log.c:14`) is the accepted global
-documented at `REQ-GEN-SEC-005` and is not re-flagged here except where its
-read/write contract matters for this document's own requirements.
+restatement of them. `radcli_legacy_debug` (`lib/legacy/compat.c`), the
+process-wide backing store for the deprecated `rc_setdebug()`, is the
+accepted global documented at `REQ-GEN-SEC-005` and is not re-flagged here
+except where its read/write contract matters for this document's own
+requirements; the `debug` field it seeds is per-handle, not global.
 
 Most symbols covered here are **internal helpers**, not part of the public
 ABI — see the per-requirement `Status`/citation for which of `rc_getport`,
@@ -350,103 +349,88 @@ failure, instead of silently dropping the error code.
 **Acceptance:** [ERR] code-review — `rc_getaddrinfo()` matches the logging
 convention of its siblings in the same file.
 
-### REQ-UTIL-ERR-004 — `DEBUG()` MUST be a complete no-op (no argument evaluation side effects beyond the guard) when `radcli_debug` is zero
+### REQ-UTIL-ERR-004 — `DEBUG()` MUST be a complete no-op (no argument evaluation side effects beyond the guard) when the handle's `debug` field is zero
 
-**Requirement:** The `DEBUG(args...)` macro MUST expand to
-`if(radcli_debug) rc_log(args)`, so that when `radcli_debug == 0` the
+**Requirement:** The `DEBUG(rh, args...)` macro MUST expand to
+`if((rh)->debug) rc_log(args)`, so that when `rh->debug == 0` the
 `rc_log()`/`syslog()` call — and therefore any `snprintf`-style formatting
 work implied by its arguments — MUST NOT execute. Call sites MUST NOT rely on
 side effects inside `DEBUG()`'s arguments, since they are skipped whenever
 debug logging is disabled (the common case in production).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:95 (`#define DEBUG(args...) if(radcli_debug) rc_log(args)`);
-lib/log.c:14 (`unsigned int radcli_debug = 0;` — default off)
+**Source:** lib/util.h (`#define DEBUG(rh, args...) if((rh)->debug) rc_log(args)`);
+lib/includes.h (`struct rc_conf`'s `debug` field, default 0 via `calloc`)
 **Acceptance:** [ERR] code-review — no `DEBUG(...)` call site in `lib/*.c`
 contains an argument expression with an assignment or function call whose
 result is depended on elsewhere.
-**Links:** REQ-GEN-SEC-005 (radcli_debug as the accepted global-state
+**Links:** REQ-GEN-SEC-005 (per-handle `debug` field; `radcli_legacy_debug`
+in `lib/legacy/compat.c` is the accepted legacy-shim-only global-state
 exception)
 
 ---
 
 ## SEC — security-relevant primitive guarantees
 
-### REQ-UTIL-SEC-001 — `rc_md5_calc` MUST produce identical output for identical input regardless of the compiled-in backend (nettle vs. bundled)
+### REQ-UTIL-SEC-001 — `rc_md5_calc` MUST compute the standard MD5 digest via nettle
 
 **Requirement:** `rc_md5_calc(output, input, inputlen)` MUST compute the
-standard MD5 digest (RFC 1321) of `input` into a 16-byte `output`, and this
-result MUST be bit-for-bit identical whether the library was built with
-`HAVE_NETTLE` (delegating to `nettle`'s `md5_init`/`md5_update`/`md5_digest`,
-with the digest-length argument present or absent per
-`HAVE_DIGEST_LENGTH_ARG`) or without it (the bundled `lib/md5.c`
-implementation via `MD5Init`/`MD5Update`/`MD5Final`). Callers computing the
-RADIUS Response Authenticator (`lib/sendserver.c:281`) and encrypting
-`User-Password` (`lib/sendserver.c:119`) depend on this equivalence to
-interoperate with any RFC 2865-compliant server regardless of which backend
-the client library was built with.
+standard MD5 digest (RFC 1321) of `input` into a 16-byte `output`, via
+nettle's `md5_init`/`md5_update`/`md5_digest` (with the digest-length
+argument present or absent per `HAVE_DIGEST_LENGTH_ARG`) -- the only
+implementation in the tree since `REQ-GEN-TECH-006` made nettle mandatory
+and retired the bundled fallback this requirement used to hold equivalent
+to it. Callers computing the RADIUS Response Authenticator
+(`lib/sendserver.c:281`) and encrypting `User-Password` (`lib/sendserver.c:119`)
+depend on this being a correct RFC 1321 implementation to interoperate with
+any RFC 2865-compliant server.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/rc-md5.c:20-38; lib/rc-md5.h:14-24; lib/md5.c (bundled
-implementation); meson.build:67-87 (`nettle` build option,
-`HAVE_DIGEST_LENGTH_ARG` detection)
-**Acceptance:** [SEC] unit, CI (both build configurations) — a known-answer
-test (RFC 1321 test vectors, e.g. MD5("") ==
-d41d8cd98f00b204e9800998ecf8427e) run against `rc_md5_calc()` MUST pass
-identically when built with `-Dnettle=enabled` and `-Dnettle=disabled`
-(AGENTS.md's documented fallback path).
-**Links:** REQ-GEN-TECH-001 (GnuTLS/nettle canonical crypto stack, with
-bundled MD5/HMAC as the documented `-Dnettle=disabled` fallback, not an
-exception to it); REQ-NET-* (Response Authenticator / User-Password
-encryption in `net.md`, when written)
+**Source:** lib/rc-crypto.c (`rc_md5_calc`); lib/rc-crypto.h;
+meson.build (mandatory `nettle_dep`, `HAVE_DIGEST_LENGTH_ARG` detection)
+**Acceptance:** [SEC] unit, CI — a known-answer test (RFC 1321 test vectors,
+e.g. MD5("") == d41d8cd98f00b204e9800998ecf8427e) run against `rc_md5_calc()`.
+**Links:** REQ-GEN-TECH-001, REQ-GEN-TECH-006, REQ-NET-* (Response
+Authenticator / User-Password encryption in `net.md`, when written)
 
-### REQ-UTIL-SEC-002 — `rc_hmac_md5` MUST produce identical output for identical input regardless of the compiled-in backend
+### REQ-UTIL-SEC-002 — `rc_hmac_md5` MUST compute HMAC-MD5 via nettle
 
 **Requirement:** `rc_hmac_md5(data, data_len, key, key_len, digest)` MUST
-compute HMAC-MD5 (RFC 2104) with a 16-byte `digest`, bit-for-bit identical
-whether resolved (via the `#define rc_hmac_md5` in `lib/rc-hmac.h`) to
-`hmac_md5_with_nettle()` (`lib/nettle-hmac.c`, using nettle's
-`hmac_md5_set_key`/`hmac_md5_update`/`hmac_md5_digest`) or to the bundled
-`hmac_md5()` (`lib/hmac.c`, RFC 2104 ipad/opad construction over the bundled
-MD5). `lib/sendserver.c`'s `add_msg_auth_attr()` and
-`validate_message_authenticator()` depend on this equivalence: a
-Message-Authenticator computed by a nettle-backed build MUST verify
-successfully against a bundled-MD5-backed build of radcli (or any other
-RFC 2869 §5.14-compliant implementation) and vice versa.
+compute HMAC-MD5 (RFC 2104) into a 16-byte `digest`, via nettle's
+`hmac_md5_set_key`/`hmac_md5_update`/`hmac_md5_digest` -- the only
+implementation in the tree (`REQ-GEN-TECH-006`). `lib/sendserver.c`'s
+`add_msg_auth_attr()` and `validate_message_authenticator()` depend on this
+being a correct RFC 2104 implementation: a Message-Authenticator radcli
+computes MUST verify successfully against any other RFC 2869 §5.14-compliant
+implementation, and vice versa.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/rc-hmac.h:33-50; lib/nettle-hmac.c:33-46; lib/hmac.c:39-95;
+**Source:** lib/rc-crypto.c (`rc_hmac_md5`); lib/rc-crypto.h;
 lib/sendserver.c:340 (`add_msg_auth_attr`), lib/sendserver.c:402
 (`validate_message_authenticator`)
-**Acceptance:** [SEC] unit, CI (both build configurations) — an HMAC-MD5
-known-answer test (RFC 2104 test vectors) run against `rc_hmac_md5()` MUST
-pass identically under `-Dnettle=enabled` and `-Dnettle=disabled`; a
-Message-Authenticator computed under one backend MUST verify under the
-other, exercised as an integration test if feasible.
-**Links:** REQ-GEN-TECH-001, REQ-UTIL-SEC-001, REQ-NET-* (Message-
-Authenticator compute/verify in `net.md`, when written), REQ-GEN-TEST-003
-(negative tests mandatory for Message-Authenticator handling)
+**Acceptance:** [SEC] unit, CI — an HMAC-MD5 known-answer test (RFC 2104 test
+vectors) run against `rc_hmac_md5()`.
+**Links:** REQ-GEN-TECH-001, REQ-GEN-TECH-006, REQ-UTIL-SEC-001, REQ-NET-*
+(Message-Authenticator compute/verify in `net.md`, when written),
+REQ-GEN-TEST-003 (negative tests mandatory for Message-Authenticator handling)
 
-### REQ-UTIL-SEC-003 — HMAC key lengths over 64 bytes MUST be pre-hashed to 16 bytes before padding (bundled backend)
+### REQ-UTIL-SEC-003 — HMAC key lengths over 64 bytes MUST be pre-hashed to 16 bytes before padding
 
-**Requirement:** The bundled `hmac_md5()`'s `init_pad()` helper MUST, when
-`key_len > 64`, replace `key` with `MD5(key)` (16 bytes) before constructing
-the ipad/opad, per RFC 2104 §2's requirement that keys longer than the hash
-block size be pre-hashed. Nettle's `hmac_md5_set_key()` (used by the
-nettle-backed path) is required to implement the same RFC 2104 behavior
-internally; radcli does not re-implement this check for that path, relying
-on nettle's own RFC 2104 compliance instead. This is the concrete mechanism
-by which REQ-UTIL-SEC-002's cross-backend equivalence holds for
-`key_len > 64` (in practice the RADIUS shared secret, capped at
-`MAX_SECRET_LENGTH`, is unlikely to exceed 64 bytes, but the primitive's
+**Requirement:** RFC 2104 §2 requires that a key longer than the hash's
+block size (64 bytes for MD5) be replaced with its own hash before
+constructing the ipad/opad. `rc_hmac_md5()` relies on nettle's
+`hmac_md5_set_key()` to implement this internally; radcli does not
+re-implement the check itself (in practice the RADIUS shared secret, capped
+at `MAX_SECRET_LENGTH`, is unlikely to exceed 64 bytes, but the primitive's
 correctness does not depend on that being true).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/hmac.c:39-63 (`init_pad`)
-**Acceptance:** [SEC] unit, local — `hmac_md5()` with a 100-byte key produces
-the same digest as `hmac_md5()` with that key pre-hashed to 16 bytes via
-`rc_md5_calc()` and passed directly (i.e. the internal pre-hash step is
-externally observable and testable).
+**Source:** nettle's `hmac_md5_set_key()`, called from lib/rc-crypto.c's
+`rc_hmac_md5()`
+**Acceptance:** [SEC] unit, local — `rc_hmac_md5()` with a 100-byte key
+produces the same digest as `rc_hmac_md5()` with that key pre-hashed to 16
+bytes via `rc_md5_calc()` and passed directly (i.e. the internal pre-hash
+step is externally observable and testable).
 **Links:** REQ-UTIL-SEC-002
 
 ### REQ-UTIL-SEC-004 — `rc_memcmp` MUST use a constant-time comparison when GnuTLS is available, and callers verifying digests/secrets MUST use it instead of `memcmp`
@@ -470,37 +454,26 @@ shows only `rc_memcmp` at the two digest-verification sites, no bare
 `memcmp`/`strcmp` directly.
 **Links:** REQ-GEN-SEC-006
 
-### REQ-UTIL-SEC-005 — The bundled MD5/HMAC implementation MUST NOT be reachable when nettle is available, to avoid two parallel crypto code paths in the same build
+### REQ-UTIL-SEC-005 — WITHDRAWN — the bundled MD5/HMAC implementation MUST NOT be reachable when nettle is available
 
-**Requirement:** `lib/meson.build` MUST compile exactly one of
-{`rc-md5.c`'s nettle path (`md5.c`/`hmac.c` excluded), `rc-md5.c`'s bundled
-path (`md5.c`+`hmac.c` included, `nettle-hmac.c` excluded)} into the final
-library, selected by `HAVE_NETTLE`/the `nettle` meson option — never both
-into the same binary, and never neither (some MD5/HMAC implementation MUST
-always be present, since `sendserver.c` unconditionally requires
-`rc_md5_calc`/`rc_hmac_md5`).
-**Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/meson.build:26-33 (`lib_sources` conditionally includes
-`nettle-hmac.c` vs. `md5.c`+`hmac.c`); lib/rc-md5.h:14-24, lib/rc-hmac.h:33-50
-(`#ifdef HAVE_NETTLE` header-level selection)
-**Acceptance:** [SEC] build-config check — `ninja -C build` with
-`-Dnettle=enabled` links `nettle-hmac.o`, not `hmac.o`/`md5.o`;
-`-Dnettle=disabled` links `hmac.o`/`md5.o`, not `nettle-hmac.o`.
-**Links:** REQ-GEN-TECH-001, REQ-UTIL-SEC-001, REQ-UTIL-SEC-002
+**Status:** WITHDRAWN — moot since `REQ-GEN-TECH-006` (2026-08-31) removed
+the bundled fallback (`lib/md5.c`, `lib/hmac.c`) entirely and made nettle a
+mandatory dependency: there is only one MD5/HMAC-MD5 implementation
+(`lib/rc-crypto.c`) left to select between. This ID is retained per this
+document's "never renumber" convention; do not reuse it.
+**Links:** REQ-GEN-TECH-006
 
-### REQ-UTIL-SEC-006 — `rc_random_vector`'s entropy source is not part of this document's scope but its consumers (`rc_md5_calc`/`rc_hmac_md5`) MUST treat the vector as opaque input [UNDOCUMENTED cross-reference]
+### REQ-UTIL-SEC-006 — `rc_get_random_bytes()`'s entropy source is not part of this document's scope but its consumers (`rc_md5_calc`/`rc_hmac_md5`) MUST treat the vector as opaque input [UNDOCUMENTED cross-reference]
 
-**Requirement:** N/A — this entry exists only to record a Phase-5 boundary
-decision: `rc_random_vector()` (`lib/sendserver.c:293-303`, using
-`gnutls_rnd()`/`getentropy()`) generates the Request Authenticator that
-`rc_md5_calc`/`rc_hmac_md5` consume, but the function itself lives in and is
-covered by `lib/sendserver.c` / `net.md`, not `lib/util.c`/`util.h`. Listed
-here so a completeness sweep of `util.md` does not mistake its absence for a
-gap.
+**Requirement:** N/A — boundary note: `rc_get_random_bytes()`
+(`lib/rc-random.c`, using `gnutls_rnd()`/`getentropy()`) generates the
+Request Authenticator that `rc_md5_calc`/`rc_hmac_md5` consume, but the
+function lives in and is covered by `lib/rc-random.c` / `net.md`, not
+`lib/util.c`/`util.h`. Listed here so a completeness sweep of `util.md` does
+not mistake its absence for a gap.
 **Strength:** n/a
 **Status:** DERIVED
-**Source:** lib/sendserver.c:293-303
+**Source:** lib/rc-random.c
 **Acceptance:** n/a (cross-reference only)
 **Links:** REQ-NET-* (entropy source for Request Authenticator, `net.md`
 when written)
@@ -523,12 +496,12 @@ when written)
 | `rc_bin2hex` | util.h | no | REQ-UTIL-DATA-011 |
 | `rc_memcmp` | util.h | no | REQ-UTIL-SEC-004 |
 | `rc_strlcpy` | util.h/util.c | no (internal polyfill; `strlcpy(3)` is the public-facing name via `#define`) | REQ-UTIL-DATA-009, REQ-UTIL-DATA-010 |
-| `radcli_debug` (extern) | util.h/log.c | no (accepted global, REQ-GEN-SEC-005) | REQ-UTIL-ERR-004 |
+| `struct rc_conf.debug` | includes.h | no (per-handle field, not global) | REQ-UTIL-ERR-004 |
 | `DEBUG` macro | util.h | n/a (macro) | REQ-UTIL-ERR-004 |
 | `rc_log` macro | util.h | n/a (macro) | REQ-UTIL-ERR-002, REQ-UTIL-ERR-004 |
 | `rc_str2tm` | util.c/util.h | no | REQ-UTIL-DATA-012 |
 | `rc_getmtime` | util.c/util.h | no | [UNDOCUMENTED] — see below |
-| `rc_mksid` | util.c/util.h | **yes** (radcli.map.in:69) | [UNDOCUMENTED] — see below |
+| `rc_mksid` | lib/legacy/compat.c | **yes** (radcli.map.in:69) | see below |
 | `rc_set_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
 | `rc_reset_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
 | `rc_getaddrinfo` | ip_util.c/util.h | no | REQ-UTIL-DATA-013, REQ-UTIL-ERR-003 |
@@ -536,13 +509,11 @@ when written)
 | `rc_own_hostname` | ip_util.c | **yes** (radcli.map.in:59) | REQ-UTIL-DATA-015, REQ-UTIL-ERR-002 |
 | `rc_get_srcaddr` | ip_util.c | **yes** (radcli.map.in:60) | REQ-UTIL-ERR-002 |
 | `rc_own_bind_addr` | ip_util.c/util.h | no | REQ-UTIL-DATA-014 |
-| `rc_setdebug` | log.c | **yes** (radcli.map.in:63) | REQ-UTIL-ERR-004 (via `radcli_debug` write path) |
+| `rc_setdebug` | legacy/compat.c | **yes** (radcli.map.in:63) | REQ-UTIL-ERR-004 (via `radcli_legacy_debug`, pre-seeds `struct rc_conf.debug` on handle construction) |
 | `rc_openlog` | log.c | **yes** (radcli.map.in:61) | [UNDOCUMENTED] — see below |
-| `rc_md5_calc` | rc-md5.c | no | REQ-UTIL-SEC-001 |
-| `rc_hmac_md5` (macro-resolved) | rc-hmac.h | no | REQ-UTIL-SEC-002, REQ-UTIL-SEC-003 |
-| `hmac_md5_with_nettle` | nettle-hmac.c | no | REQ-UTIL-SEC-002 |
-| `hmac_md5` (bundled) | hmac.c | no | REQ-UTIL-SEC-002, REQ-UTIL-SEC-003 |
-| bundled MD5 (`MD5Init`/`Update`/`Final`) | md5.c/md5.h | no (renamed `librad_MD5*` to avoid symbol clashes, md5.h:33-37) | REQ-UTIL-SEC-001, REQ-UTIL-SEC-005 |
+| `rc_md5_calc` | rc-crypto.c | **yes** (radcli2.map.in:152) | REQ-UTIL-SEC-001 |
+| `rc_hmac_md5` | rc-crypto.c | no | REQ-UTIL-SEC-002, REQ-UTIL-SEC-003 |
+| `rc_sha256_calc` | rc-crypto.c | no | REQ-DAE-SEC-005 (dae.md; dedup key, not an util.md-owned use) |
 
 **Gaps flagged:**
 
@@ -555,11 +526,12 @@ when written)
   a requirement in a future revision of this document (not added here to
   avoid inflating coverage with a rubber-stamped entry written after the
   fact — flagging instead per Phase 5's intent).
-- **`rc_mksid()`** [UNDOCUMENTED]: public ABI symbol (`lib/radcli.map.in:69`)
-  marked `@deprecated` in its own Doxygen comment (`lib/util.c:88-101`) —
+- **`rc_mksid()`**: public ABI symbol (`lib/radcli.map.in:69`)
+  marked `@deprecated` in its own Doxygen comment (`lib/legacy/compat.c`) —
   returns a pointer to a `static`, non-reentrant buffer overwritten on each
   call. Accepted as a documented exception to `general.md`'s
-  `REQ-GEN-SEC-005`, alongside `radcli_debug` and `_initialized`: the
+  `REQ-GEN-SEC-005`, alongside `_initialized` (and, in the optional legacy
+  shim, `radcli_legacy_debug`): the
   non-reentrancy hazard is an accepted, documented property of a deprecated
   function. No dedicated `REQ-UTIL-*` requirement was written for it beyond
   this note, since its only normative content ("do not call concurrently, do
@@ -583,18 +555,21 @@ when written)
 - Thread safety: none of `pb_*`, `rc_strlcpy`, `rc_bin2hex`, `rc_memcmp`,
   `rc_md5_calc`, `rc_hmac_md5` touch shared/global state — each operates
   purely on caller-supplied buffers/contexts, consistent with
-  `REQ-GEN-SEC-005`. `rc_mksid` is the one accepted exception in this file,
-  flagged above. `radcli_debug` (read by `DEBUG()`/written by
-  `rc_setdebug()`) is another accepted shared global per `REQ-GEN-SEC-005`;
-  concurrent
+  `REQ-GEN-SEC-005`. `rc_mksid` is the one accepted exception in this file
+  (radcli2 core), flagged above. `DEBUG()` itself now reads a per-handle
+  `struct rc_conf.debug` field, not a global, so two `rc_handle`/`radcli_ctx`
+  instances no longer interfere. The legacy-only `rc_setdebug()`
+  (`lib/legacy/compat.c`) still writes a process-wide
+  `radcli_legacy_debug`, accepted per `REQ-GEN-SEC-005` as a legacy-shim-only
+  exception; concurrent
   `rc_setdebug()` calls from multiple threads race on a plain `unsigned int`
   write with no synchronization, but since it only gates a diagnostic log
   statement (no correctness impact per REQ-GEN-SEC-005's own framing), this
   is not flagged as a new issue.
 - Process-state neutrality sweep (per `README.md`'s Completeness section):
   `grep -n 'signal(\|sigaction(\|fork(\|pthread_create(\|alarm(\|setitimer(\|setlocale(\|umask(\|chdir(\|setenv('`
-  over `lib/util.c`, `lib/ip_util.c`, `lib/log.c`, `lib/md5.c`, `lib/rc-md5.c`,
-  `lib/hmac.c`, `lib/nettle-hmac.c` returns no matches — consistent with
+  over `lib/util.c`, `lib/ip_util.c`, `lib/log.c`, `lib/rc-crypto.c` returns
+  no matches — consistent with
   `REQ-GEN-SEC-001` through `REQ-GEN-SEC-004`. `lib/util.c`'s `rc_set_netns`/
   `rc_reset_netns` call Linux `setns()`, which is not in that grep list;
   `setns()` changes the calling *thread's* (not the whole process's) network

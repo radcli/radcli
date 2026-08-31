@@ -220,18 +220,30 @@ because of this very check).
 twice fails to load; `rc_add_config()` called twice for the same option name
 returns `-1` the second time.
 
-### REQ-CONFIG-CFG-004 — An unrecognized option keyword MUST abort the entire config load
+### REQ-CONFIG-CFG-004 — An unrecognized option keyword MUST abort the entire config load, except the legacy ignore-list
 
 **Requirement:** `rc_read_config()` MUST treat any option name not present in
 `config_options_default` as fatal for the whole file: it logs "unrecognized
 keyword", closes the file, destroys the partially-built handle, and returns
-`NULL`. There is no "skip unknown option and continue" mode.
+`NULL`. The sole exception is `rc_ignored_option()`'s
+`RC_IGNORED_OPTION_TABLE` (`lib/options.h`) — a fixed list of legacy
+radiusclient-ng/freeradius-client option names (`login_radius`, `seqfile`,
+`mapfile`, `auth_order`, `login_tries`, `login_timeout`, `nologin`, `issue`,
+`login_local`, `radius_deadtime`) that radcli never acted on. A line naming
+one of these is accepted (logged at `LOG_INFO`, not an error) and its value
+discarded without being stored anywhere; this exists only so a config file
+written for the legacy local-login-daemon feature set still loads, not as a
+general "skip unknown option and continue" mode.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:694-699; lib/options.h:29-64 (the recognised name
-table)
+**Source:** lib/config.c:774-780 (file parsing), lib/config.c:388-393
+(`rc_add_config()`); lib/options.h's `RC_OPTION_TABLE` (recognised, stored
+options) and `RC_IGNORED_OPTION_TABLE` (accepted-but-discarded names)
 **Acceptance:** [CFG] negative, local — a config file containing a misspelled
-option name (e.g. `authservr`) makes `rc_read_config()` return `NULL`.
+option name (e.g. `authservr`) makes `rc_read_config()` return `NULL`;
+[CFG] positive, local — a config file containing `mapfile /some/path` loads
+successfully and `rc_conf_str(rh, "mapfile")` returns `NULL` (unknown to
+`find_option()`, exactly as if the line had never appeared).
 
 ### REQ-CONFIG-CFG-005 — String option values MUST be trimmed of surrounding whitespace before storage
 
@@ -251,12 +263,13 @@ whitespace).
 
 **Requirement:** `set_option_int()` MUST convert the value string with
 `atoi()`; there is no numeric-validity check beyond requiring a non-`NULL`
-value string. A malformed value like `radius_timeout abc` therefore stores
-`0`, not an error, at parse time. For `radius_timeout` and `radius_retries`
-specifically, `rc_test_config()` catches the resulting `0` as `<= 0` and fails
-the load (`REQ-CONFIG-CFG-010`); other integer options (`clientdebug`,
-`radius_deadtime`, `login_tries`, `login_timeout`) have no such downstream
-check and would silently accept `0` from malformed input.
+value string, with one exception: `watchdog-interval` is range-checked
+in-line (`REQ-WATCHDOG-CFG-001`, `doc/requirements/watchdog.md`). For every other integer option, a malformed
+value like `radius_timeout abc` therefore stores `0`, not an error, at parse
+time. For `radius_timeout` and `radius_retries` specifically,
+`rc_test_config()` catches the resulting `0` as `<= 0` and fails the load
+(`REQ-CONFIG-CFG-010`); `clientdebug` has no such downstream check and would
+silently accept `0` from malformed input.
 **Strength:** MUST (documents `atoi()`'s established, essential behavior — a
 correct reimplementation could reasonably choose to validate instead, but
 callers of the current library depend on the "malformed → 0" behavior not
@@ -267,7 +280,7 @@ erroring)
 `rc_conf_int(rh, "radius_timeout") == 10`; [CFG] negative, local —
 `clientdebug notanumber` loads successfully with `rc_conf_int(rh,
 "clientdebug") == 0`.
-**Links:** REQ-CONFIG-CFG-010
+**Links:** REQ-CONFIG-CFG-010, REQ-WATCHDOG-CFG-001
 
 ### REQ-CONFIG-CFG-007 — `authserver`/`acctserver` values MUST follow `host[:port[:secret]]` grammar, comma/whitespace-separated, with RFC-default port fallback
 
@@ -287,20 +300,23 @@ host2:1813` parses into three `SERVER` entries with expected
 name/port/secret; [CFG] positive — `authserver localhost` (no port) resolves
 to `PW_AUTH_UDP_PORT` (1812) when `/etc/services` has no `radius/udp` entry.
 
-### REQ-CONFIG-CFG-008 — The legacy `auth_order` option MUST accept only `local`/`radius`, optionally followed by the other keyword
+### REQ-CONFIG-CFG-008 — Legacy ignored options MUST NOT be storable via `find_option()`, under any type mask
 
-**Requirement:** `set_option_auo()` MUST accept a first token of exactly
-`"local"` or `"radius"` (via `strncmp` on 5/6 chars) setting
-`AUTH_LOCAL_FST`/`AUTH_RADIUS_FST`, and an optional second token that MUST be
-the *other* keyword (`local` after `radius`, or `radius` after `local`),
-setting the corresponding `_SND` flag; any other first or second token MUST
-fail with "unknown keyword" / "unknown or unexpected keyword".
+**Requirement:** None of `RC_IGNORED_OPTION_TABLE`'s names have an entry in
+`config_options_default`/an `rc_option_id`; `find_option()` MUST NOT find
+them regardless of the `type` mask passed in, so `rc_conf_str()`/
+`rc_conf_int()`/`rc_conf_srv()` behave for them exactly as for any other
+never-recognized name (`REQ-CONFIG-ERR-003`). This is what makes accepting
+these names in `rc_read_config()`/`rc_add_config()`
+(`REQ-CONFIG-CFG-004`/`REQ-CONFIG-CFG-009`) a pure parse-and-discard, not a
+disguised storage path.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:239-292
-**Acceptance:** [CFG] positive, local — `auth_order radius,local` parses to
-`AUTH_RADIUS_FST | AUTH_LOCAL_SND`; [CFG] negative — `auth_order radius,radius`
-fails to load.
+**Source:** lib/options.h's `RC_OPTION_TABLE`/`RC_IGNORED_OPTION_TABLE` split
+**Acceptance:** [CFG] negative, local — after loading a config file
+containing `auth_order radius,local`, `rc_conf_int(rh, "auth_order")` logs
+`LOG_CRIT "unknown config option requested"` and returns `0`, identical to
+querying a name that never existed.
 
 ### REQ-CONFIG-CFG-009 — `rc_add_config()` MUST apply the identical per-type grammar as file parsing, for programmatic configuration
 
@@ -458,6 +474,61 @@ either the inline config or the `servers` file makes `rc_find_server_addr()`
 return `-1` and clear the output `secret` buffer (`lib/config.c:1121-1128`).
 **Links:** REQ-CONFIG-SEC-002
 
+### REQ-CONFIG-CFG-019 — `rc_find_server_addr()` MUST NOT require a resolvable secret for a `TLS`/`DTLS` server
+
+**Requirement:** When `rh->so_type` is `RC_SOCKET_TLS` or `RC_SOCKET_DTLS`,
+`rc_find_server_addr()` MUST return `0` (success, with the output `secret`
+buffer cleared) once the server address itself resolves, regardless of
+whether an inline `:secret`, a `secret` config option
+(`REQ-CONFIG2-SECRET-003`), or a matching `servers` file entry
+(`REQ-CONFIG-CFG-018`) was found — it MUST NOT fall through to the
+"couldn't find RADIUS server" failure path that a `udp`/`tcp` server hits in
+that case. This is because none of those configured secrets are actually
+used for this transport: `radcli_transport_exchange()`
+(`lib/sendserver.c`) unconditionally overwrites whatever secret this
+function returns with the RFC 6614/7360 fixed string
+(`rh->so.static_secret`) immediately afterwards, so requiring one here would
+only make an ordinarily-configured TLS/DTLS `authserver`/`acctserver` (no
+secret needed, none used) fail before ever reaching that override.
+**Strength:** MUST NOT (require a secret) ; MUST (still resolve the address
+and succeed)
+**Status:** DERIVED
+**Source:** lib/config.c's `radcli2_priv_find_server_addr()`, the
+`rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS` branch;
+lib/sendserver.c's `radcli_transport_exchange()` (cited not owned, the
+`static_secret` overwrite this requirement depends on)
+**Acceptance:** [CFG] positive, local — a `serv-type tls` config with
+`authserver 127.0.0.1:1` (no inline secret, no `secret` option, no
+`servers` file match) makes `rc_find_server_addr()` return `0` with an
+empty `secret` buffer (`tests/config-unit.c`). [CFG] negative, local — the
+same config under the default `serv-type udp` makes `rc_find_server_addr()`
+return `-1` instead (unchanged pre-existing behavior, `REQ-CONFIG-CFG-018`).
+**Links:** REQ-CONFIG-CFG-018, REQ-CONFIG2-SECRET-003
+
+### REQ-CONFIG-CFG-021 — `radcli2_priv_apply_config()` MUST materialize `watchdog-interval`/`dae-max-clock-skew`'s defaults into the config table
+
+**Requirement:** `radcli2_priv_apply_config()` MUST, exactly once, set
+`watchdog-interval` to `15` and `dae-max-clock-skew` to `300` in the config
+table if either was never explicitly set — before either option is ever
+read by code reachable only after apply (`radcli_ctx_get_poll()`/
+`radcli_ctx_send_watchdog()`/`radcli2_priv_check_tls()` for the former,
+`radcli_dae_new()`/`radcli_dae_start()` for the latter). This MUST NOT
+overwrite a value the application or config file already set. This is what
+lets every internal reader use the default-free `rc_conf_int_id()`
+uniformly (`REQ-GEN-STYLE-011`) instead of a runtime-default-supplying
+lookup.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/config.c's `apply_int_default()`, called from
+`radcli2_priv_apply_config()` alongside the existing, same-shaped
+`apply_secret_fallback()`
+**Acceptance:** [CFG] positive, local — `tests/ctx.c`: a `radcli_ctx` that
+never sets `watchdog-interval` reports it as unset via
+`radcli_ctx_get_opt_int()` before `radcli_ctx_apply()`, and as `15` after —
+a side effect of materializing the default into the shared table, not
+something `radcli_ctx_get_opt_int()` special-cases on its own.
+**Links:** REQ-GEN-STYLE-011, REQ-WATCHDOG-NET-002, REQ-DAE-SEC-004
+
 ---
 
 ## SEC — security-relevant defects and boundaries in config handling
@@ -524,20 +595,21 @@ shows only the Doxygen comment, no parsing logic.
 ### REQ-CONFIG-SEC-004 — `_initialized` is an accepted exception to `REQ-GEN-SEC-005`'s "no new global state" rule
 
 **Requirement:** `_initialized` (`static int`, `lib/config.c:1182`) is a
-process-wide reference count guarding GnuTLS global init/deinit and
-`srandom()` seeding idempotency across multiple `rc_handle` instances in one
-process. It is an accepted, documented exception to `REQ-GEN-SEC-005`,
-alongside `radcli_debug`: it has no correctness impact on any individual
-`rc_handle`'s behavior (it only guards one-time process-wide init/deinit
-calls) and is not a precedent for adding further arbitrary global state.
+process-wide reference count guarding GnuTLS global init/deinit idempotency
+across multiple `rc_handle` instances in one process. It is an accepted,
+documented exception to `REQ-GEN-SEC-005`, alongside the legacy-shim-only
+`radcli_legacy_debug` (`lib/legacy/compat.c`): it has
+no correctness impact on any individual `rc_handle`'s behavior (it only
+guards one-time process-wide init/deinit calls) and is not a precedent for
+adding further arbitrary global state.
 **Strength:** N/A (accepted exception, not a defect)
 **Status:** DERIVED
 **Source:** lib/config.c:1182 (`static int _initialized = 0;`);
 doc/requirements/general.md `REQ-GEN-SEC-005`
 **Acceptance:** [SEC] documentation consistency — `general.md`'s
 `REQ-GEN-SEC-005` enumerates this exception explicitly alongside
-`radcli_debug`.
-**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001
+`radcli_legacy_debug`.
+**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001, REQ-GEN-SEC-007 (general.md)
 
 ---
 
@@ -589,7 +661,7 @@ both still return `0`.
 **Status:** DERIVED
 **Source:** lib/config.c:791-803, 812-829, 849-861
 **Acceptance:** [ERR] negative, local — `rc_conf_str(rh, "no-such-option")`
-returns `NULL` without crashing; `rc_conf_int(rh, "radius_deadtime")` before
+returns `NULL` without crashing; `rc_conf_int(rh, "clientdebug")` before
 it is set in the config returns `0` with a `LOG_ERR`, not `LOG_CRIT`, log line.
 **Links:** REQ-CONFIG-CFG-016
 
@@ -651,7 +723,7 @@ requirement above:
 | `rc_conf_srv` | REQ-CONFIG-CFG-007, -016, REQ-CONFIG-DATA-002 |
 | `rc_test_config` | REQ-CONFIG-CFG-010, -011 |
 | `rc_apply_config` | REQ-CONFIG-INIT-004, REQ-CONFIG-CFG-012, -013 |
-| `rc_find_server_addr` | REQ-CONFIG-CFG-018, REQ-CONFIG-SEC-002 |
+| `rc_find_server_addr` | REQ-CONFIG-CFG-018, -019, REQ-CONFIG-SEC-002 |
 | `rc_config_free` | REQ-CONFIG-DATA-001 |
 | `rc_new` | REQ-CONFIG-INIT-001 |
 | `rc_destroy` | REQ-CONFIG-INIT-005 |

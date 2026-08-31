@@ -32,7 +32,7 @@
 #include <includes.h>  /* AUTH_HDR */
 
 /* Internal function exposed for unit testing (not in public API) */
-int rc_pack_list(VALUE_PAIR *vp, char *secret, AUTH_HDR *auth, int max_len);
+int rc_pack_list(rc_handle *rh, VALUE_PAIR *vp, char *secret, AUTH_HDR *auth, int max_len);
 
 #define MSG_AUTH_ATTR_LEN  (2 + 16)  /* type(1) + len(1) + HMAC-MD5(16) */
 
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 	rc_avpair_add(rh, &vp, PW_ACCT_DELAY_TIME, &(uint32_t){0}, 0, 0);
 
 	memset(buf, 0, sizeof(buf));
-	n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+	n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 	if (n <= 0) {
 		fprintf(stderr, "%d: small list should pack; got %d\n", __LINE__, n);
 		exit(1);
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 		rc_avpair_add(rh, &vp, PW_NAS_IDENTIFIER, val200, sizeof(val200), 0);
 
 	memset(buf, 0, sizeof(buf));
-	n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+	n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 	if (n != -1) {
 		fprintf(stderr, "%d: oversized list should return -1; got %d\n", __LINE__, n);
 		exit(1);
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 		p->lvalue = 254;  /* override: simulate direct struct access bypassing API */
 
 		memset(buf, 0, sizeof(buf));
-		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 		if (n != -1) {
 			fprintf(stderr, "%d: lvalue > 253 should return -1; got %d\n",
 				__LINE__, n);
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 		/* 20 × (2 + 201) = 4060 attr bytes + 20 header = 4080 total */
 
 		memset(buf, 0, sizeof(buf));
-		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 		if (n != 4080) {
 			fprintf(stderr, "%d: accounting limit: expected 4080, got %d\n",
 				__LINE__, n);
@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 		}
 
 		memset(buf, 0, sizeof(buf));
-		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN - MSG_AUTH_ATTR_LEN);
+		n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN - MSG_AUTH_ATTR_LEN);
 		if (n != -1) {
 			fprintf(stderr, "%d: auth limit: expected -1, got %d\n", __LINE__, n);
 			exit(1);
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		memset(buf, 0, sizeof(buf));
-		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 		if (n != 275) {
 			fprintf(stderr, "%d: VSA 247 bytes: expected 275, got %d\n",
 				__LINE__, n);
@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 		}
 		p->lvalue = 248;  /* bypass API guard — simulate direct struct access */
 		memset(buf, 0, sizeof(buf));
-		n = rc_pack_list(vp, secret, auth, RC_MAX_PACKET_LEN);
+		n = rc_pack_list(rh, vp, secret, auth, RC_MAX_PACKET_LEN);
 		if (n != -1) {
 			fprintf(stderr, "%d: VSA lvalue=248 should return -1; got %d\n",
 				__LINE__, n);

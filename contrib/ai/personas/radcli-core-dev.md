@@ -447,6 +447,9 @@ Use this when preparing or reviewing a patch:
 - [ ] Doxygen `@param` / `@return` on all new public API functions
 - [ ] No comments that merely restate what the code does; comments explain *why*
 - [ ] BSD 2-clause license header on new files
+- [ ] Internal code resolving a compile-time-known attribute uses
+      `radcli_dict_lookup_num(ctx, PW_*, vendor)`, not `radcli_dict_lookup()`/
+      `_lookup_oid()` with a literal name/OID string (REQ-GEN-STYLE-004)
 
 **Memory and resources:**
 - [ ] All allocations checked before use; no unchecked `malloc` return values

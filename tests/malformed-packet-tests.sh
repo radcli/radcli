@@ -13,6 +13,8 @@ echo " 3. Client rejects response with attribute overflow (len > remaining)"
 echo " 4. Client accepts and decodes response containing unknown attribute types"
 echo " 5. Client accepts response where an INTEGER attribute has wrong length"
 echo " 6. Client accepts response with VSA containing only unknown sub-attributes"
+echo " 7. Client rejects (without crashing) a response whose header Length is"
+echo "    shorter than the RADIUS header itself"
 echo "====================================================="
 
 if ! python3 -c '' 2>/dev/null; then
@@ -156,6 +158,30 @@ if test $? != 0; then
 	echo "[ FAIL ] Expected Framed-Protocol = 'PPP' in response"
 	exit 1
 fi
+stop_server
+
+# Test 7: response header's own Length field claims 5 bytes (under
+# AUTH_HDR_LEN=20) while the actual UDP datagram is a normal, full-size
+# reply. rc_check_reply() correctly flags this BADRESP_RC, but a prior bug
+# let it through to decode_reply() anyway, which asserted totallen >= 20 and
+# abort()ed the client process (REQ-GEN-STYLE-009). A plain "nonzero exit"
+# check (run_test's expect_fail) can't tell a clean rejection apart from a
+# crash, since both are nonzero -- check explicitly for death by signal.
+start_server absent short-header-length
+printf "\n[ RUN  ] Reject (without crashing) a response with header Length < AUTH_HDR_LEN\n"
+"${top_builddir}/src/radiusclient" -D -i -f radiusclient-malformed$PID.conf \
+	User-Name=test Password=test >$TMPFILE 2>&1
+rc=$?
+test -s $TMPFILE && sed 's/^/         | /' $TMPFILE
+if test $rc -ge 128; then
+	sig=$((rc - 128))
+	echo "[ FAIL ] radiusclient died from signal ${sig} (crashed instead of rejecting the reply)"
+	exit 1
+elif test $rc = 0; then
+	echo "[ FAIL ] radiusclient accepted a reply shorter than the RADIUS header"
+	exit 1
+fi
+echo "[  OK  ] Reject (without crashing) a response with header Length < AUTH_HDR_LEN"
 stop_server
 
 echo ""

@@ -47,36 +47,52 @@ echo "===== TLS/DTLS close_notify tests ====="
 
 PID=$$
 TMPFILE="tmp-cn-$PID.out"
-BEPID=""
+BEPID_TLS=""
+BEPID_DTLS=""
 SRVPID=""
 SERVERS_FILE="servers-cn-$PID"
 TLS_CONF="conf-tls-cn-$PID"
 DTLS_CONF="conf-dtls-cn-$PID"
 
 function finish {
-	test -n "${SRVPID}" && kill ${SRVPID} >/dev/null 2>&1
-	test -n "${BEPID}"  && kill ${BEPID}  >/dev/null 2>&1
+	test -n "${SRVPID}"     && kill ${SRVPID}     >/dev/null 2>&1
+	test -n "${BEPID_TLS}"  && kill ${BEPID_TLS}  >/dev/null 2>&1
+	test -n "${BEPID_DTLS}" && kill ${BEPID_DTLS} >/dev/null 2>&1
 	rm -f "$TMPFILE" "$SERVERS_FILE" "$TLS_CONF" "$DTLS_CONF"
 }
 trap finish EXIT
 
 wait_for_server() {
+	local port="${1:-${PORT}}"
 	local i
 	for i in 1 2 3 4 5 6 7 8; do
-		check_if_port_in_use ${PORT} && return 0
+		check_if_port_in_use ${port} && return 0
 		sleep 0.5
 	done
 	return 1
 }
 
-# Start radius-server.py once; reused as plain-UDP backend for both modes.
+# Two plain-UDP backends, one per mode: radcli fixes the RADIUS/TLS shared
+# secret to "radsec" (RFC 6614 SS3.4) and the RADIUS/DTLS one to "radius/dtls"
+# (RFC 7360 SS2.3) regardless of what's in SERVERS_FILE (see
+# tls-msg-auth-tests.sh), and verifies the Response Authenticator digest
+# against whichever one applies -- a mismatched backend secret makes every
+# reply fail digest validation.
 eval "$GETPORT"
-BEPORT=${PORT}
+BEPORT_TLS=${PORT}
 python3 "${srcdir}/radius-server.py" \
-	--port "${BEPORT}" --secret testing123 --msg-auth correct \
+	--port "${BEPORT_TLS}" --secret radsec --msg-auth correct \
 	>/dev/null 2>&1 &
-BEPID=$!
-wait_for_server || { echo "FAIL: radius-server.py did not start"; exit 1; }
+BEPID_TLS=$!
+wait_for_server "${BEPORT_TLS}" || { echo "FAIL: radius-server.py (TLS backend) did not start"; exit 1; }
+
+eval "$GETPORT"
+BEPORT_DTLS=${PORT}
+python3 "${srcdir}/radius-server.py" \
+	--port "${BEPORT_DTLS}" --secret "radius/dtls" --msg-auth correct \
+	>/dev/null 2>&1 &
+BEPID_DTLS=$!
+wait_for_server "${BEPORT_DTLS}" || { echo "FAIL: radius-server.py (DTLS backend) did not start"; exit 1; }
 
 # Common servers file (address must match authserver; secret ignored for TLS/DTLS).
 echo "127.0.0.1/127.0.0.1	testing123" >"${SERVERS_FILE}"
@@ -105,7 +121,8 @@ EOF
 run_close_notify_test() {
 	local mode="$1"
 	local dtls_flag=""
-	test "${mode}" = "dtls" && dtls_flag="--dtls"
+	local backend_port="${BEPORT_TLS}"
+	test "${mode}" = "dtls" && { dtls_flag="--dtls"; backend_port="${BEPORT_DTLS}"; }
 
 	eval "$GETPORT"
 	local frontend_port=${PORT}
@@ -113,7 +130,7 @@ run_close_notify_test() {
 
 	${top_builddir}/tests/close-notify-server ${dtls_flag} \
 		--port "${frontend_port}" \
-		--backend-port "${BEPORT}" \
+		--backend-port "${backend_port}" \
 		--ca  "${srcdir}/dtls/ca.pem" \
 		--cert "${srcdir}/raddb/cert-rsa.pem" \
 		--key  "${srcdir}/raddb/key-rsa.pem" \

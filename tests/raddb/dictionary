@@ -1,0 +1,22 @@
+#
+#	Local dictionary additions for radcli's own test suite. FreeRADIUS
+#	loads its main dictionaries automatically; this file only needs to
+#	add attributes specific to these tests.
+#
+#	Radcli-Interop-Test (private, test-only PEN 99999, never used on a
+#	real network): exercises RFC 8044 "date"/"ipv4prefix"/"string"
+#	(radcli2.h's RADCLI_TYPE_DATE via the new "time" dictionary keyword,
+#	RADCLI_TYPE_IPV4PREFIX, and RADCLI_TYPE_TEXT respectively -- see
+#	tests/avp-codec-freeradius.c) against a real FreeRADIUS encoder, not
+#	just radcli's own.
+#
+
+VENDOR		Radcli-Interop-Test	99999
+
+BEGIN-VENDOR	Radcli-Interop-Test
+
+ATTRIBUTE	Test-Event-Date		1	date
+ATTRIBUTE	Test-Ipv4-Prefix	2	ipv4prefix
+ATTRIBUTE	Test-Greeting		3	string
+
+END-VENDOR	Radcli-Interop-Test
