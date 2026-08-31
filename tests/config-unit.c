@@ -145,6 +145,76 @@ static void test_prefix_match_secret(void)
 	rc_destroy(rh);
 }
 
+/* REQ-CONFIG-CFG-019: under serv-type tls/dtls, radcli_transport_exchange()
+ * (lib/sendserver.c) always overwrites whatever secret rc_find_server_addr()
+ * returns with the RFC 6614/7360 fixed secret, so an authserver/acctserver
+ * with no inline secret, no "secret" option, and no matching "servers" file
+ * entry must still resolve successfully -- the client works without any
+ * secret configured at all under TLS/DTLS. */
+static void test_tls_no_secret_required(void)
+{
+	rc_handle *rh;
+	char *path;
+	struct addrinfo *info = NULL;
+	char secret[MAX_SECRET_LENGTH];
+
+	const char conf[] =
+		"serv-type tls\n"
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: valid tls config with no secret anywhere "
+				"was rejected\n");
+		exit(1);
+	}
+
+	memset(secret, 'x', sizeof(secret));
+	if (rc_find_server_addr(rh, "127.0.0.1", &info, secret, AUTH) != 0) {
+		fprintf(stderr, "error: rc_find_server_addr() failed under "
+				"serv-type tls with no secret configured -- the client "
+				"would be unable to send an ordinary Access-Request\n");
+		exit(1);
+	}
+	freeaddrinfo(info);
+
+	if (secret[0] != '\0') {
+		fprintf(stderr, "error: rc_find_server_addr() returned a non-empty "
+				"secret ('%s') under serv-type tls with none configured\n",
+				secret);
+		exit(1);
+	}
+
+	rc_destroy(rh);
+
+	/* Same config, but serv-type udp (the default): must still fail, since
+	 * a UDP/TCP server genuinely needs a secret and none was configured
+	 * anywhere -- this is the pre-existing behavior, unchanged. */
+	const char udp_conf[] =
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	path = write_conf(udp_conf, sizeof(udp_conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: valid udp config with no secret was rejected\n");
+		exit(1);
+	}
+
+	if (rc_find_server_addr(rh, "127.0.0.1", &info, secret, AUTH) == 0) {
+		fprintf(stderr, "error: rc_find_server_addr() succeeded under "
+				"serv-type udp with no secret configured anywhere\n");
+		freeaddrinfo(info);
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
 /* rc_find_server_addr()'s "servers" file parsing switched from a fixed
  * 128-byte fgets() buffer to getline(). A servers-file line longer than the
  * old buffer must be read intact (not silently truncated/misparsed as a
@@ -354,6 +424,10 @@ static int run_capturing_stderr(const char *conf, size_t len, char *out, size_t 
 
 	fflush(stderr);
 	saved_fd = dup(STDERR_FILENO);
+	if (saved_fd < 0) {
+		perror("dup");
+		exit(1);
+	}
 	tmp_fd = open("config-unit-stderr.tmp", O_RDWR | O_CREAT | O_TRUNC, 0600);
 	if (tmp_fd < 0) {
 		perror("open");
@@ -364,6 +438,7 @@ static int run_capturing_stderr(const char *conf, size_t len, char *out, size_t 
 	rh = rc_read_config(path);
 
 	fflush(stderr);
+	assert(saved_fd >= 0);
 	dup2(saved_fd, STDERR_FILENO);
 	close(saved_fd);
 	unlink(path);
@@ -415,17 +490,147 @@ static void test_acctserver_log_suppression(void)
 	}
 }
 
+/* The dae-* option names must be registered in lib/options.h -- a config
+ * file that sets all six must be accepted (no "unrecognized option"), and
+ * rc_conf_str()/rc_conf_int() must read back exactly what was set. Actual
+ * validation (dae-accept gating, dae-server/dae-secret required together,
+ * dae-server prefix rejection) is lib/dae.c's job, not the generic config
+ * layer's, so it is not exercised here. */
+static void test_dae_options_registered(void)
+{
+	rc_handle *rh;
+	char *path, *v;
+	const char conf[] =
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n"
+		"dae-accept yes\n"
+		"dae-listen 0.0.0.0:3799\n"
+		"dae-secret testing123\n"
+		"dae-server 192.0.2.1,192.0.2.2:othersecret\n"
+		"dae-max-clock-skew 60\n"
+		"dae-require-message-authenticator yes\n";
+
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: a config file setting all dae-* options was rejected\n");
+		exit(1);
+	}
+
+	v = rc_conf_str(rh, "dae-accept");
+	if (v == NULL || strcmp(v, "yes") != 0) {
+		fprintf(stderr, "error: dae-accept: expected \"yes\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-listen");
+	if (v == NULL || strcmp(v, "0.0.0.0:3799") != 0) {
+		fprintf(stderr, "error: dae-listen: expected \"0.0.0.0:3799\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-secret");
+	if (v == NULL || strcmp(v, "testing123") != 0) {
+		fprintf(stderr, "error: dae-secret: expected \"testing123\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-server");
+	if (v == NULL || strcmp(v, "192.0.2.1,192.0.2.2:othersecret") != 0) {
+		fprintf(stderr, "error: dae-server: expected \"192.0.2.1,192.0.2.2:othersecret\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+	if (rc_conf_int(rh, "dae-max-clock-skew") != 60) {
+		fprintf(stderr, "error: dae-max-clock-skew: expected 60, got %d\n",
+			rc_conf_int(rh, "dae-max-clock-skew"));
+		exit(1);
+	}
+	v = rc_conf_str(rh, "dae-require-message-authenticator");
+	if (v == NULL || strcmp(v, "yes") != 0) {
+		fprintf(stderr, "error: dae-require-message-authenticator: expected \"yes\", got %s\n", v ? v : "(null)");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+}
+
+/* Options removed from RC_OPTION_TABLE (they were parsed but never read
+ * back anywhere) must still load without error via RC_IGNORED_OPTION_TABLE,
+ * for compatibility with existing config files -- but their value must not
+ * be storable/retrievable under any name/type, unlike a real option. */
+static void test_ignored_options_still_load(void)
+{
+	rc_handle *rh;
+	char *path;
+	const char conf[] =
+		"authserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n"
+		"auth_order radius,local\n"
+		"login_tries 4\n"
+		"login_timeout 60\n"
+		"nologin /etc/nologin\n"
+		"issue /etc/issue\n"
+		"login_radius /usr/local/sbin/login.radius\n"
+		"seqfile /var/run/seqfile\n"
+		"mapfile ../etc/port-id-map\n"
+		"radius_deadtime 0\n"
+		"login_local /bin/login\n";
+
+	path = write_conf(conf, sizeof(conf) - 1);
+	rh = rc_read_config(path);
+	unlink(path);
+	if (rh == NULL) {
+		fprintf(stderr, "error: a config file setting only ignored legacy "
+				"options was rejected\n");
+		exit(1);
+	}
+
+	if (rc_conf_str(rh, "mapfile") != NULL) {
+		fprintf(stderr, "error: rc_conf_str(\"mapfile\") returned a value "
+				"for an option that should not be stored\n");
+		exit(1);
+	}
+	if (rc_conf_int(rh, "auth_order") != 0) {
+		fprintf(stderr, "error: rc_conf_int(\"auth_order\") returned a "
+				"nonzero value for an option that should not be stored\n");
+		exit(1);
+	}
+
+	rc_destroy(rh);
+
+	/* rc_add_config()'s programmatic path must accept the same names,
+	 * silently discarding them, rather than erroring like a genuinely
+	 * unknown option would. */
+	rh = rc_new();
+	if (rh == NULL || rc_config_init(rh) == NULL) {
+		fprintf(stderr, "error: rc_config_init failed\n");
+		exit(1);
+	}
+	if (rc_add_config(rh, "mapfile", "../etc/port-id-map", __FILE__, __LINE__) != 0) {
+		fprintf(stderr, "error: rc_add_config(\"mapfile\", ...) was rejected\n");
+		exit(1);
+	}
+	if (rc_add_config(rh, "not-a-real-option", "x", __FILE__, __LINE__) == 0) {
+		fprintf(stderr, "error: rc_add_config() accepted a genuinely unknown option\n");
+		exit(1);
+	}
+	rc_destroy(rh);
+}
+
 int main(void)
 {
 	openlog(NULL, LOG_PERROR, LOG_USER);
 
 	test_server_list_bound();
 	test_prefix_match_secret();
+	test_tls_no_secret_required();
 	test_servers_file_long_line();
 	test_last_line_no_newline();
 	test_long_line_no_truncation();
 	test_keyword_trailing_whitespace_only();
 	test_acctserver_log_suppression();
+	test_dae_options_registered();
+	test_ignored_options_still_load();
 
 	printf("config-unit: all tests passed\n");
 	return 0;

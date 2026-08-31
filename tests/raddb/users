@@ -52,3 +52,25 @@ user-known-vsa-last	Cleartext-Password := "test"
 	Framed-MTU = 1500,
 	RP-Upstream-Speed-Limit = 3,
 	MS-CHAP-Response = Hi-There
+
+# radcli2 wire-codec interoperability test (tests/avp-codec-freeradius-tests.sh):
+# a user whose Access-Accept carries Tunnel-Password and MS-MPPE-Send-Key/
+# Recv-Key reply attributes, so the client can verify it decrypts real
+# FreeRADIUS-generated RFC 2868/2548 salt-encrypted ciphertext, not just its
+# own.
+test-crypto	Cleartext-Password := "test"
+	Tunnel-Password := "tunnel-secret",
+	MS-MPPE-Send-Key := "0123456789abcdef0123456789abcdef",
+	MS-MPPE-Recv-Key := "fedcba9876543210fedcba9876543210"
+
+# radcli2 wire-codec interoperability test (tests/avp-codec-freeradius-tests.sh):
+# a user whose Access-Accept carries the Radcli-Interop-Test VSAs declared in
+# raddb/dictionary, so the client can verify RADCLI_TYPE_DATE (via the "time"
+# dictionary keyword), RADCLI_TYPE_IPV4PREFIX, and RADCLI_TYPE_TEXT decode
+# real FreeRADIUS-generated wire data, not just radcli's own. Test-Greeting
+# is UTF-8 (contains an accented character) to exercise RADCLI_TYPE_TEXT's
+# UTF-8 validation against genuine server-generated text.
+test-types	Cleartext-Password := "test"
+	Test-Event-Date = 1700000000,
+	Test-Ipv4-Prefix = 198.51.100.0/24,
+	Test-Greeting := "café"

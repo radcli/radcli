@@ -312,6 +312,41 @@ int main(int argc, char **argv)
 		}
 	}
 
+	/* RFC 5090 Digest-* attributes: plain top-level string attributes,
+	 * no sub-TLV repacking (unlike the removed draft-sterman scheme). */
+	{
+		VALUE_PAIR *vp_digest = NULL;
+		char *raw = NULL;
+		unsigned raw_size = 0;
+
+		vp_digest = rc_avpair_add(rh, &vp_digest, PW_DIGEST_REALM, "example.com", -1, 0);
+		if (vp_digest == NULL) {
+			fprintf(stderr, "%d: error adding Digest-Realm\n", __LINE__);
+			exit(1);
+		}
+		if (vp_digest->attribute != PW_DIGEST_REALM) {
+			fprintf(stderr, "%d: Digest-Realm attribute number was rewritten (%u)\n",
+				__LINE__, (unsigned)vp_digest->attribute);
+			exit(1);
+		}
+		if (rc_avpair_get_raw(vp_digest, &raw, &raw_size) != 0 ||
+		    raw_size != strlen("example.com") ||
+		    memcmp(raw, "example.com", raw_size) != 0) {
+			fprintf(stderr, "%d: Digest-Realm value was not stored verbatim\n", __LINE__);
+			exit(1);
+		}
+		rc_avpair_free(vp_digest);
+
+		/* PW_DIGEST_USER_NAME/PW_DIGEST_BODY_DIGEST are compatibility
+		 * aliases for the RFC 5090 names; confirm they resolve to the
+		 * same, real dictionary-backed attributes. */
+		if (PW_DIGEST_USER_NAME != PW_DIGEST_USERNAME ||
+		    PW_DIGEST_BODY_DIGEST != PW_DIGEST_ENTITY_BODY_HASH) {
+			fprintf(stderr, "%d: Digest compatibility aliases do not match\n", __LINE__);
+			exit(1);
+		}
+	}
+
 	rc_destroy(rh);
 
 	return 0;

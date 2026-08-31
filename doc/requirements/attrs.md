@@ -96,38 +96,6 @@ encoder must still fit inside a 255-byte RADIUS attribute.
 **Acceptance:** [DATA] unit, local — a 248-byte string value assigned to a vendor-specific `PW_TYPE_STRING` attribute is rejected; a 253-byte string assigned to a standard one succeeds.
 **Links:** REQ-ATTR-DATA-003, REQ-NET-DATA-* (packet packing, net.md)
 
-### REQ-ATTR-DATA-005 — Digest-Auth pseudo-attributes are repacked into PW_DIGEST_ATTRIBUTES
-
-**Requirement:** When `rc_avpair_new()` or `rc_avpair_parse()` builds a pair
-whose attribute is one of `PW_DIGEST_REALM`..`PW_DIGEST_USER_NAME` (1063-1072,
-radcli-internal convenience IDs, not on-wire values), the implementation MUST
-re-pack the value as a 2-byte-prefixed sub-TLV (`strvalue[0]` = sub-type
-`attribute - PW_DIGEST_REALM + 1`, `strvalue[1]` = total length including the
-2-byte header) and rewrite `vp->attribute`/`pair->attribute` to
-`PW_DIGEST_ATTRIBUTES` (207), so the caller can build Digest attributes with
-symbolic per-field names while the wire encoder in `net.md` sees a single
-`PW_DIGEST_ATTRIBUTES` pair.
-**Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/avpair.c:226-249 (rc_avpair_new), lib/avpair.c:816-840 (rc_avpair_parse)
-**Acceptance:** [DATA] unit, local — `rc_avpair_add(rh, &list, PW_DIGEST_REALM, "example.com", -1, 0)` yields a list entry with `attribute == PW_DIGEST_ATTRIBUTES`, `strvalue[0] == 1`, `strvalue[1] == 2 + strlen("example.com")`.
-**Links:** REQ-ATTR-DATA-006
-
-### REQ-ATTR-DATA-006 — Digest value overflow is truncated, not rejected (accepted, intentional)
-
-**Requirement:** Both Digest-repacking sites (`rc_avpair_new()` and
-`rc_avpair_parse()`) MUST silently clamp `lvalue` to `AUTH_STRING_LEN - 2`
-when the supplied Digest sub-field value is longer, rather than returning an
-error as `rc_avpair_assign()`'s `PW_TYPE_STRING` path does for an equivalent
-over-length standard string (`REQ-ATTR-DATA-003`).
-**Strength:** MUST (as implemented, confirmed intentional)
-**Status:** DERIVED
-**Source:** lib/avpair.c:239-240 (rc_avpair_new), lib/avpair.c:829-830 (rc_avpair_parse); contrast lib/avpair.c:146-149 (rc_avpair_assign, which rejects)
-**Acceptance:** [DATA] unit, local — assigning a 260-byte value to
-`PW_DIGEST_REALM` succeeds and returns a pair with `lvalue == AUTH_STRING_LEN`
-(251+2), not an error.
-**Links:** REQ-ATTR-DATA-003, REQ-ATTR-DATA-005
-
 ### REQ-ATTR-DATA-007 — rc_avpair_insert links a single node into a list, aborting on caller misuse
 
 **Requirement:** `rc_avpair_insert(a, p, b)` MUST insert `b` immediately after
@@ -226,16 +194,13 @@ type-appropriate printable rendering into `value`: `PW_TYPE_STRING` octal-escape
 prefers the symbolic name from `rc_dict_getval()`, falling back to a decimal
 literal; `PW_TYPE_IPADDR` via `inet_ntoa()`; `PW_TYPE_IPV6ADDR`/`PW_TYPE_IPV6PREFIX`
 via `inet_ntop()` (the latter appending `/prefixlen`); `PW_TYPE_DATE` via
-`strftime()` with format `"%m/%d/%y %H:%M:%S"`. For `PW_TYPE_STRING` pairs
-whose `attribute == PW_DIGEST_ATTRIBUTES`, it MUST skip the 2-byte sub-TLV
-header written by REQ-ATTR-DATA-005 before rendering. It MUST return `-1`
+`strftime()` with format `"%m/%d/%y %H:%M:%S"`. It MUST return `-1`
 (without touching `name`/`value` beyond zeroing them) if `pair` is `NULL` or
 has an empty `name`, or if `pair->type` is not one of the above.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/avpair.c:879-988
 **Acceptance:** [DATA] unit, local — one round-trip test per `rc_attr_type` (`rc_avpair_add()` then `rc_avpair_tostr()`) produces the expected string; `rc_avpair_tostr(rh, NULL, ...)` returns `-1`.
-**Links:** REQ-ATTR-DATA-005
 
 ### REQ-ATTR-DATA-015 — rc_avpair_log formats a whole list into a caller buffer, stopping at capacity
 
@@ -348,13 +313,14 @@ not as usable storage in the current implementation.
 
 **Requirement:** `rc_buildreq()` MUST set `data->server`, `data->secret`,
 `data->svc_port`, `data->timeout`, `data->retries`, `data->code`, and a fresh
-per-call `data->seq_nbr` from `rc_get_id()` (`random() & UCHAR_MAX`); it MUST
+per-call `data->seq_nbr` from `rc_get_random_byte()` (lib/rc-random.c,
+dispatching to `gnutls_rnd()`/`getentropy()`, per REQ-GEN-SEC-007); it MUST
 NOT touch `data->send_pairs`/`data->receive_pairs`, which callers (or
 `rc_aaa_ctx_server()`) are responsible for initializing before/after calling
 it.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:21-57
+**Source:** lib/legacy/buildreq.c:38-46
 **Acceptance:** [NET] unit, local — calling `rc_buildreq()` on a `SEND_DATA` whose `send_pairs`/`receive_pairs` were pre-set leaves those two fields unchanged; two successive calls typically (not guaranteed) produce different `seq_nbr` values, since `seq_nbr` is not a security-sensitive nonce, only a retransmission-matching ID (see REQ-NET-* in net.md for how it's used on the wire).
 **Links:** REQ-ATTR-NET-025
 
@@ -617,8 +583,7 @@ ID and vendor ID are *known* — it is not a defense against oversized,
 malicious, or attacker-influenced *values*. Value-content and length
 validation is entirely the per-type logic in `rc_avpair_assign()`
 (REQ-ATTR-DATA-003); a value that passes dictionary identity validation can
-still be rejected (or, per REQ-ATTR-DATA-006, silently truncated) by the
-type-specific checks.
+still be rejected by the type-specific checks.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/avpair.c:196-261
@@ -725,7 +690,7 @@ and `lib/aaa_ctx.c` in `lib/radcli.map.in`, and every corresponding declaration 
 
 No public symbol in this document's scope is without a citing requirement.
 
-**Internal helpers not separately ID'd.** `rc_get_id()`, `rc_avpair_gen2()`,
+**Internal helpers not separately ID'd.** `rc_avpair_gen2()`,
 and `rc_fieldcpy()` are `static` (not exported — absent from
 `lib/radcli.map.in`), so they have no requirement ID of their own; their
 essential behavior is captured within the public-function requirements that
@@ -752,8 +717,9 @@ value (e.g. a misconfigured negative number) — that belongs to `config.md`
 lib/buildreq.c:140-141, 328-329).
 
 **Cross-cutting concerns.** Thread safety: none of `avpair.c`/`buildreq.c`/
-`aaa_ctx.c` touch process-wide state (no `static`/global mutable data beyond
-the pre-existing `radcli_debug` flag covered by `REQ-GEN-SEC-005`); every
+`aaa_ctx.c` touch process-wide state (`DEBUG()`'s `rh->debug` is a per-handle
+field, not global; the one process-wide exception, `radcli_legacy_debug`, is
+confined to `lib/legacy/compat.c` and covered by `REQ-GEN-SEC-005`); every
 function operates on caller-supplied `VALUE_PAIR`/`SEND_DATA`/`RC_AAA_CTX`/
 `rc_handle` objects, so concurrent calls are safe exactly to the extent the
 caller doesn't share a single such object across threads without its own

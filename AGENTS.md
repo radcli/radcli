@@ -83,14 +83,14 @@ invalidate requirements or use-cases other than the one you set out to change:
 - [ ] If `include/radcli/radcli.h` or `lib/radcli.map` changed: `ninja -C build
       compare-exported` and `ninja -C build abi-check` both pass, and any
       intentional addition updated `devel/ABI-x86_64.dump` via `ninja -C build
-      abi-dump` in the same commit (`REQ-GEN-ABI-001`/`002`)
+      abi-dump` in a separate commit (`REQ-GEN-ABI-001`/`002`)
 - [ ] Every changed line is relevant to the change — no drive-by refactoring;
       note any adjacent improvement you noticed in the PR description instead
       of bundling it into the patch
-- [ ] Commit message matches "Commit messages" below (crisp title, no body
-      unless the *how* is non-obvious) and every comment added/touched in the
-      diff matches the "Comments" rule under "Coding conventions" (explains a
-      non-obvious *why*, doesn't restate the code) — re-read the diff against
+- [ ] Commit message matches "Commit messages" below (crisp title, one paragraph
+      body explain what was enabled or solved by this addition. Every comment
+      added/touched in the diff matches the "Comments" rule under "Coding conventions"
+      (explains a non-obvious *why*, doesn't restate the code) — re-read the diff against
       both before declaring the change complete
 
 ### Commit messages
@@ -98,7 +98,7 @@ invalidate requirements or use-cases other than the one you set out to change:
 - Crisp and focused on what was fixed or added — not a narration of the work.
 - Title alone must give a complete overview: what was fixed/added, without needing
   the body to make sense.
-- Body: no details beyond *what*, unless the *how* is genuinely unusual or
+- Body: one paragraph with no details beyond *what* and *why* (problem solved), unless the *how* is genuinely unusual or
   non-obvious (i.e. not what a reader would expect from the title) — in that case,
   add a single sentence on the how. Otherwise, leave the body empty or omit it.
 - `Resolves: #NNN` when the commit closes a GitHub issue (recommended, not mandatory).
@@ -144,7 +144,6 @@ Key `meson setup` options (`-Doption=value`):
   Response Authenticator/Message-Authenticator verification, falling back to
   plain `memcmp()` — a documented, accepted timing side-channel in this build
   mode (`REQ-NET-SEC-010`).
-- `-Dnettle=disabled` — disable nettle (falls back to bundled MD5/HMAC)
 - `-Dlegacy-compat=true` — install freeradius-client/radiusclient-ng compat headers and `.so` symlinks
 - `-Ddocs=disabled` — skip Doxygen/doxy2man man page generation
 
@@ -181,7 +180,7 @@ cd tests && srcdir=../tests ../tests/tls-tests.sh
 ./build/tests/dict-add   # only built when GnuTLS is enabled
 ```
 
-Tests use Linux network namespaces (`tests/ns.sh`) to create isolated client/server namespaces with veth pairs. Tests skip (exit 77, reported as SKIP by `meson test`) when not run as root, or when `radiusd`/`freeradius` is absent. TLS tests (`tls-tests.sh`, `tls-idle-restart-tests.sh`, `close-notify-tests.sh`) also need port 2083 to be ready and only build/run when GnuTLS is enabled.
+Tests use Linux network namespaces (`tests/ns.sh`) to create isolated client/server namespaces with veth pairs. Tests skip (exit 77, reported as SKIP by `meson test`) when not run as root, or when `radiusd`/`freeradius` is absent. TLS tests (`tls-tests.sh`, `tls-idle-restart-tests.sh`, `close-notify-tests.sh`) also need port 2083 to be ready and only build/run when GnuTLS is enabled. `dae-freeradius-tests.sh` is a plain-loopback interoperability check (no root, no network namespace) that skips when FreeRADIUS's `radclient` is absent from PATH.
 
 Shell test scripts are in `tests/`; see `tests/*.sh` for the full list.
 
@@ -221,9 +220,9 @@ All network I/O goes through `rh->so` function pointers, set by `rc_apply_config
 - TCP: `default_tcp_socket_funcs`
 - TLS/DTLS: `tls_sendto` / `tls_recvfrom` wrappers around GnuTLS
 
-**TLS reconnection** (`lib/tls.c`): The `tls_st` struct holds a persistent GnuTLS session. When a send or receive fails, `need_restart` is set. The next `tls_sendto()` call triggers `restart_session()`, which re-establishes the connection. `restart_session()` has a `TIME_ALIVE` (120s) time guard to throttle reconnection attempts.
+**TLS reconnection** (`lib/tls.c`): The `tls_st` struct holds a persistent GnuTLS session. When a send or receive fails, `need_restart` is set. The next `tls_sendto()` call triggers `restart_session()`, which re-establishes the connection unconditionally (no rate limit — every call site only ever calls it once a reconnect is already known to be needed).
 
-`rc_check_tls(rh)` — call periodically from application threads to proactively detect dead sessions via heartbeat and reconnect. **ocserv does not call this**, which means idle session closure is only detected on the next request.
+`rc_check_tls(rh)` — call periodically from application threads to proactively detect a dead session and reconnect. Sends an RFC 5997 Status-Server watchdog (`radcli_ctx_send_watchdog()`) once `watchdog-interval` has elapsed since the session's last activity — the same mechanism `radcli_ctx_get_poll()`/`radcli_ctx_send_watchdog()` expose directly for radcli2-API callers, not a separate TLS heartbeat. **ocserv does not call this**, which means idle session closure is only detected on the next request.
 
 ### Dictionary
 
@@ -235,22 +234,33 @@ Exported symbols are controlled by `lib/radcli.map`. When adding public function
 
 ## CI
 
-Six jobs run on every push (`.github/workflows/tests.yaml`):
+Five jobs run on every push (`.github/workflows/tests.yaml`):
 - **static-analyzer** — clang static analysis (`scan-build`)
 - **tests-asan** — build + `sudo meson test` with `-Db_sanitize=address`
 - **tests-ubsan** — build + `sudo meson test` with `-Db_sanitize=undefined` plus extra sanitizer flags
 - **tests** — standard build, `sudo meson test`, `ninja abi-check`, `ninja compare-exported`, `meson dist`
-- **tests-msan** — clang build + `sudo meson test` with `-Db_sanitize=memory` (`-Dtls=disabled -Dnettle=disabled` to avoid uninstrumented external libs)
 - **tests-notls** — build + `sudo meson test` with `-Dtls=disabled`
 
 ## Coding conventions
 
 - C99, BSD 2-clause license for new files
 - All public functions prefixed `rc_`, macros in `UPPER_CASE`
-- Doxygen comments on all public API (`@param`, `@return`, `@defgroup`). Non-public
-  functions get the same description of purpose/params/return, but as a plain
-  comment, not Doxygen form — start it with `/*-` instead of `/**` so Doxygen
-  skips it.
+- Doxygen comments on all public API (`@param`, `@return`, `@defgroup`). For a
+  public **function**, the comment lives at its definition in the `.c` file,
+  not at its declaration in the header — the header keeps only the
+  `@defgroup`/`@addtogroup` membership and a bare, uncommented prototype (no
+  `/**` block at all, not even a one-line pointer: Doxygen merges the `.c`
+  definition's docs onto the declaration automatically). For a public
+  **enum/struct/typedef**,
+  the comment stays at its header declaration, since there is no separate `.c`
+  definition site. Non-public functions and types get the same shape of
+  description (purpose, params, return), but as a plain comment, not Doxygen
+  form — start it with `/*-` instead of `/**` so Doxygen skips it, regardless
+  of whether the symbol is also `static`. For internal functions, keep the
+  purpose to one crisp line (at most one extra sentence if it genuinely needs
+  expanding) and each `@param` to a single sentence. See
+  `doc/requirements/general.md` `REQ-GEN-STYLE-005`/`REQ-GEN-STYLE-006`/
+  `REQ-GEN-STYLE-007`.
 - Comments: prefer self-documenting code (meaningful names, short single-purpose
   functions) over comments. Where used, a comment should explain something not
   obvious from the code itself — a non-obvious constraint, the reason for an

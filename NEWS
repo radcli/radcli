@@ -1,3 +1,23 @@
+* Version 2.0.0 (unreleased)
+- Introduced a new API, provided by the libradcli2 library, built around
+  opaque structures so the library can evolve without breaking ABI, and
+  which drops the legacy/unnecessary APIs. The existing
+  libradcli library and its rc_*() API remain available unchanged for
+  backwards compatibility, and now use libradcli2 internally.
+- Added RFC 5176 Dynamic Authorization support (CoA and Disconnect
+  requests), including delivery over RadSec (RADIUS/TLS and RADIUS/DTLS).
+- The new API natively supports several modern attribute types from
+  RFC 8044: text, ifid, and 64-bit integers, including RFC 2869 Gigawords
+  handled transparently as 64-bit counters.
+- The new API supports asynchronous request handling, allowing an
+  application to send requests and poll for replies without blocking on
+  network I/O; see src/radexample-advanced.c for a complete example.
+- Simplified server configuration for modern deployments: the new API
+  is built around a single configured RADIUS server, with failover
+  handled via DNS resolution (e.g., multiple A/AAAA records) rather than
+  manually configured server lists.
+
+
 * Version 1.5.3 (released 2026-08-19)
 - Per draft-ietf-radext-deprecating-radius-10 Section 4, no longer require
   or position-check the Message-Authenticator attribute in responses
