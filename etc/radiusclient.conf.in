@@ -15,23 +15,28 @@
 # RADIUS listens separated by a colon from the hostname. if
 # no port is specified /etc/services is consulted of the radius
 # service. if this fails also a compiled in default is used.
-# For IPv6 addresses use the '[IPv6]:port:secret' format, or
-# simply '[IPv6]'. You may specify more than a single server
-# in a comma-separated list.
+# For IPv6 addresses use the '[IPv6]:port' format, or simply '[IPv6]'.
 #
 authserver 	localhost
-#authserver 	127.1.1.1:9999,172.17.0.1
+#authserver 	127.1.1.1:9999
 
 # RADIUS server to use for accounting requests. All that is
-# written for authserver applies, in acctserver as well. 
+# written for authserver applies, in acctserver as well.
 #
 acctserver 	localhost
 
-# File holding shared secrets used for the communication between the RADIUS
-# client and server, in "hostname  secret" format (one entry per line).
-# This is only consulted when the secret is not specified inline in the
-# authserver/acctserver option (using the host:port:secret syntax).
-servers		@pkgsysconfdir@/servers
+# Shared secret for authserver/acctserver. Ignored when serv-type is tls or
+# dtls below: that transport has its own fixed secret and never uses this
+# one, so a TLS/DTLS-only setup can leave it unset.
+#secret		testing123
+
+# Older versions of this file also accepted a secret appended inline to
+# authserver/acctserver, as 'host:port:secret' (taking priority over
+# "secret" above), and/or a separate "servers" file mapping hostnames to
+# secrets ("servers /path/to/servers", "hostname secret" one per line,
+# consulted only for a server that still has no secret after the above).
+# Both forms still work for backward compatibility, but are no longer the
+# documented way to set a secret -- use "secret" instead.
 
 # Dictionary of vendor-specific attributes. Standard RFC 2865/2866/2869
 # attributes are built into the library and do not require this option.
@@ -62,7 +67,14 @@ bindaddr	*
 # Namespace in which all sockets of Radcli are to be opened. This is effectively same as the        
 # Radcli existing on that namespace.                                                                 
 # If commented out, the default existing Namespace will be used.                                    
-#namespace   namespace-name                                                                         
+#namespace   namespace-name
+
+# TLS/DTLS Pre-Shared Key credentials (serv-type tls/dtls only), as an
+# alternative to X.509 (tls-ca-file/tls-cert-file/tls-key-file). Both must
+# be set together; tls-psk-key is hex text, at least 128 bits (16 bytes/
+# 32 hex digits).
+#tls-psk-identity	my-identity
+#tls-psk-key		000102030405060708090a0b0c0d0e0f
 
 # Support for IPv6 non-temporary address support. This is an IPv6-only option
 # and is valid only when IPv6 Privacy Extensions are enabled in system.
@@ -80,3 +92,65 @@ bindaddr	*
 # CVE-2024-3596 (BLAST RADIUS). Enabled by default; set to 'no' only
 # when communicating with legacy servers that do not send this attribute.
 #require-message-authenticator	no
+
+# Seconds between RFC 5997 Status-Server watchdogs on an established RadSec
+# (serv-type tls/dtls only) session -- keeps a NAT/firewall from reaping an
+# otherwise-idle connection, and detects and reconnects from a peer that has
+# gone silent (no response for 2.5x this interval) even though the
+# connection itself never dropped. No effect under serv-type udp/tcp.
+# Must be 0 (disabled) or at least 6; defaults to 15 if unset.
+#watchdog-interval	15
+
+# RFC 5176 dynamic authorization (CoA-Request / Disconnect-Request), receive
+# side only. Off by default: enabling it opens a channel that can terminate
+# user sessions. Three values:
+#   no   - off (the default).
+#   yes  - on, following serv-type: under serv-type udp/tcp, a separate
+#          RFC 5176/UDP listener (dae-listen/dae-server/dae-secret below);
+#          under serv-type tls/dtls, CoA/Disconnect instead flow over the
+#          *same* already-established RadSec connection this host uses for
+#          Access-Request/Accounting-Request (RFC 6614 SS2.1/SS2.5, RFC 7360
+#          SS3.1), authorized by that connection's own verified TLS peer
+#          identity (tls-verify-hostname must not be disabled) instead of
+#          dae-server/dae-secret, which are then inapplicable (a warning is
+#          logged if either is still set, but they otherwise have no effect).
+#   udp  - always a separate RFC 5176/UDP listener, regardless of serv-type.
+#          Kept as a fully supported, documented option, not superseded by
+#          'yes'. As this communication isn't secure ensure this is protected
+#          by IPSec or it cannot be reached except by the DAE server.
+#dae-accept	no
+
+# Bind address/port for the dae-accept listener. Only applicable when
+# dae-accept resolves to the RFC 5176/UDP listener ('udp', or 'yes' under
+# serv-type udp/tcp).
+#dae-listen	:3799
+
+# Shared secret used to verify incoming CoA/Disconnect requests and to sign
+# replies. Required when dae-accept resolves to the RFC 5176/UDP listener
+# ('udp', or 'yes' under serv-type udp/tcp); inapplicable under RadSec ('yes'
+# under serv-type tls/dtls uses that connection's own fixed RFC 6614/7360
+# secret instead). Deliberately not shared with authserver/acctserver's
+# secret -- trusting a server to answer our Access-Requests is not the same
+# as trusting it to command us to drop sessions.
+#dae-secret	testing123
+
+# Comma-separated list of addresses or hostnames authorized to send
+# CoA/Disconnect requests, each optionally followed by ":secret" to
+# override dae-secret for that sender. No network prefixes (e.g. /24) are
+# accepted: this is a short, explicitly known list (one DAC, or two or
+# three in an HA pair), not a NAS client table. Required when dae-accept
+# resolves to the RFC 5176/UDP listener ('udp', or 'yes' under serv-type
+# udp/tcp); inapplicable under RadSec (see dae-accept above).
+#dae-server	dac.example.com
+
+# Largest clock difference, in seconds, tolerated between this host and the
+# sender when checking a request's Event-Timestamp (RFC 5176 SS6.3 suggests
+# 300s). Set it to the worst-case skew between the two clocks plus a margin
+# for network delay; leave at the default if unsure. 0 disables the check.
+#dae-max-clock-skew	300
+
+# Discard a CoA/Disconnect request that lacks a Message-Authenticator
+# attribute instead of accepting it. Off by default for interoperability
+# with RFC 5176 SS3-compliant senders that omit it (a MAY, not a MUST);
+# enable if you control the sender and know it always sends the attribute.
+#dae-require-message-authenticator	no

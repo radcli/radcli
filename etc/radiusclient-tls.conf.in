@@ -10,7 +10,6 @@
 
 # RADIUS server to use for authentication and accounting requests.
 # Specify as host:port. For IPv6 use '[IPv6]:port'.
-# You may specify more than one server in a comma-separated list for failover.
 #
 authserver	localhost:2083
 #authserver	127.1.1.1:9999,172.17.0.1
@@ -74,14 +73,19 @@ tls-key-file	@pkgsysconfdir@/key.pem
 # Option 2: Pre-Shared Key (PSK) authentication.
 # Use only if your server explicitly supports PSK (RFC 6614 §2.3).
 # PSK is uncommon; if in doubt, use Option 1 above.
-# When using PSK: remove the tls-cert-file/tls-key-file lines
-# above and use one of the following instead:
-#
-# Inline in the authserver line (replaces the authserver entry above):
-#authserver	localhost:2083:psk@username@hexkey
-#
-# Or via a credentials file (one entry per line: hostname  psk:user:hexkey):
-#servers	@pkgsysconfdir@/servers-tls
+# When using PSK: remove the tls-ca-file/tls-cert-file/tls-key-file lines
+# above and set both of the following instead. tls-psk-key is hex text, at
+# least 128 bits (16 bytes/32 hex digits).
+#tls-psk-identity	my-identity
+#tls-psk-key		000102030405060708090a0b0c0d0e0f
+
+# Older versions of this file instead embedded the PSK inline in the
+# authserver entry -- "host:port:" followed by 'psk', a username, and a
+# hex key, each joined by a literal '@' -- or via a separate "servers-tls"
+# credentials file. Both still work for backward compatibility, but are no
+# longer the documented way to set a PSK -- use tls-psk-identity/
+# tls-psk-key above instead. (A plain shared "secret", the udp/tcp
+# equivalent, has no effect at all under TLS/DTLS either way.)
 
 # ---------------------------------------------------------------------------
 
@@ -94,3 +98,62 @@ tls-key-file	@pkgsysconfdir@/key.pem
 # CVE-2024-3596 (BLAST RADIUS). Enabled by default; set to 'no' only
 # when communicating with legacy servers that do not send this attribute.
 #require-message-authenticator	no
+
+# Seconds between RFC 5997 Status-Server watchdogs on this RadSec session --
+# keeps a NAT/firewall from reaping an otherwise-idle connection, and
+# detects and reconnects from a peer that has gone silent (no response for
+# 2.5x this interval) even though the connection itself never dropped.
+# Must be 0 (disabled) or at least 6; defaults to 15 if unset.
+#watchdog-interval	15
+
+# RFC 5176 dynamic authorization (CoA-Request / Disconnect-Request), receive
+# side only. Off by default: enabling it opens a channel that can terminate
+# user sessions. Three values:
+#   no   - off (the default).
+#   yes  - on, following serv-type: under serv-type udp/tcp, a separate
+#          RFC 5176/UDP listener (dae-listen/dae-server/dae-secret below);
+#          under serv-type tls/dtls, CoA/Disconnect instead flow over the
+#          *same* already-established RadSec connection this host uses for
+#          Access-Request/Accounting-Request (RFC 6614 SS2.1/SS2.5, RFC 7360
+#          SS3.1), authorized by that connection's own verified TLS peer
+#          identity (tls-verify-hostname must not be disabled) instead of
+#          dae-server/dae-secret, which are then inapplicable (a warning is
+#          logged if either is still set, but they otherwise have no effect).
+#   udp  - always a separate RFC 5176/UDP listener, regardless of serv-type.
+#          Kept as a fully supported, documented option, not superseded by
+#          'yes'. As this communication isn't secure ensure this is protected
+#          by IPSec or it cannot be reached except by the DAE server.
+#dae-accept	no
+
+# Bind address/port for the dae-accept listener. Only applicable when
+# dae-accept = udp.
+#dae-listen	:3799
+
+# Shared secret used to verify incoming CoA/Disconnect requests and to sign
+# replies. Required when dae-accept = udp; inapplicable (see dae-accept
+# above) when dae-accept = yes, since RadSec uses that connection's own fixed
+# RFC 6614/7360 secret instead. Deliberately not shared with
+# authserver/acctserver's secret -- trusting a server to answer our
+# Access-Requests is not the same as trusting it to command us to drop
+# sessions.
+#dae-secret	testing123
+
+# Comma-separated list of addresses or hostnames authorized to send
+# CoA/Disconnect requests, each optionally followed by ":secret" to
+# override dae-secret for that sender. No network prefixes (e.g. /24) are
+# accepted: this is a short, explicitly known list (one DAC, or two or
+# three in an HA pair), not a NAS client table. Required when dae-accept =
+# udp; inapplicable when dae-accept = yes (see dae-accept above).
+#dae-server	dac.example.com
+
+# Largest clock difference, in seconds, tolerated between this host and the
+# sender when checking a request's Event-Timestamp (RFC 5176 SS6.3 suggests
+# 300s). Set it to the worst-case skew between the two clocks plus a margin
+# for network delay; leave at the default if unsure. 0 disables the check.
+#dae-max-clock-skew	300
+
+# Discard a CoA/Disconnect request that lacks a Message-Authenticator
+# attribute instead of accepting it. Off by default for interoperability
+# with RFC 5176 SS3-compliant senders that omit it (a MAY, not a MUST);
+# enable if you control the sender and know it always sends the attribute.
+#dae-require-message-authenticator	no

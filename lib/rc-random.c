@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2026 Nikos Mavrogiannopoulos
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,48 +22,43 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * @defgroup radcli-api Main API
- * @brief Main API Functions 
- *
- * @{
- */
+/* This is the single place that dispatches to gnutls_rnd()/getentropy();
+ * every Request Authenticator and packet-ID generator in the library goes
+ * through it instead of duplicating the #if defined(HAVE_GNUTLS) branch.
+ * See REQ-GEN-SEC-007 in doc/requirements/general.md. */
 
-#include <includes.h>
-#include <radcli/radcli.h>
+#include <config.h>
+#include "rc-random.h"
 
-/** @brief Returns the secret available in this context. It is the secret value
- * used in the request.
+#include <assert.h>
+
+#if defined(HAVE_GNUTLS)
+# include <gnutls/gnutls.h>
+# include <gnutls/crypto.h>
+#endif
+
+/*- Fill a buffer with cryptographically random bytes, via gnutls_rnd() or
+ * getentropy().
  *
- * @param ctx a pointer to a RC_AAA_CTX structure.
- * @return a null-terminated string.
- */
-const char *rc_aaa_ctx_get_secret (RC_AAA_CTX *ctx)
+ * @param buf the buffer to fill.
+ * @param len the number of random bytes to write into buf.
+ -*/
+void rc_get_random_bytes(void *buf, size_t len)
 {
-	return ctx->secret;
+#if defined(HAVE_GNUTLS)
+	int ret = gnutls_rnd(GNUTLS_RND_NONCE, buf, len);
+	assert(ret >= 0);
+#else
+	int ret = getentropy(buf, len);
+	assert(ret == 0);
+#endif
 }
 
-/** @brief Returns a pointer request vector used in the request.
- * It is of AUTH_VECTOR_LEN size.
- *
- * @param ctx a pointer to a RC_AAA_CTX structure.
- * @return a pointer to the vector.
- */
-const void *rc_aaa_ctx_get_vector (RC_AAA_CTX *ctx)
+/*- Return a single cryptographically random byte.
+ -*/
+unsigned char rc_get_random_byte(void)
 {
-	return ctx->request_vector;
+	unsigned char b;
+	rc_get_random_bytes(&b, 1);
+	return b;
 }
-
-
-/** @brief Deinitializes an RC_AAA_CTX structure.
- *
- * @param ctx a pointer to a RC_AAA_CTX structure.
- */
-void rc_aaa_ctx_free (RC_AAA_CTX *ctx)
-{
-	if (ctx != NULL)
-		memset(ctx, '\0', sizeof(*ctx));
-	free(ctx);
-}
-
-/** @} */

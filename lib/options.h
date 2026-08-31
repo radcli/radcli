@@ -7,13 +7,9 @@
  *
  */
 
-#define OPTION_LEN	64
+#include <radcli/radcli-defs.h>
 
-/* ids for different option types */
-#define OT_STR		(1<<0)			//!< string.
-#define OT_INT		(1<<1)			//!< integer.
-#define OT_SRV		(1<<2)			//!< server list.
-#define OT_AUO		(1<<3)			//!< authentication order.
+#define OPTION_LEN	64
 
 #define OT_ANY		((unsigned int)~0)	//!< Used internally.
 
@@ -26,41 +22,56 @@ typedef struct _option {
 	void *val;				//!< pointer to option value.
 } OPTION;
 
-static OPTION config_options_default[] = {
-/* internally used options */
-{"config_file",		OT_STR, ST_UNDEF, NULL},
-/* RADIUS specific options */
-{"serv-type",		OT_STR, ST_UNDEF, NULL},
-{"serv-auth-type",	OT_STR, ST_UNDEF, NULL}, /* alias for serv-type */
-{"namespace",		OT_STR, ST_UNDEF, NULL}, 
-{"use-public-addr",	OT_STR, ST_UNDEF, NULL},
-{"tls-verify-hostname",	OT_STR, ST_UNDEF, NULL},
-{"require-message-authenticator", OT_STR, ST_UNDEF, NULL}, /* default: required; set "no" for legacy servers */
-{"tls-ca-file",		OT_STR, ST_UNDEF, NULL},
-{"tls-cert-file",	OT_STR, ST_UNDEF, NULL},
-{"tls-key-file",	OT_STR, ST_UNDEF, NULL},
-{"nas-identifier",	OT_STR, ST_UNDEF, NULL},
-{"nas-ip",		OT_STR, ST_UNDEF, NULL},
-{"authserver",		OT_SRV, ST_UNDEF, NULL},
-{"acctserver",		OT_SRV, ST_UNDEF, NULL},
-{"servers",		OT_STR, ST_UNDEF, NULL},
-{"dictionary",		OT_STR, ST_UNDEF, NULL},
-{"default_realm",	OT_STR, ST_UNDEF, NULL},
-{"radius_timeout",	OT_INT, ST_UNDEF, NULL},
-{"radius_retries",	OT_INT,	ST_UNDEF, NULL},
-{"radius_deadtime",	OT_INT, ST_UNDEF, NULL},
-{"bindaddr",		OT_STR, ST_UNDEF, NULL},
-{"clientdebug",		OT_INT, ST_UNDEF, NULL},
-/* Deprecated options */
-{"login_radius",	OT_STR, ST_UNDEF, NULL},
-{"seqfile",		OT_STR, ST_UNDEF, NULL},
-{"mapfile",		OT_STR, ST_UNDEF, NULL},
-{"auth_order",	 	OT_AUO, ST_UNDEF, NULL},
-{"login_tries",	 	OT_INT, ST_UNDEF, NULL},
-{"login_timeout",	OT_INT, ST_UNDEF, NULL},
-{"nologin",		OT_STR, ST_UNDEF, NULL},
-{"issue",		OT_STR, ST_UNDEF, NULL},
-{"login_local",		OT_STR, ST_UNDEF, NULL},
-};
+/* RC_OPTION_TABLE itself (the X-macro list generating config_options_default[]
+ * below and the rc_option_id enum) now lives in the public, installed
+ * radcli/radcli-defs.h, included above: it is also the source radcli2.h's
+ * radcli_opt_id enum is generated from, so the legacy and new APIs can never
+ * recognise a different set of option names by accident. */
 
-#define	NUM_OPTIONS	((sizeof(config_options_default))/(sizeof(config_options_default[0])))
+/* Legacy radiusclient-ng/freeradius-client option names that radcli parses
+ * but never acted on (no code anywhere reads their stored value back) --
+ * login_radius/seqfile/mapfile/nologin/issue/login_local supported an
+ * external radlogin(1)-style local-login daemon radcli never implemented;
+ * auth_order/login_tries/login_timeout supported choosing between local and
+ * RADIUS authentication, likewise never implemented here. Kept as a
+ * name-only ignore list (lib/config.c's rc_ignored_option()) purely so
+ * existing config files carrying these lines keep loading unchanged --
+ * they carry no rc_option_id, no storage, and rc_conf_str()/rc_conf_int()
+ * can never return a value for them. */
+#define RC_IGNORED_OPTION_TABLE \
+X("login_radius") \
+X("seqfile") \
+X("mapfile") \
+X("auth_order") \
+X("login_tries") \
+X("login_timeout") \
+X("nologin") \
+X("issue") \
+X("login_local") \
+X("radius_deadtime")
+
+/* Index into config_options_default[]/rh->config_options[] for internal,
+ * compile-time-known lookups (lib/config.c's rc_option_by_id() and
+ * friends) that bypass find_option()'s string search. OPT_COUNT is
+ * generated from the same RC_OPTION_TABLE list as the array below, so it
+ * always matches NUM_OPTIONS. */
+typedef enum {
+#define RADCLI_OPT_ENTRY(id, name, type) id,
+	RC_OPTION_TABLE
+#undef RADCLI_OPT_ENTRY
+	OPT_COUNT
+} rc_option_id;
+
+/* config_options_default[]/NUM_OPTIONS are only ever used in lib/config.c
+ * (the array is memcpy()'d into each rc_handle's own config_options[]
+ * there); defined there rather than here so headers that only need the
+ * OPT_* ids/rc_conf_*_id() prototypes don't each get their own unused
+ * static copy of the array. */
+
+/* Internal (non-exported, see lib/radcli.map) id-based accessors --
+ * defined in lib/config.c, used by hot per-request callers (buildreq.c,
+ * request.c, tls.c) that already know which option they want at compile
+ * time and can skip find_option()'s string search. Behave exactly like
+ * rc_conf_int()/rc_conf_str() otherwise. */
+int rc_conf_int_id(rc_handle const *rh, rc_option_id id);
+char *rc_conf_str_id(rc_handle const *rh, rc_option_id id);
