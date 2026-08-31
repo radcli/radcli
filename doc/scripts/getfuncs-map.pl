@@ -47,7 +47,7 @@ sub function_print {
   $check = $known_false_positives{$func_name};
   return if (defined $check && $check == 1);
 
-  if ($func_name ne '' && ($func_name =~ m/^rc_.*/)) {
+  if ($func_name ne '' && ($func_name =~ m/^(rc_|radcli_).*/)) {
     print $func_name . "\n";
   }
       
@@ -60,6 +60,16 @@ while ($line=<STDIN>) {
 
   next if ($line eq '');
 # print STDERR "line($lineno): $line";
+
+  # A version script may chain a second, later node onto the first
+  # (e.g. "NODE_2 { global: ... } NODE_1;") to export symbols meant for
+  # internal, cross-library use only (radcli2.map's RADCLI2_PRIVATE) --
+  # not part of the public, documented API this script's headers
+  # argument describes. Stop at the first node's closing "};" so only
+  # that node's globals are ever compared against the header.
+  if ($line =~ m/^\s*\}\s*;\s*$/) {
+    last;
+  }
 
   #skip comments
 #  if ($line =~ m/^\s*/) {

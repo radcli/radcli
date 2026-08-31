@@ -51,7 +51,7 @@ sub function_print {
   }
 
 #print STDERR "function: $prototype\n";
-  if ($func_name ne '' && ($func_name =~ m/rc_.*/)) {
+  if ($func_name ne '' && ($func_name =~ m/^(rc_|radcli_).*/)) {
     print $func_name . "\n";
   }
       
@@ -102,7 +102,15 @@ while ($line=<STDIN>) {
       next;
     }
   } elsif ($state == 2) { #struct||enum||typedef
-    if ($line =~ m/;/) {
+    # Waits for the closing brace, not just any ";" -- a multi-line
+    # "typedef struct { ... } name;" block has one ";" per member line
+    # *inside* the braces too (e.g. "const radcli_avp *cur;"), and
+    # resetting to state 0 on the first one leaks the remaining member
+    # lines into the function-declaration scanner below, which can
+    # misparse "TYPE member;" as a bogus "function" (typedef/struct/enum
+    # is always brace-delimited when it spans multiple lines, so waiting
+    # for "}" is safe here).
+    if ($line =~ m/\}/) {
       $state = 0;
       next;
     }

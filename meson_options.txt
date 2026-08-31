@@ -1,7 +1,5 @@
 option('tls', type: 'feature', value: 'auto',
        description: 'TLS/DTLS support via GnuTLS')
-option('nettle', type: 'feature', value: 'auto',
-       description: 'Use nettle for MD5/HMAC (bundled fallback otherwise)')
 option('legacy-compat', type: 'boolean', value: false,
        description: 'Install freeradius-client/radiusclient-ng compat headers and .so symlinks')
 option('static', type: 'boolean', value: false,

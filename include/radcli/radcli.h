@@ -19,6 +19,13 @@
 #ifndef RADCLI_H
 #define RADCLI_H
 
+#ifndef RADCLI_SUPPRESS_LEGACY_WARNING
+#warning "radcli.h/-lradcli is the legacy, frozen API. New code should use \
+<radcli/radcli2.h> (-lradcli2). See https://radcli.github.io/radcli/ for \
+the new API's documentation, or define RADCLI_SUPPRESS_LEGACY_WARNING to \
+silence this warning."
+#endif
+
 #include	<sys/types.h>
 /*
  * Include for C99 uintX_t defines is stdint.h on most systems.  Solaris uses
@@ -145,264 +152,15 @@ typedef enum rc_standard_codes {
 	PW_STATUS_CLIENT=13
 } rc_standard_codes;
 
-/** \enum rc_attr_id Standard RADIUS attribute-value pair identifiers
- */
-typedef enum rc_attr_id {
-	PW_USER_NAME=1,		//!< Its type is string.
-	PW_USER_PASSWORD=2,	//!< Its type is string.
-	PW_CHAP_PASSWORD=3,	//!< Its type is string.
-	PW_NAS_IP_ADDRESS=4,	//!< Its type is ipaddr.
-	PW_NAS_PORT=5,		//!< Its type is integer.
-	PW_SERVICE_TYPE=6,	//!< Its type is integer.
-	PW_FRAMED_PROTOCOL=7,	//!< Its type is integer.
-	PW_FRAMED_IP_ADDRESS=8,	//!< Its type is ipaddr.
-	PW_FRAMED_IP_NETMASK=9,	//!< Its type is ipaddr.
-	PW_FRAMED_ROUTING=10,	//!< Its type is integer.
-	PW_FILTER_ID=11,	//!< Its type is string.
-	PW_FRAMED_MTU=12,	//!< Its type is integer.
-	PW_FRAMED_COMPRESSION=13,	//!< Its type is integer.
-	PW_LOGIN_IP_HOST=14,	//!< Its type is ipaddr.
-	PW_LOGIN_SERVICE=15,	//!< Its type is integer.
-	PW_LOGIN_PORT=16,	//!< Its type is integer.
-	PW_OLD_PASSWORD=17,	//!< Its type is string - deprecated.
-	PW_REPLY_MESSAGE=18,	//!< Its type is string.
-	PW_LOGIN_CALLBACK_NUMBER=19,	//!< Its type is string.
-	PW_FRAMED_CALLBACK_ID=20,	//!< Its type is string.
-	PW_EXPIRATION=21,		//!< Its type is date - deprecated.
-	PW_FRAMED_ROUTE=22,		//!< Its type is string.
-	PW_FRAMED_IPX_NETWORK=23,	//!< Its type is integer.
-	PW_STATE=24,		//!< Its type is string.
-	PW_CLASS=25,		//!< Its type is string.
-	PW_VENDOR_SPECIFIC=26,	//!< Its type is string.
-	PW_SESSION_TIMEOUT=27,	//!< Its type is integer.
-	PW_IDLE_TIMEOUT=28,	//!< Its type is integer.
-	PW_TERMINATION_ACTION=29,	//!< Its type is integer.
-	PW_CALLED_STATION_ID=30,	//!< Its type is string.
-	PW_CALLING_STATION_ID=31,	//!< Its type is string.
-	PW_NAS_IDENTIFIER=32,	//!< Its type is string.
-	PW_PROXY_STATE=33,	//!< Its type is string.
-	PW_LOGIN_LAT_SERVICE=34,//!< Its type is string.
-	PW_LOGIN_LAT_NODE=35,	//!< Its type is string.
-	PW_LOGIN_LAT_GROUP=36,	//!< Its type is string.
-	PW_FRAMED_APPLETALK_LINK=37,	//!< Its type is integer.
-	PW_FRAMED_APPLETALK_NETWORK=38,	//!< Its type is integer.
-	PW_FRAMED_APPLETALK_ZONE=39,	//!< Its type is string.
-	PW_ACCT_STATUS_TYPE=40,		//!< Its type is integer.
-	PW_ACCT_DELAY_TIME=41,		//!< Its type is integer.
-	PW_ACCT_INPUT_OCTETS=42,	//!< Its type is integer.
-	PW_ACCT_OUTPUT_OCTETS=43,	//!< Its type is integer.
-	PW_ACCT_SESSION_ID=44,		//!< Its type is string.
-	PW_ACCT_AUTHENTIC=45,		//!< Its type is integer.
-	PW_ACCT_SESSION_TIME=46,	//!< Its type is integer.
-	PW_ACCT_INPUT_PACKETS=47,	//!< Its type is integer.
-	PW_ACCT_OUTPUT_PACKETS=48,	//!< Its type is integer.
-	PW_ACCT_TERMINATE_CAUSE=49,	//!< Its type is integer.
-	PW_ACCT_MULTI_SESSION_ID=50,	//!< Its type is string.
-	PW_ACCT_LINK_COUNT=51,		//!< Its type is integer.
-	PW_ACCT_INPUT_GIGAWORDS=52,	//!< Its type is integer.
-	PW_ACCT_OUTPUT_GIGAWORDS=53,	//!< Its type is integer.
-	PW_EVENT_TIMESTAMP=55,		//!< Its type is integer.
-	PW_EGRESS_VLANID=56,		//!< Its type is string.
-	PW_INGRESS_FILTERS=57,		//!< Its type is integer.
-	PW_EGRESS_VLAN_NAME=58,		//!< Its type is string.
-	PW_USER_PRIORITY_TABLE=59,	//!< Its type is string.
-	PW_CHAP_CHALLENGE=60,		//!< Its type is string.
-	PW_NAS_PORT_TYPE=61,		//!< Its type is integer.
-	PW_PORT_LIMIT=62,		//!< Its type is integer.
-	PW_LOGIN_LAT_PORT=63,		//!< Its type is string.
-	PW_TUNNEL_TYPE=64,		//!< Its type is string.
-	PW_TUNNEL_MEDIUM_TYPE=65,	//!< Its type is integer.
-	PW_TUNNEL_CLIENT_ENDPOINT=66,	//!< Its type is string.
-	PW_TUNNEL_SERVER_ENDPOINT=67,	//!< Its type is string.
-	PW_ACCT_TUNNEL_CONNECTION=68,	//!< Its type is string.
-	PW_TUNNEL_PASSWORD=69,		//!< Its type is string.
-	PW_ARAP_PASSWORD=70,		//!< Its type is string.
-	PW_ARAP_FEATURES=71,		//!< Its type is string.
-	PW_ARAP_ZONE_ACCESS=72,		//!< Its type is integer.
-	PW_ARAP_SECURITY=73,		//!< Its type is integer.
-	PW_ARAP_SECURITY_DATA=74,	//!< Its type is string.
-	PW_PASSWORD_RETRY=75,		//!< Its type is integer.
-	PW_PROMPT=76,			//!< Its type is integer.
-	PW_CONNECT_INFO=77,		//!< Its type is string.
-	PW_CONFIGURATION_TOKEN=78,	//!< Its type is string.
-	PW_EAP_MESSAGE=79,		//!< Its type is string.
-	PW_MESSAGE_AUTHENTICATOR=80,	//!< Its type is string.
-	PW_TUNNEL_PRIVATE_GROUP_ID=81,	//!< Its type is string.
-	PW_TUNNEL_ASSIGNMENT_ID=82,	//!< Its type is string.
-	PW_TUNNEL_PREFERENCE=83,	//!< Its type is string.
-	PW_ARAP_CHALLENGE_RESPONSE=84,	//!< Its type is string.
-	PW_ACCT_INTERIM_INTERVAL=85,	//!< Its type is integer.
-	PW_ACCT_TUNNEL_PACKETS_LOST=86,	//!< Its type is integer.
-	PW_NAS_PORT_ID_STRING=87,	//!< Its type is string.
-	PW_FRAMED_POOL=88,		//!< Its type is string.
-	PW_CHARGEABLE_USER_IDENTITY=89,	//!< Its type is string.
-	PW_CUI=89,			//!< Its type is string.
-	PW_TUNNEL_CLIENT_AUTH_ID=90,	//!< Its type is string.
-	PW_TUNNEL_SERVER_AUTH_ID=91,	//!< Its type is string.
-	PW_NAS_FILTER_RULE=92,		//!< Its type is string.
-	PW_ORIGINATING_LINE_INFO=94,	//!< Its type is string.
-	PW_NAS_IPV6_ADDRESS=95,		//!< Its type is string.
-	PW_FRAMED_INTERFACE_ID=96,	//!< Its type is string.
-	PW_FRAMED_IPV6_PREFIX=97,	//!< Its type is string.
-	PW_LOGIN_IPV6_HOST=98,		//!< Its type is string.
-	PW_FRAMED_IPV6_ROUTE=99,	//!< Its type is string.
-	PW_FRAMED_IPV6_POOL=100,	//!< Its type is string.
-	PW_ERROR_CAUSE=101,		//!< Its type is integer.
-	PW_EAP_KEY_NAME=102,		//!< Its type is string.
-	PW_DELEGATED_IPV6_PREFIX=123,	//!< Its type is ipv6prefix.
-
-	PW_FRAMED_IPV6_ADDRESS=168,	//!< Its type is ipaddr6.
-	PW_DNS_SERVER_IPV6_ADDRESS=169,	//!< Its type is ipaddr6.
-	PW_ROUTE_IPV6_INFORMATION=170,	//!< Its type is ipv6prefix.
-
-	//!< Experimental SIP-specific attributes (draft-sterman-aaa-sip-00.txt etc)
-
-	PW_DIGEST_RESPONSE=206,		//!< Its type is string.
-	PW_DIGEST_ATTRIBUTES=207,	//!< Its type is string.
-	PW_DIGEST_REALM=1063,		//!< Its type is string.
-	PW_DIGEST_NONCE=1064,		//!< Its type is string.
-	PW_DIGEST_METHOD=1065,		//!< Its type is string.
-	PW_DIGEST_URI=1066,		//!< Its type is string.
-	PW_DIGEST_QOP=1067,		//!< Its type is string.
-	PW_DIGEST_ALGORITHM=1068,	//!< Its type is string.
-	PW_DIGEST_BODY_DIGEST=1069,	//!< Its type is string.
-	PW_DIGEST_CNONCE=1070,		//!< Its type is string.
-	PW_DIGEST_NONCE_COUNT=1071,	//!< Its type is string.
-	PW_DIGEST_USER_NAME=1072,	//!< Its type is string.
-
-	//!< Merit Experimental Extensions
-	PW_USER_ID=222,			//!< Its type is string.
-	PW_USER_REALM=223		//!< Its type is string.
-} rc_attr_id;
+/* rc_attr_id (the numeric PW_* attribute IDs), rc_service_type,
+ * rc_framed_protocol, rc_framed_routing_type, rc_framed_comp,
+ * rc_login_service_type, rc_termination_action, rc_acct_status_type,
+ * rc_acct_terminate_cause, rc_nas_port_type, rc_acct_auth_type, and
+ * rc_vendor_pec/rc_vendor_type live in radcli-defs.h, shared with
+ * radcli2.h so both headers use the same numeric IDs/VALUEs. */
+#include <radcli/radcli-defs.h>
 
 /* Integer Translations */
-
-/** \enum rc_service_type RFC2865 Service-Type values
- */
-typedef enum rc_service_type {
-	PW_LOGIN=1,
-	PW_FRAMED=2,
-	PW_CALLBACK_LOGIN=3,
-	PW_CALLBACK_FRAMED=4,
-	PW_OUTBOUND=5,
-	PW_ADMINISTRATIVE=6,
-	PW_NAS_PROMPT=7,
-	PW_AUTHENTICATE_ONLY=8,
-	PW_CALLBACK_NAS_PROMPT=9
-} rc_service_type;
-
-/** \enum rc_framed_protocol RFC2865 Framed-Protocol values
- */
-typedef enum rc_framed_protocol {
-	PW_PPP=1,
-	PW_SLIP=2,
-	PW_ARA=	3,
-	PW_GANDALF=4,
-	PW_XYLOGICS=5
-} rc_framed_protocol;
-
-/** \enum rc_framed_routing_type RFC2865 Framed-Routing values
- */
-typedef enum rc_framed_routing_type {
-	PW_NONE=0,
-	PW_BROADCAST=1,
-	PW_LISTEN=2,
-	PW_BROADCAST_LISTEN=3
-} rc_framed_routing_type;
-
-/** FRAMED COMPRESSION TYPES */
-
-/** \enum rc_framed_comp RFC2865 Framed-Compression values
- */
-typedef enum rc_framed_comp {
-	PW_COMP_NONE=0,
-	PW_VAN_JACOBSON_TCP_IP=1,
-	PW_IPX_HEADER_COMPRESSION=2,
-	PW_COMP_LZS=3
-} rc_framed_comp;
-
-/** \enum rc_login_service_type RFC2865 Login-Service values
- */
-typedef enum rc_login_service_type {
-	PW_TELNET=0,
-	PW_RLOGIN=1,
-	PW_TCP_CLEAR=2,
-	PW_PORTMASTER=3,
-	PW_LAT=4,
-	PW_X25_PAD=5,
-	PW_X25_T3POS=6
-} rc_login_service_type;
-
-/** \enum rc_termination_action RFC2865 Termination-Action values
- */
-typedef enum rc_termination_action {
-	PW_DEFAULT=0,
-	PW_RADIUS_REQUEST=1
-} rc_termination_action;
-
-
-/** \enum rc_acct_status_type RFC2866 Acct-Status-Type values
- */
-typedef enum rc_acct_status_type {
-	PW_STATUS_START=1,
-	PW_STATUS_STOP=2,
-	PW_STATUS_ALIVE=3,
-	PW_STATUS_MODEM_START=4,
-	PW_STATUS_MODEM_STOP=5,
-	PW_STATUS_CANCEL=6,
-	PW_ACCOUNTING_ON=7,
-	PW_ACCOUNTING_OFF=8
-} rc_acct_status_type;
-
-/** \enum rc_acct_terminate_cause RFC2866 Acct-Terminate-Cause values
- */
-typedef enum rc_acct_terminate_cause {
-	PW_USER_REQUEST=1,
-	PW_LOST_CARRIER=2,
-	PW_LOST_SERVICE=3,
-	PW_ACCT_IDLE_TIMEOUT=4,
-	PW_ACCT_SESSION_TIMEOUT=5,
-	PW_ADMIN_RESET=6,
-	PW_ADMIN_REBOOT=7,
-	PW_PORT_ERROR=8,
-	PW_NAS_ERROR=9,
-	PW_NAS_REQUEST=10,
-	PW_NAS_REBOOT=11,
-	PW_PORT_UNNEEDED=12,
-	PW_PORT_PREEMPTED=13,
-	PW_PORT_SUSPENDED=14,
-	PW_SERVICE_UNAVAILABLE=15,
-	PW_CALLBACK=16,
-	PW_USER_ERROR=17,
-	PW_HOST_REQUEST=18
-} rc_acct_terminate_cause;
-
-/** \enum rc_nas_port_type RFC2866 NAS-Port-Type values
- */
-typedef enum rc_nas_port_type {
-	PW_ASYNC=0,
-	PW_SYNC=1,
-	PW_ISDN_SYNC=2,
-	PW_ISDN_SYNC_V120=3,
-	PW_ISDN_SYNC_V110=4,
-	PW_VIRTUAL=5
-} rc_nas_port_type;
-
-/** \enum rc_acct_auth_type RFC2866 Acct-Authentic values
- */
-typedef enum rc_acct_auth_type {
-	PW_RADIUS=1,
-	PW_LOCAL=2,
-	PW_REMOTE=3
-} rc_acct_auth_type;
-
-/** \enum rc_vendor_pec --- http://www.iana.org/assignments/enterprise-numbers/enterprise-numbers
- */
-typedef enum rc_vendor_pec {
-  VENDOR_NONE=0,
-  VENDOR_MICROSOFT	     = 311,
-  VENDOR_ROARING_PENGUIN     = 10055
-} rc_vendor_type;
 
 /* Vendor RADIUS attribute-value pairs for MICROSOFT */
 enum rc_vendor_attr_microsoft {
@@ -551,69 +309,10 @@ typedef struct rc_aaa_ctx_st RC_AAA_CTX;
 
 /** @} */
 
-/*!\mainpage
- * \section intro_sec Introduction
- *
- * radcli is a C library for adding RADIUS authentication and accounting to an
- * application in roughly 50 lines of code.  All server addresses, credentials,
- * and transport choices (UDP, TCP, TLS, DTLS) live in a single configuration
- * file; the calling application needs no transport-specific code.
- *
- * \section quickstart_sec Quick start
- *
- * The normal call sequence is three steps:
- *
- * 1. **Load configuration** — parses the config file and initialises the transport:
- *    @code
- *    rc_handle *rh = rc_read_config("/etc/radiusclient/radiusclient.conf");
- *    @endcode
- *
- * 2. **Build an attribute list** — attach the attributes you want to send:
- *    @code
- *    VALUE_PAIR *send = NULL;
- *    rc_avpair_add(rh, &send, PW_USER_NAME,     username, -1, 0);
- *    rc_avpair_add(rh, &send, PW_USER_PASSWORD, password, -1, 0);
- *    @endcode
- *
- * 3. **Send the request** — rc_auth() handles retries, failover, and response
- *    validation automatically:
- *    @code
- *    VALUE_PAIR *received = NULL;
- *    int result = rc_auth(rh, 0, send, &received, NULL);
- *    // result == OK_RC on success
- *    rc_avpair_free(send);
- *    rc_avpair_free(received);
- *    rc_destroy(rh);
- *    @endcode
- *
- * The transport is selected entirely in the config file (@c serv-type = udp,
- * tcp, tls, or dtls); no code changes are required to switch.  TLS and DTLS
- * additionally require certificate or PSK credentials to be set in the config
- * file (@c tls-ca-file, @c tls-cert-file, @c tls-key-file).  See radexample.c
- * for a complete compilable example.
- *
- * For accounting requests that must not block (e.g. sending Accounting-Stop
- * for open sessions while an application is shutting down), use
- * rc_acct_async() instead of rc_acct(): it addresses every configured
- * accounting server without waiting for a reply.
- *
- * \section nofile_sec Operation without a config file
- *
- * Programmatic configuration (without a file) is also possible using
- * rc_new(), rc_config_init(), rc_add_config(), and rc_apply_config().
- *
- * \section background_sec Background
- *
- * RADIUS (Remote Authentication Dial In User Service, RFC 2865/2866) is a
- * protocol for carrying authentication, authorisation, and accounting
- * information between a Network Access Server and a shared Authentication
- * Server.  radcli implements the client side, and is source-compatible with
- * freeradius-client and radiusclient-ng.
- */
-
-/** \example radexample.c
- * This is an example of how to use the radcli API.
- */
+/* See doc/mainpage-legacy.md for the introduction/quick-start content that
+ * used to live here as \mainpage -- USE_MDFILE_AS_MAINPAGE now supplies the
+ * legacy Doxygen pass's main page, and an explicit \mainpage in this header
+ * would take precedence over it. */
 
 /** \example radiusclient-tls.conf
  * This is an configuration file with TLS.
@@ -663,24 +362,6 @@ int rc_auth_proxy(rc_handle *rh, VALUE_PAIR *send, VALUE_PAIR **received, char *
 int rc_acct(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send);
 int rc_acct_proxy(rc_handle *rh, VALUE_PAIR *send);
 
-/** Sends an accounting request to every configured accounting server without waiting for a reply
- *
- * Selects the server list the same way rc_acct() does (acctserver, or
- * authserver under TLS/DTLS). Unlike rc_acct()/rc_aaa(), which stop at the
- * first server that replies and fail over to the next only after a
- * timeout, this sends to *every* configured server unconditionally, since
- * there is no reply to judge success or failure by. Intended for
- * best-effort notifications such as an Accounting-Stop sent while an
- * application is shutting down and cannot afford to block.
- *
- * @param rh a handle to parsed configuration.
- * @param client_port the physical NAS port number to include (may be zero).
- * @param send VALUE_PAIR list of attributes to send; NAS-Port and
- *  Acct-Delay-Time are filled in as with rc_acct().
- * @return OK_RC (0) if the packet was handed to the socket layer for at
- *  least one server, ERROR_RC if no accounting servers are configured or
- *  the send failed for all of them.
- */
 int rc_acct_async(rc_handle *rh, uint32_t client_port, VALUE_PAIR *send);
 
 int rc_check(rc_handle *rh, char *host, char *secret, unsigned short port, char *msg);

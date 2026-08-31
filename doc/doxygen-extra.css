@@ -1,0 +1,38 @@
+/* Visual distinction between "legacy API" and "new API" code fragments in
+ * migration-guide-examples.md (and anywhere else \legacy_code_begin/
+ * \new_code_begin are used). A left border + small label is used rather
+ * than a full background fill so the block still reads correctly in both
+ * doxygen's light and dark themes. */
+
+.api-block {
+	margin: 8px 0 18px 0;
+	padding-left: 12px;
+	border-left: 4px solid;
+}
+
+.api-block .fragment {
+	margin-top: 6px;
+}
+
+.api-block-label {
+	font-size: 76%;
+	font-weight: bold;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.api-legacy {
+	border-left-color: #b45309;
+}
+
+.api-legacy .api-block-label {
+	color: #b45309;
+}
+
+.api-new {
+	border-left-color: #0f766e;
+}
+
+.api-new .api-block-label {
+	color: #0f766e;
+}

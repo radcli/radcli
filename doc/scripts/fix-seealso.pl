@@ -1,22 +1,27 @@
 #!/usr/bin/perl -w
 # Post-processes doxy2man-generated man pages to clean up SEE ALSO sections:
 #   - removes empty \fI\fP(3) entries (doxy2man bug with unnamed memberdefs)
-#   - removes entries for non-exported symbols (not in radcli.h AND radcli.map)
+#   - removes entries for non-exported symbols (not in PUBLIC_HEADER AND MAP_FILE)
 #   - removes the page's own function from its own SEE ALSO list
-#   - falls back to "radcli.h(3)" when the filtered list is empty
+#   - falls back to "HEADER.h(3)" when the filtered list is empty
 #
-# Usage: fix-seealso.pl PUBLIC_HEADER RADCLI_MAP MAN_DIR/
+# Used for both radcli.h (rc_* symbols) and radcli2.h (radcli_* symbols).
+#
+# Usage: fix-seealso.pl PUBLIC_HEADER MAP_FILE MAN_DIR/
 #
 # Copyright (C) 2026 Nikos Mavrogiannopoulos
 # BSD 2-Clause License
 
 use strict;
+use File::Basename qw(basename);
 
-my $header   = shift @ARGV or die "Usage: $0 PUBLIC_HEADER RADCLI_MAP MAN_DIR\n";
-my $map_file = shift @ARGV or die "Usage: $0 PUBLIC_HEADER RADCLI_MAP MAN_DIR\n";
-my $man_dir  = shift @ARGV or die "Usage: $0 PUBLIC_HEADER RADCLI_MAP MAN_DIR\n";
+my $header   = shift @ARGV or die "Usage: $0 PUBLIC_HEADER MAP_FILE MAN_DIR\n";
+my $map_file = shift @ARGV or die "Usage: $0 PUBLIC_HEADER MAP_FILE MAN_DIR\n";
+my $man_dir  = shift @ARGV or die "Usage: $0 PUBLIC_HEADER MAP_FILE MAN_DIR\n";
 
-# --- Build export allowlist (radcli.h ∩ radcli.map) ---
+my $header_base = basename($header);
+
+# --- Build export allowlist (PUBLIC_HEADER ∩ MAP_FILE) ---
 # rc_mksid and rc_setdebug are valid SEE ALSO targets even though they are
 # excluded from the radcli.h.3 overview synopsis.
 
@@ -24,14 +29,14 @@ my %in_header;
 open my $hfh, '<', $header or die "Cannot open $header: $!\n";
 while (<$hfh>) {
     next if /^\s*[#\/\*]/;
-    while (/\b(rc_[a-z_0-9]+)\s*\(/g) { $in_header{$1} = 1 }
+    while (/\b((?:rc_|radcli_)[a-z_0-9]+)\s*\(/g) { $in_header{$1} = 1 }
 }
 close $hfh;
 
 my %in_map;
 open my $mfh, '<', $map_file or die "Cannot open $map_file: $!\n";
 while (<$mfh>) {
-    $in_map{$1} = 1 if /^\s+(rc_[a-z_0-9]+);/;
+    $in_map{$1} = 1 if /^\s+((?:rc_|radcli_)[a-z_0-9]+);/;
 }
 close $mfh;
 
@@ -82,7 +87,7 @@ for my $page (@pages) {
             push @kept, "\\fI${name}\\fP(3)";
         }
 
-        my $new_data = @kept ? join(', ', @kept) . "\n" : "radcli.h(3)\n";
+        my $new_data = @kept ? join(', ', @kept) . "\n" : "$header_base(3)\n";
 
         if ($new_data ne $lines[$data_idx]) {
             $lines[$data_idx] = $new_data;

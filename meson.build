@@ -1,11 +1,18 @@
 project('radcli', 'c',
-  version: '1.5.3',
-  license: 'BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston',
+  version: '2.0.0',
+  license: 'BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston AND BSD-MIT AND CC0-1.0 AND BSD-1-Clause',
   default_options: ['c_std=gnu99', 'warning_level=1'],
   meson_version: '>=1.1.0',
 )
 
 cc = meson.get_compiler('c')
+
+# radcli.h emits a portable #warning on inclusion (see the header) to steer
+# external consumers toward radcli2.h -- this project's own lib/src/tests
+# sources still use the legacy API internally (lib/legacy/*.c implements it,
+# and much of tests/ and src/ exercise it), so suppress it project-wide here
+# rather than at every individual #include site.
+add_project_arguments('-DRADCLI_SUPPRESS_LEGACY_WARNING', language: 'c')
 
 # ---------------------------------------------------------------------------
 # config.h -- trimmed to the HAVE_* symbols actually referenced in the code
@@ -64,34 +71,27 @@ gnutls_dep = dependency('gnutls', version: '>=3.1.0', required: get_option('tls'
 have_gnutls = gnutls_dep.found()
 conf.set('HAVE_GNUTLS', have_gnutls ? 1 : false)
 
-nettle_dep = dependency('nettle', version: '>=2.4', required: get_option('nettle'))
-have_nettle = nettle_dep.found()
-conf.set('HAVE_NETTLE', have_nettle ? 1 : false)
+nettle_dep = dependency('nettle', version: '>=2.4', required: true)
 
 # nettle >=3.10 dropped the length argument from fixed-size digest
-# functions (md5_digest(), hmac_md5_digest(), and friends), since
-# truncating a fixed-size digest isn't meaningfully supported. Older
-# nettle still requires it. Both functions changed together as part of
-# the same upstream API revision, so one probe covers both.
-have_digest_length_arg = false
-if have_nettle
-  have_digest_length_arg = cc.compiles('''
-    #include <nettle/md5.h>
-    void f(struct md5_ctx *ctx, uint8_t *out) {
-      md5_digest(ctx, MD5_DIGEST_SIZE, out);
-    }
-    ''',
-    name: 'nettle fixed-digest functions take a length argument',
-    dependencies: nettle_dep)
-endif
+# functions (md5_digest(), hmac_md5_digest(), sha256_digest(), and
+# friends), since truncating a fixed-size digest isn't meaningfully
+# supported. Older nettle still requires it. All of these functions
+# changed together as part of the same upstream API revision, so one
+# probe covers all of lib/rc-crypto.c's uses.
+have_digest_length_arg = cc.compiles('''
+  #include <nettle/md5.h>
+  void f(struct md5_ctx *ctx, uint8_t *out) {
+    md5_digest(ctx, MD5_DIGEST_SIZE, out);
+  }
+  ''',
+  name: 'nettle fixed-digest functions take a length argument',
+  dependencies: nettle_dep)
 conf.set('HAVE_DIGEST_LENGTH_ARG', have_digest_length_arg ? 1 : false)
 
-requires_private = []
+requires_private = ['nettle']
 if have_gnutls
   requires_private += 'gnutls'
-endif
-if have_nettle
-  requires_private += 'nettle'
 endif
 
 link_libs = [threads_dep, rt_dep, socket_dep, gnutls_dep, nettle_dep]
@@ -122,6 +122,7 @@ subdir('tests')
 abidiff = find_program('abidiff', required: false)
 abidw = find_program('abidw', required: false)
 abi_dump = meson.current_source_dir() / 'devel/ABI-x86_64.dump'
+abi2_dump = meson.current_source_dir() / 'devel/ABI2-x86_64.dump'
 
 if abidiff.found()
   run_target('abi-check',
@@ -129,23 +130,41 @@ if abidiff.found()
               meson.current_source_dir() / 'include/radcli',
               libradcli_shared.full_path(), abi_dump],
     depends: libradcli_shared)
+  run_target('abi-check2',
+    command: [abidiff, '--no-added-syms', '--hd2',
+              meson.current_source_dir() / 'include/radcli',
+              libradcli2_shared.full_path(), abi2_dump],
+    depends: libradcli2_shared)
 endif
 
 if abidw.found()
   run_target('abi-dump',
     command: [abidw, libradcli_shared.full_path(), '--out-file', abi_dump],
     depends: libradcli_shared)
+  run_target('abi-dump2',
+    command: [abidw, libradcli2_shared.full_path(), '--out-file', abi2_dump],
+    depends: libradcli2_shared)
 endif
 
+# radcli.map exports exactly radcli.h's public functions; radcli2.map's
+# public version node (RADCLI2_@LIBMAJOR2@, not its RADCLI2_PRIVATE node --
+# compare-exported.sh only ever sees the full map text, so RADCLI2_PRIVATE's
+# symbols are still visible to it, but radcli2.h never declares them, so
+# they simply never appear on the "in header" side of the diff) exports
+# exactly radcli2.h's public functions.
 run_target('compare-exported',
   command: [find_program('meson-scripts/compare-exported.sh'),
-            meson.current_source_dir() / 'include/radcli/radcli.h',
             radcli_map_path,
-            meson.current_source_dir() / 'doc/scripts'])
+            meson.current_source_dir() / 'doc/scripts',
+            meson.current_source_dir() / 'include/radcli/radcli.h'])
+run_target('compare-exported2',
+  command: [find_program('meson-scripts/compare-exported.sh'),
+            radcli2_map_path,
+            meson.current_source_dir() / 'doc/scripts',
+            meson.current_source_dir() / 'include/radcli/radcli2.h'])
 
 summary({
   'TLS (gnutls)': have_gnutls,
-  'nettle': have_nettle,
   'legacy-compat': get_option('legacy-compat'),
   'docs': get_option('docs'),
   'prefix': get_option('prefix'),

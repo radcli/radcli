@@ -10,7 +10,8 @@ doc_builddir="$2"
 doxygen="$3"
 
 cd "$doc_builddir"
-"$doxygen" Doxyfile
+"$doxygen" Doxyfile-legacy
+"$doxygen" Doxyfile-radcli2
 
 cd "$top_srcdir"
 
@@ -27,6 +28,7 @@ rm -rf html
 mkdir -p html
 rsync -Hvax "$top_srcdir/doc/web/" html/
 rsync -Hvax "$doc_builddir/html/" html/manual/
+rsync -Hvax "$doc_builddir/html-legacy/" html/manual-legacy/
 
 git branch -D tmp-web-pages >/dev/null 2>&1 || true
 git checkout -b tmp-web-pages

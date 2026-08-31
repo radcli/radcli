@@ -44,7 +44,7 @@ PROJECT_NUMBER         = @VERSION@
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "A simple radius library"
+PROJECT_BRIEF          = "@DOXY_BRIEF@"
 
 # With the PROJECT_LOGO tag one can specify a logo or an icon that is included
 # in the documentation. The maximum height of the logo should not exceed 55
@@ -228,7 +228,10 @@ TAB_SIZE               = 8
 # "Side Effects:". You can put \n's in the value part of an alias to insert
 # newlines.
 
-ALIASES                =
+ALIASES                = "legacy_code_begin=@htmlonly[block]<div class=\"api-block api-legacy\"><div class=\"api-block-label\">Legacy API</div>@endhtmlonly" \
+                          "legacy_code_end=@htmlonly[block]</div>@endhtmlonly" \
+                          "new_code_begin=@htmlonly[block]<div class=\"api-block api-new\"><div class=\"api-block-label\">New API</div>@endhtmlonly" \
+                          "new_code_end=@htmlonly[block]</div>@endhtmlonly"
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"
@@ -677,7 +680,7 @@ FILE_VERSION_FILTER    =
 # DoxygenLayout.xml, doxygen will parse it automatically even if the LAYOUT_FILE
 # tag is left empty.
 
-LAYOUT_FILE            =
+LAYOUT_FILE            = @DOXY_LAYOUT@
 
 # The CITE_BIB_FILES tag can be used to specify one or more bib files containing
 # the reference definitions. This must be a list of .bib files. The .bib
@@ -758,7 +761,7 @@ WARN_LOGFILE           =
 # spaces.
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = @TOP_SRCDIR@/lib/ @TOP_SRCDIR@/include/radcli/ @TOP_SRCDIR@/src/radexample.c @TOP_SRCDIR@/include/radiusclient-ng.h @TOP_SRCDIR@/include/freeradius-client.h
+INPUT                  = @DOXY_INPUT@
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -793,7 +796,7 @@ RECURSIVE              = NO
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                =
+EXCLUDE                = @DOXY_EXCLUDE@
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -833,7 +836,7 @@ EXAMPLE_PATH           = @TOP_SRCDIR@/src/ @TOP_SRCDIR@/etc/
 # *.h) to filter out the source-files in the directories. If left blank all
 # files are included.
 
-EXAMPLE_PATTERNS       = radexample.c radiusclient.conf radiusclient-tls.conf servers servers-tls
+EXAMPLE_PATTERNS       = radexample.c raddisconnect-example.c radiusclient.conf radiusclient-tls.conf servers servers-tls
 
 # If the EXAMPLE_RECURSIVE tag is set to YES then subdirectories will be
 # searched for input files to be used with the \include or \dontinclude commands
@@ -894,7 +897,7 @@ FILTER_SOURCE_PATTERNS =
 # (index.html). This can be useful if you have a project on for instance GitHub
 # and want to reuse the introduction page also for the doxygen output.
 
-USE_MDFILE_AS_MAINPAGE =
+USE_MDFILE_AS_MAINPAGE = @DOXY_MAINPAGE@
 
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
@@ -1023,7 +1026,7 @@ GENERATE_HTML          = YES
 # The default directory is: html.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_OUTPUT            = html
+HTML_OUTPUT            = @DOXY_HTML_OUTPUT@
 
 # The HTML_FILE_EXTENSION tag can be used to specify the file extension for each
 # generated HTML page (for example: .htm, .php, .asp).
@@ -1085,7 +1088,7 @@ HTML_STYLESHEET        =
 # list). For an example see the documentation.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_EXTRA_STYLESHEET  =
+HTML_EXTRA_STYLESHEET  = @TOP_SRCDIR@/doc/doxygen-extra.css
 
 # The HTML_EXTRA_FILES tag can be used to specify one or more extra images or
 # other source files which should be copied to the HTML output directory. Note
@@ -1827,7 +1830,7 @@ MAN_LINKS              = NO
 # captures the structure of the code including all documentation.
 # The default value is: NO.
 
-GENERATE_XML           = YES
+GENERATE_XML           = @DOXY_GENERATE_XML@
 
 # The XML_OUTPUT tag is used to specify where the XML pages will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
