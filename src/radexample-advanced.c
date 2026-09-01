@@ -142,7 +142,7 @@ main (int argc, char **argv)
 	 * deadline into timeout_ms (it shares ctx's own request-registry
 	 * socket/session, REQ-NET2-SEND-016), and radcli_ctx_dispatch()
 	 * already drains and resolves r's reply along with DAE traffic and
-	 * the watchdog -- so radcli_request_wait(r, 0) below is a pure,
+	 * the watchdog -- so radcli_request_done(r) below is a pure,
 	 * no-I/O status check, not a second read. */
 	for (;;) {
 		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
@@ -174,7 +174,7 @@ main (int argc, char **argv)
 		radcli_ctx_dispatch(ctx);
 
 		if (r != NULL) {
-			int rc = radcli_request_wait(r, 0);
+			int rc = radcli_request_done(r);
 
 			if (rc != RADCLI_AGAIN) {
 				if (rc == RADCLI_OK && radcli_request_code(r) == RADCLI_CODE_ACCESS_ACCEPT) {

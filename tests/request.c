@@ -180,22 +180,12 @@ int main(int argc, char **argv)
 	}
 
 	/* --- r above was performed via the blocking path (flags 0), which
-	 * never touches r's async state: radcli_request_fd()/_timeout_ms()/
-	 * _wait() must report "no async exchange", not crash or somehow read
-	 * stale state --- */
+	 * never touches r's async state: radcli_request_done() must report
+	 * "no async exchange" (RADCLI_ERROR), not crash or somehow read stale
+	 * state --- */
 
-	if (radcli_request_fd(r) != -1) {
-		fprintf(stderr, "error: radcli_request_fd() did not return -1 for a "
-				"request never sent with RADCLI_REQUEST_SENDONLY\n");
-		exit(1);
-	}
-	if (radcli_request_timeout_ms(r) != 0) {
-		fprintf(stderr, "error: radcli_request_timeout_ms() did not return 0 for a "
-				"request never sent with RADCLI_REQUEST_SENDONLY\n");
-		exit(1);
-	}
-	if (radcli_request_wait(r, 0) != RADCLI_ERROR) {
-		fprintf(stderr, "error: radcli_request_wait() on a request never sent with "
+	if (radcli_request_done(r) != RADCLI_ERROR) {
+		fprintf(stderr, "error: radcli_request_done() on a request never sent with "
 				"RADCLI_REQUEST_SENDONLY did not return RADCLI_ERROR\n");
 		exit(1);
 	}
@@ -246,12 +236,13 @@ int main(int argc, char **argv)
 	}
 
 	/* --- radcli_request_perform() with RADCLI_REQUEST_SENDONLY, used for
-	 * the poll-driven async request/reply path: radcli_request_fd()
-	 * becomes valid immediately, and driving radcli_request_wait()
-	 * through a real poll() loop against 192.0.2.1 (never replies) ends
-	 * in RADCLI_TIMEOUT, exactly as radcli_request_perform(r, 0)'s own
-	 * blocking timeout test above did -- proving the two paths agree on
-	 * the outcome, not just that async "doesn't crash". --- */
+	 * the poll-driven async request/reply path: driving
+	 * radcli_ctx_get_poll()/radcli_ctx_dispatch() through a real poll()
+	 * loop against 192.0.2.1 (never replies), reading the outcome with
+	 * radcli_request_done(), ends in RADCLI_TIMEOUT, exactly as
+	 * radcli_request_perform(r, 0)'s own blocking timeout test above did
+	 * -- proving the two paths agree on the outcome, not just that async
+	 * "doesn't crash". --- */
 
 	{
 		radcli_avp_list *send_list3 = radcli_avp_list_new();
@@ -274,25 +265,22 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		if (radcli_request_fd(r) < 0) {
-			fprintf(stderr, "error: radcli_request_fd() returned -1 right after a "
-					"successful RADCLI_REQUEST_SENDONLY send\n");
-			exit(1);
-		}
-		if (radcli_request_poll_events(r) != POLLIN) {
-			fprintf(stderr, "error: radcli_request_poll_events() did not return POLLIN\n");
-			exit(1);
-		}
-
 		for (;;) {
-			struct pollfd pfd;
+			struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+			size_t nfds;
+			int timeout_ms;
 
-			pfd.fd = radcli_request_fd(r);
-			pfd.events = radcli_request_poll_events(r);
-			pfd.revents = 0;
-			poll(&pfd, 1, radcli_request_timeout_ms(r));
+			if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 ||
+			    nfds == 0) {
+				fprintf(stderr, "error: radcli_ctx_get_poll() failed or reported "
+						"nothing to watch while a RADCLI_REQUEST_SENDONLY "
+						"request was still in flight\n");
+				exit(1);
+			}
+			poll(pfds, (nfds_t)nfds, timeout_ms);
+			radcli_ctx_dispatch(ctx);
 
-			rc = radcli_request_wait(r, (pfd.revents & pfd.events) != 0);
+			rc = radcli_request_done(r);
 			if (rc != RADCLI_AGAIN)
 				break;
 
@@ -300,20 +288,15 @@ int main(int argc, char **argv)
 			 * means this should resolve in a couple of iterations at
 			 * most; a runaway loop here is itself the bug under test. */
 			if (++iterations > 100) {
-				fprintf(stderr, "error: radcli_request_wait() never left "
+				fprintf(stderr, "error: radcli_request_done() never left "
 						"RADCLI_AGAIN against an unreachable server\n");
 				exit(1);
 			}
 		}
 
 		if (rc != RADCLI_TIMEOUT) {
-			fprintf(stderr, "error: radcli_request_wait() against an unreachable "
+			fprintf(stderr, "error: radcli_request_done() against an unreachable "
 					"server returned %d, expected RADCLI_TIMEOUT\n", rc);
-			exit(1);
-		}
-		if (radcli_request_fd(r) != -1) {
-			fprintf(stderr, "error: radcli_request_fd() did not return -1 after "
-					"radcli_request_wait() reached a terminal result\n");
 			exit(1);
 		}
 

@@ -39,7 +39,6 @@
 
 #include <config.h>
 #include <includes.h>
-#include <poll.h> /* POLLIN, for radcli_request_poll_events() */
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
 #include "avp.h"
@@ -64,8 +63,9 @@ struct radcli_request_st {
 	radcli_avp_list *reply_attrs;
 
 	/* Set by radcli_request_perform(r, RADCLI_REQUEST_SENDONLY); driven to
-	 * completion by radcli_request_wait()/_fd()/_poll_events()/
-	 * _timeout_ms(). See lib/includes.h's struct radcli_async_send_st. */
+	 * completion by radcli_ctx_get_poll()/radcli_ctx_dispatch() (lib/dae.c),
+	 * read back with radcli_request_done(). See lib/includes.h's struct
+	 * radcli_async_send_st. */
 	struct radcli_async_send_st async;
 };
 
@@ -323,10 +323,10 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
  * returns once the packet is handed to the network, without blocking for a
  * reply -- either as a pure fire-and-forget notification whose outcome the
  * caller does not act on (call radcli_request_free() without ever calling
- * radcli_request_wait(); radcli.h's rc_acct_async() is the equivalent call
- * in the legacy API), or to read the reply later via
- * radcli_request_fd()/_poll_events()/_timeout_ms()/_wait(), driven by the
- * caller's own poll()/select() loop.
+ * radcli_ctx_dispatch(); radcli.h's rc_acct_async() is the equivalent call
+ * in the legacy API), or to read the reply later via radcli_request_done(),
+ * driven by the caller's own radcli_ctx_get_poll()/radcli_ctx_dispatch()
+ * loop (lib/dae.c).
  *
  * May be called only once per request; construct a new radcli_request for
  * a retransmission with different content.
@@ -401,102 +401,38 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 	}
 }
 
-/** @brief Return the fd to poll for r's async progress.
+/** @brief Report r's outcome once radcli_ctx_dispatch() has resolved it --
+ *  a pure state query, performing no I/O of its own.
  *
- * Since REQ-NET2-SEND-016, this is ctx's shared request socket/session fd
- * (the same value radcli_ctx_get_poll() reports for the request-registry
- * slot), not a descriptor private to r -- every other concurrently
- * in-flight RADCLI_REQUEST_SENDONLY request on the same ctx returns the
- * same value.
- *
- * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
- *  returned RADCLI_OK for.
- * @return the fd, or -1 if r was never sent with RADCLI_REQUEST_SENDONLY,
- *  radcli_request_wait() already reached a terminal result, or (TLS/DTLS)
- *  the session is not currently established.
- */
-int radcli_request_fd(const radcli_request *r)
-{
-	if (r == NULL || !r->async.active || r->async.delivered)
-		return -1;
-	if (r->rh->so_type == RC_SOCKET_TLS || r->rh->so_type == RC_SOCKET_DTLS)
-		return r->rh->so.get_active_fd ? r->rh->so.get_active_fd(r->rh->so.ptr) : -1;
-	return r->rh->req_fd;
-}
-
-/** @brief Return the poll() events to wait for on radcli_request_fd(r).
- * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
- *  returned RADCLI_OK for.
- * @return POLLIN, currently always -- restated here, rather than left for
- *  the caller to hardcode, so a future transport needing POLLOUT (e.g. a
- *  non-blocking TCP connect) does not silently break existing callers.
- */
-short radcli_request_poll_events(const radcli_request *r)
-{
-	(void)r;
-	return POLLIN;
-}
-
-/** @brief Milliseconds until r's retransmit/timeout deadline.
- *
- * Pass this as the timeout argument to the caller's poll()/select() so a
- * quiet server is retried (or timed out) even if r's fd never becomes
- * readable. radcli never runs its own timer; the caller's event loop is
- * what advances r's retry/timeout state, by calling radcli_request_wait()
- * again after this elapses.
+ * Since REQ-NET2-SEND-016/013, r shares ctx's request socket/session with
+ * every other concurrently in-flight RADCLI_REQUEST_SENDONLY request, and
+ * radcli_ctx_dispatch() is what actually drives it to completion (draining
+ * replies, retransmitting, expiring on timeout) -- this call never performs
+ * I/O itself, so calling it any number of times between
+ * radcli_ctx_dispatch() calls is free.
  *
  * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
  *  returned RADCLI_OK for.
- * @return milliseconds remaining (0 if already due), or 0 if r is not
- *  currently waiting for a reply.
+ * @return RADCLI_AGAIN if still waiting (call radcli_ctx_get_poll()/
+ *  radcli_ctx_dispatch() and try again), RADCLI_OK if a validated reply was
+ *  received (read it with radcli_request_code()/_attrs(), same as
+ *  radcli_request_perform()), RADCLI_TIMEOUT if retries are exhausted, or
+ *  RADCLI_ERROR on failure or if r was never sent with
+ *  RADCLI_REQUEST_SENDONLY.
  */
-int radcli_request_timeout_ms(const radcli_request *r)
+int radcli_request_done(radcli_request *r)
 {
-	if (r == NULL || !r->async.active || r->async.delivered)
-		return 0;
-	/* Slot-level deadline lookup, since REQ-NET2-SEND-016 moved retransmit/
-	 * timeout state into ctx's shared registry -- radcli2_priv_reqreg_
-	 * deadline_ms() already applies the same round-up-not-down rounding
-	 * this function used to do inline (lib/sendserver.c). */
-	return radcli2_priv_reqreg_deadline_ms(r->rh, r->async.slot);
-}
-
-/** @brief Advance r's async exchange by one non-blocking step.
- *
- * Call after the caller's poll()/select() reports radcli_request_fd(r)
- * ready (fd_ready nonzero), or after it returns with the fd not ready
- * because radcli_request_timeout_ms(r) elapsed instead (fd_ready zero).
- *
- * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
- *  returned RADCLI_OK for.
- * @param fd_ready nonzero if the caller's poll()/select() reported r's fd
- *  ready.
- * @return RADCLI_AGAIN if still waiting (call radcli_request_timeout_ms()
- *  again -- it may have changed after a retransmit), RADCLI_OK if a
- *  validated reply was received (read it with radcli_request_code()/
- *  _attrs(), same as radcli_request_perform()), RADCLI_TIMEOUT if retries
- *  are exhausted, or RADCLI_ERROR on failure.
- */
-int radcli_request_wait(radcli_request *r, int fd_ready)
-{
-	int result;
-
 	if (r == NULL || !r->async.active)
 		return RADCLI_ERROR;
-
-	/* Since REQ-NET2-SEND-016, decoding already happened -- inside
-	 * radcli_transport_service_async()'s drain, for whichever exchange a
-	 * given reply actually resolved, possibly not r's own -- so this just
-	 * reads back whatever r->async already carries. */
-	result = radcli_transport_service_async(&r->async, fd_ready);
-	if (result == RADCLI_ASYNC_AGAIN)
+	if (!r->async.delivered)
 		return RADCLI_AGAIN;
 
 	r->reply_code = r->async.reply_code;
 	r->reply_attrs = r->async.reply_attrs;
 	r->async.reply_attrs = NULL; /* ownership moved to r */
+	r->async.active = 0;
 
-	switch (result) {
+	switch (r->async.result) {
 	case OK_RC:
 	case REJECT_RC:
 	case CHALLENGE_RC:
@@ -548,11 +484,12 @@ const char *radcli_request_server(const radcli_request *r)
 
 /** @brief Release a request.
  *
- * If r was sent with RADCLI_REQUEST_SENDONLY and radcli_request_wait()
+ * If r was sent with RADCLI_REQUEST_SENDONLY and radcli_request_done()
  * never reached a terminal result (the fire-and-forget case: nothing ever
- * calls radcli_request_wait() at all), releases r's still-open socket and
- * lock first -- this is what makes fire-and-forget just "perform() then
- * free()", with no separate close step for the caller to remember.
+ * drives it via radcli_ctx_dispatch() at all), releases r's still-reserved
+ * registry slot first -- this is what makes fire-and-forget just
+ * "perform() then free()", with no separate close step for the caller to
+ * remember.
  *
  * @param r a request from radcli_request_new(); NULL is accepted and ignored.
  */

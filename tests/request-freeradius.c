@@ -43,7 +43,7 @@
  *      path, which the Access-Request above does not.
  *   3. A fire-and-forget Accounting-Request via radcli_request_perform()
  *      with RADCLI_REQUEST_SENDONLY, freed without ever calling
- *      radcli_request_wait(), for a User-Name unique to this check
+ *      radcli_ctx_dispatch(), for a User-Name unique to this check
  *      (NOREPLY_USER below). This process itself never reads a reply --
  *      that is the point of using SENDONLY this way -- so it cannot
  *      confirm server-side receipt on its own; instead,
@@ -60,8 +60,8 @@
  *      attribute counts octets as a genuine 64-bit integer.
  *   5. The same Access-Request as check 1, but sent with
  *      RADCLI_REQUEST_SENDONLY and its reply read back via
- *      radcli_request_fd()/_poll_events()/_timeout_ms()/_wait(), driven by
- *      a real poll() loop -- proving the poll-driven async path decodes a
+ *      radcli_ctx_get_poll()/radcli_ctx_dispatch()/radcli_request_done(),
+ *      driven by a real poll() loop -- proving the poll-driven async path decodes a
  *      real server's Access-Accept identically to the blocking path in
  *      check 1, not merely that it doesn't crash against a synthetic or
  *      unreachable server (tests/request.c's own async coverage, which
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 
 	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK)
 		die("radcli_request_perform(RADCLI_REQUEST_SENDONLY) did not return RADCLI_OK");
-	radcli_request_free(r); /* fire-and-forget: radcli_request_wait() never called */
+	radcli_request_free(r); /* fire-and-forget: radcli_ctx_dispatch() never called */
 	printf("OK: radcli_request_perform(RADCLI_REQUEST_SENDONLY) transmitted the fire-and-forget Accounting-Request\n");
 
 	/* --- 4: the Gigawords helper -- an Acct-Input-Octets/-Gigawords pair
@@ -306,24 +306,25 @@ int main(int argc, char **argv)
 		int rc;
 
 		for (;;) {
-			struct pollfd pfd;
+			struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+			size_t nfds;
+			int timeout_ms;
 
-			pfd.fd = radcli_request_fd(r);
-			pfd.events = radcli_request_poll_events(r);
-			pfd.revents = 0;
-			if (pfd.fd < 0)
-				die("radcli_request_fd() returned -1 while the async "
-				    "exchange was still in progress");
+			if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 ||
+			    nfds == 0)
+				die("radcli_ctx_get_poll() failed or reported nothing to "
+				    "watch while the async exchange was still in progress");
 
-			poll(&pfd, 1, radcli_request_timeout_ms(r));
+			poll(pfds, (nfds_t)nfds, timeout_ms);
+			radcli_ctx_dispatch(ctx);
 
-			rc = radcli_request_wait(r, (pfd.revents & pfd.events) != 0);
+			rc = radcli_request_done(r);
 			if (rc != RADCLI_AGAIN)
 				break;
 		}
 
 		if (rc != RADCLI_OK)
-			die("radcli_request_wait() did not return RADCLI_OK for the async "
+			die("radcli_request_done() did not return RADCLI_OK for the async "
 			    "Access-Request/Access-Accept round trip");
 	}
 
@@ -346,7 +347,7 @@ int main(int argc, char **argv)
 		}
 	}
 	radcli_request_free(r);
-	printf("OK: async Access-Request/Access-Accept via radcli_request_fd()/_wait()\n");
+	printf("OK: async Access-Request/Access-Accept via radcli_ctx_dispatch()/radcli_request_done()\n");
 
 	/* --- 6: r->secret-zeroed-before-decode regression check -- see the
 	 * check 6 note in the file comment above --- */

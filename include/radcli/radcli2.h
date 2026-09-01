@@ -563,9 +563,9 @@ typedef enum radcli_result {
 	RADCLI_OK = 0,        //!< A validated reply was received; see radcli_request_code() for which one.
 	RADCLI_ERROR = -1,    //!< Malformed input, a verification failure, or no server configured.
 	RADCLI_TIMEOUT = -2,  //!< No reply from any address the server name resolved to.
-	/** Only ever returned by radcli_request_wait(): still waiting for a
-	 * reply. Poll radcli_request_fd(r) (or wait for radcli_request_timeout_ms(r)
-	 * to elapse) and call radcli_request_wait() again. Never returned by
+	/** Only ever returned by radcli_request_done(): still waiting for a
+	 * reply. Drive it via radcli_ctx_get_poll()/radcli_ctx_dispatch() and
+	 * call radcli_request_done() again. Never returned by
 	 * radcli_request_perform() itself. */
 	RADCLI_AGAIN = -3
 } radcli_result;
@@ -586,13 +586,13 @@ typedef enum radcli_request_flags {
 	 * network, without blocking for a reply. Two uses:
 	 *
 	 * - Fire-and-forget: call radcli_request_free() without ever calling
-	 *   radcli_request_wait(). A best-effort notification whose outcome
+	 *   radcli_ctx_dispatch(). A best-effort notification whose outcome
 	 *   the caller does not act on, e.g. an accounting stop sent during
 	 *   shutdown; radcli.h's rc_acct_async() is the equivalent call in
 	 *   the legacy API.
 	 * - Poll-driven async request/reply: read the reply later with
-	 *   radcli_request_fd()/_poll_events()/_timeout_ms()/_wait(), driven
-	 *   by the caller's own poll()/select() loop, e.g. from an
+	 *   radcli_request_done(), driven by the caller's own
+	 *   radcli_ctx_get_poll()/radcli_ctx_dispatch() loop, e.g. from an
 	 *   application built around an event loop that cannot afford to
 	 *   block a thread on radcli_request_perform(r, RADCLI_REQUEST_NONE).
 	 *
@@ -607,13 +607,12 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 
 int radcli_request_perform(radcli_request *r, unsigned flags);
 
-/* Poll-driven async progress for a request sent with RADCLI_REQUEST_SENDONLY;
- * see lib/request.c's doc comments on each of these for the full contract
- * and a usage example. */
-int radcli_request_fd(const radcli_request *r);
-short radcli_request_poll_events(const radcli_request *r);
-int radcli_request_timeout_ms(const radcli_request *r);
-int radcli_request_wait(radcli_request *r, int fd_ready);
+/* Poll-driven async progress for a request sent with RADCLI_REQUEST_SENDONLY:
+ * drive it to completion via radcli_ctx_get_poll()/radcli_ctx_dispatch()
+ * (lib/dae.c) -- r shares ctx's own descriptor(s), there is no per-request
+ * accessor -- then read the outcome here; see lib/request.c's doc comment
+ * for the full contract and a usage example. */
+int radcli_request_done(radcli_request *r);
 
 radcli_code radcli_request_code(const radcli_request *r);
 

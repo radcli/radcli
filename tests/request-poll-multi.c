@@ -22,10 +22,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Multiplexed poll-driven async request/reply coverage for radcli2.h
- * (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) + radcli_request_fd()/
- * _poll_events()/_timeout_ms()/_wait(), lib/request.c), driven by
- * tests/request-poll-multi-tests.sh against tests/radius-server.py (see
- * doc/radius-test-server.md) -- no root or FreeRADIUS needed.
+ * (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) +
+ * radcli_ctx_get_poll()/radcli_ctx_dispatch()/radcli_request_done(),
+ * lib/request.c + lib/dae.c), driven by tests/request-poll-multi-tests.sh
+ * against tests/radius-server.py (see doc/radius-test-server.md) -- no root
+ * or FreeRADIUS needed.
  *
  * tests/request.c already proves the poll-driven path against a single
  * unreachable server (the timeout branch) and tests/request-freeradius.c
@@ -36,12 +37,13 @@
  * dedicated blocking call (or one dedicated poll loop) per request. This
  * program is that scenario: it sends NREQ Access-Requests with
  * RADCLI_REQUEST_SENDONLY before waiting on any of them, then drives all of
- * them to completion through a single shared struct pollfd[] array, calling
- * poll() once per round over whichever requests are still outstanding --
- * proving radcli_request_fd() returns a distinct, independently pollable
- * descriptor per request (so N requests genuinely coexist on one thread
- * without serializing on each other), and that radcli_request_wait() on one
- * request's fd_ready bit does not disturb the others' state.
+ * them to completion through a single shared radcli_ctx_get_poll() array,
+ * calling poll() and radcli_ctx_dispatch() once per round -- proving that
+ * NREQ concurrent exchanges genuinely share ctx's one request-registry
+ * socket/session (REQ-NET2-SEND-016, LRU-allocated Identifiers,
+ * REQ-NET2-SEND-010) without cross-wiring: radcli_ctx_dispatch() resolving
+ * one request's reply must not disturb any other's still-pending state, and
+ * each must independently decode its own, correct Access-Accept.
  */
 
 #include <config.h>
@@ -123,75 +125,62 @@ int main(int argc, char **argv)
 
 		if (radcli_request_perform(reqs[i], RADCLI_REQUEST_SENDONLY) != RADCLI_OK)
 			die("radcli_request_perform(RADCLI_REQUEST_SENDONLY) did not return RADCLI_OK");
-		if (radcli_request_fd(reqs[i]) < 0)
-			die("radcli_request_fd() returned -1 right after a successful "
-			    "RADCLI_REQUEST_SENDONLY send");
+		if (radcli_request_done(reqs[i]) != RADCLI_AGAIN)
+			die("radcli_request_done() did not return RADCLI_AGAIN right after a "
+			    "successful RADCLI_REQUEST_SENDONLY send");
 
 		done[i] = 0;
 	}
 	printf("OK: sent %d concurrent Access-Requests via RADCLI_REQUEST_SENDONLY\n", NREQ);
 
-	/* --- service all of them out of a single shared poll() array: one
-	 * poll() call per round, covering every request still outstanding,
-	 * not one poll() loop per request --- */
+	/* --- service all of them out of a single shared ctx-level poll():
+	 * one radcli_ctx_get_poll()/poll()/radcli_ctx_dispatch() sequence per
+	 * round, covering every request still outstanding (they all share
+	 * ctx's own request-registry socket/session, REQ-NET2-SEND-016), not
+	 * one poll() loop per request --- */
 
 	while (ndone < NREQ) {
-		struct pollfd pfds[NREQ];
-		int idx[NREQ];
-		int nfds = 0;
-		int timeout_ms = -1;
-		int prc;
+		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+		size_t nfds;
+		int timeout_ms;
+
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 ||
+		    nfds == 0)
+			die("radcli_ctx_get_poll() failed or reported nothing to watch "
+			    "while requests were still in flight");
+
+		if (poll(pfds, (nfds_t)nfds, timeout_ms) < 0)
+			die("poll");
+
+		radcli_ctx_dispatch(ctx);
 
 		for (i = 0; i < NREQ; i++) {
-			int t;
+			int rc;
 
 			if (done[i])
 				continue;
 
-			pfds[nfds].fd = radcli_request_fd(reqs[i]);
-			if (pfds[nfds].fd < 0)
-				die("radcli_request_fd() returned -1 for a request still "
-				    "awaiting a reply");
-			pfds[nfds].events = radcli_request_poll_events(reqs[i]);
-			pfds[nfds].revents = 0;
-			idx[nfds] = i;
-			nfds++;
-
-			t = radcli_request_timeout_ms(reqs[i]);
-			if (timeout_ms < 0 || t < timeout_ms)
-				timeout_ms = t;
-		}
-
-		prc = poll(pfds, (nfds_t)nfds, timeout_ms);
-		if (prc < 0)
-			die("poll");
-
-		for (i = 0; i < nfds; i++) {
-			int who = idx[i];
-			int fd_ready = (pfds[i].revents & pfds[i].events) != 0;
-			int rc;
-
-			rc = radcli_request_wait(reqs[who], fd_ready);
+			rc = radcli_request_done(reqs[i]);
 			if (rc == RADCLI_AGAIN)
 				continue;
 
 			if (rc != RADCLI_OK) {
 				fprintf(stderr,
-					"error: radcli_request_wait() for request %d returned "
-					"%d, expected RADCLI_OK\n", who, rc);
+					"error: radcli_request_done() for request %d returned "
+					"%d, expected RADCLI_OK\n", i, rc);
 				exit(1);
 			}
-			done[who] = 1;
+			done[i] = 1;
 			ndone++;
 		}
 
 		/* Bound the loop: radius_timeout=5s/radius_retries=2 above means
 		 * every request resolves within a handful of rounds; a runaway
 		 * loop here (e.g. one request's completion starving another's
-		 * poll() events) is itself the bug under test. */
+		 * progress) is itself the bug under test. */
 		if (++iterations > 1000)
-			die("poll loop did not converge -- a request's fd/timeout state "
-			    "may not be independent of the others");
+			die("poll loop did not converge -- a request's completion may "
+			    "not be independent of the others");
 	}
 	printf("OK: all %d concurrent requests completed via a single shared poll() loop "
 	       "(%d rounds)\n", NREQ, iterations);
@@ -221,9 +210,10 @@ int main(int argc, char **argv)
 					"0x%08x, expected 192.168.1.190\n", i, ip);
 			exit(1);
 		}
-		if (radcli_request_fd(reqs[i]) != -1) {
-			fprintf(stderr, "error: request %d: radcli_request_fd() did not "
-					"return -1 after reaching a terminal result\n", i);
+		if (radcli_request_done(reqs[i]) != RADCLI_ERROR) {
+			fprintf(stderr, "error: request %d: radcli_request_done() did not "
+					"return RADCLI_ERROR when called again after already "
+					"reaching a terminal result\n", i);
 			exit(1);
 		}
 

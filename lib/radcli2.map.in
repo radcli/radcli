@@ -75,10 +75,7 @@ RADCLI2_@LIBMAJOR2@
 	radcli_avp_get_gigawords64_by_num;
 	radcli_request_new;
 	radcli_request_perform;
-	radcli_request_fd;
-	radcli_request_poll_events;
-	radcli_request_timeout_ms;
-	radcli_request_wait;
+	radcli_request_done;
 	radcli_request_code;
 	radcli_request_attrs;
 	radcli_request_server;
@@ -90,7 +87,6 @@ RADCLI2_@LIBMAJOR2@
 	radcli_dae_free;
 	radcli_ctx_get_poll;
 	radcli_ctx_dispatch;
-	radcli_ctx_send_watchdog;
 	radcli_dae_req_code;
 	radcli_dae_req_attrs;
 	radcli_dae_req_session_id;
