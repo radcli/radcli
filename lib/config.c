@@ -1374,6 +1374,9 @@ rc_handle *radcli2_priv_new(void)
                 rc_log(LOG_CRIT, "radcli2_priv_new: out of memory");
                 return NULL;
         }
+	rh->req_fd = -1; /* REQ-NET2-SEND-016: 0 (calloc's default) is a valid
+	                  * fd (stdin) -- must not be mistaken for "unset". */
+	pthread_mutex_init(&rh->reqreg_init_lock, NULL);
 	return rh;
 }
 
@@ -1388,6 +1391,16 @@ void radcli2_priv_destroy(rc_handle *rh)
 	rc_deinit_tls(rh);
 #endif
 	radcli2_priv_config_free(rh);
+	/* REQ-NET2-SEND-016: ctx's persistent request socket/registry, never
+	 * touched by radcli2_priv_config_free() (which only frees config
+	 * state) -- closed/freed only here, at ctx's own end of life. */
+	if (rh->req_fd != -1 && rh->so.close_fd)
+		rh->so.close_fd(rh->req_fd);
+	if (rh->reqreg != NULL) {
+		pthread_mutex_destroy(&rh->reqreg->lock);
+		free(rh->reqreg);
+	}
+	pthread_mutex_destroy(&rh->reqreg_init_lock);
 	free(rh->tls_psk_identity);
 	free(rh->tls_psk_key);
 	free(rh);

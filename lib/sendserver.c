@@ -700,8 +700,381 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 	return result;
 }
 
+/* Compares two sockaddrs' family+address+port -- REQ-NET2-SEND-016's
+ * explicit reply-source check on the shared, unconnected UDP request
+ * socket (replacing the kernel-level filtering a connect()ed per-request
+ * socket used to give for free). */
+static int reqreg_peer_matches(const struct sockaddr *from, const struct sockaddr *expected)
+{
+	if (from->sa_family != expected->sa_family)
+		return 0;
+	if (from->sa_family == AF_INET) {
+		const struct sockaddr_in *a = (const struct sockaddr_in *)from;
+		const struct sockaddr_in *b = (const struct sockaddr_in *)expected;
+		return a->sin_port == b->sin_port &&
+		       memcmp(&a->sin_addr, &b->sin_addr, sizeof(a->sin_addr)) == 0;
+	}
+	{
+		const struct sockaddr_in6 *a = (const struct sockaddr_in6 *)from;
+		const struct sockaddr_in6 *b = (const struct sockaddr_in6 *)expected;
+		return a->sin6_port == b->sin6_port &&
+		       memcmp(&a->sin6_addr, &b->sin6_addr, sizeof(a->sin6_addr)) == 0;
+	}
+}
+
+/* Lazily allocates rh->reqreg (REQ-NET2-SEND-016), guarded by
+ * rh->reqreg_init_lock -- a small, always-initialized (radcli2_priv_new())
+ * per-ctx lock dedicated to this one-time allocation, distinct from
+ * reqreg->lock itself (which does not exist yet the first time this runs). */
+static int reqreg_ensure(rc_handle *rh)
+{
+	if (rh->reqreg != NULL)
+		return 0;
+
+	pthread_mutex_lock(&rh->reqreg_init_lock);
+	if (rh->reqreg == NULL) {
+		struct radcli_reqreg *reg = calloc(1, sizeof(*reg));
+		if (reg == NULL) {
+			pthread_mutex_unlock(&rh->reqreg_init_lock);
+			return -1;
+		}
+		pthread_mutex_init(&reg->lock, NULL);
+		rh->reqreg = reg;
+	}
+	pthread_mutex_unlock(&rh->reqreg_init_lock);
+	return 0;
+}
+
 /* See lib/includes.h's doc comment. */
-int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short svc_port,
+int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owner, uint8_t *out_id)
+{
+	struct radcli_reqreg *reg;
+	int best = -1;
+	uint64_t best_seq = 0;
+	int i;
+
+	if (rh == NULL || owner == NULL || out_id == NULL)
+		return -1;
+	if (reqreg_ensure(rh) != 0)
+		return -1;
+	reg = rh->reqreg;
+
+	pthread_mutex_lock(&reg->lock);
+	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
+		if (reg->slots[i].valid)
+			continue;
+		/* LRU: the slot free the longest wins (RFC 5080 SS2.1.1);
+		 * free_seq == 0 (never used yet) sorts first automatically. */
+		if (best == -1 || reg->slots[i].free_seq < best_seq) {
+			best = i;
+			best_seq = reg->slots[i].free_seq;
+		}
+	}
+	if (best == -1) {
+		pthread_mutex_unlock(&reg->lock);
+		rc_log(LOG_ERR, "%s: no free Identifier (%d requests already in flight)",
+		       __func__, RADCLI_CTX_MAX_INFLIGHT);
+		return -1;
+	}
+	reg->slots[best].valid = 1;
+	reg->slots[best].armed = 0;
+	reg->slots[best].owner = owner;
+	pthread_mutex_unlock(&reg->lock);
+
+	*out_id = (uint8_t)best;
+	return best;
+}
+
+/* See lib/includes.h's doc comment. */
+void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
+{
+	struct radcli_reqreg *reg;
+
+	if (rh == NULL || rh->reqreg == NULL || slot < 0 || slot >= RADCLI_CTX_MAX_INFLIGHT)
+		return;
+	reg = rh->reqreg;
+
+	pthread_mutex_lock(&reg->lock);
+	reg->slots[slot].valid = 0;
+	reg->slots[slot].armed = 0;
+	reg->slots[slot].owner = NULL;
+	memset(reg->slots[slot].secret, 0, sizeof(reg->slots[slot].secret));
+	reg->slots[slot].free_seq = ++reg->free_seq_ctr;
+	pthread_mutex_unlock(&reg->lock);
+}
+
+/* See lib/includes.h's doc comment. */
+int radcli2_priv_reqreg_deadline_ms(rc_handle *rh, int slot)
+{
+	struct radcli_reqreg *reg;
+	double remaining;
+
+	if (rh == NULL || rh->reqreg == NULL || slot < 0 || slot >= RADCLI_CTX_MAX_INFLIGHT)
+		return 0;
+	reg = rh->reqreg;
+
+	pthread_mutex_lock(&reg->lock);
+	if (!reg->slots[slot].valid || !reg->slots[slot].armed) {
+		pthread_mutex_unlock(&reg->lock);
+		return 0;
+	}
+	remaining = reg->slots[slot].deadline - rc_getmtime();
+	pthread_mutex_unlock(&reg->lock);
+
+	if (remaining <= 0)
+		return 0;
+	/* Round up, not down -- see the pre-registry radcli_request_timeout_ms()
+	 * this replaces for why (truncating the last sub-millisecond remainder
+	 * to 0 would busy-spin the caller's poll() instead of waiting it out). */
+	return (int)(remaining * 1000) + 1;
+}
+
+/* See lib/includes.h's doc comment. */
+void radcli2_priv_reqreg_drain(rc_handle *rh)
+{
+	struct radcli_reqreg *reg;
+	const rc_sockets_override *sfuncs;
+	int is_radsec;
+	char *ns;
+
+	if (rh == NULL || rh->reqreg == NULL)
+		return;
+	reg = rh->reqreg;
+	sfuncs = &rh->so;
+	is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
+
+	for (;;) {
+		int sockfd;
+		uint8_t recv_buf[RC_BUFFER_LEN];
+		struct sockaddr_storage from;
+		socklen_t fromlen = sizeof(from);
+		int recv_length;
+		AUTH_HDR *recv_auth;
+		uint8_t id;
+		struct radcli_reqreg_slot *rslot;
+		int ns_def_hdl = 0;
+		int rc_result;
+
+		sockfd = is_radsec ? (sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1)
+				    : rh->req_fd;
+		if (sockfd == -1)
+			return;
+
+		if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
+			rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+			return;
+		}
+
+		/* Locked only around this one recv, not the whole exchange --
+		 * see radcli_transport_send_async()'s doc comment on why the
+		 * old hold-across-the-whole-lifetime discipline cannot survive
+		 * a socket/session now shared by many concurrent slots. */
+		if (sfuncs->lock)
+			sfuncs->lock(sfuncs->ptr);
+
+		if (is_radsec) {
+			recv_length = radcli2_priv_tls_try_recv(rh, recv_buf, sizeof(recv_buf));
+		} else {
+			do {
+				recv_length = sfuncs->recvfrom(sfuncs->ptr, sockfd, (char *)recv_buf,
+								sizeof(recv_buf), 0, SA(&from), &fromlen);
+			} while (recv_length == -1 && errno == EINTR);
+			if (recv_length == -1 && errno == EAGAIN)
+				recv_length = 0;
+		}
+
+		if (sfuncs->unlock)
+			sfuncs->unlock(sfuncs->ptr);
+		if (ns != NULL)
+			rc_reset_netns(&ns_def_hdl);
+
+		if (recv_length <= 0)
+			return; /* nothing more ready (0), or a transport-level
+				 * error (<0, already logged by the transport)
+				 * neither this nor any other slot can act on here */
+
+		if ((size_t)recv_length < AUTH_HDR_LEN)
+			continue; /* too short to even carry an Identifier -- discard, keep draining */
+
+		recv_auth = (AUTH_HDR *)recv_buf;
+		id = recv_auth->id;
+
+		pthread_mutex_lock(&reg->lock);
+		rslot = &reg->slots[id];
+		if (!rslot->valid || !rslot->armed) {
+			pthread_mutex_unlock(&reg->lock);
+			continue; /* no in-flight exchange for this Identifier -- discard */
+		}
+		if (!is_radsec && !reqreg_peer_matches(SA(&from), SA(&rslot->peer))) {
+			pthread_mutex_unlock(&reg->lock);
+			continue;
+		}
+
+		rc_result = rc_check_reply(recv_auth, (int)sizeof(recv_buf), rslot->secret,
+					   rslot->vector, id);
+		if (rc_result != OK_RC) {
+			/* BADRESPID_RC (unreachable: id already matched above)
+			 * or BADRESP_RC (bad length or Response Authenticator --
+			 * possibly spoofed) -- keep the slot waiting rather than
+			 * handing an unverified packet to decode_reply(),
+			 * matching the pre-registry single-exchange semantics
+			 * (REQ-GEN-STYLE-009). */
+			pthread_mutex_unlock(&reg->lock);
+			continue;
+		}
+
+		{
+			struct radcli_async_send_st *owner = rslot->owner;
+			char secret_copy[MAX_SECRET_LENGTH + 1];
+			unsigned char vector_copy[AUTH_VECTOR_LEN];
+			char server_name_copy[128];
+			unsigned short svc_port_copy;
+			rc_type type_copy;
+			size_t recv_len = 0;
+			uint8_t reply_code = 0;
+			int decode_result;
+			radcli_avp_list *attrs = NULL;
+
+			memcpy(secret_copy, rslot->secret, sizeof(secret_copy));
+			memcpy(vector_copy, rslot->vector, sizeof(vector_copy));
+			memcpy(server_name_copy, rslot->server_name, sizeof(server_name_copy));
+			svc_port_copy = rslot->svc_port;
+			type_copy = rslot->type;
+
+			/* Vacate now, before decode_reply()/radcli_avp_decode()
+			 * run: RFC 5080 SS2.1.1 permits reuse as soon as a valid
+			 * response is received, not once the application
+			 * collects it (REQ-NET2-SEND-016). */
+			rslot->valid = 0;
+			rslot->armed = 0;
+			rslot->owner = NULL;
+			memset(rslot->secret, 0, sizeof(rslot->secret));
+			rslot->free_seq = ++reg->free_seq_ctr;
+			pthread_mutex_unlock(&reg->lock);
+
+			decode_result = decode_reply(rh, NULL, server_name_copy, svc_port_copy,
+						     type_copy, secret_copy, vector_copy,
+						     recv_buf, sizeof(recv_buf), &recv_len, &reply_code);
+			if (decode_result == OK_RC || decode_result == REJECT_RC ||
+			    decode_result == CHALLENGE_RC) {
+				if (recv_len > 0 &&
+				    radcli_avp_decode(rh, secret_copy, vector_copy, recv_buf, recv_len, 0,
+						      &attrs) != 0)
+					decode_result = ERROR_RC;
+			}
+			memset(secret_copy, 0, sizeof(secret_copy));
+
+			owner->result = decode_result;
+			owner->reply_code = reply_code;
+			owner->reply_attrs = attrs;
+			owner->delivered = 1;
+		}
+	}
+}
+
+/* See lib/includes.h's doc comment. */
+void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
+{
+	struct radcli_reqreg *reg;
+	const rc_sockets_override *sfuncs;
+	int is_radsec;
+	char *ns;
+	int i;
+
+	if (rh == NULL || rh->reqreg == NULL)
+		return;
+	reg = rh->reqreg;
+	sfuncs = &rh->so;
+	is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
+
+	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
+		struct radcli_reqreg_slot *rslot = &reg->slots[i];
+
+		pthread_mutex_lock(&reg->lock);
+		if (!rslot->valid || !rslot->armed || rc_getmtime() < rslot->deadline) {
+			pthread_mutex_unlock(&reg->lock);
+			continue;
+		}
+
+		if (rslot->retries_left-- <= 0) {
+			struct radcli_async_send_st *owner = rslot->owner;
+			char server_name_copy[128];
+			unsigned short svc_port_copy = rslot->svc_port;
+
+			memcpy(server_name_copy, rslot->server_name, sizeof(server_name_copy));
+			rslot->valid = 0;
+			rslot->armed = 0;
+			rslot->owner = NULL;
+			memset(rslot->secret, 0, sizeof(rslot->secret));
+			rslot->free_seq = ++reg->free_seq_ctr;
+			pthread_mutex_unlock(&reg->lock);
+
+			rc_log(LOG_ERR, "%s: no reply from RADIUS server %s:%u",
+			       __func__, server_name_copy, svc_port_copy);
+			owner->result = TIMEOUT_RC;
+			owner->reply_code = 0;
+			owner->reply_attrs = NULL;
+			owner->delivered = 1;
+			continue;
+		}
+
+		{
+			/* Snapshot what the retransmit needs, then release the
+			 * lock before sendto(): a concurrent drain() resolving
+			 * this exact slot in the meantime is a benign race
+			 * (worst case one harmless extra retransmit after the
+			 * reply already arrived). */
+			uint8_t send_buf_copy[RC_BUFFER_LEN];
+			int send_len_copy = rslot->send_len;
+			struct sockaddr_storage peer_copy = rslot->peer;
+			socklen_t peer_len_copy = rslot->peer_len;
+			int ns_def_hdl = 0;
+			int sockfd;
+			int sresult;
+
+			memcpy(send_buf_copy, rslot->send_buf, (size_t)send_len_copy);
+			pthread_mutex_unlock(&reg->lock);
+
+			sockfd = is_radsec ? (sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1)
+					    : rh->req_fd;
+			if (sockfd == -1)
+				continue;
+
+			if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
+				rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+				continue;
+			}
+			if (sfuncs->lock)
+				sfuncs->lock(sfuncs->ptr);
+
+			do {
+				sresult = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf_copy,
+							 (unsigned int)send_len_copy, 0,
+							 SA(&peer_copy), peer_len_copy);
+			} while (sresult == -1 && errno == EINTR);
+
+			if (sfuncs->unlock)
+				sfuncs->unlock(sfuncs->ptr);
+			if (ns != NULL)
+				rc_reset_netns(&ns_def_hdl);
+
+			if (sresult == -1) {
+				rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
+				continue; /* leave deadline as-is; retried again next call */
+			}
+
+			pthread_mutex_lock(&reg->lock);
+			if (rslot->valid && rslot->armed) /* still the same exchange */
+				rslot->deadline = rc_getmtime() + rslot->timeout;
+			pthread_mutex_unlock(&reg->lock);
+		}
+	}
+}
+
+/* See lib/includes.h's doc comment. */
+int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
 				int timeout, int retries,
@@ -711,16 +1084,25 @@ int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short
 	const rc_sockets_override *sfuncs;
 	struct sockaddr_storage our_sockaddr;
 	unsigned discover_local_ip;
+	struct radcli_reqreg *reg;
+	struct radcli_reqreg_slot *rslot;
 	char *ns = NULL;
 	int ns_def_hdl = 0;
 	int sockfd = -1;
+	int is_radsec;
 	int result;
 
 	memset(out, 0, sizeof(*out));
 
+	if (rh == NULL || rh->reqreg == NULL || slot < 0 || slot >= RADCLI_CTX_MAX_INFLIGHT)
+		return ERROR_RC;
+	reg = rh->reqreg;
+	rslot = &reg->slots[slot];
+	is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
-	if (send_len < AUTH_HDR_LEN || (size_t)send_len > sizeof(out->send_buf))
+	if (send_len < AUTH_HDR_LEN || (size_t)send_len > sizeof(rslot->send_buf))
 		return ERROR_RC;
 
 	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
@@ -742,6 +1124,13 @@ int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short
 	if (sfuncs->static_secret)
 		strlcpy(secret, sfuncs->static_secret, MAX_SECRET_LENGTH + 1);
 
+	/* Locked only around this one send, not the whole exchange: REQ-NET2-
+	 * SEND-016's shared socket/session must let every other concurrently
+	 * in-flight slot make its own progress independently -- unlike the
+	 * pre-registry design, which held sfuncs->lock() from here through
+	 * service_async()'s terminal result, serializing an entire
+	 * multi-round-trip exchange (harmless when each exchange had its own
+	 * socket, but would now block every other slot on a shared one). */
 	if (sfuncs->lock) {
 		if (sfuncs->lock(sfuncs->ptr) != 0) {
 			rc_log(LOG_ERR, "%s: lock error", __func__);
@@ -757,54 +1146,76 @@ int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short
 			((struct sockaddr_in6 *)auth_addr->ai_addr)->sin6_port = htons(svc_port);
 	}
 
-	rc_own_bind_addr(rh, &our_sockaddr);
-	discover_local_ip = 0;
-	if (our_sockaddr.ss_family == AF_INET &&
-	    ((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr == INADDR_ANY)
-		discover_local_ip = 1;
-
-	if (discover_local_ip) {
-		result = radcli2_priv_get_srcaddr(SA(&our_sockaddr), auth_addr->ai_addr);
-		if (result != OK_RC) {
-			rc_log(LOG_ERR, "%s: cannot figure our own address", __func__);
-			result = ERROR_RC;
-			goto fail;
-		}
-	}
-
-	if (sfuncs->get_fd) {
-		sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
+	if (is_radsec) {
+		sockfd = sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1;
 		if (sockfd < 0) {
-			rc_log(LOG_ERR, "%s: socket: %s", __func__, strerror(errno));
+			rc_log(LOG_ERR, "%s: no established RadSec session", __func__);
 			result = ERROR_RC;
 			goto fail;
 		}
-	}
+	} else if (rh->req_fd != -1) {
+		sockfd = rh->req_fd;
+	} else {
+		rc_own_bind_addr(rh, &our_sockaddr);
+		discover_local_ip = 0;
+		if (our_sockaddr.ss_family == AF_INET &&
+		    ((struct sockaddr_in *)(&our_sockaddr))->sin_addr.s_addr == INADDR_ANY)
+			discover_local_ip = 1;
 
-	if (our_sockaddr.ss_family == AF_INET6) {
-		char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
-		if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
-#if defined(__linux__)
-			int sock_opt = IPV6_PREFER_SRC_PUBLIC;
-			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
-				       &sock_opt, sizeof(sock_opt)) != 0) {
-				rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+		if (discover_local_ip) {
+			/* REQ-NET2-SEND-016: this fixes the source address at
+			 * first use (from whichever destination happens to
+			 * trigger it), unlike the old per-request socket,
+			 * which rediscovered it per destination -- acceptable
+			 * on a single-homed host; a multi-homed one with no
+			 * explicit bindaddr may get a suboptimal source
+			 * address for a later request to a different
+			 * destination (e.g. acctserver after authserver).
+			 * Configure bindaddr explicitly to avoid this. */
+			result = radcli2_priv_get_srcaddr(SA(&our_sockaddr), auth_addr->ai_addr);
+			if (result != OK_RC) {
+				rc_log(LOG_ERR, "%s: cannot figure our own address", __func__);
 				result = ERROR_RC;
 				goto fail;
 			}
-#elif defined(BSD) || defined(__APPLE__)
-			int sock_opt = 0;
-			if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
-				       &sock_opt, sizeof(sock_opt)) != 0) {
-				rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
-				result = ERROR_RC;
-				goto fail;
-			}
-#else
-			rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
-			       "supported in this system", __func__);
-#endif
 		}
+
+		if (sfuncs->get_fd) {
+			sockfd = sfuncs->get_fd(sfuncs->ptr, SA(&our_sockaddr));
+			if (sockfd < 0) {
+				rc_log(LOG_ERR, "%s: socket: %s", __func__, strerror(errno));
+				result = ERROR_RC;
+				goto fail;
+			}
+		}
+
+		if (sockfd >= 0 && our_sockaddr.ss_family == AF_INET6) {
+			char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
+			if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
+#if defined(__linux__)
+				int sock_opt = IPV6_PREFER_SRC_PUBLIC;
+				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
+					       &sock_opt, sizeof(sock_opt)) != 0) {
+					rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+					result = ERROR_RC;
+					goto fail;
+				}
+#elif defined(BSD) || defined(__APPLE__)
+				int sock_opt = 0;
+				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
+					       &sock_opt, sizeof(sock_opt)) != 0) {
+					rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+					result = ERROR_RC;
+					goto fail;
+				}
+#else
+				rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
+				       "supported in this system", __func__);
+#endif
+			}
+		}
+
+		rh->req_fd = sockfd; /* persistent -- REQ-NET2-SEND-016 */
 	}
 
 	do {
@@ -818,30 +1229,34 @@ int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short
 		goto fail;
 	}
 
+	pthread_mutex_lock(&reg->lock);
+	memcpy(&rslot->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
+	rslot->peer_len = auth_addr->ai_addrlen;
+	memcpy(rslot->send_buf, send_buf, (size_t)send_len);
+	rslot->send_len = send_len;
+	memcpy(rslot->vector, send_buf + 4, AUTH_VECTOR_LEN); /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
+	strlcpy(rslot->secret, secret, sizeof(rslot->secret));
+	strlcpy(rslot->server_name, server_name, sizeof(rslot->server_name));
+	rslot->svc_port = svc_port;
+	rslot->type = type;
+	rslot->timeout = timeout > 0 ? timeout : 1;
+	rslot->retries_left = retries;
+	rslot->deadline = rc_getmtime() + rslot->timeout;
+	rslot->armed = 1;
+	pthread_mutex_unlock(&reg->lock);
+
+	if (sfuncs->unlock)
+		sfuncs->unlock(sfuncs->ptr);
+
 	out->rh = rh;
-	out->sfuncs = sfuncs;
 	out->active = 1;
-	out->sockfd = sockfd;
-	memcpy(&out->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
-	out->peer_len = auth_addr->ai_addrlen;
-	memcpy(out->send_buf, send_buf, (size_t)send_len);
-	out->send_len = send_len;
-	memcpy(out->vector, send_buf + 4, AUTH_VECTOR_LEN); /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
-	out->seq_nbr = send_buf[1];
-	strlcpy(out->secret, secret, sizeof(out->secret));
-	strlcpy(out->server_name, server_name, sizeof(out->server_name));
-	out->svc_port = svc_port;
-	out->type = type;
-	out->timeout = timeout > 0 ? timeout : 1;
-	out->retries_left = retries;
-	out->deadline = rc_getmtime() + out->timeout;
+	out->slot = slot;
+	out->delivered = 0;
 
 	result = OK_RC;
 	goto exit_ok;
 
  fail:
-	if (sockfd >= 0 && sfuncs->close_fd)
-		sfuncs->close_fd(sockfd);
 	if (sfuncs->unlock)
 		sfuncs->unlock(sfuncs->ptr);
  fail_unlocked:
@@ -858,129 +1273,20 @@ int radcli_transport_send_async(rc_handle *rh, char *server_name, unsigned short
 }
 
 /* See lib/includes.h's doc comment. */
-int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready,
-				   uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
-				   uint8_t *out_code)
+int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready)
 {
-	char *ns;
-	int ns_def_hdl = 0;
-	int result;
-
 	if (st == NULL || !st->active)
 		return ERROR_RC;
 
-	ns = rc_conf_str_id(st->rh, OPT_NAMESPACE);
-
-	if (fd_ready) {
-		int sockfd = st->sockfd;
-		int recv_length;
-		socklen_t salen = st->peer_len;
-
-		if (st->sfuncs->get_active_fd) {
-			int new_fd = st->sfuncs->get_active_fd(st->sfuncs->ptr);
-			if (new_fd >= 0)
-				sockfd = st->sockfd = new_fd;
-		}
-
-		if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
-			rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
-			result = ERROR_RC;
-			goto terminal;
-		}
-
-		if (st->rh->so_type == RC_SOCKET_TLS || st->rh->so_type == RC_SOCKET_DTLS) {
-			recv_length = radcli2_priv_tls_try_recv(st->rh, recv_buf, (size_t)recv_buf_cap);
-		} else {
-			do {
-				recv_length = st->sfuncs->recvfrom(st->sfuncs->ptr, sockfd, (char *)recv_buf,
-								   (int)recv_buf_cap, 0,
-								   SA(&st->peer), &salen);
-			} while (recv_length == -1 && errno == EINTR);
-			if (recv_length == -1 && errno == EAGAIN)
-				recv_length = 0; /* not ready yet -- same "0 = not ready" contract
-						  * radcli2_priv_tls_try_recv() uses */
-		}
-
-		if (ns != NULL)
-			rc_reset_netns(&ns_def_hdl);
-
-		if (recv_length < 0) {
-			rc_log(LOG_ERR, "%s: recvfrom: %s:%d: %s", __func__,
-			       st->server_name, st->svc_port, strerror(errno));
-			result = ERROR_RC;
-			goto terminal;
-		}
-
-		if (recv_length > 0) {
-			AUTH_HDR *recv_auth = (AUTH_HDR *)recv_buf;
-
-			if (recv_length < AUTH_HDR_LEN || recv_length < ntohs(recv_auth->length)) {
-				rc_log(LOG_ERR, "%s: %s:%d: reply is too short", __func__,
-				       st->server_name, st->svc_port);
-				result = ERROR_RC;
-				goto terminal;
-			}
-
-			result = rc_check_reply(recv_auth, (int)recv_buf_cap, st->secret,
-						st->vector, st->seq_nbr);
-			if (result == OK_RC) {
-				result = decode_reply(st->rh, NULL, st->server_name, st->svc_port,
-						      st->type, st->secret, st->vector,
-						      recv_buf, recv_buf_cap, recv_len, out_code);
-				goto terminal;
-			}
-			/* BADRESPID_RC (some other packet arrived, e.g. a stale
-			 * retransmit's answer) and BADRESP_RC (bad length or Response
-			 * Authenticator -- possibly spoofed) both keep waiting rather
-			 * than handing an unverified packet to decode_reply(), matching
-			 * the blocking loop's own "if (result == OK_RC) goto got_reply;"
-			 * (REQ-GEN-STYLE-009). */
-		}
-	}
-
-	if (rc_getmtime() < st->deadline)
+	if (fd_ready)
+		radcli2_priv_reqreg_drain(st->rh);
+	if (!st->delivered)
+		radcli2_priv_reqreg_service_timeouts(st->rh);
+	if (!st->delivered)
 		return RADCLI_ASYNC_AGAIN;
 
-	if (st->retries_left-- <= 0) {
-		rc_log(LOG_ERR, "%s: no reply from RADIUS server %s:%u", __func__,
-		       st->server_name, st->svc_port);
-		result = TIMEOUT_RC;
-		goto terminal;
-	}
-
-	if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
-		rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
-		result = ERROR_RC;
-		goto terminal;
-	}
-	{
-		int sresult;
-
-		do {
-			sresult = st->sfuncs->sendto(st->sfuncs->ptr, st->sockfd,
-						     (const char *)st->send_buf, (unsigned int)st->send_len,
-						     0, SA(&st->peer), st->peer_len);
-		} while (sresult == -1 && errno == EINTR);
-		if (ns != NULL)
-			rc_reset_netns(&ns_def_hdl);
-		if (sresult == -1) {
-			rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
-			result = ERROR_RC;
-			goto terminal;
-		}
-	}
-	st->deadline = rc_getmtime() + st->timeout;
-	return RADCLI_ASYNC_AGAIN;
-
- terminal:
-	if (st->sfuncs->close_fd)
-		st->sfuncs->close_fd(st->sockfd);
-	st->sockfd = -1;
-	if (st->sfuncs->unlock)
-		st->sfuncs->unlock(st->sfuncs->ptr);
-	memset(st->secret, '\0', sizeof(st->secret));
 	st->active = 0;
-	return result;
+	return st->result;
 }
 
 /* See lib/includes.h's doc comment. */
@@ -989,12 +1295,10 @@ void radcli_transport_async_abort(struct radcli_async_send_st *st)
 	if (st == NULL || !st->active)
 		return;
 
-	if (st->sfuncs->close_fd)
-		st->sfuncs->close_fd(st->sockfd);
-	st->sockfd = -1;
-	if (st->sfuncs->unlock)
-		st->sfuncs->unlock(st->sfuncs->ptr);
-	memset(st->secret, '\0', sizeof(st->secret));
+	if (!st->delivered)
+		radcli2_priv_reqreg_release(st->rh, st->slot);
+	else
+		radcli_avp_list_free(st->reply_attrs);
 	st->active = 0;
 }
 

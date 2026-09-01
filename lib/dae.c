@@ -59,6 +59,7 @@
 #include "avp.h"
 #include "options.h"
 #include "rc-crypto.h"
+#include "rc-random.h"
 #include <poll.h>
 #include <fcntl.h>
 #include <time.h>
@@ -1229,8 +1230,11 @@ int radcli_ctx_send_watchdog(radcli_ctx *ctx)
 	if (empty == NULL)
 		return -1;
 
+	/* Own established RadSec session, correlated to no other in-flight
+	 * exchange (REQ-WATCHDOG-NET-001 never queues/retries this) -- a
+	 * CSPRNG draw is sufficient (REQ-NET2-SEND-010). */
 	ret = radcli_encode_request(rh, PW_STATUS_SERVER, empty, secret,
-				    send_buffer, vector, &total_length);
+				    send_buffer, rc_get_random_byte(), vector, &total_length);
 	radcli_avp_list_free(empty);
 	if (ret < 0)
 		return -1;

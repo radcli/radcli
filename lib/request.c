@@ -233,7 +233,7 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
  * is. Returns 0 on success, -1 on encoding failure. */
 int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 			  char secret[MAX_SECRET_LENGTH + 1],
-			  uint8_t send_buffer[RC_BUFFER_LEN],
+			  uint8_t send_buffer[RC_BUFFER_LEN], uint8_t id,
 			  unsigned char vector_out[AUTH_VECTOR_LEN], int *out_len)
 {
 	AUTH_HDR *auth = (AUTH_HDR *)send_buffer;
@@ -251,7 +251,7 @@ int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *se
 		strlcpy(secret, rh->so.static_secret, MAX_SECRET_LENGTH + 1);
 
 	auth->code = code;
-	auth->id = rc_get_random_byte();
+	auth->id = id;
 
 	if (code == RADCLI_CODE_ACCOUNTING_REQUEST) {
 		size_t secretlen;
@@ -303,7 +303,11 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 	uint8_t send_buffer[RC_BUFFER_LEN];
 	int total_length;
 
-	if (radcli_encode_request(rh, code, send, secret, send_buffer, vector_out, &total_length) < 0)
+	/* Own per-call socket via radcli_transport_exchange() below -- no other
+	 * concurrently in-flight exchange to collide with, so a CSPRNG draw is
+	 * sufficient (REQ-NET2-SEND-010). */
+	if (radcli_encode_request(rh, code, send, secret, send_buffer, rc_get_random_byte(),
+				  vector_out, &total_length) < 0)
 		return ERROR_RC;
 
 	return radcli_transport_exchange(rh, NULL, server, svc_port,
@@ -350,15 +354,30 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 	if (flags & RADCLI_REQUEST_SENDONLY) {
 		uint8_t send_buffer[RC_BUFFER_LEN];
 		int send_len;
+		uint8_t id;
+		int slot;
 
-		if (radcli_encode_request(r->rh, r->code, r->send, r->secret,
-					  send_buffer, vector, &send_len) < 0)
+		/* Reserve the Identifier before encoding: it is itself covered
+		 * by the Message-Authenticator HMAC below, so it cannot be
+		 * patched in afterward (REQ-NET2-SEND-016). */
+		slot = radcli2_priv_reqreg_reserve(r->rh, &r->async, &id);
+		if (slot < 0)
 			return RADCLI_ERROR;
 
-		result = radcli_transport_send_async(r->rh, r->server, r->svc_port, r->secret,
+		if (radcli_encode_request(r->rh, r->code, r->send, r->secret,
+					  send_buffer, id, vector, &send_len) < 0) {
+			radcli2_priv_reqreg_release(r->rh, slot);
+			return RADCLI_ERROR;
+		}
+
+		result = radcli_transport_send_async(r->rh, slot, r->server, r->svc_port, r->secret,
 						     r->type, send_buffer, send_len,
 						     r->timeout, r->retries, &r->async);
-		return result == OK_RC ? RADCLI_OK : RADCLI_ERROR;
+		if (result != OK_RC) {
+			radcli2_priv_reqreg_release(r->rh, slot);
+			return RADCLI_ERROR;
+		}
+		return RADCLI_OK;
 	}
 
 	result = radcli_do_exchange(r->rh, r->code, r->send, r->server, r->svc_port, r->secret,
@@ -383,16 +402,26 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 }
 
 /** @brief Return the fd to poll for r's async progress.
+ *
+ * Since REQ-NET2-SEND-016, this is ctx's shared request socket/session fd
+ * (the same value radcli_ctx_get_poll() reports for the request-registry
+ * slot), not a descriptor private to r -- every other concurrently
+ * in-flight RADCLI_REQUEST_SENDONLY request on the same ctx returns the
+ * same value.
+ *
  * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
  *  returned RADCLI_OK for.
  * @return the fd, or -1 if r was never sent with RADCLI_REQUEST_SENDONLY,
- *  or radcli_request_wait() already reached a terminal result.
+ *  radcli_request_wait() already reached a terminal result, or (TLS/DTLS)
+ *  the session is not currently established.
  */
 int radcli_request_fd(const radcli_request *r)
 {
-	if (r == NULL || !r->async.active)
+	if (r == NULL || !r->async.active || r->async.delivered)
 		return -1;
-	return r->async.sockfd;
+	if (r->rh->so_type == RC_SOCKET_TLS || r->rh->so_type == RC_SOCKET_DTLS)
+		return r->rh->so.get_active_fd ? r->rh->so.get_active_fd(r->rh->so.ptr) : -1;
+	return r->rh->req_fd;
 }
 
 /** @brief Return the poll() events to wait for on radcli_request_fd(r).
@@ -423,20 +452,13 @@ short radcli_request_poll_events(const radcli_request *r)
  */
 int radcli_request_timeout_ms(const radcli_request *r)
 {
-	double remaining;
-
-	if (r == NULL || !r->async.active)
+	if (r == NULL || !r->async.active || r->async.delivered)
 		return 0;
-
-	remaining = r->async.deadline - rc_getmtime();
-	if (remaining <= 0)
-		return 0;
-	/* Round up, not down: truncating a sub-millisecond remainder to 0
-	 * would make the caller's poll() return immediately without
-	 * actually waiting out the last fraction of a millisecond, turning
-	 * the last moment before the deadline into a busy-spin between here
-	 * and radcli_request_wait() instead of one clean wait. */
-	return (int)(remaining * 1000) + 1;
+	/* Slot-level deadline lookup, since REQ-NET2-SEND-016 moved retransmit/
+	 * timeout state into ctx's shared registry -- radcli2_priv_reqreg_
+	 * deadline_ms() already applies the same round-up-not-down rounding
+	 * this function used to do inline (lib/sendserver.c). */
+	return radcli2_priv_reqreg_deadline_ms(r->rh, r->async.slot);
 }
 
 /** @brief Advance r's async exchange by one non-blocking step.
@@ -457,28 +479,27 @@ int radcli_request_timeout_ms(const radcli_request *r)
  */
 int radcli_request_wait(radcli_request *r, int fd_ready)
 {
-	uint8_t recv_buffer[RC_BUFFER_LEN];
-	size_t recv_len = 0;
 	int result;
 
 	if (r == NULL || !r->async.active)
 		return RADCLI_ERROR;
 
-	result = radcli_transport_service_async(&r->async, fd_ready,
-						recv_buffer, sizeof(recv_buffer), &recv_len,
-						&r->reply_code);
+	/* Since REQ-NET2-SEND-016, decoding already happened -- inside
+	 * radcli_transport_service_async()'s drain, for whichever exchange a
+	 * given reply actually resolved, possibly not r's own -- so this just
+	 * reads back whatever r->async already carries. */
+	result = radcli_transport_service_async(&r->async, fd_ready);
 	if (result == RADCLI_ASYNC_AGAIN)
 		return RADCLI_AGAIN;
+
+	r->reply_code = r->async.reply_code;
+	r->reply_attrs = r->async.reply_attrs;
+	r->async.reply_attrs = NULL; /* ownership moved to r */
 
 	switch (result) {
 	case OK_RC:
 	case REJECT_RC:
 	case CHALLENGE_RC:
-		if (recv_len > 0) {
-			if (radcli_avp_decode(r->rh, r->secret, r->async.vector, recv_buffer, recv_len, 0,
-					      &r->reply_attrs) != 0)
-				return RADCLI_ERROR;
-		}
 		return RADCLI_OK;
 	case TIMEOUT_RC:
 		return RADCLI_TIMEOUT;
