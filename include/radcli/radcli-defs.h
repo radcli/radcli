@@ -401,13 +401,13 @@ RADCLI_OPT_ENTRY(OPT_TLS_PSK_IDENTITY,	"tls-psk-identity",	RADCLI_OPT_TYPE_STR) 
 RADCLI_OPT_ENTRY(OPT_TLS_PSK_KEY,	"tls-psk-key",		RADCLI_OPT_TYPE_STR) \
 /* Seconds between RFC 5997 Status-Server watchdogs on an established
  * RadSec (TLS/DTLS) session: radcli_ctx_get_poll() advises the timing,
- * radcli_ctx_send_watchdog() sends them -- radcli owns no timer itself
- * (REQ-GEN-SEC-003). Any RadSec radcli_ctx, DAE or not (REQ-WATCHDOG-NET-001/
- * 002). No effect on UDP. Default 15 (draft-ietf-radext-reverse-coa's
- * recommended Tw); 0 disables it. Otherwise MUST be at least 6
- * (REQ-WATCHDOG-CFG-001) -- a smaller value is rejected outright, since
- * radcli_ctx_send_watchdog() reconnects once 2.5x this has elapsed with
- * nothing received (REQ-WATCHDOG-NET-003). */ \
+ * radcli_ctx_dispatch() sends them automatically once due -- radcli owns
+ * no timer itself (REQ-GEN-SEC-003). Any RadSec radcli_ctx, DAE or not
+ * (REQ-WATCHDOG-NET-001/002). No effect on UDP. Default 15
+ * (draft-ietf-radext-reverse-coa's recommended Tw); 0 disables it.
+ * Otherwise MUST be at least 6 (REQ-WATCHDOG-CFG-001) -- a smaller value is
+ * rejected outright, since the watchdog send reconnects once 2.5x this has
+ * elapsed with nothing received (REQ-WATCHDOG-NET-003). */ \
 RADCLI_OPT_ENTRY(OPT_WATCHDOG_INTERVAL, "watchdog-interval", RADCLI_OPT_TYPE_INT) \
 RADCLI_OPT_ENTRY(OPT_NAS_IDENTIFIER,	"nas-identifier",	RADCLI_OPT_TYPE_STR) \
 RADCLI_OPT_ENTRY(OPT_NAS_IP,		"nas-ip",		RADCLI_OPT_TYPE_STR) \

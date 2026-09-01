@@ -387,7 +387,7 @@ int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_len
  * Accounting-Request -- a Message-Authenticator via add_msg_auth_attr()
  * above. Writes the request authenticator vector used into vector_out and
  * the total encoded length into *out_len. Shared by lib/request.c's own
- * callers and lib/dae.c's radcli_ctx_send_watchdog() (RFC 5997 Status-Server
+ * callers and lib/dae.c's radcli2_priv_dae_send_watchdog() (RFC 5997 Status-Server
  * over an established RadSec session), so both build the exact same
  * Response Authenticator / Message-Authenticator wire logic instead of a
  * second copy. send may be an empty list (Status-Server needs no attributes
@@ -399,7 +399,7 @@ int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_len
  * where its id comes from: rc_get_random_byte() for every caller not
  * sharing a socket with any other concurrently in-flight exchange (the
  * blocking radcli_do_exchange()/radcli_transport_exchange() path,
- * radcli_aaa(), radcli_ctx_send_watchdog() -- REQ-NET2-SEND-010), or, for
+ * radcli_aaa(), radcli2_priv_dae_send_watchdog() -- REQ-NET2-SEND-010), or, for
  * RADCLI_REQUEST_SENDONLY, the Identifier ctx's in-flight registry already
  * reserved (REQ-NET2-SEND-016) -- reserved and passed in before this call,
  * never patched into the wire packet afterward, since id is itself covered
@@ -531,8 +531,7 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
  *
  * Call after the caller's poll()/select() reports ctx's fd ready (fd_ready
  * nonzero), or after it returns with the fd not ready because
- * radcli2_priv_reqreg_deadline_ms(rh, st->slot) elapsed instead (fd_ready
- * zero).
+ * radcli_ctx_get_poll()'s timeout_ms elapsed instead (fd_ready zero).
  *
  * On a validated reply, decodes it via the same logic
  * radcli_transport_exchange() uses (RFC 2865 Response Authenticator, RFC
@@ -554,11 +553,11 @@ int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready
 /*- Release st's registry slot without waiting for a terminal result. A
  * no-op if st is not active (never sent, or already terminal/delivered).
  * Used by lib/request.c's radcli_request_free() for the fire-and-forget
- * case: a RADCLI_REQUEST_SENDONLY request whose caller never called
- * radcli_request_wait() to a terminal result. If st was already delivered
- * but never read via radcli_request_wait(), frees st->reply_attrs instead
- * (the slot is already vacated by then -- REQ-NET2-SEND-016 vacates on
- * delivery, not on collection). */
+ * case: a RADCLI_REQUEST_SENDONLY request whose caller never drove it to a
+ * terminal result via radcli_ctx_dispatch()/radcli_request_done(). If st
+ * was already delivered but never read via radcli_request_done(), frees
+ * st->reply_attrs instead (the slot is already vacated by then --
+ * REQ-NET2-SEND-016 vacates on delivery, not on collection). */
 void radcli_transport_async_abort(struct radcli_async_send_st *st);
 
 /*- Reserve a slot in rh's in-flight registry (REQ-NET2-SEND-016),
@@ -585,11 +584,6 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
  * radcli_transport_send_async() failed to arm, and by
  * radcli_transport_async_abort() for a still-active, undelivered exchange. */
 void radcli2_priv_reqreg_release(rc_handle *rh, int slot);
-
-/*- Milliseconds remaining until slot's retransmit/timeout deadline (0 if
- * already due or slot is not currently armed). Used by
- * lib/request.c's radcli_request_timeout_ms(). */
-int radcli2_priv_reqreg_deadline_ms(rc_handle *rh, int slot);
 
 /*- Milliseconds remaining until the *earliest* deadline among every
  * currently armed slot on rh (0 if one is already due), or -1 if rh has no
@@ -681,7 +675,7 @@ time_t radcli2_priv_tls_last_msg(rc_handle *rh);
 
 /* Last-receive timestamp of rh's TLS/DTLS session (0 if not TLS/DTLS or not
  * yet initialized) -- unlike radcli2_priv_tls_last_msg() above, never
- * advanced by a send. lib/dae.c's radcli_ctx_send_watchdog() (REQ-WATCHDOG-NET-003)
+ * advanced by a send. lib/dae.c's radcli2_priv_dae_send_watchdog() (REQ-WATCHDOG-NET-003)
  * uses this, together with radcli2_priv_tls_force_reconnect() below, to
  * detect and recover from a peer that has gone silent while the connection
  * itself is still technically open. */

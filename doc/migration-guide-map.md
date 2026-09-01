@@ -54,8 +54,8 @@ API mapping {#radcli2-migration-map}
 |----------------------------------------------|--------------------------------------------------------------------------|
 | `rc_auth()` / `rc_acct()` (single server)     | `radcli_request_new()` + `radcli_request_perform()`                       |
 | `rc_aaa()` (multi-server fail-over, NAS-Port/Acct-Delay-Time autofill, folds in a reply-message out-parameter) | `radcli_aaa()` (same fail-over and Acct-Delay-Time autofill; add NAS-Port to `send` yourself with `radcli_avp_add_uint32_by_num()`, same as any other attribute; use `radcli_avp_concat_str_by_num()` separately for the reply message) |
-| `rc_acct_async()` | `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` followed by `radcli_request_free(r)` without ever calling `radcli_request_wait()` -- fire-and-forget, one send, no retries, same as `rc_acct_async()` |
-| (no equivalent) | `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` + `radcli_request_fd()`/`_poll_events()`/`_timeout_ms()`/`_wait()`: poll-driven async request/reply, for a caller built around an event loop that cannot block a thread on `radcli_request_perform(r, RADCLI_REQUEST_NONE)` |
+| `rc_acct_async()` | `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` followed by `radcli_request_free(r)` without ever calling `radcli_ctx_dispatch()` -- fire-and-forget, one send, no retries, same as `rc_acct_async()` |
+| (no equivalent) | `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` + `radcli_ctx_get_poll()`/`radcli_ctx_dispatch()`/`radcli_request_done()`: poll-driven async request/reply, for a caller built around an event loop that cannot block a thread on `radcli_request_perform(r, RADCLI_REQUEST_NONE)` |
 | `rc_auth_proxy()` / `rc_acct_proxy()` | no direct equivalent yet |
 | (no DAE support)                               | `radcli_dae_new()`, `radcli_dae_set_handler()`, `radcli_dae_start()`, `radcli_dae_req_*()`, `radcli_dae_reply()`/`_reply_error()` (RFC 5176 CoA/Disconnect) |
 

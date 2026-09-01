@@ -7,7 +7,7 @@
 # answers both ordinary Access-Request traffic and an RFC 5997 Status-Server
 # watchdog with a normal Access-Accept-shaped reply. tests/watchdog-aaa.c
 # drives radcli purely through radcli_request_new()/_perform() (ordinary AAA)
-# and radcli_ctx_send_watchdog() -- never radcli_dae_*() -- so this peer
+# and radcli_ctx_dispatch()'s internal watchdog send -- never radcli_dae_*() -- so this peer
 # never needs to speak DAE either.
 #
 # Accepts connections in a loop (not just once, --accepts N): tests/
@@ -16,7 +16,7 @@
 # --timeout read timeout on the now-idle first connection naturally times
 # out on -- moving this script back to accept() -- before radcli's own
 # elapsed-time-based dead-peer detection (lib/dae.c's
-# radcli_ctx_send_watchdog(), REQ-WATCHDOG-NET-003) forces a reconnect and dials
+# radcli2_priv_dae_send_watchdog(), REQ-WATCHDOG-NET-003) forces a reconnect and dials
 # a *second* connection this script needs to still be waiting for. --timeout
 # is kept short relative to that phase's wait for exactly this reason (see
 # its --help text below).

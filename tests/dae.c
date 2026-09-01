@@ -24,8 +24,8 @@
 
 /* Unit tests for radcli2.h's RFC 5176 dynamic-authorization listener
  * construction (radcli_dae_new()/_set_handler()/_start()/_free(), and the
- * ctx-level poll surface radcli_ctx_get_poll()/radcli_ctx_dispatch()/
- * radcli_ctx_send_watchdog(), lib/dae.c): REQ-DAE-INIT-001..004
+ * ctx-level poll surface radcli_ctx_get_poll()/radcli_ctx_dispatch(),
+ * lib/dae.c): REQ-DAE-INIT-001..004
  * (doc/requirements/dae.md). Only literal
  * addresses are used (never a hostname needing real DNS), so this needs no
  * network access; radcli_dae_start() binds to 127.0.0.1:0 (kernel-assigned

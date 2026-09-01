@@ -804,32 +804,6 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
 }
 
 /* See lib/includes.h's doc comment. */
-int radcli2_priv_reqreg_deadline_ms(rc_handle *rh, int slot)
-{
-	struct radcli_reqreg *reg;
-	double remaining;
-
-	if (rh == NULL || rh->reqreg == NULL || slot < 0 || slot >= RADCLI_CTX_MAX_INFLIGHT)
-		return 0;
-	reg = rh->reqreg;
-
-	pthread_mutex_lock(&reg->lock);
-	if (!reg->slots[slot].valid || !reg->slots[slot].armed) {
-		pthread_mutex_unlock(&reg->lock);
-		return 0;
-	}
-	remaining = reg->slots[slot].deadline - rc_getmtime();
-	pthread_mutex_unlock(&reg->lock);
-
-	if (remaining <= 0)
-		return 0;
-	/* Round up, not down -- see the pre-registry radcli_request_timeout_ms()
-	 * this replaces for why (truncating the last sub-millisecond remainder
-	 * to 0 would busy-spin the caller's poll() instead of waiting it out). */
-	return (int)(remaining * 1000) + 1;
-}
-
-/* See lib/includes.h's doc comment. */
 int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 {
 	struct radcli_reqreg *reg;

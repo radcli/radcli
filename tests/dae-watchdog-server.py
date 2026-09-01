@@ -7,7 +7,7 @@
 # nothing on its own -- it accepts the connection radcli/dae-radsec-watchdog
 # dials out (forced eagerly by radcli_dae_start(), REQ-DAE-INIT-010) and then
 # waits, passively, for an unprompted RFC 5997 Status-Server (Code 12) to
-# arrive: exactly what radcli_ctx_send_watchdog() is supposed to produce on
+# arrive: exactly what radcli_ctx_dispatch()'s internal watchdog send is supposed to produce on
 # its own, without this script asking for it first.
 #
 # Verifies the received packet's Message-Authenticator (RFC 2869 SS5.14)

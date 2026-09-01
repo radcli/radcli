@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 	 * fire-and-forget: transmits once and returns RADCLI_OK without
 	 * waiting, even though nothing is listening at 192.0.2.1 -- unlike
 	 * the default flags, there is no reply to time out on. free()ing
-	 * without ever calling radcli_request_wait() must not leak/hang --- */
+	 * without ever calling radcli_ctx_dispatch() must not leak/hang --- */
 
 	{
 		radcli_avp_list *send_list2 = radcli_avp_list_new();
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		radcli_request_free(r); /* fire-and-forget: radcli_request_wait() never called */
+		radcli_request_free(r); /* fire-and-forget: radcli_ctx_dispatch() never called */
 	}
 
 	/* --- radcli_request_perform() with RADCLI_REQUEST_SENDONLY, used for
