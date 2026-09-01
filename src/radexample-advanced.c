@@ -83,7 +83,7 @@ int
 main (int argc, char **argv)
 {
 	radcli_ctx	*ctx;
-	radcli_dae	*dae;
+	radcli_dae	*dae = NULL;
 	radcli_avp_list *send = NULL;
 	radcli_request  *r;
 	int		result = 1;
@@ -93,6 +93,21 @@ main (int argc, char **argv)
 	ctx = radcli_ctx_read_config(RC_CONFIG_FILE, 0);
 	if (ctx == NULL)
 		return 1;
+
+	dae = radcli_dae_new(ctx, 0);
+	if (dae == NULL) {
+		fprintf(stderr, "dynamic authorization is not enabled or is "
+				"misconfigured (check dae-accept/dae-server/dae-secret)\n");
+		radcli_ctx_free(ctx);
+		return 1;
+	}
+	radcli_dae_set_handler(dae, handle_dae_request, NULL);
+	if (radcli_dae_start(dae) != 0) {
+		fprintf(stderr, "cannot start the DAE listener\n");
+		radcli_dae_free(dae);
+		radcli_ctx_free(ctx);
+		return 1;
+	}
 
 	send = radcli_avp_list_new();
 	radcli_avp_add_str_by_num(send, ctx, PW_USER_NAME, 0, "my-username");
@@ -106,7 +121,6 @@ main (int argc, char **argv)
 		return 1;
 	}
 
-	/* Access request is sent on the TLS session and its response it checked */
 	r = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, send);
 	radcli_avp_list_free(send);
 	if (r == NULL) {
@@ -114,67 +128,104 @@ main (int argc, char **argv)
 		return 1;
 	}
 
-	if (radcli_request_perform(r, 0) == RADCLI_OK &&
-	    radcli_request_code(r) == RADCLI_CODE_ACCESS_ACCEPT) {
-		fprintf(stderr, "\"my-username\" RADIUS Authentication OK\n");
-		print_reply(ctx, radcli_request_attrs(r));
-		result = 0;
-	} else {
-		fprintf(stderr, "\"my-username\" RADIUS Authentication failure\n");
-	}
-	radcli_request_free(r);
-
-	if (result != 0) {
-		radcli_ctx_free(ctx);
-		return result;
-	}
-
-	dae = radcli_dae_new(ctx, 0);
-	if (dae == NULL) {
-		fprintf(stderr, "dynamic authorization is not enabled or is "
-				"misconfigured (check dae-accept/dae-server/dae-secret)\n");
+	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK) {
+		fprintf(stderr, "cannot send the Access-Request\n");
+		radcli_request_free(r);
 		radcli_ctx_free(ctx);
 		return 1;
 	}
 
-	radcli_dae_set_handler(dae, handle_dae_request, NULL);
-	if (radcli_dae_start(dae) != 0) {
-		fprintf(stderr, "cannot start the DAE listener\n");
-		radcli_dae_free(dae);
-		radcli_ctx_free(ctx);
-		return 1;
-	}
-
-    /* main loop for watchdog and DAE events */
+	/* Single main loop, from the very first iteration: services the
+	 * pending Access-Request (r) alongside the already-running watchdog
+	 * and DAE listener (dae) */
 	for (;;) {
-		int fd, timeout_ms, ret;
-		unsigned events;
-		struct pollfd pfd;
+		struct pollfd pfds[2];
+		int nfds = 0;
+		int ctx_fd, ctx_idx = -1, req_idx = -1;
+		unsigned ctx_events;
+		int ctx_timeout_ms, req_timeout_ms = -1, timeout_ms;
+		int ret;
 
-		if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0 || fd < 0)
+		if (radcli_ctx_get_poll(ctx, &ctx_fd, &ctx_events, &ctx_timeout_ms) != 0)
 			break;
 
-		pfd.fd = fd;
-		pfd.events = (short)events;
-		pfd.revents = 0;
-		ret = poll(&pfd, 1, timeout_ms);
+		if (ctx_fd != -1) {
+			pfds[nfds].fd = ctx_fd;
+			pfds[nfds].events = (short)ctx_events;
+			pfds[nfds].revents = 0;
+			ctx_idx = nfds++;
+		}
 
+		if (r != NULL) {
+			int rfd = radcli_request_fd(r);
+
+			req_timeout_ms = radcli_request_timeout_ms(r);
+
+			if (rfd != -1 && rfd == ctx_fd) {
+				req_idx = ctx_idx; /* same fd -- see comment above */
+			} else if (rfd != -1) {
+				pfds[nfds].fd = rfd;
+				pfds[nfds].events = radcli_request_poll_events(r);
+				pfds[nfds].revents = 0;
+				req_idx = nfds++;
+			}
+		}
+
+		if (nfds == 0)
+			break; /* nothing left to wait on */
+
+		timeout_ms = ctx_timeout_ms;
+		if (r != NULL &&
+		    (timeout_ms < 0 || (req_timeout_ms >= 0 && req_timeout_ms < timeout_ms)))
+			timeout_ms = req_timeout_ms;
+
+		ret = poll(pfds, (nfds_t)nfds, timeout_ms);
 		if (ret < 0) {
 			/* EINTR (e.g. a signal the embedding application handles)
 			 * is not a timeout: retry rather than misfiring the
-			 * watchdog. Any other errno is a genuine poll() failure. */
+			 * watchdog or the request's retransmit. Any other errno
+			 * is a genuine poll() failure. */
 			if (errno == EINTR)
 				continue;
 			break;
 		}
 
-		if (ret == 0)
-			radcli_ctx_send_watchdog(ctx);
-		else
-			radcli_ctx_dispatch(ctx);
+		if (r != NULL) {
+			int fd_ready = req_idx >= 0 && ret > 0 &&
+				       (pfds[req_idx].revents & radcli_request_poll_events(r)) != 0;
+			int rc = radcli_request_wait(r, fd_ready);
+
+			if (rc != RADCLI_AGAIN) {
+				if (rc == RADCLI_OK && radcli_request_code(r) == RADCLI_CODE_ACCESS_ACCEPT) {
+					fprintf(stderr, "\"my-username\" RADIUS Authentication OK\n");
+					print_reply(ctx, radcli_request_attrs(r));
+					result = 0;
+				} else {
+					fprintf(stderr, "\"my-username\" RADIUS Authentication failure\n");
+				}
+				radcli_request_free(r);
+				r = NULL;
+			}
+		}
+
+		if (ctx_idx >= 0) {
+			int ctx_fd_ready = ret > 0 &&
+					   (pfds[ctx_idx].revents & pfds[ctx_idx].events) != 0;
+
+			if (ctx_fd_ready)
+				radcli_ctx_dispatch(ctx);
+			else if (ret == 0 && timeout_ms == ctx_timeout_ms)
+				/* The overall poll() timeout used this round was
+				 * ctx's own deadline (not r's shorter one, if any),
+				 * so it is ctx's watchdog that is actually due. */
+				radcli_ctx_send_watchdog(ctx);
+		}
 	}
 
-	radcli_dae_free(dae);
+	if (dae != NULL)
+		radcli_dae_free(dae);
+	if (r != NULL)
+		radcli_request_free(r);
 	radcli_ctx_free(ctx);
 
 	return result;
