@@ -188,8 +188,9 @@ static radcli_ctx *setup_dae(const char *dae_server, int max_clock_skew,
 {
 	radcli_ctx *ctx = radcli_ctx_new(RADCLI_CTX_NO_BUILTIN_DICT);
 	radcli_dae *dae;
+	struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+	size_t nfds;
 	int fd;
-	unsigned events;
 	int timeout_ms;
 	socklen_t slen;
 
@@ -205,7 +206,9 @@ static radcli_ctx *setup_dae(const char *dae_server, int max_clock_skew,
 	dae = radcli_dae_new(ctx, 0);
 	assert(dae != NULL);
 	assert(radcli_dae_start(dae) == 0);
-	assert(radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) == 0);
+	assert(radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) == 0);
+	assert(nfds == 1);
+	fd = pfds[0].fd;
 	assert(fd >= 0);
 
 	memset(dest, 0, sizeof(*dest));

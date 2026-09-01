@@ -66,8 +66,9 @@ int main(int argc, char **argv)
 {
 	radcli_ctx *ctx;
 	radcli_dae *dae;
+	struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+	size_t nfds;
 	int fd;
-	unsigned events;
 	int timeout_ms;
 
 	/* --- dae-accept unset: NULL, not an error --- */
@@ -351,14 +352,13 @@ int main(int argc, char **argv)
 	radcli_dae_set_handler(dae, unexpected_handler, NULL);
 
 	/* Nothing to watch before radcli_dae_start(). */
-	fd = -99;
-	events = 0xff;
+	nfds = 99;
 	timeout_ms = -99;
-	if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0) {
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() failed\n");
 		exit(1);
 	}
-	if (fd != -1 || events != 0) {
+	if (nfds != 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() reported something to "
 				"watch before radcli_dae_start()\n");
 		exit(1);
@@ -369,15 +369,16 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0) {
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() failed after radcli_dae_start()\n");
 		exit(1);
 	}
-	if (fd < 0 || !(events & POLLIN)) {
+	if (nfds != 1 || pfds[0].fd < 0 || !(pfds[0].events & POLLIN)) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() did not report the "
 				"listener as readable-watched after radcli_dae_start()\n");
 		exit(1);
 	}
+	fd = pfds[0].fd;
 
 	/* REQ-DAE-SEC-010/011: the listener socket must be non-blocking and
 	 * close-on-exec. */
@@ -409,12 +410,15 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* radcli_ctx_send_watchdog() is a RadSec-only facility: this ctx is
-	 * UDP (dae-accept=udp), so rh->so_type is never TLS/DTLS -- must fail
-	 * cleanly rather than attempt anything on the UDP listener socket. */
-	if (radcli_ctx_send_watchdog(ctx) != -1) {
-		fprintf(stderr, "error: radcli_ctx_send_watchdog() did not fail "
-				"on a non-RadSec (UDP) ctx\n");
+	/* The RFC 5997 watchdog send radcli_ctx_dispatch() now performs
+	 * internally (watchdog.md's REQ-WATCHDOG-NET-001) is gated on
+	 * so_type == TLS/DTLS -- this ctx is UDP (dae-accept=udp), so a
+	 * repeated dispatch() call must keep behaving exactly like the
+	 * "nothing pending" case above, never attempt anything watchdog-
+	 * related on the UDP listener socket. */
+	if (radcli_ctx_dispatch(ctx) != 0) {
+		fprintf(stderr, "error: radcli_ctx_dispatch() on a non-RadSec (UDP) "
+				"ctx did not return 0\n");
 		exit(1);
 	}
 
@@ -424,27 +428,28 @@ int main(int argc, char **argv)
 	radcli_dae_free(NULL);
 
 	/* After freeing the only active dae, ctx has nothing to watch again. */
-	if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0) {
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() failed after radcli_dae_free()\n");
 		exit(1);
 	}
-	if (fd != -1) {
+	if (nfds != 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll() still reported a "
 				"descriptor after radcli_dae_free()\n");
 		exit(1);
 	}
 
 	/* radcli_ctx_get_poll(NULL, ...)/radcli_ctx_dispatch(NULL) fail cleanly. */
-	if (radcli_ctx_get_poll(NULL, &fd, &events, &timeout_ms) == 0) {
+	if (radcli_ctx_get_poll(NULL, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) == 0) {
 		fprintf(stderr, "error: radcli_ctx_get_poll(NULL, ...) did not fail\n");
+		exit(1);
+	}
+	/* Also too small a pfds capacity must fail, not silently truncate. */
+	if (radcli_ctx_get_poll(ctx, pfds, 0, &nfds, &timeout_ms) == 0) {
+		fprintf(stderr, "error: radcli_ctx_get_poll() with max_pfds=0 did not fail\n");
 		exit(1);
 	}
 	if (radcli_ctx_dispatch(NULL) == 0) {
 		fprintf(stderr, "error: radcli_ctx_dispatch(NULL) did not fail\n");
-		exit(1);
-	}
-	if (radcli_ctx_send_watchdog(NULL) != -1) {
-		fprintf(stderr, "error: radcli_ctx_send_watchdog(NULL) did not fail\n");
 		exit(1);
 	}
 

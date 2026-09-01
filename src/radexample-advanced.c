@@ -137,47 +137,23 @@ main (int argc, char **argv)
 
 	/* Single main loop, from the very first iteration: services the
 	 * pending Access-Request (r) alongside the already-running watchdog
-	 * and DAE listener (dae) */
+	 * and DAE listener (dae) -- all through one ctx-level descriptor set.
+	 * radcli_ctx_get_poll() already folds r's own retransmit/timeout
+	 * deadline into timeout_ms (it shares ctx's own request-registry
+	 * socket/session, REQ-NET2-SEND-016), and radcli_ctx_dispatch()
+	 * already drains and resolves r's reply along with DAE traffic and
+	 * the watchdog -- so radcli_request_wait(r, 0) below is a pure,
+	 * no-I/O status check, not a second read. */
 	for (;;) {
-		struct pollfd pfds[2];
-		int nfds = 0;
-		int ctx_fd, ctx_idx = -1, req_idx = -1;
-		unsigned ctx_events;
-		int ctx_timeout_ms, req_timeout_ms = -1, timeout_ms;
+		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+		size_t nfds;
+		int timeout_ms;
 		int ret;
 
-		if (radcli_ctx_get_poll(ctx, &ctx_fd, &ctx_events, &ctx_timeout_ms) != 0)
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
 			break;
-
-		if (ctx_fd != -1) {
-			pfds[nfds].fd = ctx_fd;
-			pfds[nfds].events = (short)ctx_events;
-			pfds[nfds].revents = 0;
-			ctx_idx = nfds++;
-		}
-
-		if (r != NULL) {
-			int rfd = radcli_request_fd(r);
-
-			req_timeout_ms = radcli_request_timeout_ms(r);
-
-			if (rfd != -1 && rfd == ctx_fd) {
-				req_idx = ctx_idx; /* same fd -- see comment above */
-			} else if (rfd != -1) {
-				pfds[nfds].fd = rfd;
-				pfds[nfds].events = radcli_request_poll_events(r);
-				pfds[nfds].revents = 0;
-				req_idx = nfds++;
-			}
-		}
-
 		if (nfds == 0)
 			break; /* nothing left to wait on */
-
-		timeout_ms = ctx_timeout_ms;
-		if (r != NULL &&
-		    (timeout_ms < 0 || (req_timeout_ms >= 0 && req_timeout_ms < timeout_ms)))
-			timeout_ms = req_timeout_ms;
 
 		ret = poll(pfds, (nfds_t)nfds, timeout_ms);
 		if (ret < 0) {
@@ -190,10 +166,15 @@ main (int argc, char **argv)
 			break;
 		}
 
+		/* Unconditional and non-blocking, like every other radcli
+		 * dispatch call: services whichever of pfds actually turned
+		 * out to be ready without the caller needing to check revents
+		 * itself, and equally correct on the ret == 0 (timeout) case,
+		 * where it is the watchdog and/or r's retransmit that are due. */
+		radcli_ctx_dispatch(ctx);
+
 		if (r != NULL) {
-			int fd_ready = req_idx >= 0 && ret > 0 &&
-				       (pfds[req_idx].revents & radcli_request_poll_events(r)) != 0;
-			int rc = radcli_request_wait(r, fd_ready);
+			int rc = radcli_request_wait(r, 0);
 
 			if (rc != RADCLI_AGAIN) {
 				if (rc == RADCLI_OK && radcli_request_code(r) == RADCLI_CODE_ACCESS_ACCEPT) {
@@ -206,19 +187,6 @@ main (int argc, char **argv)
 				radcli_request_free(r);
 				r = NULL;
 			}
-		}
-
-		if (ctx_idx >= 0) {
-			int ctx_fd_ready = ret > 0 &&
-					   (pfds[ctx_idx].revents & pfds[ctx_idx].events) != 0;
-
-			if (ctx_fd_ready)
-				radcli_ctx_dispatch(ctx);
-			else if (ret == 0 && timeout_ms == ctx_timeout_ms)
-				/* The overall poll() timeout used this round was
-				 * ctx's own deadline (not r's shorter one, if any),
-				 * so it is ctx's watchdog that is actually due. */
-				radcli_ctx_send_watchdog(ctx);
 		}
 	}
 

@@ -4,7 +4,7 @@
 #
 # License: BSD
 #
-# RFC 3539 SS3.4 watchdog behavior for radcli_ctx_send_watchdog()/
+# RFC 3539 SS3.4 watchdog behavior for radcli_ctx_dispatch()'s internal watchdog send/
 # radcli_ctx_get_poll(), driven entirely through ordinary AAA traffic (no
 # radcli_dae_*() call anywhere in tests/watchdog-aaa.c -- see its header
 # comment). Peer: tests/watchdog-aaa-server.py.

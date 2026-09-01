@@ -215,13 +215,13 @@ static void *sender_thread(void *arg)
  * busy-spin. Returns -1 if get_poll() itself failed. */
 static int poll_and_dispatch_once(int fallback_timeout_ms)
 {
-	int fd, timeout_ms;
-	unsigned events;
-	struct pollfd pfd;
+	struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+	size_t nfds;
+	int timeout_ms;
 
-	if (radcli_ctx_get_poll(g_ctx, &fd, &events, &timeout_ms) != 0)
+	if (radcli_ctx_get_poll(g_ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
 		return -1;
-	if (fd < 0) {
+	if (nfds == 0) {
 		/* Not connected yet, or nothing to watch right now (e.g. the
 		 * handshake radcli_dae_start() forces hasn't completed in the
 		 * caller's view yet) -- still a genuine blocking wait, just
@@ -230,10 +230,7 @@ static int poll_and_dispatch_once(int fallback_timeout_ms)
 		poll(NULL, 0, fallback_timeout_ms);
 		return 0;
 	}
-	pfd.fd = fd;
-	pfd.events = (short)events;
-	pfd.revents = 0;
-	poll(&pfd, 1, (timeout_ms < 0) ? fallback_timeout_ms : timeout_ms);
+	poll(pfds, (nfds_t)nfds, (timeout_ms < 0) ? fallback_timeout_ms : timeout_ms);
 	radcli_ctx_dispatch(g_ctx);
 	return 0;
 }

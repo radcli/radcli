@@ -172,27 +172,24 @@ int main(int argc, char **argv)
 
 	deadline = time(NULL) + OVERALL_DEADLINE_SECONDS;
 	while (g_dae_count < EXPECTED_BURST && time(NULL) < deadline) {
-		int fd, timeout_ms;
-		unsigned events;
-		struct pollfd pfd;
+		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+		size_t nfds;
+		int timeout_ms;
 		double t0, dt;
 
-		if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0) {
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
 			fprintf(stderr, "dae-radsec-backpressure: radcli_ctx_get_poll() failed\n");
 			break;
 		}
-		if (fd < 0) {
+		if (nfds == 0) {
 			poll(NULL, 0, 100);
 			continue;
 		}
-		pfd.fd = fd;
-		pfd.events = (short)events;
-		pfd.revents = 0;
 		/* This poll() wait is legitimate and excluded from the timing
 		 * bound below: it is exactly what the invariant under test
 		 * permits -- waiting for readiness is the app's own idle
 		 * time, not time spent inside a dispatched action. */
-		poll(&pfd, 1, (timeout_ms < 0) ? 1000 : timeout_ms);
+		poll(pfds, (nfds_t)nfds, (timeout_ms < 0) ? 1000 : timeout_ms);
 
 		/* This is the one call under test. */
 		t0 = now_ms();

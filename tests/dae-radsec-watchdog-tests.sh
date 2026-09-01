@@ -4,7 +4,7 @@
 #
 # License: BSD
 #
-# DAE-over-RadSec connection-liveness test: radcli_ctx_send_watchdog() sends
+# DAE-over-RadSec connection-liveness test: radcli_ctx_dispatch()'s internal watchdog send sends
 # an RFC 5997 Status-Server the peer (dae-watchdog-server.py) verifies the
 # Message-Authenticator of, unprompted -- the peer never asks for it, unlike
 # dae-radsec-tests.sh's single round-trip. See dae-radsec-watchdog.c's header
@@ -14,7 +14,7 @@
 srcdir="${srcdir:-.}"
 
 echo "===== DAE-over-RadSec connection-liveness (watchdog) test ====="
-echo " 1. radcli_ctx_send_watchdog() sends an unprompted RFC 5997"
+echo " 1. radcli_ctx_dispatch()'s internal watchdog send sends an unprompted RFC 5997"
 echo "    Status-Server over the established RadSec session; the peer"
 echo "    verifies its Message-Authenticator"
 echo " 2. radcli_ctx_get_poll()'s timeout_ms reflects dae-watchdog-interval:"
@@ -77,5 +77,5 @@ if ! grep -q '^WATCHDOG code=12 .*msgauth=ok' $SERVEROUT; then
 	exit 1
 fi
 
-echo "[  OK  ] radcli_ctx_send_watchdog() sent a valid Status-Server; timeout_ms tracked dae-watchdog-interval"
+echo "[  OK  ] radcli_ctx_dispatch()'s internal watchdog send sent a valid Status-Server; timeout_ms tracked dae-watchdog-interval"
 exit 0

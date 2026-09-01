@@ -189,18 +189,16 @@ int main(int argc, char **argv)
 	printf("raddaeserver: listening\n");
 
 	for (;;) {
-		int fd, timeout_ms;
-		unsigned events;
-		struct pollfd pfd;
+		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+		size_t nfds;
+		int timeout_ms;
 
-		if (radcli_ctx_get_poll(rh, &fd, &events, &timeout_ms) != 0 || fd < 0)
+		if (radcli_ctx_get_poll(rh, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
+			break;
+		if (nfds == 0)
 			break;
 
-		pfd.fd = fd;
-		pfd.events = (short)events;
-		pfd.revents = 0;
-
-		if (poll(&pfd, 1, timeout_ms) < 0) {
+		if (poll(pfds, (nfds_t)nfds, timeout_ms) < 0) {
 			if (errno == EINTR)
 				continue;
 			break;

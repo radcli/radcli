@@ -21,8 +21,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * RFC 3539 SS3.4 watchdog behavior for radcli_ctx_send_watchdog()/
- * radcli_ctx_get_poll(), driven entirely through ordinary AAA traffic
+ * RFC 3539 SS3.4 watchdog behavior for radcli_ctx_dispatch()'s internal
+ * watchdog send/radcli_ctx_get_poll(), driven entirely through ordinary AAA traffic
  * (radcli_request_new()/_perform(), RADCLI_CODE_ACCESS_REQUEST) -- unlike
  * tests/dae-radsec-watchdog.c, no radcli_dae_*() call appears anywhere in
  * this file: the watchdog machinery (REQ-WATCHDOG-NET-001/002) is a property of
@@ -43,17 +43,23 @@
  * Phase 3: an unsolicited reply to a watchdog (the peer answering a
  * Status-Server exactly like a real RFC 5997-compliant server would) is
  * read and silently dropped -- radcli owns no request/reply correlation for
- * a watchdog (radcli_ctx_send_watchdog()'s doc comment, lib/dae.c), so the
- * stale reply is discarded on Identifier mismatch by the next exchange's
+ * a watchdog (radcli2_priv_dae_send_watchdog()'s doc comment, lib/dae.c), so
+ * the stale reply is discarded on Identifier mismatch by the next exchange's
  * own read loop (lib/sendserver.c's rc_check_reply()) rather than answered
- * or reported as an error.
+ * or reported as an error. The send itself happens inside a
+ * radcli_ctx_dispatch() call this test makes once radcli_ctx_get_poll()
+ * reports the deadline overdue (REQ-WATCHDOG-NET-001) -- not a dedicated
+ * send call -- so this test's own sleep past the interval, then dispatch(),
+ * is what triggers it; tests/watchdog-aaa-tests.sh verifies server-side
+ * (Message-Authenticator checked) that a Status-Server actually arrived,
+ * since dispatch() itself reports no byte count.
  *
  * Phase 4: if the peer goes silent -- no watchdog response, no other
  * message -- for 2.5x watchdog-interval, while the TCP/TLS connection
  * itself stays open (never a socket-level error, which the transport
- * already reconnects from on its own), radcli_ctx_send_watchdog() detects
- * this and forces a reconnect before sending the next watchdog on a fresh
- * connection (REQ-WATCHDOG-NET-003). This test simply sends nothing at all for
+ * already reconnects from on its own), the same internal watchdog send
+ * detects this and forces a reconnect before sending the next watchdog on a
+ * fresh connection (REQ-WATCHDOG-NET-003). This test simply sends nothing at all for
  * well over 2.5x the interval -- the peer's own read timeout
  * (tests/watchdog-aaa-server.py's --timeout, kept short for exactly this)
  * naturally ends its now-idle first connection and returns it to accept()
@@ -174,9 +180,9 @@ int main(int argc, char **argv)
 {
 	radcli_ctx *ctx;
 	char authserver[64];
-	int fd, timeout_ms;
-	unsigned events;
-	int ret;
+	struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+	size_t nfds;
+	int timeout_ms;
 
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s <port> <tls-ca-file>\n", argv[0]);
@@ -219,7 +225,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0 || fd < 0) {
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 || nfds == 0) {
 		fprintf(stderr, "watchdog-aaa: radcli_ctx_get_poll() failed or "
 				"reported no descriptor after the first Access-Request\n");
 		return 1;
@@ -244,7 +250,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	if (radcli_ctx_get_poll(ctx, &fd, &events, &timeout_ms) != 0) {
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
 		fprintf(stderr, "watchdog-aaa: radcli_ctx_get_poll() failed after "
 				"the second Access-Request\n");
 		return 1;
@@ -266,13 +272,29 @@ int main(int argc, char **argv)
 	 * dropped -- it must never cause radcli to answer or error back to the
 	 * peer, and must never disrupt the next ordinary exchange --- */
 
-	ret = radcli_ctx_send_watchdog(ctx);
-	if (ret <= 0) {
-		fprintf(stderr, "watchdog-aaa: radcli_ctx_send_watchdog() returned "
-				"%d, expected a positive byte count\n", ret);
+	/* Sleep until the deadline phase 1 reset is actually overdue -- the
+	 * watchdog send below only happens inside dispatch() once
+	 * radcli_ctx_get_poll() reports it due (REQ-WATCHDOG-NET-001), unlike
+	 * the old caller-invoked radcli_ctx_send_watchdog(). */
+	poll(NULL, 0, WATCHDOG_INTERVAL_SECS * 1000);
+
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
+		fprintf(stderr, "watchdog-aaa: radcli_ctx_get_poll() failed before "
+				"the watchdog send\n");
 		return 1;
 	}
-	printf("OK: radcli_ctx_send_watchdog() sent a Status-Server (%d bytes)\n", ret);
+	if (timeout_ms != 0) {
+		fprintf(stderr, "watchdog-aaa: timeout_ms=%d after sleeping a full "
+				"interval, expected 0 (overdue)\n", timeout_ms);
+		return 1;
+	}
+	if (radcli_ctx_dispatch(ctx) != 0) {
+		fprintf(stderr, "watchdog-aaa: radcli_ctx_dispatch() failed while "
+				"the watchdog deadline was overdue\n");
+		return 1;
+	}
+	printf("OK: radcli_ctx_dispatch() sent a Status-Server once the watchdog "
+	       "deadline was overdue (verified server-side)\n");
 
 	/* The peer (tests/watchdog-aaa-server.py) replies to the watchdog
 	 * exactly like a real RFC 5997-compliant server would. radcli owns no
@@ -305,16 +327,18 @@ int main(int argc, char **argv)
 	 * scheduling jitter. */
 	poll(NULL, 0, (int)(WATCHDOG_INTERVAL_SECS * 2.5 * 1000) + 2000);
 
-	ret = radcli_ctx_send_watchdog(ctx);
-	if (ret <= 0) {
-		fprintf(stderr, "watchdog-aaa: radcli_ctx_send_watchdog() after the "
-				"peer went silent returned %d, expected a positive byte "
-				"count (a forced reconnect should have produced a fresh, "
-				"usable session)\n", ret);
+	/* Due many times over by now -- dispatch()'s internal send detects the
+	 * silent peer (REQ-WATCHDOG-NET-003) and forces a reconnect before
+	 * sending on the fresh connection; the ACCEPT-count check in
+	 * tests/watchdog-aaa-tests.sh is the actual proof reconnection
+	 * happened, since dispatch() itself reports no byte count. */
+	if (radcli_ctx_dispatch(ctx) != 0) {
+		fprintf(stderr, "watchdog-aaa: radcli_ctx_dispatch() failed after "
+				"the peer went silent (a forced reconnect should have "
+				"produced a fresh, usable session)\n");
 		return 1;
 	}
-	printf("OK: radcli_ctx_send_watchdog() succeeded after a forced "
-	       "reconnect (%d bytes)\n", ret);
+	printf("OK: radcli_ctx_dispatch() succeeded after a forced reconnect\n");
 
 	if (do_access_request(ctx, "radcli-watchdog-aaa-4") != 0) {
 		fprintf(stderr, "watchdog-aaa: Access-Request after the forced "
