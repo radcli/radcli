@@ -221,6 +221,86 @@ int main(int argc, char **argv)
 	}
 	printf("OK: every request's Access-Accept decoded independently and correctly\n");
 
+	/* --- boundary case: the registry's Identifier space is a hard
+	 * 256-slot ceiling (REQ-NET2-SEND-016) -- saturate it and confirm
+	 * radcli_request_perform() fails cleanly rather than colliding or
+	 * blocking, then confirm a freed slot's Identifier becomes available
+	 * for exactly one reuse (RFC 5080 SS2.1.1). None of these are ever
+	 * drained/dispatched, so no server round trip is needed here. --- */
+	{
+		radcli_request *sat[RADCLI_CTX_MAX_INFLIGHT];
+		radcli_avp_list *sat_send;
+		radcli_request *overflow, *reuse;
+		int n;
+
+		sat_send = radcli_avp_list_new();
+		if (sat_send == NULL)
+			die("radcli_avp_list_new");
+		if (radcli_avp_add_str_by_num(sat_send, ctx, PW_USER_NAME, 0,
+					      "radcli-poll-multi-sat") != 0)
+			die("radcli_avp_add_str_by_num(PW_USER_NAME)");
+
+		for (n = 0; n < RADCLI_CTX_MAX_INFLIGHT; n++) {
+			sat[n] = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, sat_send);
+			if (sat[n] == NULL)
+				die("radcli_request_new() failed while saturating the registry");
+			if (radcli_request_perform(sat[n], RADCLI_REQUEST_SENDONLY) != RADCLI_OK)
+				die("radcli_request_perform(RADCLI_REQUEST_SENDONLY) failed "
+				    "before the registry was actually full");
+		}
+		printf("OK: %d concurrent RADCLI_REQUEST_SENDONLY requests saturated "
+		       "the registry\n", RADCLI_CTX_MAX_INFLIGHT);
+
+		overflow = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, sat_send);
+		if (overflow == NULL)
+			die("radcli_request_new() failed for the overflow request");
+		if (radcli_request_perform(overflow, RADCLI_REQUEST_SENDONLY) != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_perform(RADCLI_REQUEST_SENDONLY) "
+					"succeeded with all %d Identifiers already in flight, "
+					"expected RADCLI_ERROR\n", RADCLI_CTX_MAX_INFLIGHT);
+			exit(1);
+		}
+		radcli_request_free(overflow);
+		printf("OK: one more concurrent RADCLI_REQUEST_SENDONLY request was "
+		       "cleanly rejected while the registry was full\n");
+
+		/* radcli_request_free() on a still-pending (never delivered)
+		 * SENDONLY exchange vacates its slot immediately
+		 * (REQ-NET2-SEND-014) -- confirm the vacated Identifier is
+		 * actually usable again, not just that some other bookkeeping
+		 * happens to allow a retry. */
+		radcli_request_free(sat[0]);
+
+		reuse = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, sat_send);
+		if (reuse == NULL)
+			die("radcli_request_new() failed for the reuse request");
+		if (radcli_request_perform(reuse, RADCLI_REQUEST_SENDONLY) != RADCLI_OK) {
+			fprintf(stderr, "error: radcli_request_perform(RADCLI_REQUEST_SENDONLY) "
+					"failed right after freeing exactly one in-flight "
+					"request -- its Identifier should have been reusable\n");
+			exit(1);
+		}
+
+		/* Back to exactly full: a second overflow attempt must fail too. */
+		overflow = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, sat_send);
+		if (overflow == NULL)
+			die("radcli_request_new() failed for the second overflow request");
+		if (radcli_request_perform(overflow, RADCLI_REQUEST_SENDONLY) != RADCLI_ERROR) {
+			fprintf(stderr, "error: a second overflow request succeeded right "
+					"after the freed slot was reused, expected "
+					"RADCLI_ERROR again\n");
+			exit(1);
+		}
+		radcli_request_free(overflow);
+		radcli_request_free(reuse);
+		printf("OK: a freed slot's Identifier became available for exactly "
+		       "one reuse\n");
+
+		for (n = 1; n < RADCLI_CTX_MAX_INFLIGHT; n++)
+			radcli_request_free(sat[n]);
+		radcli_avp_list_free(sat_send);
+	}
+
 	radcli_ctx_free(ctx);
 
 	printf("radcli2 multiplexed poll-driven request/reply: all checks passed\n");
