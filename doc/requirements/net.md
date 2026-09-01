@@ -151,7 +151,7 @@ there is nothing to throttle: `restart_session()` carries no rate limit of its o
 (A previous revision of this requirement described a `TIME_ALIVE`-based throttle guarding a
 *proactive*, `need_restart == 0` call from a TLS heartbeat probe — that call site no longer
 exists, `rc_check_tls()`'s RFC 5997 watchdog probe reaches `restart_session()` only via
-`radcli_ctx_send_watchdog()`'s own `need_restart`-setting `radcli2_priv_tls_force_reconnect()`,
+`radcli2_priv_dae_send_watchdog()`'s own `need_restart`-setting `radcli2_priv_tls_force_reconnect()`,
 `REQ-WATCHDOG-NET-004`/`REQ-WATCHDOG-NET-003` (`doc/requirements/watchdog.md`) — so the throttle
 became unreachable dead code and was removed along with it.)
 **Strength:** MUST
@@ -313,8 +313,10 @@ the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
 success). Note: `radcli2.h`'s `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` no longer
 routes through this `no_wait` parameter at all -- it calls the separate
 `radcli_transport_send_async()`/`radcli_transport_service_async()` pair instead, which leaves the
-socket open rather than closing it immediately, so a later `radcli_request_wait()` can still read
-the reply; see `REQ-NET2-SEND-012`/`013`/`014` in `net2.md` for that path's own contract. This
+socket open (as `ctx`'s persistent, shared request socket — `REQ-NET2-SEND-016`) rather than
+closing it immediately, so a later `radcli_ctx_dispatch()` can still read the reply, reported via
+`radcli_request_done()`; see `REQ-NET2-SEND-012`/`013`/`014`/`016` in `net2.md` for that path's own
+contract. This
 requirement (and `radcli_transport_exchange()`'s `no_wait` parameter itself) now describes the
 legacy `rc_send_server_ctx()`/`rc_acct_async()` path only.
 **Acceptance:** [NET] unit, local — calling `rc_send_server_ctx()` with `no_wait=1` against an

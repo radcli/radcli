@@ -98,7 +98,7 @@ mechanism that could fire a signal into caller code unrelated to radcli.
 **Status:** DERIVED
 **Source:** contrib/ai/personas/radcli-core-dev.md ("Process-state neutrality");
 verified — no `alarm(`/`setitimer(` call exists in `lib/*.c`. Compare
-`lib/dae.c`'s `radcli_ctx_get_poll()`/`radcli_ctx_send_watchdog()`
+`lib/dae.c`'s `radcli_ctx_get_poll()`/`radcli2_priv_dae_send_watchdog()`
 (`REQ-WATCHDOG-NET-002`/`003`, `doc/requirements/watchdog.md`), which compute
 a watchdog-interval deadline from a stored `last_msg`/`last_recv` timestamp
 comparison, not a signal-based timer.
@@ -198,11 +198,18 @@ call site and every new comparison; flag any hit.
 `srand()`, `srandom()`, `rand_r()`, `random_r()`, `initstate()`/`setstate()`,
 or the `drand48`/`erand48`/`lrand48`/`nrand48`/`mrand48`/`jrand48`/`srand48`/
 `seed48`/`lcong48` family. These are non-cryptographic, seed-predictable
-generators; any RADIUS protocol field derived from one (packet identifier,
-Request Authenticator, any value an off-path attacker could otherwise brute
-force or predict from `time()`/`getpid()`) weakens response spoofing and
-replay resistance, since guessing the next value narrows an attacker's search
-space independently of the shared secret. Any code path that needs a random
+generators; any RADIUS protocol field derived from one (Request Authenticator,
+any value an off-path attacker could otherwise brute force or predict from
+`time()`/`getpid()`) weakens response spoofing and replay resistance, since
+guessing the next value narrows an attacker's search space independently of
+the shared secret. This deliberately does not list the one-octet packet
+Identifier: RFC 2865 §3 does not require it to be unpredictable ("aids in
+matching requests and replies" is its only stated purpose), and RFC 5080
+§2.1.1 requires LRU — rotating, not random — allocation instead, to
+maximize time-before-reuse and avoid stale-duplicate misattribution. The
+Identifier's allocation rule lives in net2.md's REQ-NET2-SEND-010/016 (LRU,
+not CSPRNG). The ban on `rand()`/`random()`/etc. as a source is otherwise
+unaffected. Any code path that needs a random
 value not itself covered by RFC 2865/2866 packet-authenticator hashing MUST
 obtain it through a CSPRNG: `rc_get_random_bytes(buf, len)` /
 `rc_get_random_byte()` (`lib/rc-random.c`), which use

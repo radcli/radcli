@@ -4,14 +4,16 @@ generator: requirements-elicitation
 id-prefix: REQ-WATCHDOG
 categories:
   CFG: watchdog-interval option validation
-  NET: watchdog send/advisory-poll/reconnect behavior, rc_check_tls() opt-in wrapper
+  NET: watchdog send (automatic, via radcli_ctx_dispatch())/advisory-poll/reconnect
+    behavior, rc_check_tls() opt-in wrapper
 sources:
   - RFC 5997 (Status-Server as a RADIUS request; watchdog use, RFC 3539 SS3.4)
   - RFC 3539 SS3.4 (failed-transport detection via a watchdog timer)
   - draft-ietf-radext-reverse-coa-08 SS4.2 (Tw watchdog timer, 15s recommended default)
   - RFC 6614 SS2.3 / RFC 7360 SS3.2 (fixed RadSec secret used to encode the watchdog)
   - lib/config.c (`set_option_int()`)
-  - lib/dae.c (`radcli_ctx_send_watchdog()`, `radcli_ctx_get_poll()`)
+  - lib/dae.c (`radcli2_priv_dae_send_watchdog()`, called automatically from
+    `radcli_ctx_dispatch()`; `radcli_ctx_get_poll()`)
   - lib/tls.c (`radcli2_priv_check_tls()` / `rc_check_tls()`, `tls_int_st.last_recv`,
     `radcli2_priv_tls_force_reconnect()`)
   - include/radcli/radcli2.h
@@ -27,9 +29,11 @@ sources:
 
 Scope: the RFC 5997 Status-Server watchdog radcli sends to keep an idle RadSec
 (TLS/DTLS) session alive and to detect a peer that has stopped responding —
-`watchdog-interval` option validation, `radcli_ctx_send_watchdog()`,
-`radcli_ctx_get_poll()`'s watchdog-deadline advisory, and `rc_check_tls()`'s
-opt-in wrapper around the same mechanism. This document was split out of
+`watchdog-interval` option validation, the automatic send folded into
+`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`'s watchdog-deadline advisory,
+and `rc_check_tls()`'s opt-in wrapper around the same mechanism (there is no
+longer a public, caller-invoked send function — see `REQ-WATCHDOG-NET-001`).
+This document was split out of
 `config.md`, `dae.md`, and `net.md` on 2026-08-30 to gather a cross-cutting
 concern (the watchdog touches config validation, the RadSec session, and the
 transport layer) into one place; see those documents' `WITHDRAWN` stubs for
@@ -68,22 +72,36 @@ only -- the config-file path is exercised only by inspection of the shared
 
 ## NET — watchdog send, advisory poll deadline, and dead-peer reconnect
 
-### REQ-WATCHDOG-NET-001 — a caller can send an RFC 5997 watchdog on an established RadSec session
+### REQ-WATCHDOG-NET-001 — radcli_ctx_dispatch() sends an RFC 5997 watchdog on an established RadSec session once it is due
 
-**Requirement:** `radcli_ctx_send_watchdog()` MUST make one non-blocking attempt
-to send an RFC 5997 Status-Server (Code 12) over ctx's established TLS/DTLS
-session, built the same way any other outbound request is (random Identifier
-and Request Authenticator, a correct Message-Authenticator, no other
-attributes), using the RFC 6614 §2.3/RFC 7360 §3.2 fixed RadSec secret. It
-MUST NOT wait for, or attempt to correlate, any reply, and MUST NOT queue or
-retry a send that would block — unlike a DAE reply (`REQ-DAE-SEC-013`), a
-dropped watchdog is not a delivery failure worth that machinery: the next
-scheduled one (per `REQ-WATCHDOG-NET-002`) covers it. It MUST work on any
-established RadSec `radcli_ctx`, not only one with dynamic authorization
-active, matching `REQ-DAE-NET-001`'s reasoning for keeping RadSec-session
-facilities at the ctx level rather than the `radcli_dae` level. radcli MUST
-NOT call this on its own, ever (`REQ-GEN-SEC-003`): sending a watchdog is
-always a call the application makes, on its own schedule.
+**Requirement:** `radcli_ctx_dispatch()` MUST, on every call, check whether
+`watchdog-interval` has elapsed since ctx's TLS/DTLS session's last activity
+(REQ-WATCHDOG-NET-002) and, if so, make one non-blocking attempt to send an
+RFC 5997 Status-Server (Code 12) over that established session, built the
+same way any other outbound request is (random Identifier and Request
+Authenticator, a correct Message-Authenticator, no other attributes), using
+the RFC 6614 §2.3/RFC 7360 §3.2 fixed RadSec secret. It MUST NOT wait for,
+or attempt to correlate, any reply, and MUST NOT queue or retry a send that
+would block — unlike a DAE reply (`REQ-DAE-SEC-013`), a dropped watchdog is
+not a delivery failure worth that machinery: the next call to
+`radcli_ctx_dispatch()` once the interval elapses again covers it. This
+applies on any established RadSec `radcli_ctx`, not only one with dynamic
+authorization active, matching `REQ-DAE-NET-001`'s reasoning for keeping
+RadSec-session facilities at the ctx level rather than the `radcli_dae`
+level. There is no public, caller-invoked send entry point (unlike before
+this requirement's revision): sending a watchdog is folded into
+`radcli_ctx_dispatch()`, the same call the application already makes for
+DAE and request traffic (`REQ-DAE-NET-001`), rather than a second call the
+application must separately remember to make on a schedule it computes
+itself. This is not radcli calling itself unprompted (`REQ-GEN-SEC-003`
+still holds): the send only ever happens inside a `radcli_ctx_dispatch()`
+call the *application* makes, on the application's own schedule — driven by
+`radcli_ctx_get_poll()`'s advisory `timeout_ms` (REQ-WATCHDOG-NET-002),
+never by a radcli-owned timer, thread, or signal. The legacy `rc_check_tls()` (declared in `net.md`'s `radcli.h`, its guarantee
+documented here as `REQ-WATCHDOG-NET-004`) reaches the identical send logic through
+a separate, internal-linkage entry point it calls directly (not through
+`radcli_ctx_dispatch()`, since a UDP/legacy caller may never call that at
+all) — both call sites share one implementation, not two copies.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 5997; draft-ietf-radext-reverse-coa-08 §4.2 ("a client SHOULD
@@ -95,15 +113,18 @@ NAS happened to send ordinary AAA traffic again.
 **Acceptance:** [NET] positive, local — `tests/dae-radsec-watchdog.c`/
 `tests/dae-radsec-watchdog-tests.sh`: against `tests/dae-watchdog-server.py`
 (a passive peer that sends nothing itself and waits for an unprompted
-packet), `radcli_ctx_send_watchdog()` returns a positive byte count and the
-peer observes Code 12 with a Message-Authenticator that verifies against the
-fixed RadSec secret. [NET] negative, unit, local — `tests/dae.c`: called on
-a `NULL` ctx, or on a UDP-mode (non-RadSec) ctx, returns -1 without touching
-any socket. [NET] positive, local — `tests/watchdog-aaa.c`/
-`tests/watchdog-aaa-tests.sh` (against `tests/watchdog-aaa-server.py`, a peer
-that also answers ordinary Access-Request traffic): confirms this works with
-no `radcli_dae` involved at all, on a `radcli_ctx` driven purely through
-`radcli_request_new()`/`_perform()`.
+packet), driving `radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` past the
+configured `watchdog-interval` results in the peer observing Code 12 with a
+Message-Authenticator that verifies against the fixed RadSec secret. [NET]
+negative, unit, local — `tests/dae.c`: `radcli_ctx_dispatch()` called
+repeatedly on a `NULL` ctx, or on a UDP-mode (non-RadSec) ctx, never sends a
+watchdog (there is no session to send it on) and returns its ordinary
+error/no-op result, not a watchdog-specific one. [NET] positive, local —
+`tests/watchdog-aaa.c`/`tests/watchdog-aaa-tests.sh` (against
+`tests/watchdog-aaa-server.py`, a peer that also answers ordinary
+Access-Request traffic): confirms this works with no `radcli_dae` involved
+at all, on a `radcli_ctx` driven purely through `radcli_request_new()`/
+`_perform()`/`radcli_ctx_get_poll()`/`_dispatch()`.
 **Links:** REQ-DAE-NET-001, REQ-WATCHDOG-NET-002, REQ-DAE-SEC-013, REQ-DAE-INIT-010
 
 ### REQ-WATCHDOG-NET-002 — `radcli_ctx_get_poll()` advises when a watchdog is due, radcli never times it itself
@@ -117,7 +138,8 @@ active), `radcli_ctx_get_poll()`'s `timeout_ms` MUST report the number of
 milliseconds remaining until `watchdog-interval` has elapsed since the
 session's last activity (0 once it already has), so that a caller's own
 event-loop timeout — never a timer radcli owns — is what actually waits
-before the caller decides to call `radcli_ctx_send_watchdog()`. This MUST be
+before the caller's next `radcli_ctx_dispatch()` call sends the watchdog
+(`REQ-WATCHDOG-NET-001`). This MUST be
 computed from the session's own last-send/receive timestamp (including a
 send made via `REQ-WATCHDOG-NET-001`, and, when a `radcli_dae` is active,
 the handshake `radcli_dae_start()` completes under `REQ-DAE-INIT-010`, which
@@ -161,9 +183,12 @@ a RadSec-session property rather than something tied to DAE traffic
 specifically.
 **Links:** REQ-WATCHDOG-NET-001, REQ-WATCHDOG-NET-003, REQ-DAE-INIT-010, REQ-GEN-SEC-003, REQ-CONFIG-CFG-021
 
-### REQ-WATCHDOG-NET-003 — `radcli_ctx_send_watchdog()` MUST reconnect a session the peer has gone silent on for 2.5x watchdog-interval
+### REQ-WATCHDOG-NET-003 — the watchdog send MUST reconnect a session the peer has gone silent on for 2.5x watchdog-interval
 
-**Requirement:** `radcli_ctx_send_watchdog()` MUST track the timestamp of
+**Requirement:** `lib/dae.c`'s internal watchdog-send helper
+(`radcli2_priv_dae_send_watchdog()`, shared by `radcli_ctx_dispatch()`'s
+automatic call — `REQ-WATCHDOG-NET-001` — and `rc_check_tls()`'s direct one
+— `REQ-WATCHDOG-NET-004`) MUST track the timestamp of
 the last record actually *received* on the session, separately from
 `REQ-WATCHDOG-NET-002`'s last-activity (send-or-receive) clock. Before building
 and sending, if `watchdog-interval > 0` and the elapsed time since that
@@ -181,12 +206,12 @@ on its own schedule (typically driven by `REQ-WATCHDOG-NET-002`'s `timeout_ms`),
 never from a radcli-owned thread or signal.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dae.c's `radcli_ctx_send_watchdog()`; lib/tls.c's
+**Source:** lib/dae.c's `radcli2_priv_dae_send_watchdog()`; lib/tls.c's
 `tls_int_st.last_recv` and `radcli2_priv_tls_force_reconnect()`
 **Acceptance:** [NET] positive, local — `tests/watchdog-aaa.c`'s phase 4:
 after the peer answers nothing at all for well over 2.5x watchdog-interval
 (connection left open throughout, not closed), the next
-`radcli_ctx_send_watchdog()` call still succeeds, and
+`radcli_ctx_dispatch()` call once the watchdog is due still succeeds, and
 `tests/watchdog-aaa-tests.sh` confirms the peer's log shows a *second* TLS
 connection accepted -- the only observable proof that reconnection
 specifically (not just "the call didn't fail") happened. Threshold
@@ -207,13 +232,15 @@ REQ-NET-NET-007, REQ-WATCHDOG-NET-004
 `need_restart` already set, it MUST reconnect via `restart_session()`, same as
 `REQ-NET-NET-007`. Otherwise, once `watchdog-interval` (default 15s, floor 6s,
 `REQ-WATCHDOG-CFG-001`) has elapsed since the session's last activity, it MUST send an RFC 5997
-Status-Server watchdog via `radcli_ctx_send_watchdog()` — which, being a same-library call
-into `lib/dae.c`'s public radcli2 entry point (not radcli calling *itself* proactively; the
-application is still the one that decided to call `rc_check_tls()`), already both probes
-liveness and reconnects a peer gone silent for 2.5x that interval on its own
-(`REQ-WATCHDOG-NET-003`) without `rc_check_tls()` needing separate failure-handling logic. Unlike
-the TLS heartbeat this replaced, neither `restart_session()` nor `radcli_ctx_send_watchdog()`
-require the caller to hold the session lock externally — both take it themselves — so this
+Status-Server watchdog via `lib/dae.c`'s internal `radcli2_priv_dae_send_watchdog()` — the same
+helper `radcli_ctx_dispatch()` calls automatically (`REQ-WATCHDOG-NET-001`), called here directly
+since a caller using only the legacy API may never call `radcli_ctx_dispatch()` at all (not radcli
+calling *itself* proactively; the application is still the one that decided to call
+`rc_check_tls()`), already both probes liveness and reconnects a peer gone silent for 2.5x that
+interval on its own (`REQ-WATCHDOG-NET-003`) without `rc_check_tls()` needing separate
+failure-handling logic. Unlike the TLS heartbeat this replaced, neither `restart_session()` nor
+`radcli2_priv_dae_send_watchdog()` require the caller to hold the session lock externally — both
+take it themselves — so this
 requirement no longer imposes that obligation on the caller either. Idle-session breakage is
 also, independently, always detected transparently on the next ordinary transport call via
 `need_restart`/`tls_wait_or_give_up()` (`REQ-NET-NET-007`) whether or not `rc_check_tls()` is
@@ -226,7 +253,7 @@ guarantee documented, if the caller does invoke it)
 confirms no `rc_check_tls(` call site inside `lib/*.c` other than its own definition
 **Acceptance:** [NET] negative, local — `grep -n 'rc_check_tls(' lib/*.c` shows only the
 function definition, no internal call site. [NET] positive, local — exercised indirectly via
-`radcli_ctx_send_watchdog()`'s own coverage (`tests/watchdog-aaa.c`, `tests/dae-radsec-
+`radcli2_priv_dae_send_watchdog()`'s own coverage (`tests/watchdog-aaa.c`, `tests/dae-radsec-
 watchdog.c`), which is now also `rc_check_tls()`'s implementation, not a separate mechanism.
 **Links:** REQ-GEN-SEC-002 (no radcli-spawned threads — a watchdog calling `rc_check_tls()` must
 be the application's own thread), REQ-NET-NET-007, REQ-WATCHDOG-NET-001, REQ-WATCHDOG-NET-002,
@@ -237,7 +264,7 @@ REQ-WATCHDOG-NET-003
 `rc_check_tls` (declared in `include/radcli/radcli.h`, owned by `net.md` per the document map)
 is covered jointly by `net.md`'s `REQ-NET-NET-013` (no-op outside TLS/DTLS) and this document's
 `REQ-WATCHDOG-NET-004` (the guarantee when it is TLS/DTLS and the caller does invoke it).
-`radcli_ctx_send_watchdog()` and `radcli_ctx_get_poll()` (declared in
+`radcli_ctx_dispatch()`'s automatic watchdog send and `radcli_ctx_get_poll()` (declared in
 `include/radcli/radcli2.h`, owned by `dae.md` per the document map) are covered here rather than
 in `dae.md`, since they are RadSec-session properties independent of DAE (`REQ-WATCHDOG-NET-001`
 and `REQ-WATCHDOG-NET-002`'s own reasoning) — `dae.md` cites this document rather than

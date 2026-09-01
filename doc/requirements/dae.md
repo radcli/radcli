@@ -26,6 +26,8 @@ sources:
   - doc/requirements/config2.md (radcli_ctx construction and option storage, cited not owned)
   - doc/requirements/watchdog.md (RFC 5997/3539 connection-liveness watchdog
     on the RadSec session, cited not owned)
+  - doc/requirements/net2.md (RADCLI_REQUEST_SENDONLY request registry sharing
+    radcli_ctx_get_poll()/_dispatch() with DAE traffic, cited not owned)
 ---
 
 # RFC 5176 Dynamic Authorization Requirements
@@ -252,25 +254,44 @@ application wants to inspect the mismatch itself via
 
 ### NET — descriptor exposure, intake, and reply transmission
 
-#### REQ-DAE-NET-001 — radcli exposes ctx's descriptor and never drives a loop
+#### REQ-DAE-NET-001 — radcli exposes ctx's descriptor(s) and never drives a loop
 
-**Requirement:** `radcli_ctx_get_poll()` MUST report the descriptor to watch (or
-`-1` if there is none), the direction(s) to watch it in, and radcli MUST NOT call
-`poll()`, `select()`, `epoll_wait()`, or sleep on the caller's behalf, so that any
-event loop (libev, libevent, epoll, plain `poll()`) can host it.
-`radcli_ctx_dispatch()` reads whatever is ready and, once packet validation lands
-(REQ-DAE-NET-002), demultiplexes and invokes the registered
-`radcli_dae_handler`. There is deliberately no per-object descriptor accessor
-(no `radcli_dae_fd()`): the descriptor belongs to the `radcli_ctx`, because a
-future dynamic-authorization transport carried over the same session as ordinary
-requests shares one descriptor between the two, and a `radcli_dae`-only accessor
-would let an application watch a descriptor that silently starts meaning something
+**Requirement:** `radcli_ctx_get_poll(ctx, pfds, max_pfds, &nfds, &timeout_ms)`
+MUST fill the caller-supplied `pfds` array (capacity `max_pfds`, MUST be at
+least `RADCLI_CTX_MAX_POLLFDS` == 2, else the call fails) with the
+descriptor(s) to watch and the direction(s) to watch each in, report how many
+of them it used in `*nfds` (0 if there is nothing to watch yet), and radcli
+MUST NOT call `poll()`, `select()`, `epoll_wait()`, or sleep on the caller's
+behalf, so that any event loop (libev, libevent, epoll, plain `poll()`) can
+host it. For TLS/DTLS, or for a UDP `ctx` with no `radcli_dae` active, this is
+always exactly one descriptor: the session fd (TLS/DTLS, also carrying any
+in-flight `RADCLI_REQUEST_SENDONLY` request traffic, net2.md's
+REQ-NET2-SEND-013/016) or the request-registry socket (UDP,
+REQ-NET2-SEND-016). A UDP `ctx` with an active `radcli_dae` reports a second,
+independent descriptor for the DAE listener alongside it — the two are
+genuinely different local sockets/ports (REQ-DAE-INIT-002) and cannot be
+merged into one without changing the wire protocol; two is the maximum this
+API ever needs.
+
+`radcli_ctx_dispatch()` reads whatever is ready — and, for the request-socket
+and watchdog-deadline cases, transmits when due (net2.md's REQ-NET2-SEND-013,
+watchdog.md's REQ-WATCHDOG-NET-001) — without needing to know which of the
+(up to two) descriptors `poll()` actually reported ready: like the pre-existing
+DAE-socket path, it always attempts a non-blocking operation per slot and
+tolerates "nothing there" (`EAGAIN`), so the caller never has to demultiplex
+by hand. Once packet validation lands (REQ-DAE-NET-002), it demultiplexes and
+invokes the registered `radcli_dae_handler`. There is deliberately no
+per-object descriptor accessor (no `radcli_dae_fd()`, no per-`radcli_request`
+one either — net2.md's REQ-NET2-SEND-013): descriptors belong to the
+`radcli_ctx`, so that a transport sharing one descriptor between DAE and
+ordinary requests (already true for TLS/DTLS) never leaves an application
+holding a watcher on a descriptor that silently starts meaning something
 else.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** REQ-GEN-SEC-003
-**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `fd == -1` before `radcli_dae_start()` and after `radcli_dae_free()`, and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`.
-**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003
+**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
+**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
 
 #### REQ-DAE-NET-002 — validation completes before the application sees a request
 

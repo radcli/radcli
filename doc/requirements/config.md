@@ -511,7 +511,7 @@ return `-1` instead (unchanged pre-existing behavior, `REQ-CONFIG-CFG-018`).
 `watchdog-interval` to `15` and `dae-max-clock-skew` to `300` in the config
 table if either was never explicitly set — before either option is ever
 read by code reachable only after apply (`radcli_ctx_get_poll()`/
-`radcli_ctx_send_watchdog()`/`radcli2_priv_check_tls()` for the former,
+`radcli_ctx_dispatch()`/`radcli2_priv_check_tls()` for the former,
 `radcli_dae_new()`/`radcli_dae_start()` for the latter). This MUST NOT
 overwrite a value the application or config file already set. This is what
 lets every internal reader use the default-free `rc_conf_int_id()`

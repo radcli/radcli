@@ -13,8 +13,11 @@ sources:
   - lib/aaa2.c
   - include/radcli/radcli2.h
   - lib/radcli2.map.in
-  - lib/sendserver.c (radcli_transport_exchange(), shared transport core)
+  - lib/sendserver.c (radcli_transport_exchange(), shared transport core; and
+    the RADCLI_REQUEST_SENDONLY request registry/persistent socket)
+  - lib/dae.c (radcli_ctx_get_poll()/_dispatch(), cited not owned — see dae.md)
   - doc/requirements/config2.md (radcli_ctx construction and option storage, cited not owned)
+  - doc/requirements/dae.md (radcli_ctx_get_poll()/_dispatch() contract, cited not owned)
 ---
 
 # radcli2.h Transport/Request-Reply Requirements
@@ -212,19 +215,47 @@ shared secret (secret truncated to `MAX_SECRET_LENGTH` if longer), per RFC
 (a server that recomputes and rejects a mismatched Authenticator would fail
 this test).
 
-### REQ-NET2-SEND-010 — the request ID is unpredictable per call
+### REQ-NET2-SEND-010 — the request ID's source depends on whether the request shares ctx's persistent socket
 
-**Requirement:** `radcli_request_perform()` MUST set the packet's `id` octet
-from `rc_get_random_byte()` (lib/rc-random.c, dispatching to
-`gnutls_rnd()`/`getentropy()`), not from `random()`/`rand()` or a
-caller-visible or predictable counter, per REQ-GEN-SEC-007.
+**Requirement:** `radcli_encode_request()` (lib/request.c, shared by every
+call path: the blocking `flags == 0` path via `radcli_do_exchange()`/
+`radcli_transport_exchange()`, `radcli_aaa()`, and `RADCLI_REQUEST_SENDONLY`)
+takes the packet's `id` octet as a required parameter and MUST use exactly
+the value passed — it does not draw one itself, so each call site is
+responsible for stating explicitly where its `id` comes from. The blocking
+path and `radcli_aaa()` MUST pass an `id` drawn from `rc_get_random_byte()`
+(lib/rc-random.c, dispatching to `gnutls_rnd()`/`getentropy()`), never from
+`random()`/`rand()` (REQ-GEN-SEC-007's ban on weak PRNGs): each of those
+gets its own per-call socket via `radcli_transport_exchange()`
+(REQ-NET2-SEND-016's scope note), so no other concurrently in-flight request
+can collide with it and a CSPRNG-random value is sufficient. For
+`RADCLI_REQUEST_SENDONLY` specifically, `radcli_request_perform()` MUST pass
+the Identifier `ctx`'s in-flight registry already reserved for it
+(REQ-NET2-SEND-016's LRU allocation, reserved *before* this call — never
+patched into the wire packet afterward, since `id` is itself covered by the
+Message-Authenticator HMAC), since that request shares `ctx`'s persistent
+socket with every other concurrently in-flight `RADCLI_REQUEST_SENDONLY`
+request and needs the registry's collision-freedom and RFC 5080 §2.1.1
+reuse-cooldown property, which a random draw does not provide. Neither RFC
+2865 §3 nor RFC 5080 requires the Identifier itself to be unpredictable —
+RFC 5080 §2.1.1 recommends LRU (rotating, not random) allocation for its
+own, unrelated reason (minimizing stale-duplicate misattribution); see
+REQ-NET2-SEND-016.
 **Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/request.c:231
-**Acceptance:** [SEND] not exercised by the current local test suite beyond
-implicit coverage (a fixed/predictable ID would still interoperate with
-FreeRADIUS); `Needs-domain-check` whether this project wants a dedicated
-statistical/uniqueness test.
+**Status:** DERIVED — narrowed 2026-09-01: neither RFC 2865 nor RFC 5080
+requires the Identifier to be unpredictable, so `RADCLI_REQUEST_SENDONLY`'s
+Identifier comes from LRU allocation, not a CSPRNG draw; see `general.md`'s
+REQ-GEN-SEC-007, narrowed alongside this.
+**Source:** lib/request.c (`radcli_encode_request()`'s `id` parameter and
+its call sites); RFC 2865 §3; RFC 5080 §2.1.1
+**Acceptance:** [SEND] unit, local — a request performed with `flags == 0`
+or via `radcli_aaa()` is confirmed to still carry a `rc_get_random_byte()`-
+sourced `id` (statistical/uniqueness testing `Needs-domain-check`, as
+before). [SEND] unit, local — a `RADCLI_REQUEST_SENDONLY` request's `id` on
+the wire is confirmed to equal the Identifier `radcli_ctx_get_poll()`/the
+registry assigned it (REQ-NET2-SEND-016's acceptance), not an independent
+random draw.
+**Links:** REQ-GEN-SEC-007, REQ-NET2-SEND-016
 
 ### REQ-NET2-SEND-011 — a request may be performed at most once, regardless of flags
 
@@ -264,93 +295,110 @@ handed to the socket layer, `RADCLI_ERROR` on any earlier failure (name
 resolution, packet encoding, or the send itself), and MUST NEVER return
 `RADCLI_TIMEOUT` (`radcli_request_perform()` itself never blocks for a
 reply under this flag). `r->reply_code` and `r->reply_attrs` MUST remain
-unchanged until (and unless) a later `radcli_request_wait()` call reaches
-`RADCLI_OK` (see REQ-NET2-SEND-013). This flag serves two distinct caller
+unchanged until (and unless) a later `radcli_ctx_dispatch()` call resolves
+`r` (see REQ-NET2-SEND-013). This flag serves two distinct caller
 patterns without a second flag or a second entry point: fire-and-forget
-(call `radcli_request_free()` without ever calling `radcli_request_wait()`
+(call `radcli_request_free()` without ever calling `radcli_ctx_dispatch()`
 — see REQ-NET2-SEND-014) and poll-driven async request/reply (drive
-`radcli_request_wait()` via `radcli_request_fd()`/`_poll_events()`/
-`_timeout_ms()` to completion).
+`radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` — dae.md's REQ-DAE-NET-001 —
+to completion, reading the outcome with `radcli_request_done()`).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c:298-359 (`radcli_request_perform()`'s
 `RADCLI_REQUEST_SENDONLY` branch calling `radcli_transport_send_async()`);
-lib/sendserver.c's `radcli_transport_send_async()` (single address, socket
-left open, lock held across calls)
+lib/sendserver.c's `radcli_transport_send_async()` (single address, `ctx`'s
+persistent request socket left open and registered in `ctx`'s in-flight
+registry rather than closed, lock held across calls — REQ-NET2-SEND-016)
 **Acceptance:** [SEND] unit, local — `tests/request.c` sends a
 `RADCLI_REQUEST_SENDONLY` Accounting-Request to an unreachable address
 (192.0.2.1, RFC 5737), used purely as fire-and-forget (freed without
-calling `radcli_request_wait()`), and confirms `RADCLI_OK` is returned
+calling `radcli_ctx_dispatch()`), and confirms `RADCLI_OK` is returned
 promptly (no timeout wait).
 **Links:** REQ-NET2-SEND-008, REQ-NET2-SEND-009, REQ-NET2-SEND-010,
 REQ-NET2-SEND-011, REQ-NET2-SEND-013, REQ-NET2-SEND-014
 
-### REQ-NET2-SEND-013 — radcli_request_fd()/_poll_events()/_timeout_ms()/_wait() drive a RADCLI_REQUEST_SENDONLY request's reply to completion without blocking
+### REQ-NET2-SEND-013 — radcli_ctx_get_poll()/radcli_ctx_dispatch() drive a RADCLI_REQUEST_SENDONLY request's reply to completion; radcli_request_done() reads the outcome without I/O
 
 **Requirement:** After `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)`
-returns `RADCLI_OK`, `radcli_request_fd(r)` MUST return a pollable
-descriptor and `radcli_request_poll_events(r)` MUST return the events to
-wait for on it; both MUST return -1/an unspecified-but-harmless value once
-`radcli_request_wait()` reaches a terminal result, or if `r` was never sent
-with `RADCLI_REQUEST_SENDONLY` at all. `radcli_request_timeout_ms(r)` MUST
-report the milliseconds remaining until the next retransmit/timeout
-deadline (0 once due), computed from `r`'s configured timeout — never from
-a library-owned timer (`REQ-GEN-SEC-003`): the caller's own event loop
-supplies the clock by calling `radcli_request_wait()` again after this
-elapses. `radcli_request_wait(r, fd_ready)` MUST perform at most one
-non-blocking I/O attempt per call and return `RADCLI_AGAIN` while still
-waiting, retransmitting to the same address (never a different one — no
-DNS fail-over under SENDONLY, per REQ-NET2-SEND-012) up to `r`'s configured
-retry count before returning `RADCLI_TIMEOUT`; on a validated reply it MUST
-decode it with the same Response Authenticator / Message-Authenticator
-verification and `radcli_avp_decode()` call the default (`flags == 0`)
-path uses, populate `r->reply_code`/`r->reply_attrs` identically, and
-return `RADCLI_OK`. Calling `radcli_request_wait()` on a request never sent
-with `RADCLI_REQUEST_SENDONLY` MUST return `RADCLI_ERROR` without touching
-`r->reply_code`/`r->reply_attrs`.
+returns `RADCLI_OK`, `r` is registered in `ctx`'s in-flight request registry
+(REQ-NET2-SEND-016) under a collision-free RADIUS Identifier, and is driven
+to completion entirely by the caller's normal `radcli_ctx_get_poll()`/
+`radcli_ctx_dispatch()` loop (dae.md's REQ-DAE-NET-001) — there is no
+per-request descriptor, poll-events, or timeout accessor: `r`'s retransmit/
+timeout deadline is one of the inputs `radcli_ctx_get_poll()`'s `timeout_ms`
+already folds in (REQ-DAE-NET-001), and `radcli_ctx_dispatch()` is what
+performs the non-blocking I/O, never `r`'s own accessor, matching how a DAE
+packet or a watchdog send is already driven through the same one call
+(watchdog.md's REQ-WATCHDOG-NET-001). Each `radcli_ctx_dispatch()` call MUST
+attempt at most one non-blocking read from `ctx`'s request socket per
+registered slot, retransmitting to the same address (never a different one —
+no DNS fail-over under SENDONLY, per REQ-NET2-SEND-012) up to `r`'s
+configured retry count once its deadline has passed, before marking it
+`RADCLI_TIMEOUT`; on a validated reply (matched to a registry slot by source
+address and Identifier, REQ-NET2-SEND-016) it MUST decode it with the same
+Response Authenticator / Message-Authenticator verification and
+`radcli_avp_decode()` call the default (`flags == 0`) path uses, populate
+`r->reply_code`/`r->reply_attrs` identically, and mark the slot `RADCLI_OK`.
+`radcli_request_done(r)` MUST perform no I/O of its own: it MUST return
+`RADCLI_AGAIN` while `r`'s registry slot is still unresolved, and otherwise
+the terminal result `radcli_ctx_dispatch()` already recorded
+(`RADCLI_OK`/`RADCLI_TIMEOUT`/`RADCLI_ERROR`) — a caller may call it as often
+as it likes between `dispatch()` calls without side effects. Calling
+`radcli_request_done()` on a request never sent with `RADCLI_REQUEST_SENDONLY`
+MUST return `RADCLI_ERROR` without touching `r->reply_code`/`r->reply_attrs`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c's `radcli_request_fd()`/`_poll_events()`/
-`_timeout_ms()`/`_wait()`; lib/sendserver.c's
-`radcli_transport_service_async()` and shared `decode_reply()` helper (also
-used by `radcli_transport_exchange()`'s blocking path)
+**Source:** lib/request.c's `radcli_request_done()`; lib/dae.c's
+`radcli_ctx_get_poll()`/`radcli_ctx_dispatch()`; lib/sendserver.c's
+request-registry drain (replacing `radcli_transport_service_async()`'s old
+per-call socket) and shared `decode_reply()` helper (also used by
+`radcli_transport_exchange()`'s blocking path, untouched by this change)
 **Acceptance:** [SEND] unit, local — `tests/request.c` drives
-`radcli_request_wait()` through a real `poll()` loop against the
-unreachable 192.0.2.1 and confirms it eventually returns `RADCLI_TIMEOUT`
-(never spinning past a small iteration bound), and that
-`radcli_request_fd()`/`_timeout_ms()`/`_wait()` report the "no async
-exchange" values for a request performed via the default (`flags == 0`)
-path. [SEND] interop, root+FreeRADIUS — `tests/request-freeradius.c` drives
-the same loop against a real server and confirms the decoded
-Access-Accept matches the synchronous path's own result byte-for-byte
-(same `Framed-IP-Address`).
-**Links:** REQ-NET2-SEND-012, REQ-GEN-SEC-003
+`radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` through a real `poll()` loop
+against the unreachable 192.0.2.1 and confirms `radcli_request_done()`
+eventually returns `RADCLI_TIMEOUT` (never spinning past a small iteration
+bound), and that `radcli_request_done()` returns `RADCLI_ERROR` for a
+request performed via the default (`flags == 0`) path. [SEND] interop,
+root+FreeRADIUS — `tests/request-freeradius.c` drives the same loop against
+a real server and confirms the decoded Access-Accept matches the
+synchronous path's own result byte-for-byte (same `Framed-IP-Address`).
+[SEND] unit, local — `tests/request-poll-multi.c` performs several
+concurrent `RADCLI_REQUEST_SENDONLY` requests on one `ctx` and confirms all
+resolve correctly while genuinely sharing one descriptor
+(`radcli_ctx_get_poll()` reports the same fd throughout, not one per
+request).
+**Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-016, REQ-DAE-NET-001,
+REQ-WATCHDOG-NET-001, REQ-GEN-SEC-003
 
-### REQ-NET2-SEND-014 — radcli_request_free() releases a still-open RADCLI_REQUEST_SENDONLY exchange
+### REQ-NET2-SEND-014 — radcli_request_free() releases a still-pending RADCLI_REQUEST_SENDONLY exchange's registry slot
 
-**Requirement:** `radcli_request_free(r)` MUST release `r`'s socket and any
-transport-level lock `radcli_transport_send_async()` acquired if
-`radcli_request_wait()` never reached a terminal result for `r` (including
-never having been called at all) — this MUST NOT leak the descriptor or
-leave the lock held. This is what makes fire-and-forget under
+**Requirement:** `radcli_request_free(r)` MUST vacate `r`'s slot in `ctx`'s
+in-flight request registry (REQ-NET2-SEND-016), freeing its Identifier for
+reuse by a later `radcli_request_perform()`, if `radcli_request_done(r)`
+never reached a terminal result for `r` (including never having been called
+at all) — this MUST NOT leak the slot. Unlike before this change, `r`'s own
+lifetime carries no socket of its own to close: `ctx`'s persistent request
+socket (REQ-NET2-SEND-016) outlives any individual request and is released
+only by `radcli_ctx_free()`. This is what makes fire-and-forget under
 `RADCLI_REQUEST_SENDONLY` (REQ-NET2-SEND-012) just "perform() then free()",
 with no separate close step for the caller to remember. A request that
 never called `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)`, or whose
-`radcli_request_wait()` already reached a terminal result, MUST be
-unaffected (no double-close).
+outcome already reached a terminal result, MUST be unaffected (no
+double-release of an already-vacated slot).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c's `radcli_request_free()` calling
-`radcli_transport_async_abort()`; lib/sendserver.c's
-`radcli_transport_async_abort()`
+**Source:** lib/request.c's `radcli_request_free()` calling into
+lib/sendserver.c's registry-abort helper (replacing the old
+`radcli_transport_async_abort()`, which used to close a private socket)
 **Acceptance:** [SEND] unit, local — `tests/request.c`'s fire-and-forget
 `RADCLI_REQUEST_SENDONLY` case calls `radcli_request_free()` without ever
-calling `radcli_request_wait()`; the process exits cleanly (no fd leak
-detectable via a clean exit, no hang). [SEND] interop, root+FreeRADIUS —
-`tests/request-freeradius.c`'s equivalent case, verified server-side via
-the captured `radiusd` debug trace (REQ-NET2-SEND-012's fire-and-forget
-acceptance note).
-**Links:** REQ-NET2-SEND-012
+calling `radcli_ctx_dispatch()`; the process exits cleanly, and a
+follow-up request on the same `ctx` can reuse the same Identifier (proving
+the slot, not just process exit, was actually vacated). [SEND] interop,
+root+FreeRADIUS — `tests/request-freeradius.c`'s equivalent case, verified
+server-side via the captured `radiusd` debug trace (REQ-NET2-SEND-012's
+fire-and-forget acceptance note).
+**Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-016
 
 ### REQ-NET2-SEND-015 — `radcli_encode_request()` MUST use the RFC 6614/7360 fixed secret for a TLS/DTLS `radcli_ctx`
 
@@ -387,6 +435,101 @@ server.py` (decodes the Access-Request's Message-Authenticator and
 each on its own): confirmed failing (`msgauth=bad`, `password=bad`) against
 the unfixed code, passing (`msgauth=ok`, `password=ok`) after.
 **Links:** REQ-CONFIG-CFG-019, REQ-NET2-SEND-008
+
+### REQ-NET2-SEND-016 — one ctx-owned socket serves every RADCLI_REQUEST_SENDONLY exchange, demultiplexed by a 256-slot Identifier registry
+
+**Requirement:** A `radcli_ctx`'s UDP transport MUST open at most one
+persistent, unconnected request socket, lazily on the first
+`radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` call that needs one,
+kept open for `ctx`'s own lifetime (closed only by `radcli_ctx_free()`) —
+not one private socket per request as before this change. This one socket
+MUST serve *both* Access-Request and Accounting-Request traffic on the same
+`ctx`: `plain_get_fd()` (`lib/config.c:544`) always binds to an ephemeral
+port (`sin_port = 0`) independent of destination, and `rc_own_bind_addr()`
+has no per-service-type variant, so a UDP request socket was never tied to
+one server or request type in the first place — only the destination
+address/port/secret recorded per in-flight registry slot (below)
+distinguishes an Access-Request bound for `authserver` from an
+Accounting-Request bound for `acctserver`. Consequently the
+`RADCLI_CTX_MAX_INFLIGHT` (256) ceiling below is shared across auth and
+acct traffic combined on one `ctx`, not doubled — a real, if generous,
+narrowing versus the old one-socket-per-request model, which had no shared
+limit at all. (A TLS/DTLS `ctx` needs no separate socket for this: it
+already reuses its one established session fd, `sfuncs->get_active_fd()`,
+unchanged by this requirement, and already carries both request types over
+one connection per `REQ-NET2-INIT-002`.) Because one socket now serves
+every concurrently outstanding request, `radcli_request_perform()` MUST
+allocate each request a RADIUS
+Identifier that does not collide with any other request currently
+in flight on the same `ctx`, tracked in a fixed-size, `ctx`-owned in-flight
+registry of `RADCLI_CTX_MAX_INFLIGHT` (256) slots — the RADIUS Identifier
+is one octet (RFC 2865 §3), so 256 is a hard protocol ceiling on a single
+socket's concurrency, not a tunable; this registry is instance state on
+`ctx`, not library-global or `static` (REQ-GEN-SEC-005 compliant), and
+mirrors dae.md's `RADCLI_DAE_SLOTS`/`struct radcli_dae_slot` in shape.
+`radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` MUST return
+`RADCLI_ERROR` without sending anything if no free Identifier/slot is
+available.
+
+Collision-freedom MUST be achieved by construction, not by chance:
+`radcli_request_perform()` MUST allocate `r`'s Identifier via
+least-recently-used (LRU) selection among the registry's currently-free
+slots — the slot that has been free the longest — per RFC 5080 §2.1.1
+("Clients SHOULD allocate Identifiers via a least-recently-used (LRU)
+method"), MUST NOT reuse an Identifier still recorded as in flight (RFC
+5080 §2.1.1's own MUST NOT), and MUST NOT use `rc_get_random_byte()` or any
+other random source for this selection: unlike the Request Authenticator
+(REQ-NET2-SEND-008/009) or the default per-call `id` (REQ-NET2-SEND-010),
+neither RFC 2865 §3 nor RFC 5080 requires the Identifier itself to be
+unpredictable, and LRU allocation is strictly better than a random draw for
+what RFC 5080 actually cares about here: maximizing the time before an
+Identifier is reused, minimizing the chance a stale, delayed duplicate reply
+from an earlier, already-completed request is misattributed to a new one
+that just reused its Identifier. (REQ-GEN-SEC-007's project-wide ban on
+`rand()`/`random()`/etc. as a source still applies to any code path that
+*does* need randomness; it is simply not engaged here, since this
+allocation uses none.) A round-robin cursor over the 256 slots, skipping
+occupied ones, satisfies both RFC 5080 constraints with O(1) amortized cost
+regardless of occupancy. Because the socket is shared and unconnected (not
+`connect()`ed
+to one peer the way a private per-request socket was), `radcli_ctx_dispatch()`
+MUST explicitly validate each received datagram's source address against
+the destination address `r`'s own registry slot recorded before accepting
+it as that request's reply — the kernel-level source filtering a
+`connect()`ed socket gave for free is replaced by this explicit check, the
+same principle dae.md's REQ-DAE-SEC-001 already applies to the DAE
+listener's own long-lived shared socket.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/config.c:544 (`plain_get_fd()`, ephemeral-port bind
+independent of destination/type); lib/sendserver.c (`radcli_transport_send_async()`/registry
+drain, replacing the old per-call `sfuncs->get_fd()`); lib/includes.h
+(`struct rc_conf`'s `req_fd`/in-flight-registry fields); cf. lib/dae.c:98-112
+(`RADCLI_DAE_SLOTS`/`struct radcli_dae_slot`, the precedent this mirrors)
+**Acceptance:** [SEND] unit, local — `tests/request-poll-multi.c` performs
+`RADCLI_CTX_MAX_INFLIGHT` concurrent `RADCLI_REQUEST_SENDONLY` requests on
+one `ctx`, confirms `radcli_ctx_get_poll()` reports exactly one fd
+throughout (not one per request), confirms one further
+`radcli_request_perform()` fails with `RADCLI_ERROR` while all 256 slots
+are occupied, and confirms a freed slot's Identifier becomes available
+again once its request completes or is freed. [SEND] negative, unit,
+local — a reply datagram spoofed from a source address that does not match
+any registry slot's expected peer is confirmed silently discarded, not
+matched to an in-flight request. [SEND] unit, local — freeing a request
+mid-sequence (vacating a slot out of order) and then performing several new
+`RADCLI_REQUEST_SENDONLY` requests confirms the vacated slot's Identifier is
+reused only after every other, longer-free slot has been (LRU order, not
+lowest-available-first or random), and that no Identifier still recorded as
+in flight is ever reassigned (RFC 5080 §2.1.1's MUST NOT).
+**Links:** REQ-GEN-SEC-005, REQ-GEN-SEC-007, REQ-DAE-SEC-001,
+REQ-NET2-SEND-010, REQ-NET2-SEND-013, REQ-NET2-SEND-014
+
+**Scope:** this requirement, and REQ-NET2-SEND-013/014's rewrite above,
+apply only to `radcli2`'s async surface (`radcli_request_*`,
+`radcli_ctx_get_poll()`/`_dispatch()`). The legacy `libradcli` API
+(`rc_auth()`/`rc_acct()`, lib/legacy/buildreq.c) and its blocking
+`radcli_transport_exchange()` core (lib/sendserver.c) are unaffected: they
+continue to open and close one socket per call, exactly as before.
 
 ---
 
