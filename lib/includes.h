@@ -646,6 +646,11 @@ int radcli2_priv_find_server_addr(rc_handle const *rh, char const *server_name,
 				  struct addrinfo **info, char *secret, rc_type type);
 void radcli2_priv_config_free(rc_handle *rh);
 
+/* lib/dae.c: sets O_NONBLOCK and FD_CLOEXEC on fd. Shared by the DAE
+ * listener socket and (REQ-NET2-SEND-016) rh->req_fd -- see lib/dae.c's
+ * doc comment. */
+int radcli2_priv_set_nonblock_cloexec(int fd);
+
 void radcli2_priv_dict_free(rc_handle *rh);
 int radcli2_priv_read_dictionary(rc_handle *rh, char const *filename);
 int radcli2_priv_read_dictionary_from_buffer(rc_handle *rh, char const *buf, size_t size);

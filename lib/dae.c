@@ -864,11 +864,16 @@ void radcli_dae_set_handler(radcli_dae *d, radcli_dae_handler cb, void *user)
  * lib/tls.c's fcntl()-based style rather than the SOCK_NONBLOCK/SOCK_CLOEXEC
  * socket() flags, for portability. */
 /*- Set O_NONBLOCK and FD_CLOEXEC on fd -- see the comment above for why.
+ * Shared with lib/sendserver.c's persistent UDP request socket
+ * (REQ-NET2-SEND-016), which needs the identical non-blocking-drain
+ * property for the same reason (radcli2_priv_reqreg_drain() loops
+ * recvfrom() until EAGAIN; a blocking socket would hang the caller's
+ * whole event loop on the last, empty call instead).
  *
  * @param fd the descriptor to modify.
  * @return 0 on success, -1 on failure.
  -*/
-static int set_nonblock_cloexec(int fd)
+int radcli2_priv_set_nonblock_cloexec(int fd)
 {
 	int flags;
 
@@ -932,7 +937,7 @@ int radcli_dae_start(radcli_dae *d)
 		fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (fd == -1)
 			continue;
-		if (set_nonblock_cloexec(fd) != 0) {
+		if (radcli2_priv_set_nonblock_cloexec(fd) != 0) {
 			close(fd);
 			fd = -1;
 			continue;

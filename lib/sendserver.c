@@ -1187,6 +1187,27 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 				result = ERROR_RC;
 				goto fail;
 			}
+			/* REQ-NET2-SEND-016: radcli2_priv_reqreg_drain() loops
+			 * recvfrom() on this socket until EAGAIN -- a blocking
+			 * socket would hang the caller's entire event loop on
+			 * the last, empty call instead of returning promptly. */
+			if (radcli2_priv_set_nonblock_cloexec(sockfd) != 0) {
+				rc_log(LOG_ERR, "%s: fcntl: %s", __func__, strerror(errno));
+				result = ERROR_RC;
+				if (sfuncs->close_fd)
+					sfuncs->close_fd(sockfd);
+				goto fail;
+			}
+			/* Commit immediately, not at the end of this branch: any
+			 * later step failing (the IPv6 setsockopt below) must
+			 * still leave a good, already-nonblocking socket in
+			 * rh->req_fd for the next call to reuse, rather than
+			 * leaking a freshly opened one that fail: below
+			 * deliberately never closes (it may be an *already*
+			 * persistent rh->req_fd from a previous call, which
+			 * must never be closed just because this one send
+			 * failed). */
+			rh->req_fd = sockfd;
 		}
 
 		if (sockfd >= 0 && our_sockaddr.ss_family == AF_INET6) {
@@ -1214,8 +1235,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 #endif
 			}
 		}
-
-		rh->req_fd = sockfd; /* persistent -- REQ-NET2-SEND-016 */
 	}
 
 	do {
