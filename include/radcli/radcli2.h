@@ -53,6 +53,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <netinet/in.h>
+#include <poll.h> /* struct pollfd, radcli_ctx_get_poll() */
 #include <radcli/radcli-defs.h>
 
 /* *INDENT-OFF* */
@@ -755,11 +756,18 @@ int radcli_dae_start(radcli_dae *dae);
 
 void radcli_dae_free(radcli_dae *dae);
 
-int radcli_ctx_get_poll(radcli_ctx *ctx, int *fd, unsigned *events, int *timeout_ms);
+/** The maximum number of descriptors radcli_ctx_get_poll() ever reports in
+ * one call: the request-registry socket/session (REQ-NET2-SEND-016) and,
+ * for UDP with an active radcli_dae, the separate DAE listener socket --
+ * genuinely different local sockets that cannot be merged into one without
+ * changing the wire protocol. Every other case (TLS/DTLS regardless of
+ * radcli_dae; UDP with no radcli_dae) reports at most 1. */
+#define RADCLI_CTX_MAX_POLLFDS 2
+
+int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
+			size_t *nfds, int *timeout_ms);
 
 int radcli_ctx_dispatch(radcli_ctx *ctx);
-
-int radcli_ctx_send_watchdog(radcli_ctx *ctx);
 
 /** @} */
 

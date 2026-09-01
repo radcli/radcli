@@ -591,6 +591,14 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot);
  * lib/request.c's radcli_request_timeout_ms(). */
 int radcli2_priv_reqreg_deadline_ms(rc_handle *rh, int slot);
 
+/*- Milliseconds remaining until the *earliest* deadline among every
+ * currently armed slot on rh (0 if one is already due), or -1 if rh has no
+ * registry yet or nothing is in flight. Used by lib/dae.c's
+ * radcli_ctx_get_poll() to fold RADCLI_REQUEST_SENDONLY's retransmit/
+ * timeout deadlines into its own timeout_ms, alongside DAE/watchdog
+ * deadlines (REQ-DAE-NET-001). */
+int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
+
 /*- Drain every ready datagram on ctx's shared request socket (UDP,
  * rh->req_fd) or session (TLS/DTLS, sfuncs->get_active_fd()), matching each
  * against rh->reqreg by Identifier and -- for UDP, whose socket is shared
@@ -608,6 +616,12 @@ void radcli2_priv_reqreg_drain(rc_handle *rh);
  * (vacating the slot), writing the outcome directly onto the owning struct
  * radcli_async_send_st. A no-op if rh->reqreg is NULL. Never blocks. */
 void radcli2_priv_reqreg_service_timeouts(rc_handle *rh);
+
+/* lib/dae.c: see its own doc comment. No longer public (radcli2.h) --
+ * radcli_ctx_dispatch() now calls this automatically once due
+ * (REQ-WATCHDOG-NET-001); lib/tls.c's radcli2_priv_check_tls()
+ * (rc_check_tls()'s legacy-API implementation) is its only other caller. */
+int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx);
 
 /* lib/request.c: builds a wire packet for (code, send) and hands it to
  * radcli_transport_exchange() against (server, svc_port, secret). Shared by

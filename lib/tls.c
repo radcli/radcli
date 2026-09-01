@@ -702,7 +702,7 @@ time_t radcli2_priv_tls_last_msg(rc_handle * rh)
 
 /*- Return the time of the last record actually *received* on rh's TLS/DTLS
  * session (tls_int_st.last_recv) -- unlike radcli2_priv_tls_last_msg(),
- * never advanced by a send. Used by lib/dae.c's radcli_ctx_send_watchdog()
+ * never advanced by a send. Used by lib/dae.c's radcli2_priv_dae_send_watchdog()
  * (REQ-WATCHDOG-NET-003) to detect a peer that has gone silent while the
  * connection itself is still technically open: sending watchdogs into that
  * silence would keep radcli2_priv_tls_last_msg() looking fresh forever,
@@ -729,7 +729,7 @@ time_t radcli2_priv_tls_last_recv(rc_handle * rh)
 
 /*- Force rh's TLS/DTLS session to reconnect now, the same way an actual
  * send/recv error already does (need_restart) -- used by lib/dae.c's
- * radcli_ctx_send_watchdog() (REQ-WATCHDOG-NET-003) when the peer is presumed
+ * radcli2_priv_dae_send_watchdog() (REQ-WATCHDOG-NET-003) when the peer is presumed
  * dead from elapsed time alone, with no socket-level error to set
  * need_restart on its own.
  *
@@ -752,7 +752,7 @@ int radcli2_priv_tls_force_reconnect(rc_handle * rh)
 /*- Probe an established TLS/DTLS session's liveness and reconnect if it is
  * dead. Once watchdog-interval has elapsed since the session's last
  * activity, sends an RFC 5997 Status-Server watchdog
- * (radcli_ctx_send_watchdog(), REQ-WATCHDOG-NET-001) -- which itself already
+ * (radcli2_priv_dae_send_watchdog(), REQ-WATCHDOG-NET-001) -- which itself already
  * detects and reconnects from a peer gone silent for 2.5x that interval
  * (REQ-WATCHDOG-NET-003), so this one call covers both probing and recovering. A
  * dead session is normally detected and reconnected transparently on the
@@ -782,7 +782,7 @@ int radcli2_priv_check_tls(rc_handle * rh)
 
 	interval = rc_conf_int_id(rh, OPT_WATCHDOG_INTERVAL);
 	if (interval > 0 && time(0) - st->ctx.last_msg >= interval)
-		radcli_ctx_send_watchdog((radcli_ctx *)rh);
+		radcli2_priv_dae_send_watchdog((radcli_ctx *)rh);
 
 	return 0;
 }

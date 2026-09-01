@@ -830,6 +830,41 @@ int radcli2_priv_reqreg_deadline_ms(rc_handle *rh, int slot)
 }
 
 /* See lib/includes.h's doc comment. */
+int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
+{
+	struct radcli_reqreg *reg;
+	double earliest = 0;
+	int have_one = 0;
+	int i;
+
+	if (rh == NULL || rh->reqreg == NULL)
+		return -1;
+	reg = rh->reqreg;
+
+	pthread_mutex_lock(&reg->lock);
+	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
+		if (!reg->slots[i].valid || !reg->slots[i].armed)
+			continue;
+		if (!have_one || reg->slots[i].deadline < earliest) {
+			earliest = reg->slots[i].deadline;
+			have_one = 1;
+		}
+	}
+	pthread_mutex_unlock(&reg->lock);
+
+	if (!have_one)
+		return -1;
+
+	{
+		double remaining = earliest - rc_getmtime();
+
+		if (remaining <= 0)
+			return 0;
+		return (int)(remaining * 1000) + 1;
+	}
+}
+
+/* See lib/includes.h's doc comment. */
 void radcli2_priv_reqreg_drain(rc_handle *rh)
 {
 	struct radcli_reqreg *reg;
