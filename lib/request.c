@@ -187,54 +187,43 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	return r;
 }
 
-/* Builds a wire packet for (code, send) and hands it to
- * radcli_transport_exchange() against (server, svc_port, secret). Shared by
- * radcli_request_perform() below (server/secret fixed to the
- * single, decision-G server radcli_request_new() picked) and radcli_aaa()
- * (lib/aaa2.c, one call per server it fails over across), so both build the
- * exact same Response Authenticator / Message-Authenticator wire logic
- * instead of two independently-written copies of security-sensitive code.
- * Declared in include/includes.h. Sets *out_reply_code as a side effect
- * (unchanged when no_wait, per radcli_transport_exchange()'s own contract);
- * the request-authenticator vector used, needed by a caller that goes on to
- * decode the reply, is written to vector_out. Returns whatever
- * radcli_transport_exchange() itself returns (OK_RC/REJECT_RC/CHALLENGE_RC/
- * TIMEOUT_RC/ERROR_RC/...), not a radcli_result -- callers translate. */
-/*- Encode (code, send) to a wire packet and hand it to
- * radcli_transport_exchange() against (server, svc_port, secret).
+/*- Builds a wire packet for (code, send) into send_buffer (capacity
+ * RC_BUFFER_LEN): Request Authenticator (or the Accounting-Request
+ * zero-vector/trailing-MD5 variant), and -- for any code other than
+ * Accounting-Request -- a Message-Authenticator via add_msg_auth_attr().
+ * Factored out of radcli_do_exchange() so radcli_request_perform()'s
+ * RADCLI_REQUEST_SENDONLY path (which hands the packet to
+ * radcli_transport_send_async() instead of radcli_transport_exchange())
+ * builds the exact same Response Authenticator / Message-Authenticator wire
+ * logic, not a second copy -- and shared, too, by lib/dae.c's
+ * radcli2_priv_dae_send_watchdog() (RFC 5997 Status-Server over an
+ * established RadSec session). send may be an empty list (Status-Server
+ * needs no attributes but Message-Authenticator) but not NULL --
+ * radcli_avp_encode() rejects that outright. For a TLS/DTLS rh, secret is
+ * overridden with the RFC 6614/7360 fixed RadSec secret before it is used
+ * for anything (REQ-NET2-SEND-015) -- the caller's resolved secret is
+ * irrelevant for that transport regardless of what it is.
  *
- * @param rh a context with configuration loaded.
+ * @param rh a handle to parsed configuration.
  * @param code the RADIUS packet code to send.
- * @param send the attributes to encode onto the wire.
- * @param server the destination server name.
- * @param svc_port the destination port.
- * @param secret the shared secret for server.
- * @param timeout the per-attempt timeout in seconds.
- * @param retries the number of retransmissions to attempt.
- * @param no_wait nonzero to send without waiting for a reply.
- * @param type AUTH or ACCT, selecting the transport's request-type checks.
- * @param recv_buffer set to the raw reply packet, if any.
- * @param recv_buffer_cap recv_buffer's capacity in bytes.
- * @param recv_len set to the reply's length in bytes, or left unset if
- * no_wait or no reply was received.
- * @param vector_out set to the request authenticator vector used, needed
- * by a caller that goes on to decode the reply.
- * @param out_reply_code set to the reply's RADIUS code, unless no_wait.
- * @return whatever radcli_transport_exchange() itself returns (OK_RC/
- * REJECT_RC/CHALLENGE_RC/TIMEOUT_RC/ERROR_RC/...), not a radcli_result --
- * callers translate.
+ * @param send the attributes to encode; must not be NULL.
+ * @param secret the shared secret (overridden for TLS/DTLS, see above).
+ * @param send_buffer destination, capacity RC_BUFFER_LEN.
+ * @param id the packet's Identifier, always supplied by the caller -- this
+ *  function does not draw one itself, so every call site states explicitly
+ *  where its id comes from: rc_get_random_byte() for every caller not
+ *  sharing a socket with any other concurrently in-flight exchange (the
+ *  blocking radcli_do_exchange()/radcli_transport_exchange() path,
+ *  radcli_aaa(), radcli2_priv_dae_send_watchdog() -- REQ-NET2-SEND-010), or,
+ *  for RADCLI_REQUEST_SENDONLY, the Identifier ctx's in-flight registry
+ *  already reserved (REQ-NET2-SEND-016) -- reserved and passed in before
+ *  this call, never patched into the wire packet afterward, since id is
+ *  itself covered by the Message-Authenticator HMAC.
+ * @param vector_out set to the request authenticator vector used.
+ * @param out_len set to the total encoded length, including the appended
+ *  Message-Authenticator attribute.
+ * @return 0 on success, -1 on encoding failure.
  -*/
-/* Builds a wire packet for (code, send) into send_buffer (capacity
- * RC_BUFFER_LEN), writing the request authenticator vector used into
- * vector_out and the total encoded length into *out_len. Factored out of
- * radcli_do_exchange() so radcli_request_perform()'s RADCLI_REQUEST_SENDONLY
- * path (which hands the packet to radcli_transport_send_async() instead of
- * radcli_transport_exchange()) builds the exact same Response
- * Authenticator / Message-Authenticator wire logic, not a second copy. For
- * a TLS/DTLS rh, secret is overridden with the RFC 6614/7360 fixed RadSec
- * secret before it is used for anything (REQ-NET2-SEND-015) -- the caller's
- * resolved secret is irrelevant for that transport regardless of what it
- * is. Returns 0 on success, -1 on encoding failure. */
 int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 			  char secret[MAX_SECRET_LENGTH + 1],
 			  uint8_t send_buffer[RC_BUFFER_LEN], uint8_t id,
@@ -298,6 +287,34 @@ int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *se
 	return 0;
 }
 
+/*- Builds a wire packet for (code, send) and hands it to
+ * radcli_transport_exchange() against (server, svc_port, secret). Shared by
+ * radcli_request_perform() and lib/aaa2.c's radcli_aaa(), so both build the
+ * exact same Response Authenticator / Message-Authenticator wire logic
+ * instead of two independently-written copies of security-sensitive code.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param code the RADIUS packet code to send.
+ * @param send the attributes to encode.
+ * @param server the server to resolve and contact.
+ * @param svc_port overrides the resolved port when non-zero.
+ * @param secret the shared secret.
+ * @param timeout per-attempt reply wait, in seconds.
+ * @param retries additional retransmit attempts after the first.
+ * @param no_wait nonzero to send once and return without waiting for a
+ *  reply.
+ * @param type AUTH or ACCT.
+ * @param recv_buffer filled with the reply's attributes on a terminal
+ *  result.
+ * @param recv_buffer_cap recv_buffer's capacity in bytes.
+ * @param recv_len set to the number of attribute bytes written to
+ *  recv_buffer.
+ * @param vector_out set to the Request Authenticator vector used, for the
+ *  caller to decode the reply against.
+ * @param out_reply_code if non-NULL, set to the reply's RADIUS code on a
+ *  terminal result.
+ * @return whatever radcli_transport_exchange() itself returns.
+ -*/
 int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 		       char *server, uint16_t svc_port, char secret[MAX_SECRET_LENGTH + 1],
 		       int timeout, int retries, int no_wait, rc_type type,

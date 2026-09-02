@@ -787,8 +787,16 @@ int radcli2_priv_check_tls(rc_handle * rh)
 	return 0;
 }
 
-/*- Force the TLS/DTLS handshake now, if it has not happened yet or the
- * session needs reconnecting. See lib/includes.h's doc comment. */
+/*- Force the TLS/DTLS handshake now, rather than waiting for the first
+ * ordinary rc_auth()/rc_acct() call to trigger it lazily (rc_init_tls()'s
+ * normal need_restart=1 deferral) -- used by radcli_dae_start() so
+ * enabling DAE makes the NAS reachable immediately, matching the UDP
+ * listener's own immediate bind().
+ *
+ * @param rh a handle to parsed configuration.
+ * @return 0 on success or if already connected and healthy, -1 if rh's
+ *  transport is not TLS/DTLS or reconnection failed.
+ -*/
 int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 {
 	tls_st *st;
@@ -804,8 +812,37 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 	return restart_session(rh, st);
 }
 
-/*- Make one non-blocking attempt to read a DAE-over-RadSec record.
- * See lib/includes.h's doc comment. */
+/*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
+ * the ordinary tls_recvfrom() path) to read one already-available record
+ * into buf (capacity cap), taking and releasing rh's session lock itself
+ * with a non-blocking trylock -- so a concurrent, already-in-flight
+ * radcli_transport_exchange() (which holds that lock for its entire
+ * send-and-wait cycle) simply means "nothing ready this call" rather than
+ * blocking the caller's event loop; that in-flight exchange's own
+ * tls_recvfrom() is what will actually see and demux the record in that
+ * case.
+ *
+ * Unlike a typical lock/read/unlock helper, this LEAVES rh's session lock
+ * HELD on success (return >0): the caller (lib/dae.c's
+ * radcli_ctx_dispatch()) must call radcli2_priv_tls_dae_poll_done() once
+ * it has entirely finished with that record, including any nested call
+ * into radcli2_priv_dae_on_radsec_packet(). This is deliberate, not an
+ * oversight: radcli2_priv_dae_on_radsec_packet() takes a second lock of
+ * its own (lib/dae.c's per-dae radsec_lock) and may, from inside that
+ * second lock, need the session lock again (a queued reply send) --
+ * consistently nesting the session lock *outside* radsec_lock on every
+ * call path (this one, and tls_recvfrom()'s inline demux, which already
+ * holds the session lock for its entire enclosing
+ * radcli_transport_exchange() call before radsec_lock is ever taken) is
+ * what avoids an AB-BA lock-order inversion between the two.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param buf destination for the record.
+ * @param cap buf's capacity in bytes.
+ * @return the record length (>0, lock left held) on success, 0 (lock
+ *  already released) if nothing was ready or the trylock was contended,
+ *  -1 (lock already released) on a session error.
+ -*/
 int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 {
 	tls_st *st;
@@ -846,13 +883,12 @@ int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 
 	st->ctx.last_msg = time(0);
 	st->ctx.last_recv = st->ctx.last_msg;
-	/* Lock deliberately left held -- see lib/includes.h's doc comment on
-	 * this function and radcli2_priv_tls_dae_poll_done(). */
+	/* Lock deliberately left held -- see this function's own doc comment
+	 * above and radcli2_priv_tls_dae_poll_done() below. */
 	return ret;
 }
 
-/*- Release the lock radcli2_priv_tls_dae_poll() left held on success.
- * See lib/includes.h's doc comment. */
+/*- Release the lock radcli2_priv_tls_dae_poll() left held on success. -*/
 void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
 {
 	tls_st *st;
@@ -877,8 +913,8 @@ void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
  *
  * The session lock is a plain (recursive) lock, not a trylock: every
  * caller of this function already holds it via the recursive session
- * lock nesting radcli2_priv_tls_dae_poll()'s doc comment describes (this
- * thread either came from tls_recvfrom()'s inline demux, which holds it
+ * lock nesting radcli2_priv_tls_dae_poll()'s doc comment above describes
+ * (this thread either came from tls_recvfrom()'s inline demux, which holds it
  * for the whole enclosing radcli_transport_exchange() call, or from
  * radcli_ctx_dispatch(), which holds it across radcli2_priv_dae_on_radsec_
  * packet() precisely so this nests rather than deadlocking) -- so this
@@ -923,9 +959,29 @@ int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 
 /*- One non-blocking attempt to read the reply an in-flight async
  * request/reply exchange (lib/sendserver.c's radcli_transport_service_
- * async()) is waiting for. See lib/includes.h's doc comment for why this,
- * unlike radcli2_priv_tls_dae_poll(), does not take the session lock
- * itself. -*/
+ * async()) is waiting for, over TLS/DTLS. Unlike radcli2_priv_tls_dae_poll(),
+ * this does NOT take rh's session lock itself: its only caller already
+ * holds it, acquired (via rc_sockets_override.lock, i.e. tls_lock()) by
+ * radcli_transport_send_async() when the exchange started and held across
+ * every radcli_transport_service_async() call until a terminal result --
+ * exactly the same lock, held for the same span, that a blocking
+ * radcli_transport_exchange() call already holds for its own, longer
+ * synchronous duration; this function just lets that duration be spread
+ * across several non-blocking calls instead. Never retries on
+ * GNUTLS_E_AGAIN (same "single attempt" contract as
+ * radcli2_priv_tls_dae_poll()). A Disconnect-Request/CoA-Request record
+ * arriving while waiting is dispatched inline via
+ * radcli2_priv_dae_on_radsec_packet(), exactly as tls_recvfrom()'s own
+ * inline demux does, and this then reports "not ready yet" rather than
+ * returning it as the pending reply.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param buf destination for the record.
+ * @param cap buf's capacity in bytes.
+ * @return the record length (>0) on success, 0 if nothing is ready yet,
+ *  -1 on a session error (also marks the session for reconnection, same
+ *  as tls_recvfrom()'s own error handling).
+ -*/
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 {
 	tls_st *st;

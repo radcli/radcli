@@ -331,96 +331,32 @@ struct rc_aaa_ctx_st
 int rc_send_server_ctx (rc_handle *rh, RC_AAA_CTX **ctx, SEND_DATA *data,
                         char *msg, rc_type type, int no_wait);
 
-/* Projection between radcli_avp_list and VALUE_PAIR (lib/avp.c), internal
- * only. Neither aliases the other's storage; each call produces a fresh,
- * independently-owned list.
- *
- * radcli_avp_list_to_value_pairs() copies list into a newly allocated
- * VALUE_PAIR chain in *out (NULL if list is empty or every attribute was
- * omitted). An attribute VALUE_PAIR's fixed-size fields cannot hold -- a
- * string/IPv6-prefix value longer than VALUE_PAIR's 253-octet strvalue
- * allows for that attribute's wire framing, or a value whose stored length
- * does not match its type's fixed size -- is omitted, exactly as an
- * attribute the legacy decoder does not recognise is already omitted
- * today. Returns 0 on success, -1 on allocation failure (*out then freed
- * and left unset) or a NULL rh/out.
- *
- * radcli_value_pairs_to_avp_list() is the reverse: copies vp into a newly
- * allocated radcli_avp_list in *out, re-deriving each attribute's
- * radcli_attr_def from rh's dictionary by (attribute, vendor) identity.
- * Returns 0 on success, -1 on allocation failure or a NULL rh/out. */
+/* Projection between radcli_avp_list and VALUE_PAIR, internal only. */
 int radcli_avp_list_to_value_pairs(rc_handle const *rh, const radcli_avp_list *list, VALUE_PAIR **out);
 int radcli_value_pairs_to_avp_list(rc_handle const *rh, VALUE_PAIR *vp, radcli_avp_list **out);
 
-/* lib/sendserver.c internals, exposed (no longer static) so
- * radcli_transport_exchange() can reuse the exact RFC 2865 SS3 Response
- * Authenticator and Message-Authenticator/Blast-RADIUS logic
- * rc_send_server_ctx() uses, rather than a second, independently-written
- * copy of security-sensitive code. None of the five takes or returns a
- * VALUE_PAIR; all operate on raw bytes, AUTH_HDR, secret, and vector. */
-
-/* Fills a freshly allocated *ctx (if ctx != NULL and *ctx == NULL) with a
- * copy of secret/vector; a no-op returning OK_RC if ctx == NULL. ERROR_RC
- * if *ctx is already non-NULL or on allocation failure. */
+/* Exposed (no longer static) so radcli_transport_exchange() can reuse the
+ * exact RFC 2865 SS3 Response Authenticator and Message-Authenticator/
+ * Blast-RADIUS logic rc_send_server_ctx() uses, rather than a second,
+ * independently-written copy of security-sensitive code. None of the five
+ * takes or returns a VALUE_PAIR; all operate on raw bytes, AUTH_HDR,
+ * secret, and vector. */
 int populate_ctx(RC_AAA_CTX **ctx, char secret[MAX_SECRET_LENGTH + 1],
 		 uint8_t vector[AUTH_VECTOR_LEN]);
 
-/* Verifies a reply's Response Authenticator (RFC 2865 SS3: MD5 over Code,
- * Identifier, Length, the Request Authenticator (vector) the request was
- * sent with, the reply attributes, and secret) and that its Identifier
- * matches seq_nbr. Returns OK_RC if both check out, BADRESPID_RC if the
- * Identifier does not match, BADRESP_RC if the Response Authenticator does
- * not verify. */
 int rc_check_reply(AUTH_HDR *auth, int bufferlen, char const *secret,
 		   unsigned char const *vector, uint8_t seq_nbr);
 
-/* Appends a Message-Authenticator attribute (RFC 2869 SS5.14: type 80,
- * length 18, an HMAC-MD5 over the packet with the attribute's own value
- * field zeroed during computation) to the packet at auth, whose first
- * total_length bytes (header + attributes already encoded) must already be
- * written. Returns the new total length, including the appended attribute. */
 int add_msg_auth_attr(rc_handle *rh, char *secret, AUTH_HDR *auth, int total_length);
 
-/* Builds a wire packet for (code, send) into send_buffer (capacity
- * RC_BUFFER_LEN): Request Authenticator (or the Accounting-Request
- * zero-vector/trailing-MD5 variant), and -- for any code other than
- * Accounting-Request -- a Message-Authenticator via add_msg_auth_attr()
- * above. Writes the request authenticator vector used into vector_out and
- * the total encoded length into *out_len. Shared by lib/request.c's own
- * callers and lib/dae.c's radcli2_priv_dae_send_watchdog() (RFC 5997 Status-Server
- * over an established RadSec session), so both build the exact same
- * Response Authenticator / Message-Authenticator wire logic instead of a
- * second copy. send may be an empty list (Status-Server needs no attributes
- * but Message-Authenticator) but not NULL -- radcli_avp_encode() rejects
- * that outright. Returns 0 on success, -1 on encoding failure.
- *
- * id: the packet's Identifier, always supplied by the caller -- this
- * function does not draw one itself, so every call site states explicitly
- * where its id comes from: rc_get_random_byte() for every caller not
- * sharing a socket with any other concurrently in-flight exchange (the
- * blocking radcli_do_exchange()/radcli_transport_exchange() path,
- * radcli_aaa(), radcli2_priv_dae_send_watchdog() -- REQ-NET2-SEND-010), or, for
- * RADCLI_REQUEST_SENDONLY, the Identifier ctx's in-flight registry already
- * reserved (REQ-NET2-SEND-016) -- reserved and passed in before this call,
- * never patched into the wire packet afterward, since id is itself covered
- * by the Message-Authenticator HMAC add_msg_auth_attr() computes below. */
 int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 			  char secret[MAX_SECRET_LENGTH + 1],
 			  uint8_t send_buffer[RC_BUFFER_LEN], uint8_t id,
 			  unsigned char vector_out[AUTH_VECTOR_LEN], int *out_len);
 
-/* Verifies a received Message-Authenticator attribute against recv_buffer
- * (length bytes, header included), given secret and the request's own
- * Request Authenticator (req_auth) -- required for a reply to an
- * Access-Request, RFC 2869 SS5.14. Returns 0 if it verifies (or is absent:
- * the caller decides whether that is acceptable), non-zero if present and
- * wrong. */
 int validate_message_authenticator(const uint8_t *recv_buffer, size_t length,
 				   const char *secret, const unsigned char *req_auth);
 
-/* Representation-agnostic send/retry/receive core (lib/sendserver.c),
- * shared by rc_send_server_ctx() and lib/request.c's radcli_request_perform();
- * see its own doc comment for the full contract. */
 int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      char *server_name, unsigned short svc_port,
 			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
@@ -480,150 +416,31 @@ struct radcli_async_send_st {
  * returns this one. */
 #define RADCLI_ASYNC_AGAIN 100
 
-/*- Begin an async (poll-driven) send: reserve slot in rh's in-flight
- * registry, resolve server_name to its first address only (no DNS
- * fail-over, matching radcli_transport_exchange()'s own no_wait
- * simplification), send send_buf once over ctx's shared, persistent
- * request socket (UDP, opened lazily here if not already; TLS/DTLS reuses
- * sfuncs->get_active_fd() instead), and arm the slot for
- * radcli_transport_service_async() to drive to completion -- REQ-NET2-SEND-016.
- *
- * Unlike radcli_transport_exchange(), does not itself hold the configured
- * network namespace (lib/util.c's rc_set_netns()) switched for its whole
- * duration: namespace membership is per-thread, and this call, unlike a
- * blocking exchange, returns to a caller's event loop that may run other
- * socket I/O on the same thread before radcli_transport_service_async()
- * is next called -- switching once and resetting only at the very end
- * would leak the RADIUS server's namespace into that other I/O. Instead,
- * each of this function and radcli_transport_service_async() brackets
- * only its own, brief syscall(s) with a set/reset pair.
- *
- * @param rh a handle to parsed configuration.
- * @param slot the registry slot radcli2_priv_reqreg_reserve() already
- *  reserved for this exchange -- its Identifier MUST already be baked into
- *  send_buf (radcli_encode_request()'s forced_id), not patched in here.
- * @param server_name the server to resolve and contact.
- * @param svc_port overrides the resolved port when non-zero.
- * @param secret the shared secret; radcli2_priv_find_server_addr() may
- *  overwrite it, exactly as radcli_transport_exchange() does.
- * @param type AUTH or ACCT.
- * @param send_buf the complete, pre-built, pre-encoded packet to send.
- * @param send_len send_buf's length in bytes; must fit RC_BUFFER_LEN.
- * @param timeout per-attempt reply wait, in seconds.
- * @param retries additional retransmit attempts after the first.
- * @param out zeroed, then filled in on success; left inactive (out->active
- *  == 0) on failure -- the caller MUST then release slot itself
- *  (radcli2_priv_reqreg_release()), since this function does not on failure
- *  (the reservation is the caller's, made before encoding).
- * @return OK_RC once the first packet is on the wire, ERROR_RC on failure.
- -*/
+/* radcli_transport_send_async()/_service_async()/_async_abort() and the
+ * radcli2_priv_reqreg_*() registry helpers below implement REQ-NET2-SEND-016. */
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
 				int timeout, int retries,
 				struct radcli_async_send_st *out);
 
-/*- Advance one async exchange by one non-blocking step: drains every ready
- * datagram on ctx's shared request socket/session (delivering each to
- * whichever exchange's slot it actually resolves, not necessarily st's
- * own), then services every registry slot whose retransmit/timeout deadline
- * has passed (again, not just st's), then reports st's own outcome.
- *
- * Call after the caller's poll()/select() reports ctx's fd ready (fd_ready
- * nonzero), or after it returns with the fd not ready because
- * radcli_ctx_get_poll()'s timeout_ms elapsed instead (fd_ready zero).
- *
- * On a validated reply, decodes it via the same logic
- * radcli_transport_exchange() uses (RFC 2865 Response Authenticator, RFC
- * 2869/Blast-RADIUS Message-Authenticator), storing the outcome directly on
- * st (see struct radcli_async_send_st's own doc comment) rather than
- * returning raw bytes -- decoding happens once, inside the drain, for
- * whichever exchange a given datagram actually resolves, not necessarily
- * the one whose service_async() call triggered the drain.
- *
- * @param st state from a successful radcli_transport_send_async().
- * @param fd_ready nonzero if the caller's poll()/select() reported ctx's fd
- *  ready.
- * @return RADCLI_ASYNC_AGAIN if still waiting, or whatever
- *  radcli_transport_exchange() itself would return for a terminal outcome
- *  (OK_RC/REJECT_RC/CHALLENGE_RC/TIMEOUT_RC/ERROR_RC).
- -*/
 int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready);
 
-/*- Release st's registry slot without waiting for a terminal result. A
- * no-op if st is not active (never sent, or already terminal/delivered).
- * Used by lib/request.c's radcli_request_free() for the fire-and-forget
- * case: a RADCLI_REQUEST_SENDONLY request whose caller never drove it to a
- * terminal result via radcli_ctx_dispatch()/radcli_request_done(). If st
- * was already delivered but never read via radcli_request_done(), frees
- * st->reply_attrs instead (the slot is already vacated by then --
- * REQ-NET2-SEND-016 vacates on delivery, not on collection). */
 void radcli_transport_async_abort(struct radcli_async_send_st *st);
 
-/*- Reserve a slot in rh's in-flight registry (REQ-NET2-SEND-016),
- * allocating the registry itself on first use. The Identifier is chosen by
- * least-recently-used selection among currently-free slots (RFC 5080
- * SS2.1.1), never randomly and never a fixed counter -- see
- * REQ-NET2-SEND-010/016. The slot is marked valid (excluded from future
- * reservation) but not yet armed: radcli_transport_send_async() arms it
- * once the packet -- built using the returned id, per
- * radcli_encode_request()'s forced_id parameter -- has actually been sent.
- *
- * @param rh a handle to parsed configuration.
- * @param owner stored on the slot; written to directly by drain()/
- *  service_timeouts() on delivery.
- * @param out_id set to the reserved Identifier (== the slot index) on success.
- * @return the reserved slot index (0..RADCLI_CTX_MAX_INFLIGHT-1) on success,
- *  -1 if the registry is full or allocation failed.
- -*/
 int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owner, uint8_t *out_id);
 
-/*- Unconditionally vacate slot (valid=0, armed=0, owner=NULL, secret
- * scrubbed, LRU-stamped free per REQ-NET2-SEND-016), making its Identifier
- * available for reuse. Used both to undo a reservation
- * radcli_transport_send_async() failed to arm, and by
- * radcli_transport_async_abort() for a still-active, undelivered exchange. */
 void radcli2_priv_reqreg_release(rc_handle *rh, int slot);
 
-/*- Milliseconds remaining until the *earliest* deadline among every
- * currently armed slot on rh (0 if one is already due), or -1 if rh has no
- * registry yet or nothing is in flight. Used by lib/dae.c's
- * radcli_ctx_get_poll() to fold RADCLI_REQUEST_SENDONLY's retransmit/
- * timeout deadlines into its own timeout_ms, alongside DAE/watchdog
- * deadlines (REQ-NET2-NET-001). */
 int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
 
-/*- Drain every ready datagram on ctx's shared request socket (UDP,
- * rh->req_fd) or session (TLS/DTLS, sfuncs->get_active_fd()), matching each
- * against rh->reqreg by Identifier and -- for UDP, whose socket is shared
- * and unconnected rather than connect()ed to one peer -- explicit source
- * address validation against the slot's own recorded destination
- * (REQ-NET2-SEND-016; TLS/DTLS needs no such check, the session itself is
- * the authenticated peer). A validated reply resolves its slot immediately
- * (vacating it for reuse, RFC 5080 SS2.1.1) and writes the outcome directly
- * onto the owning struct radcli_async_send_st. A no-op if rh->reqreg is
- * NULL (nothing ever registered). Never blocks. */
 void radcli2_priv_reqreg_drain(rc_handle *rh);
 
-/*- Service every registry slot whose retransmit/timeout deadline has
- * passed: retransmit (if retries remain) or resolve as TIMEOUT_RC
- * (vacating the slot), writing the outcome directly onto the owning struct
- * radcli_async_send_st. A no-op if rh->reqreg is NULL. Never blocks. */
 void radcli2_priv_reqreg_service_timeouts(rc_handle *rh);
 
-/* lib/dae.c: see its own doc comment. No longer public (radcli2.h) --
- * radcli_ctx_dispatch() now calls this automatically once due
- * (REQ-WATCHDOG-NET-001); lib/tls.c's radcli2_priv_check_tls()
- * (rc_check_tls()'s legacy-API implementation) is its only other caller. */
+/* No longer public (radcli2.h). */
 int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx);
 
-/* lib/request.c: builds a wire packet for (code, send) and hands it to
- * radcli_transport_exchange() against (server, svc_port, secret). Shared by
- * radcli_request_perform() and lib/aaa2.c's radcli_aaa(), so
- * both build the exact same Response Authenticator / Message-Authenticator
- * wire logic instead of two independently-written copies of
- * security-sensitive code. See its own doc comment in lib/request.c for the
- * full contract. */
 int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 		       char *server, uint16_t svc_port, char secret[MAX_SECRET_LENGTH + 1],
 		       int timeout, int retries, int no_wait, rc_type type,
@@ -654,9 +471,6 @@ int radcli2_priv_find_server_addr(rc_handle const *rh, char const *server_name,
 				  struct addrinfo **info, char *secret, rc_type type);
 void radcli2_priv_config_free(rc_handle *rh);
 
-/* lib/dae.c: sets O_NONBLOCK and FD_CLOEXEC on fd. Shared by the DAE
- * listener socket and (REQ-NET2-SEND-016) rh->req_fd -- see lib/dae.c's
- * doc comment. */
 int radcli2_priv_set_nonblock_cloexec(int fd);
 
 void radcli2_priv_dict_free(rc_handle *rh);
@@ -667,116 +481,14 @@ int radcli2_priv_load_builtin_dict(rc_handle *rh);
 int radcli2_priv_tls_fd(rc_handle *rh);
 int radcli2_priv_check_tls(rc_handle *rh);
 
-/* Last-activity timestamp of rh's TLS/DTLS session (0 if not TLS/DTLS or
- * not yet initialized) -- lib/dae.c's radcli_ctx_get_poll() uses this to
- * compute a watchdog deadline from watchdog-interval without seeing
- * lib/tls.c's private tls_int_st layout. */
 time_t radcli2_priv_tls_last_msg(rc_handle *rh);
-
-/* Last-receive timestamp of rh's TLS/DTLS session (0 if not TLS/DTLS or not
- * yet initialized) -- unlike radcli2_priv_tls_last_msg() above, never
- * advanced by a send. lib/dae.c's radcli2_priv_dae_send_watchdog() (REQ-WATCHDOG-NET-003)
- * uses this, together with radcli2_priv_tls_force_reconnect() below, to
- * detect and recover from a peer that has gone silent while the connection
- * itself is still technically open. */
 time_t radcli2_priv_tls_last_recv(rc_handle *rh);
-
-/* Force rh's TLS/DTLS session to reconnect now, the same way an actual
- * send/recv error already does. Returns 0 on success, -1 if rh's transport
- * is not TLS/DTLS or reconnection failed. */
 int radcli2_priv_tls_force_reconnect(rc_handle *rh);
-
-/* DAE-over-RadSec support (lib/dae.c ctx_dispatch()'s RadSec branch):
- *
- * radcli2_priv_tls_ensure_connected() forces the TLS/DTLS handshake now,
- * rather than waiting for the first ordinary rc_auth()/rc_acct() call to
- * trigger it lazily (rc_init_tls()'s normal need_restart=1 deferral) --
- * used by radcli_dae_start() so enabling DAE makes the NAS reachable
- * immediately, matching the UDP listener's own immediate bind(). Returns
- * 0 on success, -1 on failure (or if rh's transport is not TLS/DTLS).
- *
- * radcli2_priv_tls_dae_poll() makes one non-blocking attempt (never
- * retries on GNUTLS_E_AGAIN, unlike the ordinary tls_recvfrom() path) to
- * read one already-available record into buf (capacity cap), taking and
- * releasing rh's session lock itself with a non-blocking trylock -- so a
- * concurrent, already-in-flight radcli_transport_exchange() (which holds
- * that lock for its entire send-and-wait cycle) simply means "nothing
- * ready this call" rather than blocking the caller's event loop; that
- * in-flight exchange's own tls_recvfrom() is what will actually see and
- * demux the record in that case. Returns the record length (>0) on
- * success, 0 if nothing is ready (including "lock contended"), -1 on a
- * session error (also marks the session for reconnection, same as
- * tls_recvfrom()'s own error handling). */
 int radcli2_priv_tls_ensure_connected(rc_handle *rh);
-
-/* Unlike a typical lock/read/unlock helper, radcli2_priv_tls_dae_poll()
- * LEAVES rh's session lock HELD on success (return >0): the caller (lib/
- * dae.c's radcli_ctx_dispatch()) must call radcli2_priv_tls_dae_poll_done()
- * once it has entirely finished with that record, including any nested
- * call into radcli2_priv_dae_on_radsec_packet(). This is deliberate, not
- * an oversight: radcli2_priv_dae_on_radsec_packet() takes a second lock of
- * its own (lib/dae.c's per-dae radsec_lock) and may, from inside that
- * second lock, need the session lock again (a queued reply send) --
- * consistently nesting the session lock *outside* radsec_lock on every
- * call path (this one, and tls_recvfrom()'s inline demux, which already
- * holds the session lock for its entire enclosing radcli_transport_
- * exchange() call before radsec_lock is ever taken) is what avoids an
- * AB-BA lock-order inversion between the two. Returns 0 (lock already
- * released) if nothing was ready or the trylock was contended, -1 (lock
- * already released) on a session error. */
 int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap);
 void radcli2_priv_tls_dae_poll_done(rc_handle *rh);
-
-/* One non-blocking attempt to send a DAE-over-RadSec reply -- never waits
- * for POLLOUT the way tls_sendto() (ordinary requests) does, since a
- * poll()-driven application's radcli_ctx_dispatch() call must not turn
- * into a multi-second stall just because a reply it owes as a side effect
- * would otherwise block (lib/dae.c's radsec_reply_queue exists precisely
- * so the caller can defer and retry instead of waiting here). Assumes the
- * caller already holds rh's (recursive) session lock -- true on every
- * actual call path (tls_recvfrom()'s inline demux, or radcli_ctx_
- * dispatch()'s radsec branch) -- but takes it again defensively; this
- * never blocks doing so precisely because it is recursive. Returns the
- * number of bytes GnuTLS accepted (a full record) on success, 0 if the
- * send would block (retry the identical buf/len later), -1 on a session
- * error (also marks the session for reconnection). */
 int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len);
-
-/* lib/dae.c: processes one RADIUS/TLS or RADIUS/DTLS record already known
- * to carry Code 40 (Disconnect-Request) or 43 (CoA-Request) -- called
- * from lib/tls.c's tls_recvfrom() (inline, mid-exchange) and from
- * lib/dae.c's own radcli_ctx_dispatch() (via radcli2_priv_tls_dae_poll()
- * above). Never invokes a registered radcli_dae_handler directly (that
- * would let it run on whatever thread/call stack happens to be inside
- * rc_auth()/rc_acct() at the time): a validated request is queued for
- * radcli_ctx_dispatch() to deliver, exactly as REQ-DAE-SEC-012's
- * reentrancy guard already assumes. If dynamic authorization is not
- * enabled over RadSec at all (no active radcli_dae, or one in UDP mode),
- * replies with the RFC 6614 SS2.5-mandated CoA-NAK/Disconnect-NAK
- * (Error-Cause 406) instead. buf/len is the received packet, header
- * included. */
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
-
-/* lib/sendserver.c's radcli_transport_service_async(): one non-blocking
- * attempt to read the reply an in-flight async request/reply exchange is
- * waiting for, over TLS/DTLS. Unlike radcli2_priv_tls_dae_poll(), this
- * does NOT take rh's session lock itself: its only caller already holds
- * it, acquired (via rc_sockets_override.lock, i.e. tls_lock()) by
- * radcli_transport_send_async() when the exchange started and held across
- * every radcli_transport_service_async() call until a terminal result --
- * exactly the same lock, held for the same span, that a blocking
- * radcli_transport_exchange() call already holds for its own, longer
- * synchronous duration; this function just lets that duration be spread
- * across several non-blocking calls instead. Never retries on
- * GNUTLS_E_AGAIN (same "single attempt" contract as
- * radcli2_priv_tls_dae_poll()). A Disconnect-Request/CoA-Request record
- * arriving while waiting is dispatched inline via
- * radcli2_priv_dae_on_radsec_packet(), exactly as tls_recvfrom()'s own
- * inline demux does, and this then reports "not ready yet" rather than
- * returning it as the pending reply. Returns the record length (>0) on
- * success, 0 if nothing is ready yet, -1 on a session error (also marks
- * the session for reconnection, same as tls_recvfrom()'s own error
- * handling). */
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
 
 int radcli2_priv_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria);

@@ -834,7 +834,8 @@ int main(int argc, char **argv)
 		}
 
 		/* ... but does NOT block or poison subsequent, unrelated adds --
-		 * purely observational, see radcli2.h's doc comment. A caller
+		 * purely observational, see radcli_avp_list_error()'s own doc
+		 * comment (lib/avp.c). A caller
 		 * deliberately testing rejection (as this file does throughout)
 		 * must see no behavior change from this flag's mere existence. */
 		if (radcli_avp_add_str(el, d_user, "eve") != 0) {

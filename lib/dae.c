@@ -1639,8 +1639,6 @@ const char *radcli_dae_req_user_name(const radcli_dae_request *req)
 	return req->user_name;
 }
 
-/** @brief Return the request's Framed-IP-Address/Framed-IPv6-Address. See
- *  the doc comment in radcli2.h. */
 /** @brief Return the request's Framed-IP-Address or Framed-IPv6-Address.
  * @param req a request passed to a radcli_dae_handler.
  * @param[out] out filled with an AF_INET or AF_INET6 address on success;
@@ -2239,8 +2237,22 @@ static void send_radsec_unsupported_nak(rc_handle *rh, const uint8_t *reqbuf, si
 	radcli2_priv_tls_dae_send(rh, out, (size_t)total_length);
 }
 
-/*- Process one RadSec CoA/Disconnect-Request record. See the doc comment
- * in lib/includes.h. */
+/*- Process one RADIUS/TLS or RADIUS/DTLS record already known to carry
+ * Code 40 (Disconnect-Request) or 43 (CoA-Request) -- called from lib/
+ * tls.c's tls_recvfrom() (inline, mid-exchange) and from this file's own
+ * radcli_ctx_dispatch() (via radcli2_priv_tls_dae_poll()). Never invokes a
+ * registered radcli_dae_handler directly (that would let it run on
+ * whatever thread/call stack happens to be inside rc_auth()/rc_acct() at
+ * the time): a validated request is queued for radcli_ctx_dispatch() to
+ * deliver, exactly as REQ-DAE-SEC-012's reentrancy guard already assumes.
+ * If dynamic authorization is not enabled over RadSec at all (no active
+ * radcli_dae, or one in UDP mode), replies with the RFC 6614 SS2.5-
+ * mandated CoA-NAK/Disconnect-NAK (Error-Cause 406) instead.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param buf the received packet, header included.
+ * @param len buf's length in bytes.
+ -*/
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len)
 {
 	struct radcli_dae_st *dae = rh->active_dae;
@@ -2367,7 +2379,7 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 		 * and consistently nesting session-lock-outside-radsec_lock on
 		 * every call path, including tls_recvfrom()'s own inline demux,
 		 * is what avoids a lock-order inversion between the two -- see
-		 * lib/includes.h's doc comment on radcli2_priv_tls_dae_poll()). */
+		 * lib/tls.c's doc comment on radcli2_priv_tls_dae_poll()). */
 		int ret = radcli2_priv_tls_dae_poll(rh, buf, sizeof(buf) - 1);
 
 		if (ret > 0) {

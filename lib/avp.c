@@ -1235,8 +1235,6 @@ int radcli_avp_list_error(const radcli_avp_list *list)
 	return list->error ? 1 : 0;
 }
 
-/* RFC 2866 SS5.3/5.4 Acct-Input/Output-Octets + RFC 2869 SS5.1/5.2
- * Acct-Input/Output-Gigawords: see radcli2.h's doc comment. */
 /** @brief Append a 64-bit counter as an Octets/Gigawords attribute pair.
  *
  * No standard RADIUS attribute counts octets as a 64-bit integer; real
