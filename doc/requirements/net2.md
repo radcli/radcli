@@ -508,64 +508,47 @@ the unfixed code, passing (`msgauth=ok`, `password=ok`) after.
 **Requirement:** A `radcli_ctx`'s UDP transport MUST open at most one
 persistent, unconnected request socket, lazily on the first
 `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` call that needs one,
-kept open for `ctx`'s own lifetime (closed only by `radcli_ctx_free()`) —
-not one private socket per request as before this change. This one socket
-MUST serve *both* Access-Request and Accounting-Request traffic on the same
-`ctx`: `plain_get_fd()` (`lib/config.c:544`) always binds to an ephemeral
-port (`sin_port = 0`) independent of destination, and `rc_own_bind_addr()`
-has no per-service-type variant, so a UDP request socket was never tied to
-one server or request type in the first place — only the destination
-address/port/secret recorded per in-flight registry slot (below)
-distinguishes an Access-Request bound for `authserver` from an
-Accounting-Request bound for `acctserver`. Consequently the
-`RADCLI_CTX_MAX_INFLIGHT` (256) ceiling below is shared across auth and
-acct traffic combined on one `ctx`, not doubled — a real, if generous,
-narrowing versus the old one-socket-per-request model, which had no shared
-limit at all. (A TLS/DTLS `ctx` needs no separate socket for this: it
-already reuses its one established session fd, `sfuncs->get_active_fd()`,
-unchanged by this requirement, and already carries both request types over
-one connection per `REQ-NET2-INIT-002`.) Because one socket now serves
-every concurrently outstanding request, `radcli_request_perform()` MUST
-allocate each request a RADIUS
-Identifier that does not collide with any other request currently
-in flight on the same `ctx`, tracked in a fixed-size, `ctx`-owned in-flight
-registry of `RADCLI_CTX_MAX_INFLIGHT` (256) slots — the RADIUS Identifier
-is one octet (RFC 2865 §3), so 256 is a hard protocol ceiling on a single
-socket's concurrency, not a tunable; this registry is instance state on
-`ctx`, not library-global or `static` (REQ-GEN-SEC-005 compliant), and
-mirrors dae.md's `RADCLI_DAE_SLOTS`/`struct radcli_dae_slot` in shape.
-`radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` MUST return
+kept open for `ctx`'s own lifetime and closed only by `radcli_ctx_free()`.
+This socket MUST serve both Access-Request and Accounting-Request traffic on
+the same `ctx`: `plain_get_fd()` (`lib/config.c:544`) binds an ephemeral port
+independent of destination, so only the destination address/port/secret
+recorded per in-flight registry slot (below) distinguishes an Access-Request
+bound for `authserver` from an Accounting-Request bound for `acctserver`. A
+TLS/DTLS `ctx` needs no separate socket: it reuses its established session fd
+(`sfuncs->get_active_fd()`), already carrying both request types per
+`REQ-NET2-INIT-002`.
+
+`radcli_request_perform()` MUST allocate each request a RADIUS Identifier
+that does not collide with any other request in flight on the same `ctx`,
+tracked in a fixed-size, `ctx`-owned in-flight registry of
+`RADCLI_CTX_MAX_INFLIGHT` (256) slots — the RADIUS Identifier is one octet
+(RFC 2865 §3), so 256 is a hard protocol ceiling, not a tunable, shared
+across auth and acct traffic combined on one `ctx`. This registry is
+instance state on `ctx`, not library-global or `static` (REQ-GEN-SEC-005
+compliant), and mirrors dae.md's `RADCLI_DAE_SLOTS`/`struct radcli_dae_slot`
+in shape. `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` MUST return
 `RADCLI_ERROR` without sending anything if no free Identifier/slot is
 available.
 
-Collision-freedom MUST be achieved by construction, not by chance:
-`radcli_request_perform()` MUST allocate `r`'s Identifier via
-least-recently-used (LRU) selection among the registry's currently-free
-slots — the slot that has been free the longest — per RFC 5080 §2.1.1
-("Clients SHOULD allocate Identifiers via a least-recently-used (LRU)
-method"), MUST NOT reuse an Identifier still recorded as in flight (RFC
-5080 §2.1.1's own MUST NOT), and MUST NOT use `rc_get_random_byte()` or any
-other random source for this selection: unlike the Request Authenticator
-(REQ-NET2-SEND-008/009) or the default per-call `id` (REQ-NET2-SEND-010),
-neither RFC 2865 §3 nor RFC 5080 requires the Identifier itself to be
-unpredictable, and LRU allocation is strictly better than a random draw for
-what RFC 5080 actually cares about here: maximizing the time before an
-Identifier is reused, minimizing the chance a stale, delayed duplicate reply
-from an earlier, already-completed request is misattributed to a new one
-that just reused its Identifier. (REQ-GEN-SEC-007's project-wide ban on
-`rand()`/`random()`/etc. as a source still applies to any code path that
-*does* need randomness; it is simply not engaged here, since this
-allocation uses none.) A round-robin cursor over the 256 slots, skipping
-occupied ones, satisfies both RFC 5080 constraints with O(1) amortized cost
-regardless of occupancy. Because the socket is shared and unconnected (not
-`connect()`ed
-to one peer the way a private per-request socket was), `radcli_ctx_dispatch()`
-MUST explicitly validate each received datagram's source address against
-the destination address `r`'s own registry slot recorded before accepting
-it as that request's reply — the kernel-level source filtering a
-`connect()`ed socket gave for free is replaced by this explicit check, the
-same principle dae.md's REQ-DAE-SEC-001 already applies to the DAE
-listener's own long-lived shared socket.
+Identifier allocation MUST use least-recently-used (LRU) selection among the
+registry's currently-free slots, per RFC 5080 §2.1.1 ("Clients SHOULD
+allocate Identifiers via a least-recently-used (LRU) method"), MUST NOT
+reuse an Identifier still recorded as in flight (RFC 5080 §2.1.1's own MUST
+NOT), and MUST NOT use `rc_get_random_byte()` or any other random source:
+unlike the Request Authenticator (REQ-NET2-SEND-008/009) or the default
+per-call `id` (REQ-NET2-SEND-010), neither RFC 2865 §3 nor RFC 5080 requires
+the Identifier to be unpredictable, and LRU maximizes the time before reuse,
+minimizing misattribution of a stale, delayed reply. A round-robin cursor
+over the 256 slots, skipping occupied ones, satisfies both RFC 5080
+constraints with O(1) amortized cost.
+
+Because the socket is shared and unconnected (not `connect()`ed to one peer
+the way a private per-request socket was), `radcli_ctx_dispatch()` MUST
+validate each received datagram's source address against the destination
+address recorded in `r`'s registry slot before accepting it as that
+request's reply — replacing the source filtering a `connect()`ed socket gave
+for free, the same principle dae.md's REQ-DAE-SEC-001 applies to the DAE
+listener's own shared socket.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/config.c:544 (`plain_get_fd()`, ephemeral-port bind
