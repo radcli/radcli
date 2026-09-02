@@ -2293,15 +2293,6 @@ void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t
 	pthread_mutex_unlock(&dae->radsec_lock);
 }
 
-/** @brief Read and demultiplex what is ready on ctx's descriptor. See the
- *  doc comment in radcli2.h.
- *
- * Reads exactly one datagram per call (non-blocking), so a burst of
- * requests re-arms the caller's loop rather than starving it, and runs it
- * through process_packet()'s validation pipeline before ever invoking the
- * registered handler. Every rejection short of "authorized sender" is
- * silent: no reply, no Error-Cause, no log of the secret or either
- * authenticator (REQ-DAE-SEC-009). */
 /** @brief Read what is ready on ctx's descriptor(s), validate it, and
  *  invoke the registered handler for anything that passes -- see
  *  radcli_dae_set_handler(). Also: drains any in-flight
@@ -2312,6 +2303,13 @@ void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t
  *  regardless of whether an active radcli_dae exists at all: this is now
  *  the single entry point radcli_ctx_get_poll() drives, for everything ctx
  *  owns, not a DAE-only call.
+ *
+ * On the DAE side specifically, reads exactly one datagram per call
+ * (non-blocking), so a burst of requests re-arms the caller's loop rather
+ * than starving it, and runs it through process_packet()'s validation
+ * pipeline before ever invoking the registered handler. Every rejection
+ * short of "authorized sender" is silent: no reply, no Error-Cause, no log
+ * of the secret or either authenticator (REQ-DAE-SEC-009).
  *
  * Not reentrant: calling this, radcli_dae_start(), or radcli_dae_free()
  * from within a handler radcli_ctx_dispatch() itself invoked is undefined.
