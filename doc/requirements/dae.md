@@ -4,7 +4,9 @@ generator: requirements-elicitation
 id-prefix: REQ-DAE
 categories:
   INIT: listener construction, configuration validation, fixed-state allocation
-  NET: socket ownership, descriptor exposure, request intake and reply transmission
+  NET: socket ownership, request intake and reply transmission (descriptor
+    exposure and validated dispatch are net2.md's REQ-NET2-NET-001/002,
+    cited not owned)
   SEC: source authorization, authenticators, replay and duplicate suppression, secret handling
   DATA: request inspection, session selectors, reply construction, Proxy-State
   ERR: failure returns and Error-Cause mapping
@@ -26,8 +28,10 @@ sources:
   - doc/requirements/config2.md (radcli_ctx construction and option storage, cited not owned)
   - doc/requirements/watchdog.md (RFC 5997/3539 connection-liveness watchdog
     on the RadSec session, cited not owned)
-  - doc/requirements/net2.md (RADCLI_REQUEST_SENDONLY request registry sharing
-    radcli_ctx_get_poll()/_dispatch() with DAE traffic, cited not owned)
+  - doc/requirements/net2.md (radcli_ctx_get_poll()/_dispatch()'s general
+    contract — descriptor exposure (REQ-NET2-NET-001) and validation-before-
+    delivery (REQ-NET2-NET-002) — and the RADCLI_REQUEST_SENDONLY request
+    registry sharing that dispatch with DAE traffic, cited not owned)
 ---
 
 # RFC 5176 Dynamic Authorization Requirements
@@ -98,7 +102,7 @@ being treated as "off" or "on".
 **Strength:** MUST NOT
 **Status:** DERIVED
 **Source:** openconnect/ocserv#756 ("opt-in RFC 5176 listener")
-**Acceptance:** [INIT] negative, unit, local — `tests/dae.c`: `dae-accept` unset and `dae-accept = no` both make `radcli_dae_new()` return `NULL` with no log; `dae-accept = sure` (unrecognised) also returns `NULL`, with an error logged. With no `radcli_dae` constructed, neither `radcli_ctx_dispatch()` nor `radcli_dae_process()` has anything to validate against, closing the loop -- see REQ-DAE-NET-002.
+**Acceptance:** [INIT] negative, unit, local — `tests/dae.c`: `dae-accept` unset and `dae-accept = no` both make `radcli_dae_new()` return `NULL` with no log; `dae-accept = sure` (unrecognised) also returns `NULL`, with an error logged. With no `radcli_dae` constructed, neither `radcli_ctx_dispatch()` nor `radcli_dae_process()` has anything to validate against, closing the loop -- see net2.md's REQ-NET2-NET-002.
 **Links:** REQ-DAE-INIT-002
 
 #### REQ-DAE-INIT-002 — on UDP, construction MUST refuse without an explicit sender and secret
@@ -231,9 +235,9 @@ unreachable until the application happens to make its first `rc_auth()`/
 `rc_acct()` call.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c (`radcli2_priv_tls_ensure_connected()`); REQ-DAE-NET-001 (radcli_dae_start()'s UDP counterpart binds immediately)
+**Source:** lib/tls.c (`radcli2_priv_tls_ensure_connected()`); net2.md's REQ-NET2-NET-001 (radcli_dae_start()'s UDP counterpart binds immediately)
 **Acceptance:** [INIT] positive, unit, local — under `serv-type = tls`/`dtls` with `dae-accept = yes`, `radcli_dae_start()` returns 0 only once the handshake has actually completed (`radcli2_priv_tls_fd()` reports a valid descriptor immediately afterward), without any ordinary `rc_auth()`/`rc_acct()` call having been made first.
-**Links:** REQ-DAE-NET-001
+**Links:** REQ-NET2-NET-001
 
 #### REQ-DAE-INIT-011 — the automatic NAS-Identifier check can be disabled at construction
 
@@ -252,63 +256,19 @@ application wants to inspect the mismatch itself via
 **Acceptance:** [INIT] positive and negative, unit, local — `tests/dae-codec.c` (test 11b) constructs a listener with `RADCLI_DAE_NO_NAS_CHECK` and `nas-identifier` configured, sends a request naming a different NAS-Identifier through `radcli_dae_process()`, and confirms it is returned as `RADCLI_DAE_NEW` (not NAKed) -- the flag actually suppresses REQ-DAE-SEC-018. The unknown-flags-bit rejection is not separately exercised locally.
 **Links:** REQ-DAE-SEC-018
 
-### NET — descriptor exposure, intake, and reply transmission
+### NET — socket ownership, request intake, and reply transmission
 
-#### REQ-DAE-NET-001 — radcli exposes ctx's descriptor(s) and never drives a loop
-
-**Requirement:** `radcli_ctx_get_poll(ctx, pfds, max_pfds, &nfds, &timeout_ms)`
-MUST fill the caller-supplied `pfds` array (capacity `max_pfds`, MUST be at
-least `RADCLI_CTX_MAX_POLLFDS` == 2, else the call fails) with the
-descriptor(s) to watch and the direction(s) to watch each in, report how many
-of them it used in `*nfds` (0 if there is nothing to watch yet), and radcli
-MUST NOT call `poll()`, `select()`, `epoll_wait()`, or sleep on the caller's
-behalf, so that any event loop (libev, libevent, epoll, plain `poll()`) can
-host it. For TLS/DTLS, or for a UDP `ctx` with no `radcli_dae` active, this is
-always exactly one descriptor: the session fd (TLS/DTLS, also carrying any
-in-flight `RADCLI_REQUEST_SENDONLY` request traffic, net2.md's
-REQ-NET2-SEND-013/016) or the request-registry socket (UDP,
-REQ-NET2-SEND-016). A UDP `ctx` with an active `radcli_dae` reports a second,
-independent descriptor for the DAE listener alongside it — the two are
-genuinely different local sockets/ports (REQ-DAE-INIT-002) and cannot be
-merged into one without changing the wire protocol; two is the maximum this
-API ever needs.
-
-`radcli_ctx_dispatch()` reads whatever is ready — and, for the request-socket
-and watchdog-deadline cases, transmits when due (net2.md's REQ-NET2-SEND-013,
-watchdog.md's REQ-WATCHDOG-NET-001) — without needing to know which of the
-(up to two) descriptors `poll()` actually reported ready: like the pre-existing
-DAE-socket path, it always attempts a non-blocking operation per slot and
-tolerates "nothing there" (`EAGAIN`), so the caller never has to demultiplex
-by hand. Once packet validation lands (REQ-DAE-NET-002), it demultiplexes and
-invokes the registered `radcli_dae_handler`. There is deliberately no
-per-object descriptor accessor (no `radcli_dae_fd()`, no per-`radcli_request`
-one either — net2.md's REQ-NET2-SEND-013): descriptors belong to the
-`radcli_ctx`, so that a transport sharing one descriptor between DAE and
-ordinary requests (already true for TLS/DTLS) never leaves an application
-holding a watcher on a descriptor that silently starts meaning something
-else.
-**Strength:** MUST
-**Status:** DERIVED
-**Source:** REQ-GEN-SEC-003
-**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
-**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
-
-#### REQ-DAE-NET-002 — validation completes before the application sees a request
-
-**Requirement:** `radcli_ctx_dispatch()` MUST perform, in order, the source-address
-check, Request Authenticator verification, Message-Authenticator verification when
-that attribute is present, the Event-Timestamp freshness check, and duplicate
-suppression, and MUST NOT invoke the registered `radcli_dae_handler` unless all of
-them pass, so that an application never has to implement RADIUS validation itself,
-and never receives a request object that has not fully passed validation
-(strengthened over an app-called receive function, which could in principle be
-called on a partially validated result: this API has no such public
-entry point at all).
-**Strength:** MUST
-**Status:** DERIVED
-**Source:** RFC 5176 §§2.3, 3, 6.3
-**Acceptance:** [NET][SEC] negative, unit, local — `tests/dae-codec.c` sends a bad Request Authenticator, a bad Message-Authenticator, a stale Event-Timestamp, and a request from an unauthorized source (a second handle whose `dae-server` excludes the only address the test can send from) and confirms none reaches the handler and none gets a reply. `tests/dae-tests.sh` repeats the same checks end to end against `src/raddaeserver.c`, driven by `tests/dae-client.py`.
-**Links:** REQ-DAE-SEC-001 … REQ-DAE-SEC-005
+`radcli_ctx_get_poll()`'s descriptor-exposure contract and
+`radcli_ctx_dispatch()`'s validation-before-delivery guarantee have moved to
+net2.md as REQ-NET2-NET-001 and REQ-NET2-NET-002 — both describe
+`radcli_ctx_get_poll()`/`_dispatch()` as shared infrastructure serving
+`RADCLI_REQUEST_SENDONLY` request traffic (net2.md's REQ-NET2-SEND-013/016)
+exactly as it serves DAE traffic, not a DAE-specific contract. This document
+continues to own the DAE-specific validation steps that REQ-NET2-NET-002's
+pipeline invokes (REQ-DAE-SEC-001 through REQ-DAE-SEC-006), the DAE listener
+socket's own construction and properties (REQ-DAE-INIT-* above,
+REQ-DAE-SEC-010/011 below), and the DAE-specific entry points and reply
+machinery below.
 
 #### REQ-DAE-NET-003 — the same pipeline is reachable without a radcli-owned socket
 
@@ -322,7 +282,7 @@ privileged listener — gets the same guarantees.
 **Status:** DERIVED
 **Source:** openconnect/ocserv#756 (process-boundary question)
 **Acceptance:** [NET] positive, unit, local — `tests/dae-codec.c` (tests 12-14) drives `radcli_dae_process()` directly (no `radcli_dae_start()` call at all) through both entry points' shared `process_packet()`: a new request, a retransmission (`RADCLI_DAE_DUPLICATE`), and a rejected bad-authenticator packet, matching `radcli_ctx_dispatch()`'s own three outcomes. The full `tests/dae-codec.c` matrix is not run twice end-to-end through both entry points on identical input for a literal side-by-side comparison.
-**Links:** REQ-DAE-NET-002
+**Links:** REQ-NET2-NET-002
 
 #### REQ-DAE-NET-004 — replies go to the request's source, with its Identifier
 
@@ -490,7 +450,7 @@ entire event loop inside a library that never owns it.
 **Status:** DERIVED
 **Source:** REQ-GEN-SEC-003
 **Acceptance:** [SEC] unit, local — `tests/dae.c` checks `fcntl(fd, F_GETFL)` for `O_NONBLOCK` on the descriptor `radcli_ctx_get_poll()` reports after `radcli_dae_start()`.
-**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-001
+**Links:** REQ-GEN-SEC-003, REQ-NET2-NET-001
 
 #### REQ-DAE-SEC-011 — the listener socket is close-on-exec
 
@@ -513,7 +473,7 @@ inside of.
 **Status:** DERIVED
 **Source:** lib/dae.c (`radcli_ctx_dispatch()`'s `in_dispatch` reentrancy guard)
 **Acceptance:** [SEC] negative, unit, local — `tests/dae-codec.c`: a handler that calls `radcli_ctx_dispatch()` on the same `ctx` observes it return -1, and the outer request is still answered normally once the handler returns. `radcli_dae_start()`/`radcli_dae_free()` called reentrantly from a handler remain untested (documented as undefined, not rejected).
-**Links:** REQ-DAE-NET-002
+**Links:** REQ-NET2-NET-002
 
 #### REQ-DAE-SEC-013 — the RadSec reply queue is bounded, and dispatch never blocks to avoid it
 

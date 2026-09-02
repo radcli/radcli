@@ -4,6 +4,9 @@ generator: requirements-from-implementation
 id-prefix: REQ-NET2
 categories:
   INIT: radcli_request_new/_free construction and destruction, and server/type/secret selection
+  NET: radcli_ctx_get_poll()/_dispatch() — descriptor exposure and
+    validation-before-delivery, shared infrastructure serving DAE and
+    RADCLI_REQUEST_SENDONLY traffic alike
   SEND: radcli_request_perform packet construction (Access-Request vs Accounting-Request)
   RECV: radcli_request_perform reply handling, and the radcli_request_code/_attrs/_server accessors
   ERR: rejection and failure-mapping contracts
@@ -15,9 +18,15 @@ sources:
   - lib/radcli2.map.in
   - lib/sendserver.c (radcli_transport_exchange(), shared transport core; and
     the RADCLI_REQUEST_SENDONLY request registry/persistent socket)
-  - lib/dae.c (radcli_ctx_get_poll()/_dispatch(), cited not owned — see dae.md)
+  - lib/dae.c (radcli_ctx_get_poll()/_dispatch() implementation; the
+    DAE-specific validation steps built atop it are cited not owned — see
+    dae.md)
   - doc/requirements/config2.md (radcli_ctx construction and option storage, cited not owned)
-  - doc/requirements/dae.md (radcli_ctx_get_poll()/_dispatch() contract, cited not owned)
+  - doc/requirements/dae.md (the DAE-specific validation steps —
+    source-address check, Request/Message-Authenticator, Event-Timestamp,
+    duplicate suppression — that REQ-NET2-NET-002's pipeline invokes, and the
+    DAE listener descriptor REQ-NET2-NET-001 reports alongside the
+    request-registry one; cited not owned)
 ---
 
 # radcli2.h Transport/Request-Reply Requirements
@@ -174,6 +183,64 @@ clean, per `REQ-GEN-MEM-*`).
 
 ---
 
+## NET — descriptor exposure and validated dispatch
+
+### REQ-NET2-NET-001 — radcli exposes ctx's descriptor(s) and never drives a loop
+
+**Requirement:** `radcli_ctx_get_poll(ctx, pfds, max_pfds, &nfds, &timeout_ms)`
+MUST fill the caller-supplied `pfds` array (capacity `max_pfds`, MUST be at
+least `RADCLI_CTX_MAX_POLLFDS` == 2, else the call fails) with the
+descriptor(s) to watch and the direction(s) to watch each in, report how many
+of them it used in `*nfds` (0 if there is nothing to watch yet), and radcli
+MUST NOT call `poll()`, `select()`, `epoll_wait()`, or sleep on the caller's
+behalf, so that any event loop (libev, libevent, epoll, plain `poll()`) can
+host it. For TLS/DTLS, or for a UDP `ctx` with no `radcli_dae` active, this is
+always exactly one descriptor: the session fd (TLS/DTLS, also carrying any
+in-flight `RADCLI_REQUEST_SENDONLY` request traffic, REQ-NET2-SEND-013/016)
+or the request-registry socket (UDP, REQ-NET2-SEND-016). A UDP `ctx` with an
+active `radcli_dae` reports a second, independent descriptor for the DAE
+listener alongside it — the two are genuinely different local sockets/ports
+(dae.md's REQ-DAE-INIT-002) and cannot be merged into one without changing
+the wire protocol; two is the maximum this API ever needs.
+
+`radcli_ctx_dispatch()` reads whatever is ready — and, for the request-socket
+and watchdog-deadline cases, transmits when due (REQ-NET2-SEND-013,
+watchdog.md's REQ-WATCHDOG-NET-001) — without needing to know which of the
+(up to two) descriptors `poll()` actually reported ready: like the pre-existing
+DAE-socket path, it always attempts a non-blocking operation per slot and
+tolerates "nothing there" (`EAGAIN`), so the caller never has to demultiplex
+by hand. Once packet validation lands (REQ-NET2-NET-002), it demultiplexes and
+invokes the registered `radcli_dae_handler`. There is deliberately no
+per-object descriptor accessor (no `radcli_dae_fd()`, no per-`radcli_request`
+one either — REQ-NET2-SEND-013): descriptors belong to the `radcli_ctx`, so
+that a transport sharing one descriptor between DAE and ordinary requests
+(already true for TLS/DTLS) never leaves an application holding a watcher on
+a descriptor that silently starts meaning something else.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** REQ-GEN-SEC-003
+**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
+**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
+
+### REQ-NET2-NET-002 — validation completes before the application sees a request
+
+**Requirement:** `radcli_ctx_dispatch()` MUST perform, in order, the source-address
+check, Request Authenticator verification, Message-Authenticator verification when
+that attribute is present, the Event-Timestamp freshness check, and duplicate
+suppression, and MUST NOT invoke the registered `radcli_dae_handler` unless all of
+them pass, so that an application never has to implement RADIUS validation itself,
+and never receives a request object that has not fully passed validation
+(strengthened over an app-called receive function, which could in principle be
+called on a partially validated result: this API has no such public
+entry point at all).
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** RFC 5176 §§2.3, 3, 6.3
+**Acceptance:** [NET][SEC] negative, unit, local — `tests/dae-codec.c` sends a bad Request Authenticator, a bad Message-Authenticator, a stale Event-Timestamp, and a request from an unauthorized source (a second handle whose `dae-server` excludes the only address the test can send from) and confirms none reaches the handler and none gets a reply. `tests/dae-tests.sh` repeats the same checks end to end against `src/raddaeserver.c`, driven by `tests/dae-client.py`.
+**Links:** dae.md's REQ-DAE-SEC-001 … REQ-DAE-SEC-005
+
+---
+
 ## SEND — packet construction
 
 ### REQ-NET2-SEND-008 — Access-Request uses a random Request Authenticator and carries Message-Authenticator
@@ -300,7 +367,7 @@ unchanged until (and unless) a later `radcli_ctx_dispatch()` call resolves
 patterns without a second flag or a second entry point: fire-and-forget
 (call `radcli_request_free()` without ever calling `radcli_ctx_dispatch()`
 — see REQ-NET2-SEND-014) and poll-driven async request/reply (drive
-`radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` — dae.md's REQ-DAE-NET-001 —
+`radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` — REQ-NET2-NET-001 —
 to completion, reading the outcome with `radcli_request_done()`).
 **Strength:** MUST
 **Status:** DERIVED
@@ -323,10 +390,10 @@ REQ-NET2-SEND-011, REQ-NET2-SEND-013, REQ-NET2-SEND-014
 returns `RADCLI_OK`, `r` is registered in `ctx`'s in-flight request registry
 (REQ-NET2-SEND-016) under a collision-free RADIUS Identifier, and is driven
 to completion entirely by the caller's normal `radcli_ctx_get_poll()`/
-`radcli_ctx_dispatch()` loop (dae.md's REQ-DAE-NET-001) — there is no
+`radcli_ctx_dispatch()` loop (REQ-NET2-NET-001) — there is no
 per-request descriptor, poll-events, or timeout accessor: `r`'s retransmit/
 timeout deadline is one of the inputs `radcli_ctx_get_poll()`'s `timeout_ms`
-already folds in (REQ-DAE-NET-001), and `radcli_ctx_dispatch()` is what
+already folds in (REQ-NET2-NET-001), and `radcli_ctx_dispatch()` is what
 performs the non-blocking I/O, never `r`'s own accessor, matching how a DAE
 packet or a watchdog send is already driven through the same one call
 (watchdog.md's REQ-WATCHDOG-NET-001). Each `radcli_ctx_dispatch()` call MUST
@@ -367,7 +434,7 @@ concurrent `RADCLI_REQUEST_SENDONLY` requests on one `ctx` and confirms all
 resolve correctly while genuinely sharing one descriptor
 (`radcli_ctx_get_poll()` reports the same fd throughout, not one per
 request).
-**Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-016, REQ-DAE-NET-001,
+**Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-016, REQ-NET2-NET-001,
 REQ-WATCHDOG-NET-001, REQ-GEN-SEC-003
 
 ### REQ-NET2-SEND-014 — radcli_request_free() releases a still-pending RADCLI_REQUEST_SENDONLY exchange's registry slot

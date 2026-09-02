@@ -38,9 +38,9 @@
  * UDP/3799 listener) never leaves an application holding two accessors
  * that alias the same descriptor -- see radcli_ctx_get_poll()'s doc
  * comment in radcli2.h. radcli never calls poll()/select()/epoll_wait()
- * itself (REQ-DAE-NET-001, REQ-GEN-SEC-003).
+ * itself (REQ-NET2-NET-001, REQ-GEN-SEC-003).
  *
- * radcli_ctx_dispatch() runs the full validation pipeline (REQ-DAE-NET-002)
+ * radcli_ctx_dispatch() runs the full validation pipeline (REQ-NET2-NET-002)
  * before ever invoking the registered radcli_dae_handler: source-address
  * authorization, Request Authenticator, Message-Authenticator, Event-
  * Timestamp freshness, then duplicate suppression against a fixed
@@ -1224,7 +1224,7 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
  * may never call radcli_ctx_dispatch() at all.
  *
  * Placed alongside radcli_ctx_get_poll()/radcli_ctx_dispatch() (ctx-level,
- * not dae-level) for the same reason REQ-DAE-NET-001 already gives for
+ * not dae-level) for the same reason REQ-NET2-NET-001 already gives for
  * those two: the RadSec session belongs to radcli_ctx, not to any one
  * radcli_dae, and this works on any established RadSec session regardless
  * of whether dynamic authorization is even enabled over it.
@@ -1923,7 +1923,7 @@ enum process_result {
 	                       * set, carrying the cached decision */
 };
 
-/* Runs the full RFC 5176 validation pipeline on one packet (REQ-DAE-NET-002):
+/* Runs the full RFC 5176 validation pipeline on one packet (REQ-NET2-NET-002):
  * source-address authorization (REQ-DAE-SEC-001), packet-code and length
  * sanity (REQ-DAE-ERR-001), Request Authenticator (REQ-DAE-SEC-002),
  * Message-Authenticator when present or required (REQ-DAE-SEC-003),

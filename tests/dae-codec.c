@@ -23,7 +23,7 @@
  */
 
 /* Unit test for radcli_ctx_dispatch()'s RFC 5176 validation pipeline
- * (lib/dae.c): REQ-DAE-NET-002, REQ-DAE-SEC-001..006, REQ-DAE-SEC-008.
+ * (lib/dae.c): REQ-NET2-NET-002, REQ-DAE-SEC-001..006, REQ-DAE-SEC-008.
  * Plays a hostile DAC over a real loopback UDP socket (127.0.0.1, an
  * OS-assigned ephemeral port learned via radcli_ctx_get_poll()'s fd and
  * getsockname() -- both public API, no radcli_dae_fd() needed), so this

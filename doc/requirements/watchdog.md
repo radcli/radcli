@@ -23,6 +23,8 @@ sources:
   - doc/requirements/config2.md (radcli_ctx construction and option storage, cited not owned)
   - doc/requirements/dae.md (RFC 5176 CoA/Disconnect and RadSec session ownership, cited not owned)
   - doc/requirements/net.md (transport/session lifecycle, `restart_session()`, cited not owned)
+  - doc/requirements/net2.md (radcli_ctx_get_poll()/_dispatch()'s general
+    contract, REQ-NET2-NET-001, cited not owned)
 ---
 
 # RFC 5997/3539 Connection-Liveness Watchdog Requirements
@@ -86,12 +88,12 @@ would block — unlike a DAE reply (`REQ-DAE-SEC-013`), a dropped watchdog is
 not a delivery failure worth that machinery: the next call to
 `radcli_ctx_dispatch()` once the interval elapses again covers it. This
 applies on any established RadSec `radcli_ctx`, not only one with dynamic
-authorization active, matching `REQ-DAE-NET-001`'s reasoning for keeping
+authorization active, matching net2.md's `REQ-NET2-NET-001`'s reasoning for keeping
 RadSec-session facilities at the ctx level rather than the `radcli_dae`
 level. There is no public, caller-invoked send entry point (unlike before
 this requirement's revision): sending a watchdog is folded into
 `radcli_ctx_dispatch()`, the same call the application already makes for
-DAE and request traffic (`REQ-DAE-NET-001`), rather than a second call the
+DAE and request traffic (net2.md's `REQ-NET2-NET-001`), rather than a second call the
 application must separately remember to make on a schedule it computes
 itself. This is not radcli calling itself unprompted (`REQ-GEN-SEC-003`
 still holds): the send only ever happens inside a `radcli_ctx_dispatch()`
@@ -125,7 +127,7 @@ error/no-op result, not a watchdog-specific one. [NET] positive, local —
 Access-Request traffic): confirms this works with no `radcli_dae` involved
 at all, on a `radcli_ctx` driven purely through `radcli_request_new()`/
 `_perform()`/`radcli_ctx_get_poll()`/`_dispatch()`.
-**Links:** REQ-DAE-NET-001, REQ-WATCHDOG-NET-002, REQ-DAE-SEC-013, REQ-DAE-INIT-010
+**Links:** REQ-NET2-NET-001, REQ-WATCHDOG-NET-002, REQ-DAE-SEC-013, REQ-DAE-INIT-010
 
 ### REQ-WATCHDOG-NET-002 — `radcli_ctx_get_poll()` advises when a watchdog is due, radcli never times it itself
 

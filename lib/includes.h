@@ -590,7 +590,7 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot);
  * registry yet or nothing is in flight. Used by lib/dae.c's
  * radcli_ctx_get_poll() to fold RADCLI_REQUEST_SENDONLY's retransmit/
  * timeout deadlines into its own timeout_ms, alongside DAE/watchdog
- * deadlines (REQ-DAE-NET-001). */
+ * deadlines (REQ-NET2-NET-001). */
 int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
 
 /*- Drain every ready datagram on ctx's shared request socket (UDP,
