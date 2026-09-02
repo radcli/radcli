@@ -36,35 +36,55 @@ This page documents the current, recommended way to use radcli.
   a working Disconnect server alongside an RFC 5997 watchdog. DAC traffic
   today is UDP/3799 per RFC 5176.
 
-## Getting started
+## Quick start
 
-Three steps: open a context from a config file, build the attributes to
-send, exchange them with the server.
+The normal call sequence is three steps:
 
-@code{.c}
-radcli_ctx *ctx = radcli_ctx_read_config("/etc/radiusclient/radiusclient.conf", 0);
+1. **Load configuration** -- parses the config file and initialises the transport:
+   @code{.c}
+   radcli_ctx *ctx = radcli_ctx_read_config("/etc/radiusclient/radiusclient.conf", 0);
+   @endcode
 
-radcli_avp_list *send = radcli_avp_list_new();
-radcli_avp_add_str_by_num(send, ctx, PW_USER_NAME, 0, username);
-radcli_avp_add_bytes_by_num(send, ctx, PW_USER_PASSWORD, 0, password, password_len);
-radcli_avp_add_uint32_by_num(send, ctx, PW_NAS_PORT, 0, nas_port);
+2. **Build an attribute list** -- attach the attributes you want to send.
+   Each add call is independent; radcli_avp_list_error() gives one aggregate
+   check for all of them instead of testing every call's return value:
+   @code{.c}
+   radcli_avp_list *send = radcli_avp_list_new();
+   radcli_avp_add_str_by_num(send, ctx, PW_USER_NAME, 0, username);
+   radcli_avp_add_bytes_by_num(send, ctx, PW_USER_PASSWORD, 0, password, password_len);
+   radcli_avp_add_uint32_by_num(send, ctx, PW_NAS_PORT, 0, nas_port);
 
-radcli_code out_code;
-radcli_avp_list *recvd = NULL;
-radcli_aaa(ctx, RADCLI_CODE_ACCESS_REQUEST, send, &out_code, &recvd);
-@endcode
+   if (radcli_avp_list_error(send)) {
+           // one of the adds above failed
+   }
+   @endcode
+
+3. **Send the request** -- radcli_aaa() handles retries, failover, and response
+   validation automatically:
+   @code{.c}
+   radcli_code out_code;
+   radcli_avp_list *recvd = NULL;
+   int result = radcli_aaa(ctx, RADCLI_CODE_ACCESS_REQUEST, send, &out_code, &recvd);
+   // result == RADCLI_OK on success
+   radcli_avp_list_free(send);
+   radcli_avp_list_free(recvd);
+   radcli_ctx_free(ctx);
+   @endcode
+
+The transport is selected entirely in the config file (`serv-type` = udp,
+tcp, tls, or dtls); no code changes are required to switch. TLS and DTLS
+additionally require certificate or PSK credentials to be set in the config
+file (`tls-ca-file`, `tls-cert-file`, `tls-key-file`), or programmatically
+with radcli_ctx_set_tls_psk().
 
 See [src/radexample.c](radexample_8c-example.html) for a complete, runnable
 example, and [src/radexample-advanced.c](radexample-advanced_8c-example.html)
-for the Dynamic Authorization and watchdog one.
+for an asynchronous version with Dynamic Authorization one.
 
-## Reference
+## Transitioning from earlier versions
 
-Start with @ref radcli2-ctx "context construction and configuration", then @ref radcli2-dict "the dictionary" and @ref radcli2-avp "attribute-value pair handling" for building the attributes to send, and @ref radcli2-messaging "RADIUS messaging" to exchange them and read back a reply's. Everything here uses the `radcli_`/`RADCLI_` prefix (`#include <radcli/radcli2.h>`).
-
-Already using the legacy radcli API (`freeradius-client.h`/`radiusclient-ng.h`)?
-See the
-[migration guide](radcli2-migration.html) for a function-by-function map and
+Already using the legacy radcli API or even `freeradius-client.h`/`radiusclient-ng.h`?
+See the [migration guide](radcli2-migration.html) for a function-by-function map and
 before/after simplifications, or go straight to the
 [legacy API reference](../manual-legacy/index.html) if you just need to look
 something up.
