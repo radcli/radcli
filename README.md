@@ -24,7 +24,7 @@ documented API, a test suite, and support for TCP, TLS and DTLS transport.
 - **New code:** use `libradcli2` (`#include <radcli/radcli2.h>`). It's built
   around opaque, forward-compatible structures, supports RFC 5176 (CoA/
   Disconnect), RFC 8044 attribute types, and asynchronous request handling.
-  See `src/radexample.c` and `src/radexample-advanced.c` (async).
+  See `src/radexample.c` and `src/radexample-async-dae.c` (async).
 - **Existing radiusclient-ng/freeradius-client code:** `libradcli`'s
   `rc_*()` API is unchanged and still supported; no action needed.
 - Porting `rc_*()` code to the new API? See `doc/migration-guide.md`.

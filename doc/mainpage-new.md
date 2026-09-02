@@ -32,7 +32,7 @@ This page documents the current, recommended way to use radcli.
   source-address authorization, Request Authenticator, Message-Authenticator,
   Event-Timestamp freshness, and duplicate suppression -- before the
   application's handler ever sees them. See
-  [src/radexample-advanced.c](radexample-advanced_8c-example.html) for
+  [src/radexample-async-dae.c](radexample-async-dae_8c-example.html) for
   a working Disconnect server alongside an RFC 5997 watchdog. DAC traffic
   today is UDP/3799 per RFC 5176.
 
@@ -78,7 +78,7 @@ file (`tls-ca-file`, `tls-cert-file`, `tls-key-file`), or programmatically
 with radcli_ctx_set_tls_psk().
 
 See [src/radexample.c](radexample_8c-example.html) for a complete, runnable
-example, and [src/radexample-advanced.c](radexample-advanced_8c-example.html)
+example, and [src/radexample-async-dae.c](radexample-async-dae_8c-example.html)
 for an asynchronous version with Dynamic Authorization one.
 
 ## Transitioning from earlier versions

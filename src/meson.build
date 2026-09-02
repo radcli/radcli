@@ -4,10 +4,10 @@ src_cargs = [
 ]
 src_incdirs = [config_inc, include_dirs, include_directories('../lib')]
 
-# radexample.c and radexample-advanced.c use radcli2.h only, so they link
+# radexample.c and radexample-async-dae.c use radcli2.h only, so they link
 # libradcli2 alone -- everything else here still uses radcli.h and links
 # libradcli, which itself depends on libradcli2 transitively.
-foreach prog2 : ['radexample', 'radexample-advanced']
+foreach prog2 : ['radexample', 'radexample-async-dae']
   executable(prog2, prog2 + '.c',
     include_directories: src_incdirs,
     c_args: src_cargs,

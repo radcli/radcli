@@ -23,7 +23,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** @file radexample-advanced.c
+/** @file radexample-async-dae.c
  * @brief radexample.c's This is a client the maintains a long-lived TLS/DTLS session
  *  with the radius server, sending Access-Request, and sending a watchdog message,
  *  plus a Disconnect-Request (Dynamic Authorization) listener.

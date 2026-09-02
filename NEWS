@@ -11,7 +11,7 @@
   handled transparently as 64-bit counters.
 - The new API supports asynchronous request handling, allowing an
   application to send requests and poll for replies without blocking on
-  network I/O; see src/radexample-advanced.c for a complete example.
+  network I/O; see src/radexample-async-dae.c for a complete example.
 - Simplified server configuration for modern deployments: the new API
   is built around a single configured RADIUS server, with failover
   handled via DNS resolution (e.g., multiple A/AAAA records) rather than

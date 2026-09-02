@@ -775,7 +775,7 @@ int radcli_ctx_dispatch(radcli_ctx *ctx);
  * This is an example of how to use the radcli2.h API.
  */
 
-/** \example radexample-advanced.c
+/** \example radexample-async-dae.c
  * radexample.c's Access-Request, plus a working RFC 5176 Disconnect
  * server and an RFC 5997 watchdog to keep a TLS/DTLS session alive --
  * built entirely on radcli2.h.

@@ -59,7 +59,7 @@ if doxygen.found() and doxy2man.found() and perl.found()
     meson.project_source_root() / 'lib',
     meson.project_source_root() / 'include/radcli',
     meson.project_source_root() / 'src/radexample.c',
-    meson.project_source_root() / 'src/radexample-advanced.c',
+    meson.project_source_root() / 'src/radexample-async-dae.c',
     meson.project_source_root() / 'src/raddaeserver.c',
     doxy_migration_guide,
     doxy_migration_guide_map,
