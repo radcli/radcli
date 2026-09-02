@@ -938,6 +938,58 @@ was the one inconsistent holdout.
 **Acceptance:** [STYLE] negative, local — `grep -n 'radcli2_priv_conf_str(rh, "\|radcli2_priv_conf_int(rh, "\|rc_conf_int_def(' lib/config.c lib/config2.c lib/tls.c lib/dae.c lib/sendserver.c lib/request.c lib/aaa2.c lib/ip_util.c` returns no matches outside the accessor functions' own definitions. [STYLE] positive, local — `tests/ctx.c` confirms `watchdog-interval`'s default is visible via the *public* `radcli_ctx_get_opt_int()` after `radcli_ctx_apply()`, proving the default is materialized in the table rather than substituted only inside whichever internal reader used to supply it (`REQ-CONFIG-CFG-021`).
 **Links:** REQ-CONFIG-CFG-021
 
+### REQ-GEN-STYLE-012 — Every `lib/*.c` file MUST carry a one-line `@file`/`@brief` block
+
+**Requirement:** Every `.c` file under `lib/` MUST open with a Doxygen
+`@file <filename>` / `@brief <one-line summary>` block (additional
+non-`@brief` prose MAY follow, per the existing convention in e.g.
+`lib/dict2.c`/`lib/config2.c`/`lib/dict2-parse.c`/`lib/rc-crypto.c`), even
+when every function the file defines is documented at the header per
+REQ-GEN-STYLE-005 or is internal per REQ-GEN-STYLE-006. `doxy2man` builds one
+man-page "header" entry per source file contributing to a documented group,
+and requires this block to populate it; a file with no `@file`/`@brief` at
+all produces a nameless, brief-less entry ("Header file  has no brief
+description") instead of silently having no entry.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** doxy2man behavior (`Header::check()`, gsauthof/doxy2man
+`main.cc`) observed against `ninja test` output 2026-09-02: `lib/avp.c`,
+`lib/dae.c`, `lib/aaa2.c`, `lib/request.c` had no `@file` block and each
+produced a "Header file  has no brief description" warning during man-page
+generation.
+**Acceptance:** [STYLE] local — grep sweep: every `lib/*.c` file has a
+`/** @file <name>` block within its first ~40 lines, with a `@brief` line
+directly beneath it. `ninja -C build` with `-Ddocs=enabled` produces no
+"Header file  has no brief description" warnings.
+**Links:** REQ-GEN-STYLE-005, REQ-GEN-STYLE-006
+
+### REQ-GEN-STYLE-013 — A function's `.c` definition parameter names MUST match its public header declaration's parameter names
+
+**Requirement:** For a function declared in `include/radcli/radcli.h` or
+`include/radcli/radcli2.h` and documented at its `.c` definition per
+REQ-GEN-STYLE-005, every parameter name in the `.c` definition's signature
+MUST be identical to the corresponding parameter name in the header
+declaration — no shortened or renamed local spelling (e.g. `l` for `list`,
+`r` for `req`, `d` for `dae`). The header declaration carries the
+descriptive, caller-facing name; `@param` tags in the `.c` doc block
+document that same name. Doxygen's generated documentation reflects the
+header's declared signature, so a `.c`-local rename desyncs the `@param`
+tags from the signature doxy2man actually renders against.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** doxy2man behavior (`Function::index_of_parameter()`,
+gsauthof/doxy2man `main.cc`) observed against `ninja test` output
+2026-09-02: `lib/avp.c`, `lib/dae.c` used single-letter parameter names
+(`l`, `r`, `d`, `req_out`, `user`, ...) in `.c` definitions and `@param`
+tags that didn't match the corresponding `radcli2.h` declaration's
+parameter names, producing "Can't find param name: <name>" warnings during
+man-page generation.
+**Acceptance:** [STYLE] local — for every function documented at a `.c`
+definition, its parameter names there are textually identical, in order, to
+its header declaration's parameter names. `ninja -C build` with
+`-Ddocs=enabled` produces no "Can't find param name" warnings.
+**Links:** REQ-GEN-STYLE-005
+
 ---
 
 ## TEST — test quality requirements

@@ -22,6 +22,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/** @file request.c
+ * @brief radcli2.h's single-server request/reply entry point.
+ */
+
 /* radcli2.h's request/reply entry point (radcli_request_new()/_perform()/
  * etc.): builds a wire packet with radcli_avp_encode(), sends it with the
  * same radcli_transport_exchange() rc_send_server_ctx() uses (so failover,

@@ -22,6 +22,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/** @file dae.c
+ * @brief RFC 5176 dynamic-authorization (CoA/Disconnect) listener and dispatch.
+ */
+
 /* radcli2.h's RFC 5176 dynamic-authorization listener (radcli_dae_new()/
  * _set_handler()/_start()/_free(), plus the ctx-level poll surface
  * radcli_ctx_get_poll()/radcli_ctx_dispatch(), doc/requirements/dae.md's
@@ -841,13 +845,12 @@ fail:
 
 /** @brief Register the callback radcli_ctx_dispatch() invokes for each
  *  validated request. May be called before or after radcli_dae_start().
- * @param d a listener from radcli_dae_new().
+ * @param dae a listener from radcli_dae_new().
  * @param cb the callback; NULL clears a previously registered one.
  * @param user passed back to cb unchanged.
  */
-void radcli_dae_set_handler(radcli_dae *d, radcli_dae_handler cb, void *user)
+void radcli_dae_set_handler(radcli_dae *dae, radcli_dae_handler cb, void *user)
 {
-	struct radcli_dae_st *dae = (struct radcli_dae_st *)d;
 
 	if (dae == NULL)
 		return;
@@ -887,12 +890,11 @@ int radcli2_priv_set_nonblock_cloexec(int fd)
 }
 
 /** @brief Start receiving: binds the socket described by dae-listen.
- * @param d a listener from radcli_dae_new().
+ * @param dae a listener from radcli_dae_new().
  * @return 0 on success, -1 on failure (e.g. the address is already in use).
  */
-int radcli_dae_start(radcli_dae *d)
+int radcli_dae_start(radcli_dae *dae)
 {
-	struct radcli_dae_st *dae = (struct radcli_dae_st *)d;
 	struct addrinfo hints, *res, *rp;
 	int err, fd = -1;
 	char portstr[8];
@@ -971,11 +973,10 @@ int radcli_dae_start(radcli_dae *d)
 
 /** @brief Release a listener, closing its socket if radcli_dae_start()
  *  opened one.
- * @param d a listener from radcli_dae_new(); NULL is accepted and ignored.
+ * @param dae a listener from radcli_dae_new(); NULL is accepted and ignored.
  */
-void radcli_dae_free(radcli_dae *d)
+void radcli_dae_free(radcli_dae *dae)
 {
-	struct radcli_dae_st *dae = (struct radcli_dae_st *)d;
 	unsigned i;
 
 	if (dae == NULL)
@@ -1584,14 +1585,13 @@ static int send_reply(struct radcli_dae_request_st *req, uint8_t reply_code, uin
 }
 
 /** @brief Return the received packet's RADIUS code.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @return RADCLI_DISCONNECT_REQUEST or RADCLI_COA_REQUEST (no other code
  *  ever reaches a handler -- see radcli_ctx_dispatch()'s doc comment), or
  *  0 if req is NULL.
  */
-radcli_code radcli_dae_req_code(const radcli_dae_request *r)
+radcli_code radcli_dae_req_code(const radcli_dae_request *req)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return 0;
@@ -1599,15 +1599,14 @@ radcli_code radcli_dae_req_code(const radcli_dae_request *r)
 }
 
 /** @brief Return the request's decoded attributes.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @return the attribute list, owned by req and valid until it is freed;
  *  NULL if req is NULL. Never NULL for a request the handler actually
  *  received: an attribute-free Disconnect-Request/CoA-Request still yields
  *  a valid, empty list.
  */
-const radcli_avp_list *radcli_dae_req_attrs(const radcli_dae_request *r)
+const radcli_avp_list *radcli_dae_req_attrs(const radcli_dae_request *req)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return NULL;
@@ -1615,13 +1614,12 @@ const radcli_avp_list *radcli_dae_req_attrs(const radcli_dae_request *r)
 }
 
 /** @brief Return the request's Acct-Session-Id, if it carried one.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @return a NUL-terminated string owned by req and valid until it is freed,
  *  or NULL if req is NULL or carried no Acct-Session-Id.
  */
-const char *radcli_dae_req_session_id(const radcli_dae_request *r)
+const char *radcli_dae_req_session_id(const radcli_dae_request *req)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return NULL;
@@ -1629,13 +1627,12 @@ const char *radcli_dae_req_session_id(const radcli_dae_request *r)
 }
 
 /** @brief Return the request's User-Name, if it carried one.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @return a NUL-terminated string owned by req and valid until it is freed,
  *  or NULL if req is NULL or carried no User-Name.
  */
-const char *radcli_dae_req_user_name(const radcli_dae_request *r)
+const char *radcli_dae_req_user_name(const radcli_dae_request *req)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return NULL;
@@ -1645,15 +1642,14 @@ const char *radcli_dae_req_user_name(const radcli_dae_request *r)
 /** @brief Return the request's Framed-IP-Address/Framed-IPv6-Address. See
  *  the doc comment in radcli2.h. */
 /** @brief Return the request's Framed-IP-Address or Framed-IPv6-Address.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @param[out] out filled with an AF_INET or AF_INET6 address on success;
  *  untouched on failure.
  * @return 0 on success, -1 if req or out is NULL, or the request carried
  *  neither attribute.
  */
-int radcli_dae_req_framed_ip(const radcli_dae_request *r, struct sockaddr_storage *out)
+int radcli_dae_req_framed_ip(const radcli_dae_request *req, struct sockaddr_storage *out)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 	rc_handle *rh;
 	const radcli_attr_def *d;
 	const radcli_avp *a;
@@ -1701,15 +1697,14 @@ int radcli_dae_req_framed_ip(const radcli_dae_request *r, struct sockaddr_storag
 }
 
 /** @brief Return the request's NAS-Port.
- * @param r a request passed to a radcli_dae_handler.
+ * @param req a request passed to a radcli_dae_handler.
  * @param[out] out filled with the value on success; may be NULL to just
  *  check presence.
  * @return 0 on success, -1 if req is NULL or the request carried no
  *  NAS-Port.
  */
-int radcli_dae_req_nas_port(const radcli_dae_request *r, uint32_t *out)
+int radcli_dae_req_nas_port(const radcli_dae_request *req, uint32_t *out)
 {
-	const struct radcli_dae_request_st *req = (const struct radcli_dae_request_st *)r;
 	rc_handle *rh;
 	const radcli_attr_def *d;
 	const radcli_avp *a;
@@ -1803,16 +1798,15 @@ static uint8_t select_reply_code(const struct radcli_dae_request_st *req, int ac
  *  from the request's own code, mirroring its Proxy-State attributes, and
  *  computing the Response Authenticator over the request's Authenticator.
  *
- * @param r a request passed to a radcli_dae_handler, not yet replied to.
+ * @param req a request passed to a radcli_dae_handler, not yet replied to.
  * @param ack non-zero for an ACK (Disconnect-ACK/CoA-ACK), zero for a bare
  *  NAK with no Error-Cause attribute -- most callers rejecting a request
  *  should use radcli_dae_reply_error() instead, which also states why.
  * @return 0 once the reply is handed to the network, -1 on failure (req is
  *  NULL, already replied to, or the reply could not be sent).
  */
-int radcli_dae_reply(radcli_dae_request *r, int ack)
+int radcli_dae_reply(radcli_dae_request *req, int ack)
 {
-	struct radcli_dae_request_st *req = (struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return -1;
@@ -1820,15 +1814,14 @@ int radcli_dae_reply(radcli_dae_request *r, int ack)
 }
 
 /** @brief Answer a request with a NAK carrying the given Error-Cause.
- * @param r a request passed to a radcli_dae_handler, not yet replied to.
+ * @param req a request passed to a radcli_dae_handler, not yet replied to.
  * @param error_cause a #radcli_error_cause value (e.g.
  *  RADCLI_ERROR_SESSION_CONTEXT_NOT_FOUND), encoded as attribute 101.
  * @return 0 once the reply is handed to the network, -1 on failure (req is
  *  NULL, already replied to, or the reply could not be sent).
  */
-int radcli_dae_reply_error(radcli_dae_request *r, uint32_t error_cause)
+int radcli_dae_reply_error(radcli_dae_request *req, uint32_t error_cause)
 {
-	struct radcli_dae_request_st *req = (struct radcli_dae_request_st *)r;
 	uint8_t reply_code;
 
 	if (req == NULL)
@@ -1846,7 +1839,7 @@ int radcli_dae_reply_error(radcli_dae_request *r, uint32_t error_cause)
  * same answer it originally got (RFC 5176 SS2.3), never a fresh one, so the
  * bytes produced are always that cached decision's.
  *
- * @param r a request from radcli_dae_process(), not yet replied to
+ * @param req a request from radcli_dae_process(), not yet replied to
  *  (unless #RADCLI_DAE_DUPLICATE, which may be called any number of times).
  * @param ack non-zero for an ACK, zero for a NAK -- ignored if req is a
  *  #RADCLI_DAE_DUPLICATE.
@@ -1858,10 +1851,9 @@ int radcli_dae_reply_error(radcli_dae_request *r, uint32_t error_cause)
  * @return 0 on success, -1 on failure (any argument NULL, req already
  *  replied to and not a #RADCLI_DAE_DUPLICATE, or buf too small).
  */
-int radcli_dae_reply_to_buffer(radcli_dae_request *r, int ack, uint32_t error_cause,
+int radcli_dae_reply_to_buffer(radcli_dae_request *req, int ack, uint32_t error_cause,
 			       void *buf, size_t *len)
 {
-	struct radcli_dae_request_st *req = (struct radcli_dae_request_st *)r;
 	uint8_t reply_code;
 	int out_len;
 
@@ -1893,13 +1885,12 @@ int radcli_dae_reply_to_buffer(radcli_dae_request *r, int ack, uint32_t error_ca
 }
 
 /** @brief Release a request.
- * @param r a request passed to a radcli_dae_handler, or from
+ * @param req a request passed to a radcli_dae_handler, or from
  *  radcli_dae_process(); NULL is accepted and ignored. Replying is optional
  *  before freeing: an unanswered request simply gets no reply.
  */
-void radcli_dae_request_free(radcli_dae_request *r)
+void radcli_dae_request_free(radcli_dae_request *req)
 {
-	struct radcli_dae_request_st *req = (struct radcli_dae_request_st *)r;
 
 	if (req == NULL)
 		return;
@@ -2458,7 +2449,7 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
  *  socket. A request this produces is otherwise indistinguishable from one
  *  radcli_ctx_dispatch() would have delivered to a handler.
  *
- * @param d a listener from radcli_dae_new() (radcli_dae_start() need
+ * @param dae a listener from radcli_dae_new() (radcli_dae_start() need
  *  never have been called: this function reads no socket). Rejected
  *  outright (-1) if dae is following serv-type=tls/dtls (RadSec): that
  *  transport trusts the record's origin entirely to the already-verified
@@ -2474,26 +2465,25 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
  *  dae-server can authorize) -- an application relaying from and fromlen
  *  from an untrusted producer (e.g. over IPC from a privileged listener)
  *  must not assume this function corrects a mismatch; it only rejects one.
- * @param[out] req_out set to the validated request on success (#RADCLI_DAE_NEW
+ * @param[out] req set to the validated request on success (#RADCLI_DAE_NEW
  *  or #RADCLI_DAE_DUPLICATE), left NULL on failure.
  * @return #RADCLI_DAE_NEW or #RADCLI_DAE_DUPLICATE on success, -1 if the
  *  packet failed validation (discarded silently, exactly as
  *  radcli_ctx_dispatch() would), dae is a RadSec listener, or any argument
  *  is invalid.
  */
-int radcli_dae_process(radcli_dae *d, const void *buf, size_t len,
+int radcli_dae_process(radcli_dae *dae, const void *buf, size_t len,
 		       const struct sockaddr *from, socklen_t fromlen,
-		       radcli_dae_request **req_out)
+		       radcli_dae_request **req)
 {
-	struct radcli_dae_st *dae = (struct radcli_dae_st *)d;
-	struct radcli_dae_request_st *req = NULL;
+	struct radcli_dae_request_st *built_req = NULL;
 	uint8_t local_buf[RC_BUFFER_LEN];
 	enum process_result result;
 
-	if (dae == NULL || buf == NULL || from == NULL || req_out == NULL ||
+	if (dae == NULL || buf == NULL || from == NULL || req == NULL ||
 	    len == 0 || len > sizeof(local_buf) - 1)
 		return -1;
-	*req_out = NULL;
+	*req = NULL;
 
 	/* This L0 entry point has no meaning under RadSec: process_packet()'s
 	 * radsec branch trusts the record's origin entirely to rh's own
@@ -2529,10 +2519,10 @@ int radcli_dae_process(radcli_dae *d, const void *buf, size_t len,
 	 * copy so the caller's own buffer is never touched. */
 	memcpy(local_buf, buf, len);
 
-	result = process_packet(dae, local_buf, len, from, fromlen, &req);
+	result = process_packet(dae, local_buf, len, from, fromlen, &built_req);
 	if (result == PROCESS_DROP)
 		return -1;
 
-	*req_out = (radcli_dae_request *)req;
+	*req = (radcli_dae_request *)built_req;
 	return (result == PROCESS_DUP_ANSWERED) ? RADCLI_DAE_DUPLICATE : RADCLI_DAE_NEW;
 }

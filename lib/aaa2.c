@@ -22,6 +22,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/** @file aaa2.c
+ * @brief radcli2.h's radcli_aaa(): fail-over AAA exchange across every configured server.
+ */
+
 /* radcli2.h's radcli_aaa(): the new API's counterpart to radcli.h's
  * rc_aaa()/rc_aaa_ctx() (lib/buildreq.c) -- Acct-Delay-Time autofill plus
  * fail-over across every configured authserver/acctserver entry, layered on

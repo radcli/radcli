@@ -34,6 +34,10 @@
 #include "avp.h"
 #include "options.h"
 
+/** @file avp.c
+ * @brief radcli2.h's radcli_avp/radcli_avp_list construction, access, and encoding.
+ */
+
 /**
  * @addtogroup radcli2-avp
  *
@@ -150,11 +154,10 @@ radcli_avp_list *radcli_avp_list_new(void)
 }
 
 /** @brief Free a list and every attribute it holds.
- * @param l a list from radcli_avp_list_new(); NULL is accepted and ignored.
+ * @param list a list from radcli_avp_list_new(); NULL is accepted and ignored.
  */
-void radcli_avp_list_free(radcli_avp_list *l)
+void radcli_avp_list_free(radcli_avp_list *list)
 {
-	struct radcli_avp_list_st *list = (struct radcli_avp_list_st *)l;
 	struct list_node *n, *next;
 
 	if (list == NULL)
@@ -212,21 +215,20 @@ void radcli_avp_list_free(radcli_avp_list *l)
  * of; valid for any attribute type, since the underlying representation is
  * always length-carrying bytes.
  *
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute, from radcli_dict_lookup() or a sibling.
  * @param value the bytes to copy in; may be NULL only if len is 0.
  * @param len number of bytes at value.
  * @return 0 on success, -1 on failure (allocation failure, or NULL list/def).
  */
-int radcli_avp_add_bytes(radcli_avp_list *l, const radcli_attr_def *def, const void *value, size_t len)
+int radcli_avp_add_bytes(radcli_avp_list *list, const radcli_attr_def *def, const void *value, size_t len)
 {
-	struct radcli_avp_list_st *list = (struct radcli_avp_list_st *)l;
 	struct radcli_avp_st *a;
 
 	if (list == NULL || def == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	if (len > 0 && value == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 
 	/* Single allocation for the header and its data: data is never
 	 * resized after creation, so there is no reason to keep them apart.
@@ -237,7 +239,7 @@ int radcli_avp_add_bytes(radcli_avp_list *l, const radcli_attr_def *def, const v
 	a = calloc(1, sizeof(*a) + len + 1);
 	if (a == NULL) {
 		rc_log(LOG_CRIT, "radcli_avp_add_bytes: out of memory");
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	}
 
 	if (len > 0)
@@ -287,51 +289,51 @@ static int is_valid_utf8(const void *buf, size_t len)
  * RADCLI_TYPE_TEXT, value must additionally be valid UTF-8; invalid
  * UTF-8 is rejected rather than stored.
  *
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_STRING or RADCLI_TYPE_TEXT.
  * @param value a null-terminated string.
  * @return 0 on success, -1 on failure (def is neither RADCLI_TYPE_STRING nor
  *  RADCLI_TYPE_TEXT, value is invalid UTF-8 for a RADCLI_TYPE_TEXT def, or
  *  as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_str(radcli_avp_list *l, const radcli_attr_def *def, const char *value)
+int radcli_avp_add_str(radcli_avp_list *list, const radcli_attr_def *def, const char *value)
 {
 	radcli_attr_type t;
 
 	if (def == NULL || value == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	t = radcli_attr_def_type(def);
 	if (t != RADCLI_TYPE_STRING && t != RADCLI_TYPE_TEXT)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	/* A NUL-terminated C string can never itself contain the embedded
 	 * NUL is_valid_utf8() also checks for -- strlen() below stops at the
 	 * first one -- so that check is redundant here, but harmless and
 	 * kept for a single shared implementation with radcli_avp_get_cstr(). */
 	if (t == RADCLI_TYPE_TEXT && !is_valid_utf8(value, strlen(value)))
-		return avp_list_fail(l);
-	return radcli_avp_add_bytes(l, def, value, strlen(value));
+		return avp_list_fail(list);
+	return radcli_avp_add_bytes(list, def, value, strlen(value));
 }
 
 /** @brief Append an integer/IPv4-address/date-typed attribute.
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_INTEGER, RADCLI_TYPE_IPADDR, or RADCLI_TYPE_DATE.
  * @param value the value; an IPv4 address is given in host byte order.
  * @return 0 on success, -1 on failure (def has none of the accepted types, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_uint32(radcli_avp_list *l, const radcli_attr_def *def, uint32_t value)
+int radcli_avp_add_uint32(radcli_avp_list *list, const radcli_attr_def *def, uint32_t value)
 {
 	radcli_attr_type t;
 
 	if (def == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	t = radcli_attr_def_type(def);
 	if (t != RADCLI_TYPE_INTEGER && t != RADCLI_TYPE_IPADDR && t != RADCLI_TYPE_DATE)
-		return avp_list_fail(l);
-	return radcli_avp_add_bytes(l, def, &value, sizeof(value));
+		return avp_list_fail(list);
+	return radcli_avp_add_bytes(list, def, &value, sizeof(value));
 }
 
 /** @brief Append a 64-bit integer- or ifid-typed attribute.
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_INTEGER64 or RADCLI_TYPE_IFID
  *  (RFC 8044 SS3.7's "ifid" data type -- an opaque 8-octet value, but
  *  identical in wire shape to RADCLI_TYPE_INTEGER64, so it shares this
@@ -340,32 +342,32 @@ int radcli_avp_add_uint32(radcli_avp_list *l, const radcli_attr_def *def, uint32
  *  big-endian uint64_t.
  * @return 0 on success, -1 on failure (def has neither accepted type, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_uint64(radcli_avp_list *l, const radcli_attr_def *def, uint64_t value)
+int radcli_avp_add_uint64(radcli_avp_list *list, const radcli_attr_def *def, uint64_t value)
 {
 	radcli_attr_type t;
 
 	if (def == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	t = radcli_attr_def_type(def);
 	if (t != RADCLI_TYPE_INTEGER64 && t != RADCLI_TYPE_IFID)
-		return avp_list_fail(l);
-	return radcli_avp_add_bytes(l, def, &value, sizeof(value));
+		return avp_list_fail(list);
+	return radcli_avp_add_bytes(list, def, &value, sizeof(value));
 }
 
 /** @brief Append an IPv4-address-typed attribute from a struct in_addr.
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_IPADDR.
  * @param value the address, in the usual network byte order struct in_addr carries.
  * @return 0 on success, -1 on failure (def is not RADCLI_TYPE_IPADDR, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_ip4(radcli_avp_list *l, const radcli_attr_def *def, struct in_addr value)
+int radcli_avp_add_ip4(radcli_avp_list *list, const radcli_attr_def *def, struct in_addr value)
 {
 	uint32_t hostval;
 
 	if (def == NULL || radcli_attr_def_type(def) != RADCLI_TYPE_IPADDR)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	hostval = ntohl(value.s_addr);
-	return radcli_avp_add_bytes(l, def, &hostval, sizeof(hostval));
+	return radcli_avp_add_bytes(list, def, &hostval, sizeof(hostval));
 }
 
 /** @brief Append an IPv6-address or IPv6-prefix-typed attribute.
@@ -375,36 +377,36 @@ int radcli_avp_add_ip4(radcli_avp_list *l, const radcli_attr_def *def, struct in
  * internally: a reserved zero octet, the prefix length, and the full
  * 16-octet address.
  *
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_IPV6ADDR or RADCLI_TYPE_IPV6PREFIX.
  * @param value the address.
  * @param prefix the prefix length (0-128); ignored/must be 0 for RADCLI_TYPE_IPV6ADDR.
  * @return 0 on success, -1 on failure (wrong type, prefix out of range, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_ip6(radcli_avp_list *l, const radcli_attr_def *def,
+int radcli_avp_add_ip6(radcli_avp_list *list, const radcli_attr_def *def,
 			const struct in6_addr *value, unsigned prefix)
 {
 	radcli_attr_type t;
 	unsigned char buf[18]; /* RFC 3162: reserved(1) + prefix-len(1) + address(16) */
 
 	if (def == NULL || value == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	t = radcli_attr_def_type(def);
 
 	if (t == RADCLI_TYPE_IPV6ADDR) {
 		if (prefix != 0)
-			return avp_list_fail(l);
-		return radcli_avp_add_bytes(l, def, value, 16);
+			return avp_list_fail(list);
+		return radcli_avp_add_bytes(list, def, value, 16);
 	}
 	if (t == RADCLI_TYPE_IPV6PREFIX) {
 		if (prefix > 128)
-			return avp_list_fail(l);
+			return avp_list_fail(list);
 		buf[0] = 0;
 		buf[1] = (unsigned char)prefix;
 		memcpy(buf + 2, value, 16);
-		return radcli_avp_add_bytes(l, def, buf, sizeof(buf));
+		return radcli_avp_add_bytes(list, def, buf, sizeof(buf));
 	}
-	return avp_list_fail(l);
+	return avp_list_fail(list);
 }
 
 /** @brief Append an IPv4-prefix-typed attribute.
@@ -418,21 +420,21 @@ int radcli_avp_add_ip6(radcli_avp_list *l, const radcli_attr_def *def,
  * without one, with real callers; adding one now would force every
  * existing caller to update for a type most of them don't use.
  *
- * @param l destination list.
+ * @param list destination list.
  * @param def the attribute; must be RADCLI_TYPE_IPV4PREFIX.
  * @param value the address.
  * @param prefix the prefix length (0-32).
  * @return 0 on success, -1 on failure (wrong type, prefix out of range, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_ip4prefix(radcli_avp_list *l, const radcli_attr_def *def,
+int radcli_avp_add_ip4prefix(radcli_avp_list *list, const radcli_attr_def *def,
 			      struct in_addr value, unsigned prefix)
 {
 	unsigned char buf[6]; /* RFC 8044 SS3.9: reserved(1) + prefix-len(1) + address(4) */
 
 	if (def == NULL || radcli_attr_def_type(def) != RADCLI_TYPE_IPV4PREFIX)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	if (prefix > 32)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	buf[0] = 0;
 	buf[1] = (unsigned char)prefix;
 	/* struct in_addr's s_addr is already network byte order, same as the
@@ -440,7 +442,7 @@ int radcli_avp_add_ip4prefix(radcli_avp_list *l, const radcli_attr_def *def,
 	 * needed, unlike radcli_avp_add_ip4()'s RADCLI_TYPE_IPADDR case whose
 	 * *internal* representation is host byte order. */
 	memcpy(buf + 2, &value.s_addr, 4);
-	return radcli_avp_add_bytes(l, def, buf, sizeof(buf));
+	return radcli_avp_add_bytes(list, def, buf, sizeof(buf));
 }
 
 /* _by_num() wrappers: fold the radcli_dict_lookup_num() a caller would
@@ -453,7 +455,7 @@ int radcli_avp_add_ip4prefix(radcli_avp_list *l, const radcli_attr_def *def,
  */
 
 /** @brief Look up an attribute by legacy numeric ID and append its bytes.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -461,91 +463,91 @@ int radcli_avp_add_ip4prefix(radcli_avp_list *l, const radcli_attr_def *def,
  * @param len number of bytes at value.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_bytes()).
  */
-int radcli_avp_add_bytes_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_bytes_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 				 uint32_t attrid, uint32_t vendor,
 				 const void *value, size_t len)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_bytes(l, def, value, len);
+		return avp_list_fail(list);
+	return radcli_avp_add_bytes(list, def, value, len);
 }
 
 /** @brief Look up a string-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param value a null-terminated string.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_str()).
  */
-int radcli_avp_add_str_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_str_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 			       uint32_t attrid, uint32_t vendor, const char *value)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_str(l, def, value);
+		return avp_list_fail(list);
+	return radcli_avp_add_str(list, def, value);
 }
 
 /** @brief Look up an integer/IPv4-address/date-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param value the value; an IPv4 address is given in host byte order.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_uint32()).
  */
-int radcli_avp_add_uint32_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_uint32_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 				  uint32_t attrid, uint32_t vendor, uint32_t value)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_uint32(l, def, value);
+		return avp_list_fail(list);
+	return radcli_avp_add_uint32(list, def, value);
 }
 
 /** @brief Look up a 64-bit integer-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param value the value.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_uint64()).
  */
-int radcli_avp_add_uint64_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_uint64_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 				  uint32_t attrid, uint32_t vendor, uint64_t value)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_uint64(l, def, value);
+		return avp_list_fail(list);
+	return radcli_avp_add_uint64(list, def, value);
 }
 
 /** @brief Look up an IPv4-address-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param value the address, in the usual network byte order struct in_addr carries.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_ip4()).
  */
-int radcli_avp_add_ip4_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_ip4_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 				  uint32_t attrid, uint32_t vendor, struct in_addr value)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_ip4(l, def, value);
+		return avp_list_fail(list);
+	return radcli_avp_add_ip4(list, def, value);
 }
 
 /** @brief Look up an IPv6-address or IPv6-prefix-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -553,19 +555,19 @@ int radcli_avp_add_ip4_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
  * @param prefix the prefix length (0-128); ignored/must be 0 for RADCLI_TYPE_IPV6ADDR.
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_ip6()).
  */
-int radcli_avp_add_ip6_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_ip6_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 			       uint32_t attrid, uint32_t vendor,
 			       const struct in6_addr *value, unsigned prefix)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_ip6(l, def, value, prefix);
+		return avp_list_fail(list);
+	return radcli_avp_add_ip6(list, def, value, prefix);
 }
 
 /** @brief Look up an IPv4-prefix-typed attribute by legacy numeric ID and append it.
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -573,15 +575,15 @@ int radcli_avp_add_ip6_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
  * @param prefix the prefix length (0-32).
  * @return 0 on success, -1 on failure (no such attribute, or as radcli_avp_add_ip4prefix()).
  */
-int radcli_avp_add_ip4prefix_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_ip4prefix_by_num(radcli_avp_list *list, const radcli_ctx *ctx,
 				     uint32_t attrid, uint32_t vendor,
 				     struct in_addr value, unsigned prefix)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
-		return avp_list_fail(l);
-	return radcli_avp_add_ip4prefix(l, def, value, prefix);
+		return avp_list_fail(list);
+	return radcli_avp_add_ip4prefix(list, def, value, prefix);
 }
 
 /** @brief Append a User-Name AVP, appending a realm as "username@realm"
@@ -594,7 +596,7 @@ int radcli_avp_add_ip4prefix_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
  * option, so an application whose realm policy is just "whatever this
  * ctx's config file says" never needs to read that option out itself.
  *
- * @param l destination list.
+ * @param list destination list.
  * @param ctx a context with a dictionary defining User-Name (any
  *  radcli_ctx_new()/radcli_ctx_read_config() context qualifies).
  * @param username the username; used as-is if it already contains '@'.
@@ -605,7 +607,7 @@ int radcli_avp_add_ip4prefix_by_num(radcli_avp_list *l, const radcli_ctx *ctx,
  * @return 0 on success, -1 on failure (no User-Name attribute in ctx's
  *  dictionary, allocation failure, or as radcli_avp_add_str()).
  */
-int radcli_avp_add_username(radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_add_username(radcli_avp_list *list, const radcli_ctx *ctx,
 			     const char *username, const char *realm)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, PW_USER_NAME, 0);
@@ -614,34 +616,33 @@ int radcli_avp_add_username(radcli_avp_list *l, const radcli_ctx *ctx,
 	int ret;
 
 	if (def == NULL || username == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 
 	if (realm == NULL)
 		realm = rc_conf_str_id((rc_handle const *)ctx, OPT_DEFAULT_REALM);
 
 	if (strchr(username, '@') != NULL || realm == NULL || realm[0] == 0)
-		return radcli_avp_add_str(l, def, username);
+		return radcli_avp_add_str(list, def, username);
 
 	len = strlen(username) + 1 + strlen(realm) + 1;
 	composed = malloc(len);
 	if (composed == NULL)
-		return avp_list_fail(l);
+		return avp_list_fail(list);
 	snprintf(composed, len, "%s@%s", username, realm);
 
-	ret = radcli_avp_add_str(l, def, composed);
+	ret = radcli_avp_add_str(list, def, composed);
 	free(composed);
 	return ret;
 }
 
 /** @brief Find the idx-th occurrence of an attribute in a list.
- * @param l the list to search.
+ * @param list the list to search.
  * @param def the attribute to look for.
  * @param idx 0 for the first occurrence, 1 for the second, and so on.
  * @return the matching attribute, or NULL if fewer than idx+1 occurrences exist.
  */
-const radcli_avp *radcli_avp_get(const radcli_avp_list *l, const radcli_attr_def *def, unsigned idx)
+const radcli_avp *radcli_avp_get(const radcli_avp_list *list, const radcli_attr_def *def, unsigned idx)
 {
-	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
 	const struct radcli_avp_st *a = NULL;
 	unsigned n = 0;
 
@@ -659,15 +660,14 @@ const radcli_avp *radcli_avp_get(const radcli_avp_list *l, const radcli_attr_def
 }
 
 /** @brief Begin iterating list.
- * @param l the list to iterate; NULL is accepted (the iterator yields nothing).
+ * @param list the list to iterate; NULL is accepted (the iterator yields nothing).
  * @return an iterator positioned at list's first attribute.
  */
-radcli_avp_iter radcli_avp_list_iter(const radcli_avp_list *l)
+radcli_avp_iter radcli_avp_list_iter(const radcli_avp_list *list)
 {
-	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
 	radcli_avp_iter it;
 
-	it.list = l;
+	it.list = list;
 	it.cur = list ? (const radcli_avp *)list_top(&list->head, struct radcli_avp_st, node) : NULL;
 	return it;
 }
@@ -941,7 +941,7 @@ const char *radcli_avp_get_cstr(const radcli_avp *a)
  */
 
 /** @brief Look up the idx-th occurrence of an attribute by legacy numeric ID.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -949,28 +949,28 @@ const char *radcli_avp_get_cstr(const radcli_avp *a)
  * @return the matching attribute, or NULL if no such attribute is defined,
  *  or fewer than idx+1 occurrences exist in list.
  */
-const radcli_avp *radcli_avp_get_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+const radcli_avp *radcli_avp_get_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 					 uint32_t attrid, uint32_t vendor, unsigned idx)
 {
 	const radcli_attr_def *def = radcli_dict_lookup_num(ctx, attrid, vendor);
 
 	if (def == NULL)
 		return NULL;
-	return radcli_avp_get(l, def, idx);
+	return radcli_avp_get(list, def, idx);
 }
 
 /** @brief Look up an integer/IPv4-address/date-typed attribute by legacy numeric ID and read its first occurrence.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param out where to write the value; an IPv4 address is returned in host byte order. May be NULL.
  * @return 0 on success, -1 on failure (no such attribute, no occurrence, or as radcli_avp_get_uint32()).
  */
-int radcli_avp_get_uint32_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_get_uint32_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 				  uint32_t attrid, uint32_t vendor, uint32_t *out)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return -1;
@@ -978,17 +978,17 @@ int radcli_avp_get_uint32_by_num(const radcli_avp_list *l, const radcli_ctx *ctx
 }
 
 /** @brief Look up a 64-bit integer-typed attribute by legacy numeric ID and read its first occurrence.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
  * @param out where to write the value. May be NULL.
  * @return 0 on success, -1 on failure (no such attribute, no occurrence, or as radcli_avp_get_uint64()).
  */
-int radcli_avp_get_uint64_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_get_uint64_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 				  uint32_t attrid, uint32_t vendor, uint64_t *out)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return -1;
@@ -996,7 +996,7 @@ int radcli_avp_get_uint64_by_num(const radcli_avp_list *l, const radcli_ctx *ctx
 }
 
 /** @brief Look up an IPv6-address or IPv6-prefix-typed attribute by legacy numeric ID and read its first occurrence.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -1004,11 +1004,11 @@ int radcli_avp_get_uint64_by_num(const radcli_avp_list *l, const radcli_ctx *ctx
  * @param prefix where to write the prefix length. May be NULL.
  * @return 0 on success, -1 on failure (no such attribute, no occurrence, or as radcli_avp_get_ip6()).
  */
-int radcli_avp_get_ip6_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_get_ip6_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 			       uint32_t attrid, uint32_t vendor,
 			       struct in6_addr *out, unsigned *prefix)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return -1;
@@ -1016,7 +1016,7 @@ int radcli_avp_get_ip6_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
 }
 
 /** @brief Look up an IPv4-prefix-typed attribute by legacy numeric ID and read its first occurrence.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -1024,11 +1024,11 @@ int radcli_avp_get_ip6_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
  * @param prefix where to write the prefix length. May be NULL.
  * @return 0 on success, -1 on failure (no such attribute, no occurrence, or as radcli_avp_get_ip4prefix()).
  */
-int radcli_avp_get_ip4prefix_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_get_ip4prefix_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 				     uint32_t attrid, uint32_t vendor,
 				     struct in_addr *out, unsigned *prefix)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return -1;
@@ -1036,7 +1036,7 @@ int radcli_avp_get_ip4prefix_by_num(const radcli_avp_list *l, const radcli_ctx *
 }
 
 /** @brief Look up an attribute by legacy numeric ID and read its first occurrence's raw bytes.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -1044,11 +1044,11 @@ int radcli_avp_get_ip4prefix_by_num(const radcli_avp_list *l, const radcli_ctx *
  * @param len where to write the value's length in bytes. May be NULL.
  * @return 0 on success, -1 on failure (no such attribute, or no occurrence).
  */
-int radcli_avp_get_bytes_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+int radcli_avp_get_bytes_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 				 uint32_t attrid, uint32_t vendor,
 				 const void **out, size_t *len)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return -1;
@@ -1056,7 +1056,7 @@ int radcli_avp_get_bytes_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
 }
 
 /** @brief Look up an attribute by legacy numeric ID and read its first occurrence as a NUL-terminated string.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -1065,10 +1065,10 @@ int radcli_avp_get_bytes_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
  *  exists, or as radcli_avp_get_cstr() (embedded NUL byte, or invalid UTF-8
  *  for a RADCLI_TYPE_TEXT attribute).
  */
-const char *radcli_avp_get_cstr_by_num(const radcli_avp_list *l, const radcli_ctx *ctx,
+const char *radcli_avp_get_cstr_by_num(const radcli_avp_list *list, const radcli_ctx *ctx,
 					uint32_t attrid, uint32_t vendor)
 {
-	const radcli_avp *a = radcli_avp_get_by_num(l, ctx, attrid, vendor, 0);
+	const radcli_avp *a = radcli_avp_get_by_num(list, ctx, attrid, vendor, 0);
 
 	if (a == NULL)
 		return NULL;
@@ -1108,13 +1108,13 @@ const char *radcli_avp_get_cstr_by_num(const radcli_avp_list *l, const radcli_ct
  *  always left NUL-terminated on return (including on truncation, containing
  *  whatever fit), whenever buf is non-NULL and buflen > 0.
  * @param buflen size of buf, in bytes; may be 0.
- * @param l the list to search.
+ * @param list the list to search.
  * @param def the attribute to concatenate occurrences of.
  * @param sep separator inserted between occurrences; NULL or "" for none.
  * @return the number of bytes the joined result occupies (excluding the NUL
  *  terminator), whether or not it fit in buf -- or -1 if def is NULL.
  */
-int radcli_avp_concat_str(char *buf, size_t buflen, const radcli_avp_list *l,
+int radcli_avp_concat_str(char *buf, size_t buflen, const radcli_avp_list *list,
 			   const radcli_attr_def *def, const char *sep)
 {
 	const radcli_avp *a;
@@ -1129,7 +1129,7 @@ int radcli_avp_concat_str(char *buf, size_t buflen, const radcli_avp_list *l,
 	if (buf != NULL && buflen > 0)
 		buf[0] = 0;
 
-	for (idx = 0; (a = radcli_avp_get(l, def, idx)) != NULL; idx++) {
+	for (idx = 0; (a = radcli_avp_get(list, def, idx)) != NULL; idx++) {
 		const char *s = radcli_avp_get_cstr(a);
 		size_t slen;
 
@@ -1177,7 +1177,7 @@ int radcli_avp_concat_str(char *buf, size_t buflen, const radcli_avp_list *l,
  *
  * @param buf destination buffer, or NULL to only compute the needed size; see radcli_avp_concat_str().
  * @param buflen size of buf, in bytes; may be 0.
- * @param l the list to search.
+ * @param list the list to search.
  * @param ctx a context with a dictionary loaded.
  * @param attrid the attribute ID (a PW_* constant, or a vendor type ID when vendor is non-zero).
  * @param vendor the vendor PEN, or 0 for a standard attribute.
@@ -1186,7 +1186,7 @@ int radcli_avp_concat_str(char *buf, size_t buflen, const radcli_avp_list *l,
  *  terminator), whether or not it fit in buf; 0 if attrid/vendor resolves to
  *  no attribute.
  */
-int radcli_avp_concat_str_by_num(char *buf, size_t buflen, const radcli_avp_list *l,
+int radcli_avp_concat_str_by_num(char *buf, size_t buflen, const radcli_avp_list *list,
 				  const radcli_ctx *ctx, uint32_t attrid, uint32_t vendor,
 				  const char *sep)
 {
@@ -1197,7 +1197,7 @@ int radcli_avp_concat_str_by_num(char *buf, size_t buflen, const radcli_avp_list
 			buf[0] = 0;
 		return 0;
 	}
-	return radcli_avp_concat_str(buf, buflen, l, def, sep);
+	return radcli_avp_concat_str(buf, buflen, list, def, sep);
 }
 
 /** @brief Check whether any radcli_avp_add_*()/_by_num() call on list has ever failed.
@@ -1220,16 +1220,15 @@ int radcli_avp_concat_str_by_num(char *buf, size_t buflen, const radcli_avp_list
  * already happened, for a caller that would rather check once than at
  * every call site.
  *
- * @param l the list to check; NULL counts as an error (nothing to
+ * @param list the list to check; NULL counts as an error (nothing to
  *  build onto), matching how every radcli_avp_add_*() already treats a
  *  NULL list as failure -- so a caller does not need a separate
  *  `if (list == NULL)` check right after radcli_avp_list_new() before
  *  relying on this.
  * @return non-zero if list is NULL or any add call on it has ever failed, 0 otherwise.
  */
-int radcli_avp_list_error(const radcli_avp_list *l)
+int radcli_avp_list_error(const radcli_avp_list *list)
 {
-	const struct radcli_avp_list_st *list = (const struct radcli_avp_list_st *)l;
 
 	if (list == NULL)
 		return 1;
