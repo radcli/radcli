@@ -266,10 +266,12 @@ whitespace).
 value string, with one exception: `watchdog-interval` is range-checked
 in-line (`REQ-WATCHDOG-CFG-001`, `doc/requirements/watchdog.md`). For every other integer option, a malformed
 value like `radius_timeout abc` therefore stores `0`, not an error, at parse
-time. For `radius_timeout` and `radius_retries` specifically,
-`rc_test_config()` catches the resulting `0` as `<= 0` and fails the load
-(`REQ-CONFIG-CFG-010`); `clientdebug` has no such downstream check and would
-silently accept `0` from malformed input.
+time. For `radius_timeout` specifically, `rc_test_config()` catches the
+resulting `0` as `<= 0` and fails the load (`REQ-CONFIG-CFG-010`);
+`radius_retries` has no such downstream check since `0` is a legal value for
+it, so a malformed `radius_retries abc` silently loads as `radius_retries
+0` (send once, no retransmit) rather than failing; `clientdebug` likewise
+has no downstream check and would silently accept `0` from malformed input.
 **Strength:** MUST (documents `atoi()`'s established, essential behavior — a
 correct reimplementation could reasonably choose to validate instead, but
 callers of the current library depend on the "malformed → 0" behavior not
@@ -335,18 +337,32 @@ config-file line.
 to the equivalent file line.
 **Links:** REQ-CONFIG-INIT-002
 
-### REQ-CONFIG-CFG-010 — `rc_test_config()` MUST require a non-empty `authserver` list and positive `radius_timeout`/`radius_retries` before applying the transport
+### REQ-CONFIG-CFG-010 — `rc_test_config()` MUST require a non-empty `authserver` list, a positive `radius_timeout`, and a non-negative `radius_retries` before applying the transport
 
 **Requirement:** `rc_test_config()` MUST fail (log `LOG_ERR`, return `-1`)
 if `authserver` resolves to no `SERVER` entries, if `rc_conf_int(rh,
-"radius_timeout") <= 0`, or if `rc_conf_int(rh, "radius_retries") <= 0`. Only
-after all three checks pass does it call `rc_apply_config()`, whose result it
-also propagates as its own return value.
+"radius_timeout") <= 0`, or if `rc_conf_int(rh, "radius_retries") < 0`. Zero
+is a legal value for `radius_retries`: it means send once, with no
+retransmit, per address (`this_retries++ >= retry_max` in
+`radcli_transport_exchange()`, `lib/sendserver.c`, is `0 >= 0` on the first
+iteration, which already behaves correctly with no further change needed).
+`radius_timeout` is unchanged by this requirement and must still be
+positive -- see the discussion under issue #102 on why zero is not
+straightforwardly safe there (`radcli_transport_exchange()`'s poll-wait loop
+would be skipped entirely, turning a timeout of 0 into a guaranteed
+`TIMEOUT_RC` that never reads a reply). Only after all three checks pass
+does it call `rc_apply_config()`, whose result it also propagates as its own
+return value. This function is shared by the legacy `rc_test_config()` and
+radcli2's `radcli_ctx_read_config()` (`lib/config2.c`), so both APIs accept
+`radius_retries 0` identically (issue #102).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/config.c:869-904
-**Acceptance:** [CFG] negative, local — a config file with no `authserver`
-line, or `radius_timeout 0`, fails `rc_read_config()` (which calls
+**Acceptance:** [CFG] positive, local — a config file with `radius_retries
+0` (all other options otherwise valid) is accepted by both
+`rc_read_config()` and `radcli_ctx_read_config()`. [CFG] negative, local — a
+config file with no `authserver` line, `radius_timeout 0`, or
+`radius_retries -1`, fails `rc_read_config()` (which calls
 `rc_test_config()` internally).
 **Links:** REQ-CONFIG-INIT-003, REQ-CONFIG-CFG-006
 

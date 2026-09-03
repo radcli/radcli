@@ -1049,9 +1049,9 @@ int radcli2_priv_test_config(rc_handle *rh, char const *filename)
 		rc_log(LOG_ERR,"%s: radius_timeout <= 0 is illegal", filename);
 		return -1;
 	}
-	if (rc_conf_int_id(rh, OPT_RADIUS_RETRIES) <= 0)
+	if (rc_conf_int_id(rh, OPT_RADIUS_RETRIES) < 0)
 	{
-		rc_log(LOG_ERR,"%s: radius_retries <= 0 is illegal", filename);
+		rc_log(LOG_ERR,"%s: radius_retries < 0 is illegal", filename);
 		return -1;
 	}
 
