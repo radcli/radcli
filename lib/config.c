@@ -702,13 +702,87 @@ static void apply_int_default(rc_handle *rh, char const *optname, int def)
 	option->val = val;
 }
 
+/*- Validate the options required for a working request/response cycle or
+ * DAE listener: either an authserver or a configured DAE listener, and
+ * sane radius_timeout/radius_retries. Shared by radcli2_priv_test_config()
+ * (the config-file path, which additionally knows filename for its log
+ * messages) and radcli2_priv_apply_config() itself, so radcli_ctx_apply()
+ * (lib/config2.c) enforces the exact same requirements as
+ * radcli_ctx_read_config() -- per REQ-CONFIG2-CFG-004, the two are meant to
+ * differ only in where the options come from (a file vs.
+ * radcli_ctx_set_opt_*() calls), not in what they require.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param source a label for this handle's origin, used only in log
+ *  messages (e.g. the config filename, or the calling function's name).
+ * @return 0 on success, -1 on failure.
+ -*/
+static int radcli2_priv_check_config(rc_handle *rh, char const *source)
+{
+	SERVER *srv;
+
+	/* An RFC 5176 DAE listener (radcli_dae_new(), lib/dae.c) is a
+	 * server-side role, independent of ever sending an Access-/
+	 * Accounting-Request as a client -- a NAS handling only CoA/
+	 * Disconnect need not configure an authserver at all. dae-accept
+	 * being set at all (even to "no", or an invalid value later rejected
+	 * by radcli_dae_new() itself) is enough to signal that intent here;
+	 * this function only gates the cheap, universal requirement, not
+	 * dae-accept's own grammar. */
+	srv = radcli2_priv_conf_srv(rh, "authserver");
+	if (!srv || !srv->max)
+	{
+		if (rc_conf_str_id(rh, OPT_DAE_ACCEPT) == NULL)
+		{
+			rc_log(LOG_ERR,"%s: no authserver or DAE listener specified", source);
+			return -1;
+		}
+		/* No authserver: a DAE-only context, per the check above. There is
+		 * no client role here at all, so "no acctserver specified" (a
+		 * client-only concern) would be noise -- skip that check entirely
+		 * rather than logging it for a context that was never going to
+		 * have one. */
+	}
+	else
+	{
+		srv = radcli2_priv_conf_srv(rh, "acctserver");
+		if (!srv || !srv->max)
+		{
+			/* it is allowed not to have acct servers under TLS/DTLS. rh->so_type
+			 * isn't set until radcli2_priv_apply_config() runs, so check the
+			 * configured serv-type string directly rather than the not-yet-
+			 * initialized transport state. */
+			const char *stype = rc_conf_str_id(rh, OPT_SERV_TYPE);
+			if (stype == NULL)
+				stype = rc_conf_str_id(rh, OPT_SERV_AUTH_TYPE);
+			if (stype == NULL ||
+			    (strcasecmp(stype, "tls") != 0 && strcasecmp(stype, "dtls") != 0))
+				rc_log(LOG_DEBUG,"%s: no acctserver specified", source);
+		}
+	}
+
+	if (rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT) <= 0)
+	{
+		rc_log(LOG_ERR,"%s: radius_timeout <= 0 is illegal", source);
+		return -1;
+	}
+	if (rc_conf_int_id(rh, OPT_RADIUS_RETRIES) < 0)
+	{
+		rc_log(LOG_ERR,"%s: radius_retries < 0 is illegal", source);
+		return -1;
+	}
+
+	return 0;
+}
+
 /*- Apply configuration and initialise the transport.
  *
  * Must be called after all radcli2_priv_add_config() calls when using
- * programmatic configuration (i.e., without a config file). Initialises
- * the transport selected by the serv-type option, including the TLS/DTLS
- * handshake for TLS and DTLS transports. radcli2_priv_read_config() calls
- * this internally; do not call it again after radcli2_priv_read_config().
+ * programmatic configuration (i.e., without a config file). Validates the
+ * same mandatory options radcli2_priv_test_config() does (REQ-CONFIG2-CFG-004),
+ * then initialises the transport selected by the serv-type option, including
+ * the TLS/DTLS handshake for TLS and DTLS transports. radcli2_priv_read_config()
+ * calls this internally; do not call it again after radcli2_priv_read_config().
  *
  * @param rh a handle to parsed configuration.
  * @return 0 on success, -1 on failure.
@@ -717,6 +791,9 @@ int radcli2_priv_apply_config(rc_handle *rh)
 {
 	const char *txt;
 	int ret;
+
+	if (radcli2_priv_check_config(rh, "radcli2_priv_apply_config") == -1)
+		return -1;
 
 	apply_secret_fallback(rh);
 	apply_int_default(rh, "watchdog-interval", 15);
@@ -1020,40 +1097,8 @@ SERVER *radcli2_priv_conf_srv(rc_handle const *rh, char const *optname)
  -*/
 int radcli2_priv_test_config(rc_handle *rh, char const *filename)
 {
-	SERVER *srv;
-
-	srv = radcli2_priv_conf_srv(rh, "authserver");
-	if (!srv || !srv->max)
-	{
-		rc_log(LOG_ERR,"%s: no authserver specified", filename);
+	if (radcli2_priv_check_config(rh, filename) == -1)
 		return -1;
-	}
-
-	srv = radcli2_priv_conf_srv(rh, "acctserver");
-	if (!srv || !srv->max)
-	{
-		/* it is allowed not to have acct servers under TLS/DTLS. rh->so_type
-		 * isn't set until radcli2_priv_apply_config() below, so check the configured
-		 * serv-type string directly rather than the not-yet-initialized
-		 * transport state. */
-		const char *stype = rc_conf_str_id(rh, OPT_SERV_TYPE);
-		if (stype == NULL)
-			stype = rc_conf_str_id(rh, OPT_SERV_AUTH_TYPE);
-		if (stype == NULL ||
-		    (strcasecmp(stype, "tls") != 0 && strcasecmp(stype, "dtls") != 0))
-			rc_log(LOG_DEBUG,"%s: no acctserver specified", filename);
-	}
-
-	if (rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT) <= 0)
-	{
-		rc_log(LOG_ERR,"%s: radius_timeout <= 0 is illegal", filename);
-		return -1;
-	}
-	if (rc_conf_int_id(rh, OPT_RADIUS_RETRIES) < 0)
-	{
-		rc_log(LOG_ERR,"%s: radius_retries < 0 is illegal", filename);
-		return -1;
-	}
 
 	if (radcli2_priv_apply_config(rh) == -1) {
 		return -1;

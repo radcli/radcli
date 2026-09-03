@@ -46,11 +46,20 @@
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
 
+/* radcli_ctx_apply() now enforces the same mandatory options
+ * radcli_ctx_read_config() does (REQ-CONFIG2-CFG-004): either an authserver
+ * or a configured DAE listener (dae-accept set), and a valid
+ * radius_timeout/radius_retries. Every context in this file configures
+ * dae-accept itself before calling radcli_ctx_apply() (the one exception
+ * never calls radcli_ctx_apply() at all), so only radius_timeout/retries
+ * need a value here. */
 static radcli_ctx *new_ctx(void)
 {
 	radcli_ctx *ctx = radcli_ctx_new(RADCLI_CTX_NO_BUILTIN_DICT);
 
 	assert(ctx != NULL);
+	assert(radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+	assert(radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 	return ctx;
 }
 

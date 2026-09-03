@@ -190,20 +190,60 @@ same way `rc_add_config(ctx, "watchdog-interval", "5", ...)` would
 (`tests/watchdog-aaa.c`'s phase 2, see `REQ-WATCHDOG-CFG-001`).
 **Links:** REQ-CONFIG-CFG-007, REQ-CONFIG-CFG-009, REQ-WATCHDOG-CFG-001
 
-### REQ-CONFIG2-CFG-004 — `radcli_ctx_apply()` MUST be a direct alias for `rc_apply_config()`
+### REQ-CONFIG2-CFG-004 — `radcli_ctx_apply()` MUST enforce the same mandatory options as `radcli_ctx_read_config()`, not just alias `rc_apply_config()`
 
 **Requirement:** `radcli_ctx_apply(ctx)` MUST behave identically to
-`rc_apply_config(ctx)` — same `serv-type` transport selection
-(`REQ-CONFIG-INIT-004`), same `nas-ip` validation, same TLS/DTLS
-initialization.
+`rc_test_config(ctx, source)` followed by `rc_apply_config(ctx)` — the same
+sequence `radcli2_priv_read_config()`/`rc_read_config()` runs internally —
+not merely to `rc_apply_config(ctx)` alone. Concretely, before doing any of
+`rc_apply_config()`'s own work (`serv-type` transport selection,
+`REQ-CONFIG-INIT-004`; `nas-ip` validation; TLS/DTLS initialization),
+`radcli_ctx_apply()` MUST fail (`-1`, logged at `LOG_ERR`) under the exact
+conditions `REQ-CONFIG-CFG-010` already specifies for the config-file path:
+`radius_timeout <= 0`, or `radius_retries < 0`. It MUST also fail under a
+relaxed form of that requirement's `authserver`-required condition: either a
+non-empty `authserver` list, **or** a configured DAE listener
+(`RADCLI_OPT_DAE_ACCEPT`/`"dae-accept"` set to any value, including one
+`radcli_dae_new()` later rejects, such as an invalid string or `"no"`) must
+be present — an RFC 5176 DAE listener is a server-side role, independent of
+ever sending an Access-/Accounting-Request as a client
+(`doc/requirements/dae.md`), so a DAE-only context must not be forced to
+carry an unused `authserver` just to satisfy this check. This relaxation
+applies identically to the config-file path
+(`radcli2_priv_test_config()`/`rc_test_config()`), sharing the same checking
+function (`radcli2_priv_check_config()`, `lib/config.c`), so a config file
+written purely for a DAE listener is accepted the same way. This was
+previously a real behavioral gap, not just a documentation gap:
+`radcli_ctx_apply()` used to skip all of these checks (an earlier revision
+of this requirement claimed a plain `rc_apply_config()` alias was correct
+and intentional), so a context built entirely through
+`radcli_ctx_set_opt_*()` could reach `radcli_request_new()`/`radcli_aaa()`
+with an unset (reads as `0`) or negative `radius_timeout`/`radius_retries`,
+unvalidated anywhere -- resolved here instead of at
+`radcli_request_new()`/`radcli_aaa()` (`REQ-NET2-INIT-008`/
+`REQ-NET2-AAA-007`, both `WITHDRAWN`: this single choke point makes them
+unreachable, since no ctx can pass `radcli_ctx_apply()` with invalid values
+in the first place).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config2.c's `radcli_ctx_apply()`
+**Source:** lib/config.c's `radcli2_priv_check_config()` (shared check,
+called from both `radcli2_priv_apply_config()` and
+`radcli2_priv_test_config()`); lib/config2.c's `radcli_ctx_apply()`
 **Acceptance:** [CFG] positive, local — a context configured with
 `RADCLI_OPT_AUTHSERVER`, `RADCLI_OPT_RADIUS_TIMEOUT`, and
 `RADCLI_OPT_RADIUS_RETRIES` set, then `radcli_ctx_apply()`d, is usable by
 `radcli_request_new()` exactly as a `rc_read_config()`-produced handle is by
-`rc_auth()`.
+`rc_auth()`. [CFG] positive, local — a context with only
+`RADCLI_OPT_DAE_ACCEPT` set (no `authserver` at all) plus a valid
+`radius_timeout`/`radius_retries` still `radcli_ctx_apply()`s successfully
+(`tests/dae.c`, `tests/dae-codec.c`). [ERR] negative, local —
+`radcli_ctx_new()` + `radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER,
+...)` + `radcli_ctx_apply(ctx)` with `radius_timeout`/`radius_retries` left
+unset (reads `0`/`0`) returns `-1`. [ERR] negative — a context with neither
+`authserver` nor `RADCLI_OPT_DAE_ACCEPT` set returns `-1` from
+`radcli_ctx_apply()` regardless of `radius_timeout`/`radius_retries`.
+**Links:** REQ-CONFIG-CFG-010, REQ-CONFIG-CFG-011, REQ-CONFIG-INIT-004,
+REQ-NET2-INIT-004, REQ-NET2-AAA-002, REQ-NET2-INIT-008, REQ-NET2-AAA-007
 
 ### REQ-CONFIG2-CFG-005 — `radcli_ctx_set_opt_str()`/`_set_opt_int()` MUST reject setting an already-set option again, and MUST limit server options to exactly one server
 

@@ -337,34 +337,45 @@ config-file line.
 to the equivalent file line.
 **Links:** REQ-CONFIG-INIT-002
 
-### REQ-CONFIG-CFG-010 — `rc_test_config()` MUST require a non-empty `authserver` list, a positive `radius_timeout`, and a non-negative `radius_retries` before applying the transport
+### REQ-CONFIG-CFG-010 — `rc_test_config()` MUST require either a non-empty `authserver` list or a configured DAE listener, plus a positive `radius_timeout` and a non-negative `radius_retries`, before applying the transport
 
 **Requirement:** `rc_test_config()` MUST fail (log `LOG_ERR`, return `-1`)
-if `authserver` resolves to no `SERVER` entries, if `rc_conf_int(rh,
-"radius_timeout") <= 0`, or if `rc_conf_int(rh, "radius_retries") < 0`. Zero
-is a legal value for `radius_retries`: it means send once, with no
-retransmit, per address (`this_retries++ >= retry_max` in
+if `authserver` resolves to no `SERVER` entries *and* `"dae-accept"` is
+unset, if `rc_conf_int(rh, "radius_timeout") <= 0`, or if `rc_conf_int(rh,
+"radius_retries") < 0`. The `authserver`-or-`dae-accept` alternative exists
+because an RFC 5176 DAE listener is a server-side role that need not ever
+send an Access-/Accounting-Request as a client (`doc/requirements/dae.md`),
+so a config file written purely for a DAE listener must not be forced to
+carry an unused `authserver` line; `"dae-accept"` merely being present (set
+to any value, including one `radcli_dae_new()` later rejects) is enough to
+signal that intent -- this check does not itself validate `dae-accept`'s
+grammar. Zero is a legal value for `radius_retries`: it means send once,
+with no retransmit, per address (`this_retries++ >= retry_max` in
 `radcli_transport_exchange()`, `lib/sendserver.c`, is `0 >= 0` on the first
 iteration, which already behaves correctly with no further change needed).
 `radius_timeout` is unchanged by this requirement and must still be
 positive -- see the discussion under issue #102 on why zero is not
 straightforwardly safe there (`radcli_transport_exchange()`'s poll-wait loop
 would be skipped entirely, turning a timeout of 0 into a guaranteed
-`TIMEOUT_RC` that never reads a reply). Only after all three checks pass
-does it call `rc_apply_config()`, whose result it also propagates as its own
-return value. This function is shared by the legacy `rc_test_config()` and
-radcli2's `radcli_ctx_read_config()` (`lib/config2.c`), so both APIs accept
-`radius_retries 0` identically (issue #102).
+`TIMEOUT_RC` that never reads a reply). Only after all checks pass does it
+call `rc_apply_config()`, whose result it also propagates as its own return
+value. The checks themselves live in a function
+(`radcli2_priv_check_config()`) shared by the legacy `rc_test_config()` and,
+as of `REQ-CONFIG2-CFG-004`, `radcli_ctx_apply()` directly (not only through
+`radcli_ctx_read_config()`), so all three entry points accept
+`radius_retries 0` and the DAE-listener alternative identically.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:869-904
+**Source:** lib/config.c's `radcli2_priv_check_config()`
 **Acceptance:** [CFG] positive, local — a config file with `radius_retries
 0` (all other options otherwise valid) is accepted by both
-`rc_read_config()` and `radcli_ctx_read_config()`. [CFG] negative, local — a
-config file with no `authserver` line, `radius_timeout 0`, or
-`radius_retries -1`, fails `rc_read_config()` (which calls
-`rc_test_config()` internally).
-**Links:** REQ-CONFIG-INIT-003, REQ-CONFIG-CFG-006
+`rc_read_config()` and `radcli_ctx_read_config()`. [CFG] positive, local —
+a config file/context with `dae-accept` set and no `authserver` at all
+still passes (`tests/dae.c`, `tests/dae-codec.c`). [CFG] negative, local — a
+config file with neither an `authserver` line nor `dae-accept`,
+`radius_timeout 0`, or `radius_retries -1`, fails `rc_read_config()` (which
+calls `rc_test_config()` internally) and `radcli_ctx_apply()` alike.
+**Links:** REQ-CONFIG-INIT-003, REQ-CONFIG-CFG-006, REQ-CONFIG2-CFG-004
 
 ### REQ-CONFIG-CFG-011 — `rc_test_config()` MUST suppress the "no acctserver specified" debug log under TLS/DTLS
 
