@@ -201,6 +201,69 @@ int main(void)
 		radcli_ctx_free(ctx2);
 	}
 
+	/* --- issue #102 / REQ-CONFIG-CFG-010: radius_retries 0 through the
+	 * config-file path (radcli_ctx_read_config()), which used to reject
+	 * radius_retries 0 outright -- the two-authserver block above is
+	 * pinned to radius_retries 1 for exactly that reason. This confirms
+	 * both that the config now loads *and* that radcli_aaa() actually
+	 * performs a single attempt with no retransmit against an
+	 * unreachable server (elapsed ~1s, i.e. one radius_timeout, not ~2s
+	 * as a silently-ignored retry would produce), not just that parsing
+	 * accepts the value -- that half is already covered by
+	 * tests/config-unit.c. --- */
+	{
+		static const char conf[] =
+			"authserver 192.0.2.1:1812:testing123\n"
+			"radius_timeout 1\n"
+			"radius_retries 0\n";
+		char *conf_path = write_conf(conf);
+		radcli_ctx *ctx4;
+		const radcli_attr_def *d_user4;
+		radcli_avp_list *send_list4;
+
+		ctx4 = radcli_ctx_read_config(conf_path, 0);
+		unlink(conf_path);
+		if (ctx4 == NULL) {
+			fprintf(stderr, "error: radcli_ctx_read_config() rejected "
+					"radius_retries 0 (issue #102 / REQ-CONFIG-CFG-010)\n");
+			exit(1);
+		}
+
+		d_user4 = radcli_dict_lookup(ctx4, "User-Name");
+		assert(d_user4 != NULL);
+
+		send_list4 = radcli_avp_list_new();
+		assert(send_list4 != NULL);
+		assert(radcli_avp_add_str(send_list4, d_user4, "dave") == 0);
+
+		start = test_mtime();
+		if (radcli_aaa(ctx4, RADCLI_CODE_ACCESS_REQUEST, send_list4, NULL, NULL) != RADCLI_TIMEOUT) {
+			fprintf(stderr, "error: radcli_aaa() with radius_retries 0 "
+					"(config-file path) against an unreachable server did "
+					"not return RADCLI_TIMEOUT\n");
+			exit(1);
+		}
+		elapsed = test_mtime() - start;
+		if (elapsed < 0.8) {
+			fprintf(stderr, "error: radcli_aaa() with radius_retries 0 "
+					"returned after only %.2fs -- expected ~1s (it should "
+					"still make its one attempt and wait radius_timeout "
+					"seconds for a reply, not fail immediately)\n", elapsed);
+			exit(1);
+		}
+		if (elapsed > 1.5) {
+			fprintf(stderr, "error: radcli_aaa() with radius_retries 0 took "
+					"%.2fs -- expected ~1s (a single attempt, no "
+					"retransmit); a ~2s result would mean radius_retries 0 "
+					"was silently treated as if it allowed one retry\n",
+					elapsed);
+			exit(1);
+		}
+
+		radcli_avp_list_free(send_list4);
+		radcli_ctx_free(ctx4);
+	}
+
 	/* --- an Accounting-Request exercises the Acct-Delay-Time autofill
 	 * path; no live server to inspect wire content against, but this at
 	 * least confirms the code path completes without crashing and still

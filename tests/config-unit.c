@@ -39,6 +39,7 @@
 #include <syslog.h>
 
 #include <radcli/radcli.h>
+#include <radcli/radcli2.h>
 
 static char tmpl[] = "config-unit-XXXXXX";
 
@@ -143,6 +144,83 @@ static void test_prefix_match_secret(void)
 	}
 
 	rc_destroy(rh);
+}
+
+/* issue #102 / REQ-CONFIG-CFG-010: radius_retries 0 (send once, no
+ * retransmit) must be accepted by both the legacy and radcli2 config-file
+ * entry points; radius_retries -1 must still be rejected by both.
+ * radius_timeout 0 is deliberately left rejected -- see the discussion on
+ * issue #102 -- so this also pins down that it stays that way. */
+static void test_zero_retries_allowed(void)
+{
+	rc_handle *rh;
+	radcli_ctx *ctx;
+	char *path;
+
+	const char zero_retries[] =
+		"authserver 127.0.0.1:1\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries 0\n";
+	path = write_conf(zero_retries, sizeof(zero_retries) - 1);
+	rh = rc_read_config(path);
+	if (rh == NULL) {
+		unlink(path);
+		fprintf(stderr, "error: radius_retries 0 was rejected by rc_read_config()\n");
+		exit(1);
+	}
+	if (rc_conf_int(rh, "radius_retries") != 0) {
+		unlink(path);
+		rc_destroy(rh);
+		fprintf(stderr, "error: radius_retries 0 did not round-trip through rc_conf_int()\n");
+		exit(1);
+	}
+	rc_destroy(rh);
+
+	ctx = radcli_ctx_read_config(path, 0);
+	unlink(path);
+	if (ctx == NULL) {
+		fprintf(stderr, "error: radius_retries 0 was rejected by radcli_ctx_read_config()\n");
+		exit(1);
+	}
+	radcli_ctx_free(ctx);
+
+	const char negative_retries[] =
+		"authserver 127.0.0.1:1\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 5\n"
+		"radius_retries -1\n";
+	path = write_conf(negative_retries, sizeof(negative_retries) - 1);
+	rh = rc_read_config(path);
+	if (rh != NULL) {
+		unlink(path);
+		rc_destroy(rh);
+		fprintf(stderr, "error: radius_retries -1 was accepted by rc_read_config()\n");
+		exit(1);
+	}
+
+	ctx = radcli_ctx_read_config(path, 0);
+	unlink(path);
+	if (ctx != NULL) {
+		radcli_ctx_free(ctx);
+		fprintf(stderr, "error: radius_retries -1 was accepted by radcli_ctx_read_config()\n");
+		exit(1);
+	}
+
+	const char zero_timeout[] =
+		"authserver 127.0.0.1:1\n"
+		"acctserver 127.0.0.1:1\n"
+		"radius_timeout 0\n"
+		"radius_retries 1\n";
+	path = write_conf(zero_timeout, sizeof(zero_timeout) - 1);
+	rh = rc_read_config(path);
+	if (rh != NULL) {
+		unlink(path);
+		rc_destroy(rh);
+		fprintf(stderr, "error: radius_timeout 0 was accepted (should still be rejected)\n");
+		exit(1);
+	}
+	unlink(path);
 }
 
 /* REQ-CONFIG-CFG-019: under serv-type tls/dtls, radcli_transport_exchange()
@@ -623,6 +701,7 @@ int main(void)
 
 	test_server_list_bound();
 	test_prefix_match_secret();
+	test_zero_retries_allowed();
 	test_tls_no_secret_required();
 	test_servers_file_long_line();
 	test_last_line_no_newline();
