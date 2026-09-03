@@ -281,6 +281,11 @@ int main(void)
 
 		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_TIMEOUT, 1) == 0);
 		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_RETRIES, 0) == 0);
+		/* radcli_ctx_apply() now requires a non-empty authserver
+		 * unconditionally (REQ-CONFIG2-CFG-004, matching
+		 * radcli_ctx_read_config()'s existing requirement) even for a
+		 * context that, as here, only ever sends Accounting-Requests. */
+		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_AUTHSERVER, "192.0.2.1:1812:testing123") == 0);
 		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_ACCTSERVER, "192.0.2.1:1813:testing123") == 0);
 		assert(radcli_ctx_apply(ctx3) == 0);
 

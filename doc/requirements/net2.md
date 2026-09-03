@@ -181,6 +181,27 @@ request and calls `radcli_request_free(NULL)`, confirming no crash (ASan/UBSan
 clean, per `REQ-GEN-MEM-*`).
 **Links:** REQ-GEN-MEM-001
 
+### REQ-NET2-INIT-008 — `radius_timeout <= 0` / `radius_retries < 0` MUST be rejected at request-construction time, matching the config-file path's check — WITHDRAWN
+
+**Status:** WITHDRAWN — superseded by `REQ-CONFIG2-CFG-004`, which now
+routes `radcli_ctx_apply()` through the same check
+(`radcli2_priv_check_config()`, `lib/config.c`) `radcli2_priv_test_config()`
+already used for the config-file path. That resolves this requirement's
+ambiguity in favor of the single-choke-point alternative it had described
+(rather than the request-construction-time default it originally proposed):
+no `radcli_ctx` can reach `radcli_request_new()` with an invalid
+`radius_timeout`/`radius_retries` in the first place, since
+`radcli_ctx_apply()` itself now rejects them, making a second check inside
+`radcli_request_new()` unreachable dead code. The DAE-only-context
+regression this document's Ambiguity note raised as the cost of that
+alternative did not materialize: `REQ-CONFIG2-CFG-004`'s authserver
+requirement was relaxed to "authserver or a configured DAE listener"
+instead, so `tests/dae.c`/`tests/dae-codec.c` needed only to add a valid
+`radius_timeout`/`radius_retries` (already harmless/unused for a DAE-only
+context) rather than a dummy `authserver`.
+**Links:** REQ-CONFIG2-CFG-004, REQ-NET2-INIT-004, REQ-NET2-INIT-006,
+REQ-CONFIG-CFG-010
+
 ---
 
 ## NET — descriptor exposure and validated dispatch
@@ -820,3 +841,19 @@ independently optional.
 to exercise the success path at all; not currently exercised locally, same
 as `net2.md`'s existing `[UNDOCUMENTED-BY-TEST]` RECV-category notes.
 `[UNDOCUMENTED-BY-TEST]`
+
+### REQ-NET2-AAA-007 — `radius_timeout <= 0` / `radius_retries < 0` MUST be rejected before `radcli_aaa()`'s first attempt, matching the config-file path's check — WITHDRAWN
+
+**Status:** WITHDRAWN — superseded by `REQ-CONFIG2-CFG-004`, same reasoning
+as `REQ-NET2-INIT-008`: `radcli_ctx_apply()` itself now rejects an invalid
+`radius_timeout`/`radius_retries`, so no `radcli_ctx` reaching `radcli_aaa()`
+can carry one, making a duplicate check at the top of `radcli_aaa()`
+unreachable dead code. `tests/aaa2.c`'s acct-only `ctx3` (which sets only
+`RADCLI_OPT_ACCTSERVER`, no `RADCLI_OPT_AUTHSERVER`) needed an explicit
+dummy `authserver` added to keep passing `radcli_ctx_apply()`'s
+authserver-or-DAE-listener check — unlike the DAE-only tests, an
+accounting-only client context has no DAE listener alternative to satisfy
+it instead, and `REQ-CONFIG2-CFG-004`'s requirement is unconditional on
+`authserver` for a non-DAE context.
+**Links:** REQ-CONFIG2-CFG-004, REQ-NET2-INIT-008, REQ-NET2-AAA-001,
+REQ-NET2-AAA-002, REQ-CONFIG-CFG-010

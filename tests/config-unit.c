@@ -568,6 +568,57 @@ static void test_acctserver_log_suppression(void)
 	}
 }
 
+/* radcli2_priv_check_config() (lib/config.c) requires either an authserver
+ * or a configured DAE listener (dae-accept set), not an authserver
+ * unconditionally -- an RFC 5176 DAE listener is a server-side role,
+ * independent of ever sending an Access-/Accounting-Request as a client, so
+ * a DAE-only config must not be forced to carry an authserver just to
+ * satisfy this check (REQ-CONFIG2-CFG-004/REQ-CONFIG-CFG-010). This also
+ * means the "no acctserver specified" debug log -- itself only meaningful
+ * for a config that has a client role at all -- must not fire for a
+ * DAE-only config that never configured an authserver either. */
+static void test_dae_only_no_authserver_required(void)
+{
+	char captured[4096];
+	const char no_acctserver_needle[] = "no acctserver specified";
+	const char no_authserver_needle[] = "no authserver";
+
+	const char dae_only_conf[] =
+		"dae-accept yes\n"
+		"dae-server 192.0.2.1\n"
+		"dae-secret testing123\n"
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	if (!run_capturing_stderr(dae_only_conf, sizeof(dae_only_conf) - 1,
+				   captured, sizeof(captured))) {
+		fprintf(stderr, "error: a DAE-only config (dae-accept set, no "
+				"authserver) was rejected: %s\n", captured);
+		exit(1);
+	}
+	if (strstr(captured, no_acctserver_needle) != NULL) {
+		fprintf(stderr, "error: '%s' WAS logged for a DAE-only config "
+				"with no authserver at all (should be skipped, not just "
+				"suppressed)\n", no_acctserver_needle);
+		exit(1);
+	}
+
+	const char neither_conf[] =
+		"radius_timeout 5\n"
+		"radius_retries 1\n";
+	if (run_capturing_stderr(neither_conf, sizeof(neither_conf) - 1,
+				  captured, sizeof(captured))) {
+		fprintf(stderr, "error: a config with neither authserver nor "
+				"dae-accept was accepted\n");
+		exit(1);
+	}
+	if (strstr(captured, no_authserver_needle) == NULL) {
+		fprintf(stderr, "error: expected a 'no authserver' error for a "
+				"config with neither authserver nor dae-accept, got: %s\n",
+				captured);
+		exit(1);
+	}
+}
+
 /* The dae-* option names must be registered in lib/options.h -- a config
  * file that sets all six must be accepted (no "unrecognized option"), and
  * rc_conf_str()/rc_conf_int() must read back exactly what was set. Actual
@@ -708,6 +759,7 @@ int main(void)
 	test_long_line_no_truncation();
 	test_keyword_trailing_whitespace_only();
 	test_acctserver_log_suppression();
+	test_dae_only_no_authserver_required();
 	test_dae_options_registered();
 	test_ignored_options_still_load();
 

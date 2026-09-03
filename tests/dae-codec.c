@@ -196,6 +196,13 @@ static radcli_ctx *setup_dae(const char *dae_server, int max_clock_skew,
 
 	assert(ctx != NULL);
 	assert(radcli_ctx_read_dictionary_from_buffer(ctx, test_dict, sizeof(test_dict)) == 0);
+	/* radcli_ctx_apply() now enforces the same mandatory options
+	 * radcli_ctx_read_config() does (REQ-CONFIG2-CFG-004): either an
+	 * authserver or a configured DAE listener (dae-accept, set below),
+	 * and a valid radius_timeout/radius_retries -- the latter unused by
+	 * this DAE-only context, but still required. */
+	assert(radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+	assert(radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 	assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_ACCEPT, "udp") == 0);
 	assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_SERVER, dae_server) == 0);
 	assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
@@ -454,6 +461,11 @@ int main(int argc, char **argv)
 		/* Two authorized senders, no per-entry :secret override. */
 		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_DAE_SERVER, "192.0.2.1,192.0.2.2") == 0);
 		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
+		/* radcli_ctx_apply() still requires a valid radius_timeout/
+		 * radius_retries even though dae-accept alone satisfies the
+		 * authserver-or-DAE-listener requirement (REQ-CONFIG2-CFG-004). */
+		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 		assert(radcli_ctx_apply(ctx3) == 0);
 		dae3 = radcli_dae_new(ctx3, 0);
 		assert(dae3 != NULL);
@@ -728,6 +740,8 @@ int main(int argc, char **argv)
 		assert(radcli_ctx_set_opt_str(ctx11b, RADCLI_OPT_DAE_SERVER, "127.0.0.1") == 0);
 		assert(radcli_ctx_set_opt_str(ctx11b, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
 		assert(radcli_ctx_set_opt_str(ctx11b, RADCLI_OPT_NAS_IDENTIFIER, "nas1.example.org") == 0);
+		assert(radcli_ctx_set_opt_int(ctx11b, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+		assert(radcli_ctx_set_opt_int(ctx11b, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 		assert(radcli_ctx_apply(ctx11b) == 0);
 		dae11b = radcli_dae_new(ctx11b, RADCLI_DAE_NO_NAS_CHECK);
 		assert(dae11b != NULL);
@@ -778,6 +792,8 @@ int main(int argc, char **argv)
 		assert(radcli_ctx_set_opt_str(ctx_l0, RADCLI_OPT_DAE_ACCEPT, "udp") == 0);
 		assert(radcli_ctx_set_opt_str(ctx_l0, RADCLI_OPT_DAE_SERVER, "127.0.0.1") == 0);
 		assert(radcli_ctx_set_opt_str(ctx_l0, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
+		assert(radcli_ctx_set_opt_int(ctx_l0, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+		assert(radcli_ctx_set_opt_int(ctx_l0, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 		assert(radcli_ctx_apply(ctx_l0) == 0);
 		dae_l0 = radcli_dae_new(ctx_l0, 0);
 		assert(dae_l0 != NULL);
@@ -1061,6 +1077,8 @@ int main(int argc, char **argv)
 		assert(radcli_ctx_set_opt_str(ctx17, RADCLI_OPT_DAE_ACCEPT, "udp") == 0);
 		assert(radcli_ctx_set_opt_str(ctx17, RADCLI_OPT_DAE_SERVER, "localhost") == 0);
 		assert(radcli_ctx_set_opt_str(ctx17, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
+		assert(radcli_ctx_set_opt_int(ctx17, RADCLI_OPT_RADIUS_TIMEOUT, 3) == 0);
+		assert(radcli_ctx_set_opt_int(ctx17, RADCLI_OPT_RADIUS_RETRIES, 3) == 0);
 		assert(radcli_ctx_apply(ctx17) == 0);
 		dae17 = radcli_dae_new(ctx17, 0);
 		assert(dae17 != NULL);
