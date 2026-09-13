@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['a_2064_20bit_20accounting_20counter_0',['Reading a 64-bit accounting counter',['../radcli2-migration-examples.html#autotoc_md10',1,'']]],
+  ['a_20config_20file_1',['Operation without a config file',['../index.html#autotoc_md16',1,'']]],
+  ['a_20realm_20to_20user_20name_20only_20when_20the_20caller_20didn_20t_20already_20supply_20one_2',['Appending a realm to User-Name only when the caller didn&apos;t already supply one',['../radcli2-migration-examples.html#autotoc_md9',1,'']]],
+  ['a_20received_20avp_20list_3',['Reading a received AVP list',['../radcli2-migration-map.html#autotoc_md5',1,'']]],
+  ['a_20repeated_20attribute_20reply_20message_20into_20one_20string_4',['Collecting a repeated attribute (Reply-Message) into one string',['../radcli2-migration-examples.html#autotoc_md13',1,'']]],
+  ['a_20request_20accounting_20dae_5',['Sending a request / accounting / DAE',['../radcli2-migration-map.html#autotoc_md6',1,'']]],
+  ['a_20well_20known_20attribute_20in_20one_20call_6',['Looking up and reading a well-known attribute in one call',['../radcli2-migration-examples.html#autotoc_md12',1,'']]],
+  ['accounting_20counter_7',['Reading a 64-bit accounting counter',['../radcli2-migration-examples.html#autotoc_md10',1,'']]],
+  ['accounting_20dae_8',['Sending a request / accounting / DAE',['../radcli2-migration-map.html#autotoc_md6',1,'']]],
+  ['acct_9',['ACCT',['../group__radcli-api.html#gga1f6b599e8cec6050819503fd2064cc15a74a4fdce4c60f0a4d52384679db6f90d',1,'radcli.h']]],
+  ['already_20supply_20one_10',['Appending a realm to User-Name only when the caller didn&apos;t already supply one',['../radcli2-migration-examples.html#autotoc_md9',1,'']]],
+  ['an_20avp_20list_20to_20send_11',['Building an AVP list to send',['../radcli2-migration-map.html#autotoc_md4',1,'']]],
+  ['an_20rfc_208044_2064_20bit_20or_20ifid_20attribute_12',['Reading an RFC 8044 64-bit or ifid attribute',['../radcli2-migration-examples.html#autotoc_md11',1,'']]],
+  ['and_20reading_20a_20well_20known_20attribute_20in_20one_20call_13',['Looking up and reading a well-known attribute in one call',['../radcli2-migration-examples.html#autotoc_md12',1,'']]],
+  ['api_14',['API',['../index.html',1,'Legacy API'],['../group__radcli-api.html',1,'Main API'],['../radcli2-migration.html',1,'Migrating from the legacy API'],['../group__tls-api.html',1,'TLS/DTLS API']]],
+  ['api_20equivalent_20by_20design_15',['No new-API equivalent, by design',['../radcli2-migration-map.html#autotoc_md7',1,'']]],
+  ['api_20mapping_16',['API mapping',['../radcli2-migration-map.html',1,'radcli2-migration']]],
+  ['appending_20a_20realm_20to_20user_20name_20only_20when_20the_20caller_20didn_20t_20already_20supply_20one_17',['Appending a realm to User-Name only when the caller didn&apos;t already supply one',['../radcli2-migration-examples.html#autotoc_md9',1,'']]],
+  ['attribute_18',['attribute',['../structrc__value__pair.html#a6b8b140b2c272cb58f46cb5d03d5caae',1,'rc_value_pair::attribute'],['../radcli2-migration-examples.html#autotoc_md11',1,'Reading an RFC 8044 64-bit or ifid attribute']]],
+  ['attribute_20in_20one_20call_19',['Looking up and reading a well-known attribute in one call',['../radcli2-migration-examples.html#autotoc_md12',1,'']]],
+  ['attribute_20reply_20message_20into_20one_20string_20',['Collecting a repeated attribute (Reply-Message) into one string',['../radcli2-migration-examples.html#autotoc_md13',1,'']]],
+  ['auth_21',['AUTH',['../group__radcli-api.html#gga1f6b599e8cec6050819503fd2064cc15a8b22fbb60fcbd7a4a5e1e6ff6ee38218',1,'radcli.h']]],
+  ['avp_20list_22',['Reading a received AVP list',['../radcli2-migration-map.html#autotoc_md5',1,'']]],
+  ['avp_20list_20to_20send_23',['Building an AVP list to send',['../radcli2-migration-map.html#autotoc_md4',1,'']]]
+];
