@@ -25,6 +25,7 @@ documented API, a test suite, and support for TCP, TLS and DTLS transport.
 direction and AI agent assistance. Its goals are to:
 
 - make the library safer to use, with safer internal handling of data;
+- support secure transport layer by design (TLS/DTLS);
 - be extendable without breaking the ABI, so that security and bug fixes
   can be delivered without requiring applications to recompile;
 - bring modern RADIUS features not present in the original library, such
