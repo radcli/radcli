@@ -1,4 +1,4 @@
-* Version 2.0.0 (unreleased)
+* Version 2.0.0 (released 2026-09-13)
 - Introduced a new API, provided by the libradcli2 library, built around
   opaque structures so the library can evolve without breaking ABI, and
   which drops the legacy/unnecessary APIs. The existing
