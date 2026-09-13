@@ -70,7 +70,7 @@ fi
 # Create signed git tag
 echo ""
 echo "Creating signed git tag ${version}..."
-git tag -s "${version}" -m "Released ${version}"
+git tag -fs "${version}" -m "Released ${version}"
 
 echo ""
 echo "Pushing tag..."
