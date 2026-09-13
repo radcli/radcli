@@ -19,16 +19,24 @@ handling for event-driven applications, RFC 5176 Dynamic Authorization
 documented API, a test suite, and support for TCP, TLS and DTLS transport.
 
 
-## Which API should I use?
+## About the radcli2 API
 
-- **New code:** use `libradcli2` (`#include <radcli/radcli2.h>`). It's built
-  around opaque, forward-compatible structures, supports RFC 5176 (CoA/
+`libradcli2` is a rewrite of the original API, developed with human
+direction and AI agent assistance. Its goals are to:
+
+- make the library safer to use, with safer internal handling of data;
+- be extendable without breaking the ABI, so that security and bug fixes
+  can be delivered without requiring applications to recompile;
+- bring modern RADIUS features not present in the original library, such
+  as CoA/Disconnect (RFC 5176) and RFC 8044 attribute types, while
+  allowing further protocol enhancements without ABI breakage;
+- provide an asynchronous API by design.
+
+- **New code:** should use `libradcli2` (`#include <radcli/radcli2.h>`). It's
+  built around opaque, forward-compatible structures, supports RFC 5176 (CoA/
   Disconnect), RFC 8044 attribute types, and asynchronous request handling.
   See `src/radexample.c` and `src/radexample-async-dae.c` (async).
-- **Existing radiusclient-ng/freeradius-client code:** `libradcli`'s
-  `rc_*()` API is unchanged and still supported; no action needed.
-- Porting `rc_*()` code to the new API? See `doc/migration-guide.md`.
-
+- Porting legacy code to the radcli2 API? See `doc/migration-guide.md`.
 
 ## Documentation
 
