@@ -358,6 +358,33 @@ that the first address was actually tried and abandoned before the second answer
 **Links:** REQ-NET-NET-009 (the per-address retry/timeout budget this layers on top of),
 REQ-NET-NET-017 (`no_wait`'s single-address exception to this requirement)
 
+### REQ-NET-NET-019 — A TLS/DTLS transport with no established session MUST report no active descriptor
+
+**Requirement:** `rc_init_tls()` MUST initialize the session's socket
+(`st->ctx.sockfd`) to `-1`, so that `rc_sockets_override.get_active_fd()`
+(`tls_get_active_fd()`) returns `-1` — never `0`, a valid descriptor
+number — until `init_session()` first succeeds (REQ-NET-NET-005's
+deferred handshake). Every caller that treats a non-negative
+`get_active_fd()` result as "a session exists" — `lib/sendserver.c`'s
+request-registry drain and retransmit paths — depends on this to avoid
+calling into a GnuTLS session that was never created. A caller that needs
+the session established, rather than merely inspected, MUST use
+`get_fd()`/`sendto()` (which restart it), not `get_active_fd()`.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: the `calloc()`ed `tls_st` left
+`sockfd` at `0`, so `radcli_ctx_dispatch()` on a TLS `ctx` whose first
+`RADCLI_REQUEST_SENDONLY` send had failed to connect called
+`gnutls_record_recv()` on a NULL session and crashed.
+**Source:** lib/tls.c (`rc_init_tls()`, `tls_get_active_fd()`);
+lib/sendserver.c (`radcli2_priv_reqreg_drain()`,
+`radcli2_priv_reqreg_service_timeouts()`, `radcli_transport_send_async()`)
+**Acceptance:** [NET] negative, unit, local — `tests/request.c` performs a
+`RADCLI_REQUEST_SENDONLY` request on a PSK TLS `ctx` whose server refuses
+the connection, then calls `radcli_ctx_dispatch()` and
+`radcli_ctx_get_poll()`; confirmed crashing (SIGSEGV) against the unfixed
+code, passing after.
+**Links:** REQ-NET-NET-005, REQ-NET2-NET-003, REQ-NET2-SEND-012
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling

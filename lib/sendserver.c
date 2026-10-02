@@ -1271,9 +1271,11 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	}
 
 	if (is_radsec) {
-		sockfd = sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1;
+		/* get_fd(), not get_active_fd(): establishes the session if it
+		 * is not up yet (REQ-NET2-SEND-012, REQ-NET-NET-019). */
+		sockfd = sfuncs->get_fd(sfuncs->ptr, NULL);
 		if (sockfd < 0) {
-			rc_log(LOG_ERR, "%s: no established RadSec session", __func__);
+			rc_log(LOG_ERR, "%s: cannot establish the RadSec session", __func__);
 			result = ERROR_RC;
 			goto fail;
 		}

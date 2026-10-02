@@ -1110,6 +1110,8 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 
 	st->rh = rh;
 	st->flags = flags;
+	/* calloc() left 0, a valid descriptor: no session exists yet (REQ-NET-NET-019). */
+	st->ctx.sockfd = -1;
 
 	rh->so.ptr = st;
 

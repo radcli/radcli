@@ -260,6 +260,24 @@ entry point at all).
 **Acceptance:** [NET][SEC] negative, unit, local — `tests/dae-codec.c` sends a bad Request Authenticator, a bad Message-Authenticator, a stale Event-Timestamp, and a request from an unauthorized source (a second handle whose `dae-server` excludes the only address the test can send from) and confirms none reaches the handler and none gets a reply. `tests/dae-tests.sh` repeats the same checks end to end against `src/raddaeserver.c`, driven by `tests/dae-client.py`.
 **Links:** dae.md's REQ-DAE-SEC-001 … REQ-DAE-SEC-005
 
+### REQ-NET2-NET-003 — radcli_ctx_dispatch() on a TLS/DTLS ctx with no established session is a safe no-op for the session
+
+**Requirement:** `radcli_ctx_dispatch()` MUST NOT read from or write to a
+TLS/DTLS `ctx`'s session while none is established (never connected, or
+every connection attempt so far failed), and MUST return `0` rather than
+crash or report failure; `radcli_ctx_get_poll()` MUST report no descriptor
+for it (`*nfds == 0`). This holds even when a
+`RADCLI_REQUEST_SENDONLY` request has already used `ctx`'s in-flight
+registry, so the registry drain runs.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/dae.c (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`);
+lib/sendserver.c (`radcli2_priv_reqreg_drain()`); lib/tls.c
+(`tls_get_active_fd()`, REQ-NET-NET-019)
+**Acceptance:** [NET] negative, unit, local — `tests/request.c`'s
+refused-PSK-TLS-server case (REQ-NET-NET-019's acceptance).
+**Links:** REQ-NET-NET-019, REQ-NET2-NET-001, REQ-NET2-SEND-012
+
 ---
 
 ## SEND — packet construction

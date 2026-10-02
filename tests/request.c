@@ -394,6 +394,56 @@ int main(int argc, char **argv)
 		radcli_ctx_free(ctx2);
 	}
 
+	/* --- a TLS ctx whose session was never established: a
+	 * RADCLI_REQUEST_SENDONLY send that cannot connect fails, and the
+	 * radcli_ctx_dispatch() that follows must not touch the absent session
+	 * (REQ-NET-NET-019, REQ-NET2-NET-003). PSK, so no certificate file is
+	 * needed; 127.0.0.1:1 refuses the connection. --- */
+
+	{
+		static const uint8_t psk[16] = "0123456789abcdef";
+		radcli_ctx *ctx3 = radcli_ctx_new(0);
+		radcli_avp_list *send_list3;
+		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+		size_t nfds;
+		int timeout_ms;
+
+		assert(ctx3 != NULL);
+		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_SERV_TYPE, "tls") == 0);
+		assert(radcli_ctx_set_opt_str(ctx3, RADCLI_OPT_AUTHSERVER, "127.0.0.1:1") == 0);
+		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_TIMEOUT, 1) == 0);
+		assert(radcli_ctx_set_opt_int(ctx3, RADCLI_OPT_RADIUS_RETRIES, 0) == 0);
+		assert(radcli_ctx_set_tls_psk(ctx3, "id", 2, psk, sizeof(psk)) == 0);
+		assert(radcli_ctx_apply(ctx3) == 0);
+
+		send_list3 = radcli_avp_list_new();
+		assert(send_list3 != NULL);
+		assert(radcli_avp_add_str_by_num(send_list3, ctx3, PW_USER_NAME, 0, "dave") == 0);
+		r = radcli_request_new(ctx3, RADCLI_CODE_ACCESS_REQUEST, send_list3);
+		radcli_avp_list_free(send_list3);
+		assert(r != NULL);
+
+		if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_perform(RADCLI_REQUEST_SENDONLY) "
+					"to a refused TLS server did not return RADCLI_ERROR\n");
+			exit(1);
+		}
+		if (radcli_ctx_dispatch(ctx3) != 0) {
+			fprintf(stderr, "error: radcli_ctx_dispatch() on a TLS ctx with no "
+					"established session failed\n");
+			exit(1);
+		}
+		if (radcli_ctx_get_poll(ctx3, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 ||
+		    nfds != 0) {
+			fprintf(stderr, "error: radcli_ctx_get_poll() reported a descriptor "
+					"for a TLS ctx with no established session\n");
+			exit(1);
+		}
+
+		radcli_request_free(r);
+		radcli_ctx_free(ctx3);
+	}
+
 	printf("radcli2 request construction/validation: all tests passed\n");
 	return 0;
 }
