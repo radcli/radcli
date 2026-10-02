@@ -214,14 +214,11 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
  * @param send_buffer destination, capacity RC_BUFFER_LEN.
  * @param id the packet's Identifier, always supplied by the caller -- this
  *  function does not draw one itself, so every call site states explicitly
- *  where its id comes from: rc_get_random_byte() for every caller not
- *  sharing a socket with any other concurrently in-flight exchange (the
- *  blocking radcli_do_exchange()/radcli_transport_exchange() path,
- *  radcli_aaa(), radcli2_priv_dae_send_watchdog() -- REQ-NET2-SEND-010), or,
- *  for RADCLI_REQUEST_SENDONLY, the Identifier ctx's in-flight registry
- *  already reserved (REQ-NET2-SEND-016) -- reserved and passed in before
- *  this call, never patched into the wire packet afterward, since id is
- *  itself covered by the Message-Authenticator HMAC.
+ *  where its id comes from (REQ-NET2-SEND-010): the in-flight registry's
+ *  reservation for RADCLI_REQUEST_SENDONLY, radcli2_priv_reqreg_pick_id()
+ *  for blocking requests and the watchdog -- always before this call, never
+ *  patched into the wire packet afterward, since id is itself covered by
+ *  the Message-Authenticator HMAC.
  * @param vector_out set to the request authenticator vector used.
  * @param out_len set to the total encoded length, including the appended
  *  Message-Authenticator attribute.
@@ -326,18 +323,25 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 {
 	uint8_t send_buffer[RC_BUFFER_LEN];
 	int total_length;
+	uint8_t id;
+	int slot;
+	int result;
 
-	/* Own per-call socket via radcli_transport_exchange() below -- no other
-	 * concurrently in-flight exchange to collide with, so a CSPRNG draw is
-	 * sufficient (REQ-NET2-SEND-010). */
-	if (radcli_encode_request(rh, code, send, secret, send_buffer, rc_get_random_byte(),
-				  vector_out, &total_length) < 0)
+	if (radcli2_priv_reqreg_pick_id(rh, &id, &slot) != 0)
 		return ERROR_RC;
 
-	return radcli_transport_exchange(rh, NULL, server, svc_port,
-					 secret, 0, timeout, retries, no_wait, type,
-					 send_buffer, total_length,
-					 recv_buffer, recv_buffer_cap, recv_len, out_reply_code);
+	if (radcli_encode_request(rh, code, send, secret, send_buffer, id,
+				  vector_out, &total_length) < 0) {
+		radcli2_priv_reqreg_release(rh, slot);
+		return ERROR_RC;
+	}
+
+	result = radcli_transport_exchange(rh, NULL, server, svc_port,
+					   secret, 0, timeout, retries, no_wait, type,
+					   send_buffer, total_length,
+					   recv_buffer, recv_buffer_cap, recv_len, out_reply_code);
+	radcli2_priv_reqreg_release(rh, slot);
+	return result;
 }
 
 /** @brief Send a request, optionally waiting for the reply.

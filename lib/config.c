@@ -1418,6 +1418,7 @@ rc_handle *radcli2_priv_new(void)
         }
 	rh->req_fd = -1; /* REQ-NET2-SEND-016: 0 (calloc's default) is a valid
 	                  * fd (stdin) -- must not be mistaken for "unset". */
+	rh->watchdog_slot = -1;
 	return rh;
 }
 

@@ -80,10 +80,11 @@ only -- the config-file path is exercised only by inspection of the shared
 `watchdog-interval` has elapsed since ctx's TLS/DTLS session's last activity
 (REQ-WATCHDOG-NET-002) and, if so, make one non-blocking attempt to send an
 RFC 5997 Status-Server (Code 12) over that established session, built the
-same way any other outbound request is (random Identifier and Request
-Authenticator, a correct Message-Authenticator, no other attributes), using
-the RFC 6614 §2.3/RFC 7360 §3.2 fixed RadSec secret. It MUST NOT wait for,
-or attempt to correlate, any reply, and MUST NOT queue or retry a send that
+same way any other outbound request is (an Identifier per net2.md's
+REQ-NET2-SEND-010, a random Request Authenticator, a correct
+Message-Authenticator, no other attributes), using the RFC 6614 §2.3/RFC
+7360 §3.2 fixed RadSec secret. It MUST NOT wait for any reply — a reply only
+frees the watchdog's Identifier — and MUST NOT queue or retry a send that
 would block — unlike a DAE reply (`REQ-DAE-SEC-013`), a dropped watchdog is
 not a delivery failure worth that machinery: the next call to
 `radcli_ctx_dispatch()` once the interval elapses again covers it. This

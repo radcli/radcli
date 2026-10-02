@@ -293,6 +293,11 @@ struct rc_conf
 	 * (lib/sendserver.c). */
 	int			req_fd;
 	struct radcli_reqreg	*reqreg;
+	/* The registry slot holding the last watchdog's Identifier until its
+	 * reply arrives, or -1 (REQ-NET2-SEND-010); and when a watchdog was
+	 * last skipped, which counts as that round's attempt. */
+	int			watchdog_slot;
+	time_t			watchdog_skipped;
 
 	/* radcli2.h's radcli_ctx_set_tls_psk(): TLS PSK identity/key for the
 	 * new API's single-server context, set directly as bytes -- distinct
@@ -410,6 +415,8 @@ void radcli_transport_async_abort(struct radcli_async_send_st *st);
 int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owner, uint8_t *out_id);
 
 void radcli2_priv_reqreg_release(rc_handle *rh, int slot);
+
+int radcli2_priv_reqreg_pick_id(rc_handle *rh, uint8_t *out_id, int *out_slot);
 
 int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
 
