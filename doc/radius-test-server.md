@@ -9,14 +9,14 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
 - `tests/acct-async-tests.sh` — `rc_acct_async()` delivery and non-blocking return
   (Accounting-Request/Response, `--no-reply`)
 - `tests/request-async-validation-tests.sh` — reply validation on the
-  `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`)
+  `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`, `--spoof-source`)
 
 ## Invocation
 
 ```
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
                                [--msg-auth correct|absent|wrong] [--no-reply]
-                               [--stale-truncated]
+                               [--stale-truncated] [--spoof-source]
 ```
 
 | Option | Default | Meaning |
@@ -26,6 +26,7 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--msg-auth` | `correct` | How to handle the Message-Authenticator attribute in an Access-Accept reply (ignored for Accounting-Request) |
 | `--no-reply` | off | Log every received Access-/Accounting-Request but send no response (UDP transport only) |
 | `--stale-truncated` | off | Send each reply as two datagrams: the full valid reply under the next Identifier, then only the real reply's 20-byte header with its Length unchanged (UDP transport only) |
+| `--spoof-source` | off | Send each valid reply from a different local port than the one the request arrived on (UDP transport only) |
 
 The server accepts one UDP packet at a time and, unless `--no-reply` or
 `--stale-truncated` is given, sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
@@ -58,6 +59,14 @@ datagram shorter than its own Length field ends up authenticating the real
 header plus the decoy's leftover attribute bytes, and accepts the reply.
 `tests/request-async-validation-tests.sh` uses this to check that the
 `RADCLI_REQUEST_SENDONLY` drain rejects it (`REQ-NET2-SEND-017`).
+
+### `--spoof-source`
+
+Sends the correct, fully valid reply, but from a fresh socket on another
+local port, so its source address does not match the server the request
+went to. `tests/request-async-validation-tests.sh` uses this to check that
+the `RADCLI_REQUEST_SENDONLY` drain, which reads from a shared unconnected
+socket, discards a reply from an unexpected source (`REQ-NET2-SEND-016`).
 
 ---
 

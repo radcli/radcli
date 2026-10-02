@@ -7,9 +7,10 @@
 srcdir="${srcdir:-.}"
 
 echo "===== radcli2 RADCLI_REQUEST_SENDONLY reply validation ====="
-echo " A reply shorter than its own Length field must be discarded on the"
-echo " poll-driven path, even when the client's receive buffer still holds"
-echo " the rest of a valid reply (see tests/request-async-validation.c)."
+echo " Replies the poll-driven path must discard: one shorter than its own"
+echo " Length field (even when the client's receive buffer still holds the"
+echo " rest of a valid reply), and a valid one from an unexpected source"
+echo " (see tests/request-async-validation.c)."
 echo "============================================================"
 
 if ! python3 -c '' 2>/dev/null; then
@@ -24,36 +25,46 @@ TMPFILE=tmp$$.out
 LOG=radius-server-asyncval-$PID.log
 SRVPID=""
 
-eval "$GETPORT"
-
 function finish {
 	test -n "${SRVPID}" && kill ${SRVPID} >/dev/null 2>&1
 	rm -f $TMPFILE $LOG
 }
 trap finish EXIT
 
-python3 ${srcdir}/radius-server.py --port ${PORT} --secret testing123 \
-	--stale-truncated >$LOG 2>&1 &
-SRVPID=$!
-for i in 1 2 3 4 5 6 7 8; do
-	check_if_port_in_use ${PORT} && break
-	sleep 0.5
-done
+# $1: the tests/radius-server.py option selecting the reply to discard.
+function run_mode {
+	local mode="$1"
 
-${top_builddir}/tests/request-async-validation ${PORT} testing123 >$TMPFILE 2>&1
-RET=$?
-sed 's/^/         | /' $TMPFILE
+	eval "$GETPORT"
+	python3 ${srcdir}/radius-server.py --port ${PORT} --secret testing123 \
+		${mode} >$LOG 2>&1 &
+	SRVPID=$!
+	for i in 1 2 3 4 5 6 7 8; do
+		check_if_port_in_use ${PORT} && break
+		sleep 0.5
+	done
 
-if ! grep -q "received Access-Request" $LOG; then
-	echo "[ FAIL ] the server never received the Access-Request"
-	cat $LOG
-	exit 1
-fi
+	${top_builddir}/tests/request-async-validation ${PORT} testing123 >$TMPFILE 2>&1
+	RET=$?
+	sed 's/^/         | /' $TMPFILE
+	kill ${SRVPID} >/dev/null 2>&1
+	wait ${SRVPID} 2>/dev/null
+	SRVPID=""
 
-if test $RET != 0; then
-	echo "[ FAIL ] request-async-validation exited with code $RET"
-	exit 1
-fi
+	if ! grep -q "received Access-Request" $LOG; then
+		echo "[ FAIL ] ${mode}: the server never received the Access-Request"
+		cat $LOG
+		exit 1
+	fi
 
-echo "[  OK  ] truncated reply discarded on the RADCLI_REQUEST_SENDONLY path"
+	if test $RET != 0; then
+		echo "[ FAIL ] ${mode}: request-async-validation exited with code $RET"
+		exit 1
+	fi
+}
+
+run_mode --stale-truncated
+run_mode --spoof-source
+
+echo "[  OK  ] truncated and wrong-source replies discarded on the RADCLI_REQUEST_SENDONLY path"
 exit 0

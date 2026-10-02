@@ -22,14 +22,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Reply validation on the RADCLI_REQUEST_SENDONLY path: a datagram on
- * ctx's shared request socket that is shorter than its own Length field
- * MUST be discarded, never authenticated (REQ-NET2-SEND-017). The peer, tests/radius-server.py --stale-truncated,
- * first sends the complete valid reply under another Identifier (discarded,
- * but left in the client's receive buffer), then only the real reply's
- * header; a client that skips the length check authenticates that header
- * over the leftover bytes and accepts it. The request must instead time
- * out. */
+/* Reply validation on the RADCLI_REQUEST_SENDONLY path: a reply the
+ * request-registry drain must discard, so the request times out instead of
+ * completing. Run by tests/request-async-validation-tests.sh against
+ * tests/radius-server.py in two modes:
+ *
+ * --stale-truncated: the complete valid reply under another Identifier
+ * (discarded, but left in the client's receive buffer), then only the real
+ * reply's header; a client that skips the length check authenticates that
+ * header over the leftover bytes (REQ-NET2-SEND-017).
+ *
+ * --spoof-source: the valid reply, sent from another port than the server's;
+ * the shared request socket is unconnected, so only an explicit source check
+ * rejects it (REQ-NET2-SEND-016). */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,14 +104,14 @@ int main(int argc, char **argv)
 	}
 
 	if (rc != RADCLI_TIMEOUT) {
-		fprintf(stderr, "error: a reply truncated below its Length field was "
-				"accepted (radcli_request_done() returned %d, expected "
+		fprintf(stderr, "error: a reply that must be discarded was accepted "
+				"(radcli_request_done() returned %d, expected "
 				"RADCLI_TIMEOUT)\n", rc);
 		return 1;
 	}
 
 	radcli_request_free(r);
 	radcli_ctx_free(ctx);
-	printf("OK: truncated reply discarded, request timed out\n");
+	printf("OK: reply discarded, request timed out\n");
 	return 0;
 }

@@ -615,7 +615,9 @@ are occupied, and confirms a freed slot's Identifier becomes available
 again once its request completes or is freed. [SEND] negative, unit,
 local — a reply datagram spoofed from a source address that does not match
 any registry slot's expected peer is confirmed silently discarded, not
-matched to an in-flight request. [SEND] unit, local — freeing a request
+matched to an in-flight request (`tests/request-async-validation-tests.sh`
+against `tests/radius-server.py --spoof-source`, which sends the valid reply
+from another port; the request times out). [SEND] unit, local — freeing a request
 mid-sequence (vacating a slot out of order) and then performing several new
 `RADCLI_REQUEST_SENDONLY` requests confirms the vacated slot's Identifier is
 reused only after every other, longer-free slot has been (LRU order, not

@@ -217,7 +217,7 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
     return packet
 
 def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
-        stale_truncated=False):
+        stale_truncated=False, spoof_source=False):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -239,6 +239,11 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
             decoy = response[:1] + bytes([(response[1] + 1) % 256]) + response[2:]
             sock.sendto(decoy, addr)
             sock.sendto(response[:20], addr)
+        elif spoof_source:
+            # The correct, valid reply, but from another local port than
+            # the one the request was sent to.
+            with socket.socket(family, socket.SOCK_DGRAM) as other:
+                other.sendto(response, addr)
         else:
             sock.sendto(response, addr)
 
@@ -332,17 +337,21 @@ def main():
                         help='Answer each request with a valid reply under the next '
                              'Identifier, then with only the real reply\'s 20-byte header '
                              '(Length unchanged). UDP transport only.')
+    parser.add_argument('--spoof-source', action='store_true',
+                        help='Send each valid reply from a different local port than the '
+                             'one the request arrived on. UDP transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
-        if args.no_reply or args.stale_truncated:
-            parser.error('--no-reply/--stale-truncated are only supported with --transport udp')
+        if args.no_reply or args.stale_truncated or args.spoof_source:
+            parser.error('--no-reply/--stale-truncated/--spoof-source are only supported '
+                         'with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
         run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
-            args.stale_truncated)
+            args.stale_truncated, args.spoof_source)
 
 if __name__ == '__main__':
     main()
