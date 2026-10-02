@@ -795,34 +795,13 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 
 /*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
  * the ordinary tls_recvfrom() path) to read one already-available record
- * into buf (capacity cap), taking and releasing rh's session lock itself
- * with a non-blocking trylock -- so a concurrent, already-in-flight
- * radcli_transport_exchange() (which holds that lock for its entire
- * send-and-wait cycle) simply means "nothing ready this call" rather than
- * blocking the caller's event loop; that in-flight exchange's own
- * tls_recvfrom() is what will actually see and demux the record in that
- * case.
- *
- * Unlike a typical lock/read/unlock helper, this LEAVES rh's session lock
- * HELD on success (return >0): the caller (lib/dae.c's
- * radcli_ctx_dispatch()) must call radcli2_priv_tls_dae_poll_done() once
- * it has entirely finished with that record, including any nested call
- * into radcli2_priv_dae_on_radsec_packet(). This is deliberate, not an
- * oversight: radcli2_priv_dae_on_radsec_packet() takes a second lock of
- * its own (lib/dae.c's per-dae radsec_lock) and may, from inside that
- * second lock, need the session lock again (a queued reply send) --
- * consistently nesting the session lock *outside* radsec_lock on every
- * call path (this one, and tls_recvfrom()'s inline demux, which already
- * holds the session lock for its entire enclosing
- * radcli_transport_exchange() call before radsec_lock is ever taken) is
- * what avoids an AB-BA lock-order inversion between the two.
+ * into buf (capacity cap).
  *
  * @param rh a handle to parsed configuration.
  * @param buf destination for the record.
  * @param cap buf's capacity in bytes.
- * @return the record length (>0, lock left held) on success, 0 (lock
- *  already released) if nothing was ready or the trylock was contended,
- *  -1 (lock already released) on a session error.
+ * @return the record length (>0) on success, 0 if nothing was ready, -1
+ *  on a session error.
  -*/
 int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 {
@@ -838,46 +817,21 @@ int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 			   * radcli_dae_start()'s/an ordinary request's job, not
 			   * this opportunistic idle-time check's. */
 
-	/* A trylock, not a blocking lock: if radcli_transport_exchange() is
-	 * mid-exchange on another thread, it already owns this session's
-	 * only read path and will itself see and demux any DAE record that
-	 * arrives while it holds the lock (tls_recvfrom()'s own inline
-	 * demux, above) -- so contention here simply means "nothing new to
-	 * report this call", never a stall of the caller's event loop. */
-	if (pthread_mutex_trylock(&st->lock) != 0)
-		return 0;
-
 	ret = gnutls_record_recv(st->ctx.session, buf, cap);
 
-	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-		pthread_mutex_unlock(&st->lock);
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
 		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
-	}
 
 	if (ret <= 0) {
 		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__,
 		       gnutls_strerror(ret));
 		st->ctx.need_restart = 1;
-		pthread_mutex_unlock(&st->lock);
 		return -1;
 	}
 
 	st->ctx.last_msg = time(0);
 	st->ctx.last_recv = st->ctx.last_msg;
-	/* Lock deliberately left held -- see this function's own doc comment
-	 * above and radcli2_priv_tls_dae_poll_done() below. */
 	return ret;
-}
-
-/*- Release the lock radcli2_priv_tls_dae_poll() left held on success. -*/
-void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
-{
-	tls_st *st;
-
-	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
-		return;
-	st = rh->so.ptr;
-	pthread_mutex_unlock(&st->lock);
 }
 
 /*- Make one non-blocking attempt to send a DAE-over-RadSec reply.
@@ -891,15 +845,6 @@ void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
  * otherwise block. On GNUTLS_E_AGAIN/_INTERRUPTED, the caller is expected
  * to queue buf and retry this same call later (lib/dae.c's bounded
  * radsec_reply_queue) rather than wait here.
- *
- * The session lock is a plain (recursive) lock, not a trylock: every
- * caller of this function already holds it via the recursive session
- * lock nesting radcli2_priv_tls_dae_poll()'s doc comment above describes
- * (this thread either came from tls_recvfrom()'s inline demux, which holds it
- * for the whole enclosing radcli_transport_exchange() call, or from
- * radcli_ctx_dispatch(), which holds it across radcli2_priv_dae_on_radsec_
- * packet() precisely so this nests rather than deadlocking) -- so this
- * never actually blocks waiting for another thread.
  *
  * @return the number of bytes GnuTLS accepted as one complete record
  *  (matching gnutls_record_send()'s own return convention) on success, 0
@@ -919,22 +864,17 @@ int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
 		return -1;
 
-	pthread_mutex_lock(&st->lock);
 	ret = gnutls_record_send(st->ctx.session, buf, len);
 
-	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-		pthread_mutex_unlock(&st->lock);
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
 		return 0;
-	}
 	if (ret < 0) {
 		rc_log(LOG_ERR, "%s: error in sending: %s", __func__, gnutls_strerror(ret));
 		st->ctx.need_restart = 1;
-		pthread_mutex_unlock(&st->lock);
 		return -1;
 	}
 
 	st->ctx.last_msg = time(0);
-	pthread_mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -1087,26 +1027,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 
 	st->rh = rh;
 	st->flags = flags;
-	{
-		/* Recursive, not the default (non-recursive) type: DAE-over-
-		 * RadSec's demux (lib/dae.c's radcli2_priv_dae_on_radsec_packet(),
-		 * called inline from tls_recvfrom() below) can itself need to
-		 * send an immediate reply -- a retransmission's cached ACK/NAK
-		 * (PROCESS_DUP_ANSWERED), or an RFC 6614 SS2.5 406 NAK when
-		 * dynamic authorization isn't enabled -- via this same rh's
-		 * so.sendto()/so.lock(), while tls_recvfrom() itself is being
-		 * called from inside radcli_transport_exchange() (lib/sendserver.c),
-		 * which already holds this exact lock for its entire send-and-
-		 * wait cycle, on this same thread. A plain mutex would deadlock
-		 * (or be undefined behavior) the moment that reply path is taken
-		 * from that call chain; a recursive one simply nests. */
-		pthread_mutexattr_t attr;
-
-		pthread_mutexattr_init(&attr);
-		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-		pthread_mutex_init(&st->lock, &attr);
-		pthread_mutexattr_destroy(&attr);
-	}
+	pthread_mutex_init(&st->lock, NULL);
 	/* calloc() left 0, a valid descriptor: no session exists yet (REQ-NET-NET-019). */
 	st->ctx.sockfd = -1;
 
@@ -1405,11 +1326,6 @@ int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 	(void)buf;
 	(void)cap;
 	return 0;
-}
-
-void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
-{
-	(void)rh;
 }
 
 int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)

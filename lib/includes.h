@@ -104,10 +104,6 @@
 #include <pwd.h>
 #endif
 
-#include <pthread.h> /* struct radcli_reqreg's lock (REQ-NET2-SEND-016);
-                       * radcli threads are still never spawned by radcli
-                       * itself (REQ-GEN-SEC-002) -- this only guards
-                       * instance state a caller's own threads may share. */
 
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -253,7 +249,6 @@ struct radcli_reqreg_slot {
 struct radcli_reqreg {
 	struct radcli_reqreg_slot slots[RADCLI_CTX_MAX_INFLIGHT];
 	uint64_t free_seq_ctr;
-	pthread_mutex_t lock;
 };
 
 struct rc_conf
@@ -294,13 +289,10 @@ struct rc_conf
 	 * sfuncs->get_active_fd(), instead), kept open for ctx's own lifetime
 	 * and closed only by radcli2_priv_destroy(). reqreg is the in-flight
 	 * registry backing it (also used, for the slot/Identifier bookkeeping
-	 * only, by TLS/DTLS), allocated lazily alongside via
-	 * reqreg_ensure()/reqreg_init_lock (lib/sendserver.c) -- guarding the
-	 * lazy allocation itself, since reqreg_init_lock is always initialized
-	 * (radcli2_priv_new()) even before reqreg exists. */
+	 * only, by TLS/DTLS), allocated lazily alongside via reqreg_ensure()
+	 * (lib/sendserver.c). */
 	int			req_fd;
 	struct radcli_reqreg	*reqreg;
-	pthread_mutex_t		reqreg_init_lock;
 
 	/* radcli2.h's radcli_ctx_set_tls_psk(): TLS PSK identity/key for the
 	 * new API's single-server context, set directly as bytes -- distinct
@@ -473,7 +465,6 @@ time_t radcli2_priv_tls_last_recv(rc_handle *rh);
 int radcli2_priv_tls_force_reconnect(rc_handle *rh);
 int radcli2_priv_tls_ensure_connected(rc_handle *rh);
 int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap);
-void radcli2_priv_tls_dae_poll_done(rc_handle *rh);
 int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);

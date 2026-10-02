@@ -50,7 +50,7 @@ tested (`tests/dae.c`, `tests/dae-codec.c`, and end to end via
 `tests/dae-freeradius-tests.sh` against a real FreeRADIUS `radclient` as DAC, for
 the UDP transport; `tests/dae-radsec-tests.sh`/`tests/dae-tls-client.py` for a
 single-message RadSec exchange, `tests/dae-radsec-stress.c`/
-`tests/radsec-stress-server.py` for concurrent mixed ordinary/DAE traffic, and
+`tests/radsec-stress-server.py` for interleaved mixed ordinary/DAE traffic, and
 `tests/dae-radsec-backpressure.c`/`tests/radsec-backpressure-server.py` for the
 dispatch-must-not-block property REQ-DAE-SEC-013 covers, for the RadSec
 transport). Every requirement in this document now carries `Status: DERIVED`

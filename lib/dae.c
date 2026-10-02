@@ -67,7 +67,6 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <time.h>
-#include <pthread.h>
 
 #define RADCLI_DAE_DEFAULT_PORT 3799
 /* Sane bound on the number of addresses dae-server's entries resolve to --
@@ -125,14 +124,11 @@ struct radcli_dae_dac {
 /* Fixed bound on radcli2_priv_dae_on_radsec_packet()'s queue of validated
  * RadSec requests awaiting delivery via radcli_ctx_dispatch() -- never
  * grown at run time, same "no unbounded packet-driven allocation"
- * principle as RADCLI_DAE_SLOTS/RADCLI_DAE_MAX_DACS above. In practice
- * this holds at most one entry almost always: radcli_transport_exchange()
- * serializes the whole RadSec session behind one lock for an entire
- * send-and-wait cycle (lib/sendserver.c), so only one thread is ever
- * reading the wire at a time. A small bound still exists for the case
- * where the application is slow to call radcli_ctx_dispatch() while
- * several requests arrive; overflow drops the oldest queued entry and
- * logs, rather than growing without limit. */
+ * principle as RADCLI_DAE_SLOTS/RADCLI_DAE_MAX_DACS above. It fills when
+ * requests arrive faster than the application calls radcli_ctx_dispatch(),
+ * or during a blocking exchange (tls_recvfrom()'s inline demux); overflow
+ * drops the oldest queued entry and logs, rather than growing without
+ * limit. */
 #define RADCLI_DAE_RADSEC_QUEUE_SIZE 8
 
 /* REQ-DAE-SEC-013: bound on radcli_ctx_dispatch()'s queue of RadSec
@@ -184,19 +180,7 @@ struct radcli_dae_st {
 
 	/* radcli2_priv_dae_on_radsec_packet()'s queue -- see
 	 * RADCLI_DAE_RADSEC_QUEUE_SIZE's comment. FIFO: radsec_queue[0] is
-	 * the oldest still-undelivered request. Protected by radsec_lock:
-	 * radcli2_priv_dae_on_radsec_packet() can run on whatever thread is
-	 * currently inside radcli_transport_exchange() (tls_recvfrom()'s
-	 * inline demux, holding the *session's* lock, lib/tls.c) at the exact
-	 * same time radcli_ctx_dispatch()'s poll thread (having already
-	 * released the session lock -- radcli2_priv_tls_dae_poll() only holds
-	 * it for the read itself) is draining the queue or processing a
-	 * record of its own -- the session lock alone does not serialize
-	 * these two call sites against each other. process_packet()'s own
-	 * duplicate-suppression table (dae->slots[]) needs the same
-	 * protection for the identical reason, so this lock is held around
-	 * every radsec-mode call into process_packet() too, not just the
-	 * queue operations. */
+	 * the oldest still-undelivered request. */
 	struct radcli_dae_request_st *radsec_queue[RADCLI_DAE_RADSEC_QUEUE_SIZE];
 	unsigned radsec_queue_len;
 
@@ -204,12 +188,9 @@ struct radcli_dae_st {
 	 * radcli2_priv_tls_dae_send() reports the send would block. FIFO,
 	 * drained in order (a later reply must not overtake an earlier one
 	 * still waiting) by radsec_flush_reply_queue(), called from
-	 * radcli_ctx_dispatch()'s radsec branch. Also protected by
-	 * radsec_lock, for the same reason radsec_queue[] above is. */
+	 * radcli_ctx_dispatch()'s radsec branch. */
 	struct radcli_dae_pending_reply radsec_reply_queue[RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE];
 	unsigned radsec_reply_queue_len;
-
-	pthread_mutex_t radsec_lock;
 };
 
 struct radcli_dae_request_st {
@@ -305,8 +286,7 @@ static struct radcli_dae_request_st *radsec_queue_pop(struct radcli_dae_st *dae)
 	return req;
 }
 
-/* Appends one reply to dae->radsec_reply_queue -- REQ-DAE-SEC-013. Caller
- * must hold dae->radsec_lock. If the queue is already at
+/* Appends one reply to dae->radsec_reply_queue -- REQ-DAE-SEC-013. If the queue is already at
  * RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE, the OLDEST queued reply is dropped
  * (and logged) to make room, per that requirement's own text ("dropped
  * rather than buffered without limit"); a reply longer than
@@ -314,13 +294,13 @@ static struct radcli_dae_request_st *radsec_queue_pop(struct radcli_dae_st *dae)
  * (RFC 5176 replies are small and fixed-shape -- see that constant's
  * comment -- so this should never actually happen in practice). */
 /*- Append one reply to dae->radsec_reply_queue -- see the comment above
- * for the drop policy. Caller must hold dae->radsec_lock.
+ * for the drop policy.
  *
  * @param dae the listener whose reply queue to append to.
  * @param buf the reply bytes to enqueue.
  * @param len buf's length in bytes.
  -*/
-static void radsec_reply_queue_push_locked(struct radcli_dae_st *dae, const uint8_t *buf, size_t len)
+static void radsec_reply_queue_push(struct radcli_dae_st *dae, const uint8_t *buf, size_t len)
 {
 	unsigned i;
 
@@ -345,18 +325,16 @@ static void radsec_reply_queue_push_locked(struct radcli_dae_st *dae, const uint
 /* Attempts to send every reply currently queued, in order, stopping at
  * the first one that would still block (a later reply must never
  * overtake an earlier one that has not gone out yet) -- one non-blocking
- * attempt per queued reply per call, never a wait. Caller must hold
- * dae->radsec_lock. A session error (radcli2_priv_tls_dae_send()
+ * attempt per queued reply per call, never a wait. A session error (radcli2_priv_tls_dae_send()
  * returning -1) drops the reply it was attempting: the session is being
  * marked for reconnection anyway, and there is nothing more sensible to
  * do with a reply for a connection that no longer exists. */
 /*- Attempt one non-blocking send per queued reply, in order, stopping at
- * the first one that would still block -- see the comment above. Caller
- * must hold dae->radsec_lock.
+ * the first one that would still block -- see the comment above.
  *
  * @param dae the listener whose reply queue to flush.
  -*/
-static void radsec_flush_reply_queue_locked(struct radcli_dae_st *dae)
+static void radsec_flush_reply_queue(struct radcli_dae_st *dae)
 {
 	while (dae->radsec_reply_queue_len > 0) {
 		struct radcli_dae_pending_reply *p = &dae->radsec_reply_queue[0];
@@ -369,18 +347,6 @@ static void radsec_flush_reply_queue_locked(struct radcli_dae_st *dae)
 			dae->radsec_reply_queue[i - 1] = dae->radsec_reply_queue[i];
 		dae->radsec_reply_queue_len--;
 	}
-}
-
-/*- Lock, flush, and unlock dae's RadSec reply queue; see
- * radsec_flush_reply_queue_locked().
- *
- * @param dae the listener whose reply queue to flush.
- -*/
-static void radsec_flush_reply_queue(struct radcli_dae_st *dae)
-{
-	pthread_mutex_lock(&dae->radsec_lock);
-	radsec_flush_reply_queue_locked(dae);
-	pthread_mutex_unlock(&dae->radsec_lock);
 }
 
 /* Parses one "address_or_hostname[:secret]" dae-server entry. IPv6
@@ -732,10 +698,6 @@ radcli_dae *radcli_dae_new(radcli_ctx *ctx, unsigned flags)
 		dae->fd = -1;
 		dae->radsec = 1;
 		dae->no_nas_check = (flags & RADCLI_DAE_NO_NAS_CHECK) != 0;
-		if (pthread_mutex_init(&dae->radsec_lock, NULL) != 0) {
-			free(dae);
-			return NULL;
-		}
 
 		/* REQ-DAE-INIT-005: still needed under RadSec -- Event-Timestamp
 		 * freshness and duplicate suppression are replay protections
@@ -988,23 +950,8 @@ void radcli_dae_free(radcli_dae *dae)
 	 * this radcli_dae -- there is nothing dae-owned to close here. */
 	if (dae->fd != -1)
 		close(dae->fd);
-	if (dae->radsec) {
-		/* No other thread may still be calling radcli_ctx_dispatch()/
-		 * relying on this dae once radcli_dae_free() is called (the
-		 * caller's responsibility, same as freeing any other object
-		 * concurrently in use) -- the lock here is just to pair cleanly
-		 * with pthread_mutex_destroy(), not to defend against a
-		 * concurrent user past this point. */
-		pthread_mutex_lock(&dae->radsec_lock);
-		for (i = 0; i < dae->radsec_queue_len; i++)
-			radcli_dae_request_free((radcli_dae_request *)dae->radsec_queue[i]);
-		dae->radsec_queue_len = 0;
-		pthread_mutex_unlock(&dae->radsec_lock);
-		pthread_mutex_destroy(&dae->radsec_lock);
-	} else {
-		for (i = 0; i < dae->radsec_queue_len; i++)
-			radcli_dae_request_free((radcli_dae_request *)dae->radsec_queue[i]);
-	}
+	for (i = 0; i < dae->radsec_queue_len; i++)
+		radcli_dae_request_free((radcli_dae_request *)dae->radsec_queue[i]);
 	free_dacs(dae->dacs, dae->n_dacs);
 	free(dae->slots);
 	free(dae->secret);
@@ -1134,12 +1081,8 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		/* A record already pulled off the wire by an in-flight ordinary
 		 * request (tls_recvfrom()'s inline demux) may be sitting queued
 		 * with no further fd activity to prompt a redispatch -- ask the
-		 * caller back promptly rather than only on the next POLLIN. Read
-		 * without dae->radsec_lock deliberately: this is an advisory
-		 * hint only (worst case a stale read costs one extra dispatch()
-		 * call that finds nothing, never a correctness issue), and
-		 * radcli_ctx_get_poll() is meant to be called cheaply and
-		 * often. DAE-only, same reason as above. */
+		 * caller back promptly rather than only on the next POLLIN.
+		 * DAE-only, same reason as above. */
 		if (dae_radsec && (rh->active_dae->radsec_queue_len > 0 ||
 				   rh->active_dae->radsec_reply_queue_len > 0))
 			*timeout_ms = 0;
@@ -1558,20 +1501,15 @@ static int send_reply(struct radcli_dae_request_st *req, uint8_t reply_code, uin
 		struct radcli_dae_st *dae = req->dae;
 		int ret;
 
-		pthread_mutex_lock(&dae->radsec_lock);
-		radsec_flush_reply_queue_locked(dae);
+		radsec_flush_reply_queue(dae);
 		if (dae->radsec_reply_queue_len > 0) {
-			radsec_reply_queue_push_locked(dae, send_buffer, (size_t)total_length);
-			pthread_mutex_unlock(&dae->radsec_lock);
+			radsec_reply_queue_push(dae, send_buffer, (size_t)total_length);
 			return 0;
 		}
-		pthread_mutex_unlock(&dae->radsec_lock);
 
 		ret = radcli2_priv_tls_dae_send(dae->rh, send_buffer, (size_t)total_length);
 		if (ret == 0) {
-			pthread_mutex_lock(&dae->radsec_lock);
-			radsec_reply_queue_push_locked(dae, send_buffer, (size_t)total_length);
-			pthread_mutex_unlock(&dae->radsec_lock);
+			radsec_reply_queue_push(dae, send_buffer, (size_t)total_length);
 			return 0;
 		}
 		return (ret > 0) ? 0 : -1;
@@ -2272,15 +2210,6 @@ void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t
 	 * copy so the caller's (lib/tls.c's) own receive buffer is untouched. */
 	memcpy(local_buf, buf, len);
 
-	/* Guards dae->slots[] (process_packet()'s duplicate-suppression
-	 * table) and dae->radsec_queue[] against the concurrent caller this
-	 * function can have: the thread currently inside an in-flight
-	 * radcli_transport_exchange() (tls_recvfrom()'s inline demux, holding
-	 * the *session* lock, not this one) and radcli_ctx_dispatch()'s poll
-	 * thread (which has already released the session lock by the time it
-	 * gets here -- radcli2_priv_tls_dae_poll() only holds it for the read
-	 * itself) can otherwise both be inside this function at once. */
-	pthread_mutex_lock(&dae->radsec_lock);
 	switch (process_packet(dae, local_buf, len, NULL, 0, &req)) {
 	case PROCESS_NEW:
 		radsec_queue_push(dae, req);
@@ -2293,7 +2222,6 @@ void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t
 	case PROCESS_DROP:
 		break;
 	}
-	pthread_mutex_unlock(&dae->radsec_lock);
 }
 
 /** @brief Read what is ready on ctx's descriptor(s), validate it, and
@@ -2373,13 +2301,6 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 		 * non-blocking attempt per queued reply; never a wait. */
 		radsec_flush_reply_queue(dae);
 
-		/* radcli2_priv_tls_dae_poll() leaves the session lock held on
-		 * success (>0) -- radcli2_priv_dae_on_radsec_packet() needs it
-		 * held for the whole call (it takes dae->radsec_lock underneath,
-		 * and consistently nesting session-lock-outside-radsec_lock on
-		 * every call path, including tls_recvfrom()'s own inline demux,
-		 * is what avoids a lock-order inversion between the two -- see
-		 * lib/tls.c's doc comment on radcli2_priv_tls_dae_poll()). */
 		int ret = radcli2_priv_tls_dae_poll(rh, buf, sizeof(buf) - 1);
 
 		if (ret > 0) {
@@ -2390,19 +2311,13 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 				       "%u on the RadSec session while idle, ignored",
 				       (unsigned)buf[0]);
 			}
-			radcli2_priv_tls_dae_poll_done(rh);
 		}
 
 		/* Drain whatever is queued -- from the poll above, or from an
-		 * in-flight radcli_transport_exchange() on another thread that
-		 * already demuxed a record via tls_recvfrom()'s inline path.
-		 * radsec_lock (not the session lock, already released above)
-		 * guards radsec_queue[] here, matching radsec_queue_push()'s own
-		 * locking in radcli2_priv_dae_on_radsec_packet(). */
+		 * earlier blocking exchange that demuxed a record via
+		 * tls_recvfrom()'s inline path. */
 		for (;;) {
-			pthread_mutex_lock(&dae->radsec_lock);
 			req = radsec_queue_pop(dae);
-			pthread_mutex_unlock(&dae->radsec_lock);
 			if (req == NULL)
 				break;
 			if (dae->handler != NULL)
@@ -2503,9 +2418,7 @@ int radcli_dae_process(radcli_dae *dae, const void *buf, size_t len,
 	 * address at all -- accepting an arbitrary caller-supplied buf/from
 	 * pair here would let any caller feed it unauthenticated bytes as if
 	 * they had arrived on that session, with only the RFC 6614/7360 fixed
-	 * (not actually secret) string standing in for authentication. It
-	 * would also bypass radsec_lock entirely, racing lib/tls.c's own
-	 * calls into the same dae. Reject outright rather than accept a
+	 * (not actually secret) string standing in for authentication. Reject outright rather than accept a
 	 * caller's buffer as a substitute for the real session. */
 	if (dae->radsec)
 		return -1;

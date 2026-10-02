@@ -120,13 +120,11 @@ def main():
     expected_dae = args.ordinary // args.dae_every
     # request_vector each outstanding DAE Identifier was sent with, keyed by
     # Identifier -- NOT a simple "expect the ack right after the request":
-    # the client has independent sender threads issuing their own next
-    # Access-Request/Accounting-Request concurrently with the dispatch
-    # thread flushing this DAE message's queued ACK, and either can
-    # legitimately reach the wire first. Dispatching every received packet
-    # by its own Code, rather than by a fixed expected sequence, is what
-    # makes this peer correct under that real concurrency instead of
-    # misreading an ordinary request as if it were the DAE ack.
+    # the client may send its next Access-Request/Accounting-Request
+    # before the ACK for a DAE message it read inline, and either can
+    # reach the wire first. Dispatching every received packet by its own
+    # Code, rather than by a fixed expected sequence, keeps this peer
+    # correct regardless of that order.
     pending_dae = {}
 
     DAE_REPLY_CODES = (dae_client.DISCONNECT_ACK, dae_client.DISCONNECT_NAK,

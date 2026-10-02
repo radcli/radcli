@@ -421,7 +421,7 @@ session first.
 `RADCLI_REQUEST_SENDONLY` branch calling `radcli_transport_send_async()`);
 lib/sendserver.c's `radcli_transport_send_async()` (single address, `ctx`'s
 persistent request socket left open and registered in `ctx`'s in-flight
-registry rather than closed, lock held across calls — REQ-NET2-SEND-016)
+registry rather than closed — REQ-NET2-SEND-016)
 **Acceptance:** [SEND] unit, local — `tests/request.c` sends a
 `RADCLI_REQUEST_SENDONLY` Accounting-Request to an unreachable address
 (192.0.2.1, RFC 5737), used purely as fire-and-forget (freed without

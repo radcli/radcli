@@ -251,10 +251,9 @@ since a caller using only the legacy API may never call `radcli_ctx_dispatch()` 
 calling *itself* proactively; the application is still the one that decided to call
 `rc_check_tls()`), already both probes liveness and reconnects a peer gone silent for 2.5x that
 interval on its own (`REQ-WATCHDOG-NET-003`) without `rc_check_tls()` needing separate
-failure-handling logic. Unlike the TLS heartbeat this replaced, neither `restart_session()` nor
-`radcli2_priv_dae_send_watchdog()` require the caller to hold the session lock externally — both
-take it themselves — so this
-requirement no longer imposes that obligation on the caller either. Idle-session breakage is
+failure-handling logic. Unlike the TLS heartbeat this replaced, `rc_check_tls()` asks the caller
+for no lock of its own: like every call on a handle, it is made by one thread at a time
+(`REQ-GEN-SEC-009`). Idle-session breakage is
 also, independently, always detected transparently on the next ordinary transport call via
 `need_restart`/`tls_wait_or_give_up()` (`REQ-NET-NET-007`) whether or not `rc_check_tls()` is
 ever called — this requirement documents what `rc_check_tls()` additionally guarantees *if*

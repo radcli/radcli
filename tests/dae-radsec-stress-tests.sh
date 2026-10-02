@@ -4,10 +4,10 @@
 #
 # License: BSD
 #
-# DAE-over-RadSec concurrency stress test: tests/dae-radsec-stress.c (two
-# sender threads driving radcli_aaa() Access-Request/Accounting-Request
-# exchanges over one TLS connection, plus a dedicated poll()-driven
-# dispatch loop) against tests/radsec-stress-server.py (a single-threaded,
+# DAE-over-RadSec mixed-traffic stress test: tests/dae-radsec-stress.c (one
+# thread interleaving radcli_aaa() Access-Request/Accounting-Request
+# exchanges over one TLS connection with poll()-driven dispatch rounds)
+# against tests/radsec-stress-server.py (a single-threaded,
 # purely blocking peer that answers the ordinary traffic while also
 # interleaving unsolicited Disconnect-Request/CoA-Request messages on the
 # exact same connection). See dae-radsec-stress.c's own header comment for
@@ -22,16 +22,15 @@
 
 srcdir="${srcdir:-.}"
 
-echo "===== DAE-over-RadSec concurrency stress test ====="
-echo " Two sender threads perform 25 Access-Request/Accounting-Request"
-echo " exchanges each (radcli_aaa()) on one shared TLS connection, while"
+echo "===== DAE-over-RadSec mixed-traffic stress test ====="
+echo " 50 Access-Request/Accounting-Request exchanges (radcli_aaa()) on one"
+echo " TLS connection, interleaved with poll()-driven dispatch rounds, while"
 echo " the peer interleaves 10 unsolicited Disconnect-Request/CoA-Request"
-echo " messages on that same connection, delivered via a dedicated"
-echo " poll()-driven dispatch loop. Asserts: every ordinary reply has the"
-echo " correct code (never a timeout, error, or DAE code); every DAE"
+echo " messages on that same connection. Asserts: every ordinary reply has"
+echo " the correct code (never a timeout, error, or DAE code); every DAE"
 echo " message is delivered exactly once with the correct User-Name/"
-echo " Acct-Session-Id; radcli_dae_handler is invoked ONLY from the poll"
-echo " thread, never from inside a sender thread's radcli_aaa() call."
+echo " Acct-Session-Id; radcli_dae_handler is invoked ONLY from"
+echo " radcli_ctx_dispatch(), never from inside a radcli_aaa() call."
 echo "====================================================="
 
 if ! python3 -c 'import ssl' 2>/dev/null; then
@@ -66,10 +65,9 @@ if test ! -s "$CERT" || test ! -s "$KEY"; then
 	exit 1
 fi
 
-# 50 ordinary requests total (2 sender threads x 25 each, matching
-# dae-radsec-stress.c's N_SENDERS/N_PER_THREAD), one DAE message every 5th
-# one answered (matching DAE_EVERY) = 10 DAE messages -- keep these three
-# numbers in sync with the constants in dae-radsec-stress.c.
+# 50 ordinary requests (dae-radsec-stress.c's N_ORDINARY), one DAE message
+# every 5th one answered (matching DAE_EVERY) = 10 DAE messages -- keep
+# these numbers in sync with the constants in dae-radsec-stress.c.
 python3 ${srcdir}/radsec-stress-server.py --host 127.0.0.1 --port ${PORT} \
 	--cert $CERT --key $KEY --ordinary 50 --dae-every 5 \
 	--timeout 25 >$SERVEROUT 2>&1 &

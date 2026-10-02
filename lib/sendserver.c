@@ -765,27 +765,14 @@ static int reqreg_peer_matches(const struct sockaddr *from, const struct sockadd
 	}
 }
 
-/* Lazily allocates rh->reqreg (REQ-NET2-SEND-016), guarded by
- * rh->reqreg_init_lock -- a small, always-initialized (radcli2_priv_new())
- * per-ctx lock dedicated to this one-time allocation, distinct from
- * reqreg->lock itself (which does not exist yet the first time this runs). */
+/* Lazily allocates rh->reqreg (REQ-NET2-SEND-016). */
 static int reqreg_ensure(rc_handle *rh)
 {
 	if (rh->reqreg != NULL)
 		return 0;
 
-	pthread_mutex_lock(&rh->reqreg_init_lock);
-	if (rh->reqreg == NULL) {
-		struct radcli_reqreg *reg = calloc(1, sizeof(*reg));
-		if (reg == NULL) {
-			pthread_mutex_unlock(&rh->reqreg_init_lock);
-			return -1;
-		}
-		pthread_mutex_init(&reg->lock, NULL);
-		rh->reqreg = reg;
-	}
-	pthread_mutex_unlock(&rh->reqreg_init_lock);
-	return 0;
+	rh->reqreg = calloc(1, sizeof(*rh->reqreg));
+	return rh->reqreg != NULL ? 0 : -1;
 }
 
 /*- Reserve a slot in rh's in-flight registry (REQ-NET2-SEND-016),
@@ -817,7 +804,6 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
 		return -1;
 	reg = rh->reqreg;
 
-	pthread_mutex_lock(&reg->lock);
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
 		if (reg->slots[i].valid)
 			continue;
@@ -829,7 +815,6 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
 		}
 	}
 	if (best == -1) {
-		pthread_mutex_unlock(&reg->lock);
 		rc_log(LOG_ERR, "%s: no free Identifier (%d requests already in flight)",
 		       __func__, RADCLI_CTX_MAX_INFLIGHT);
 		return -1;
@@ -837,7 +822,6 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
 	reg->slots[best].valid = 1;
 	reg->slots[best].armed = 0;
 	reg->slots[best].owner = owner;
-	pthread_mutex_unlock(&reg->lock);
 
 	*out_id = (uint8_t)best;
 	return best;
@@ -856,13 +840,11 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
 		return;
 	reg = rh->reqreg;
 
-	pthread_mutex_lock(&reg->lock);
 	reg->slots[slot].valid = 0;
 	reg->slots[slot].armed = 0;
 	reg->slots[slot].owner = NULL;
 	memset(reg->slots[slot].secret, 0, sizeof(reg->slots[slot].secret));
 	reg->slots[slot].free_seq = ++reg->free_seq_ctr;
-	pthread_mutex_unlock(&reg->lock);
 }
 
 /*- Milliseconds remaining until the *earliest* deadline among every
@@ -882,7 +864,6 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 		return -1;
 	reg = rh->reqreg;
 
-	pthread_mutex_lock(&reg->lock);
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
 		if (!reg->slots[i].valid || !reg->slots[i].armed)
 			continue;
@@ -891,7 +872,6 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 			have_one = 1;
 		}
 	}
-	pthread_mutex_unlock(&reg->lock);
 
 	if (!have_one)
 		return -1;
@@ -951,13 +931,6 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 			return;
 		}
 
-		/* Locked only around this one recv, not the whole exchange --
-		 * see radcli_transport_send_async()'s doc comment on why the
-		 * old hold-across-the-whole-lifetime discipline cannot survive
-		 * a socket/session now shared by many concurrent slots. */
-		if (sfuncs->lock)
-			sfuncs->lock(sfuncs->ptr);
-
 		if (is_radsec) {
 			recv_length = radcli2_priv_tls_try_recv(rh, recv_buf, sizeof(recv_buf));
 		} else {
@@ -969,8 +942,6 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 				recv_length = 0;
 		}
 
-		if (sfuncs->unlock)
-			sfuncs->unlock(sfuncs->ptr);
 		if (ns != NULL)
 			rc_reset_netns(&ns_def_hdl);
 
@@ -986,16 +957,11 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 			continue;
 		id = recv_auth->id;
 
-		pthread_mutex_lock(&reg->lock);
 		rslot = &reg->slots[id];
-		if (!rslot->valid || !rslot->armed) {
-			pthread_mutex_unlock(&reg->lock);
+		if (!rslot->valid || !rslot->armed)
 			continue; /* no in-flight exchange for this Identifier -- discard */
-		}
-		if (!is_radsec && !reqreg_peer_matches(SA(&from), SA(&rslot->peer))) {
-			pthread_mutex_unlock(&reg->lock);
+		if (!is_radsec && !reqreg_peer_matches(SA(&from), SA(&rslot->peer)))
 			continue;
-		}
 
 		rc_result = rc_check_reply(recv_auth, (int)sizeof(recv_buf), rslot->secret,
 					   rslot->vector, id);
@@ -1006,7 +972,6 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 			 * handing an unverified packet to decode_reply(),
 			 * matching the pre-registry single-exchange semantics
 			 * (REQ-GEN-STYLE-009). */
-			pthread_mutex_unlock(&reg->lock);
 			continue;
 		}
 
@@ -1037,7 +1002,6 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 			rslot->owner = NULL;
 			memset(rslot->secret, 0, sizeof(rslot->secret));
 			rslot->free_seq = ++reg->free_seq_ctr;
-			pthread_mutex_unlock(&reg->lock);
 
 			decode_result = decode_reply(rh, NULL, server_name_copy, svc_port_copy,
 						     type_copy, secret_copy, vector_copy,
@@ -1081,11 +1045,8 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
 		struct radcli_reqreg_slot *rslot = &reg->slots[i];
 
-		pthread_mutex_lock(&reg->lock);
-		if (!rslot->valid || !rslot->armed || rc_getmtime() < rslot->deadline) {
-			pthread_mutex_unlock(&reg->lock);
+		if (!rslot->valid || !rslot->armed || rc_getmtime() < rslot->deadline)
 			continue;
-		}
 
 		if (rslot->retries_left-- <= 0) {
 			struct radcli_async_send_st *owner = rslot->owner;
@@ -1098,7 +1059,6 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 			rslot->owner = NULL;
 			memset(rslot->secret, 0, sizeof(rslot->secret));
 			rslot->free_seq = ++reg->free_seq_ctr;
-			pthread_mutex_unlock(&reg->lock);
 
 			rc_log(LOG_ERR, "%s: no reply from RADIUS server %s:%u",
 			       __func__, server_name_copy, svc_port_copy);
@@ -1110,21 +1070,9 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 		}
 
 		{
-			/* Snapshot what the retransmit needs, then release the
-			 * lock before sendto(): a concurrent drain() resolving
-			 * this exact slot in the meantime is a benign race
-			 * (worst case one harmless extra retransmit after the
-			 * reply already arrived). */
-			uint8_t send_buf_copy[RC_BUFFER_LEN];
-			int send_len_copy = rslot->send_len;
-			struct sockaddr_storage peer_copy = rslot->peer;
-			socklen_t peer_len_copy = rslot->peer_len;
 			int ns_def_hdl = 0;
 			int sockfd;
 			int sresult;
-
-			memcpy(send_buf_copy, rslot->send_buf, (size_t)send_len_copy);
-			pthread_mutex_unlock(&reg->lock);
 
 			sockfd = is_radsec ? (sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1)
 					    : rh->req_fd;
@@ -1135,17 +1083,13 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 				rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
 				continue;
 			}
-			if (sfuncs->lock)
-				sfuncs->lock(sfuncs->ptr);
 
 			do {
-				sresult = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf_copy,
-							 (unsigned int)send_len_copy, 0,
-							 SA(&peer_copy), peer_len_copy);
+				sresult = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)rslot->send_buf,
+							 (unsigned int)rslot->send_len, 0,
+							 SA(&rslot->peer), rslot->peer_len);
 			} while (sresult == -1 && errno == EINTR);
 
-			if (sfuncs->unlock)
-				sfuncs->unlock(sfuncs->ptr);
 			if (ns != NULL)
 				rc_reset_netns(&ns_def_hdl);
 
@@ -1154,10 +1098,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 				continue; /* leave deadline as-is; retried again next call */
 			}
 
-			pthread_mutex_lock(&reg->lock);
-			if (rslot->valid && rslot->armed) /* still the same exchange */
-				rslot->deadline = rc_getmtime() + rslot->timeout;
-			pthread_mutex_unlock(&reg->lock);
+			rslot->deadline = rc_getmtime() + rslot->timeout;
 		}
 	}
 }
@@ -1248,17 +1189,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 
 	if (sfuncs->static_secret)
 		strlcpy(secret, sfuncs->static_secret, MAX_SECRET_LENGTH + 1);
-
-	/* Locked only around this one send, not the whole exchange: every
-	 * other in-flight slot on the shared socket/session must make progress
-	 * independently (REQ-NET2-SEND-016). */
-	if (sfuncs->lock) {
-		if (sfuncs->lock(sfuncs->ptr) != 0) {
-			rc_log(LOG_ERR, "%s: lock error", __func__);
-			result = ERROR_RC;
-			goto fail_unlocked;
-		}
-	}
 
 	if (svc_port) {
 		if (auth_addr->ai_family == AF_INET)
@@ -1371,7 +1301,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 		goto fail;
 	}
 
-	pthread_mutex_lock(&reg->lock);
 	memcpy(&rslot->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
 	rslot->peer_len = auth_addr->ai_addrlen;
 	memcpy(rslot->send_buf, send_buf, (size_t)send_len);
@@ -1385,10 +1314,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	rslot->retries_left = retries;
 	rslot->deadline = rc_getmtime() + rslot->timeout;
 	rslot->armed = 1;
-	pthread_mutex_unlock(&reg->lock);
-
-	if (sfuncs->unlock)
-		sfuncs->unlock(sfuncs->ptr);
 
 	out->rh = rh;
 	out->active = 1;
@@ -1399,9 +1324,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	goto exit_ok;
 
  fail:
-	if (sfuncs->unlock)
-		sfuncs->unlock(sfuncs->ptr);
- fail_unlocked:
 	memset(secret, '\0', MAX_SECRET_LENGTH + 1);
  exit_ok:
 	if (auth_addr)
