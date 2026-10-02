@@ -238,12 +238,10 @@ static int tls_unlock(void *ptr)
 	return pthread_mutex_unlock(&st->lock);
 }
 
-/*- rc_sockets_override.recvfrom: read one reply from st's GnuTLS session,
- * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via tls_wait_or_give_up(),
- * and diverting a DAE-over-RadSec CoA/Disconnect
- * packet straight to lib/dae.c's pipeline instead of returning it here
- * (RFC 6614 §2.1/§2.5, RFC 7360 §2.2: one connection carries every packet
- * type).
+/*- rc_sockets_override.recvfrom: read one record from st's GnuTLS session,
+ * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via tls_wait_or_give_up().
+ * The record may be any packet type (RFC 6614 §2.1/§2.5, RFC 7360 §2.2);
+ * the caller routes what is not its own reply.
  *
  * @param ptr the tls_st for this session.
  * @param sockfd unused; part of the recvfrom calling convention.
@@ -271,20 +269,6 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 			continue;
 		}
 
-		/* RFC 6614 SS2.1/SS2.5, RFC 7360 SS2.2: one port, one connection
-		 * carries every packet type. A Disconnect-Request/CoA-Request
-		 * arriving here is never the reply this caller (radcli_transport_
-		 * exchange(), waiting for an Access-Accept/Accounting-Response) is
-		 * waiting for -- hand it to lib/dae.c's RadSec pipeline right here
-		 * (the thread already holding this session's lock, mid-exchange,
-		 * is exactly the thread that must not miss it) and keep waiting
-		 * for the actual reply. */
-		if (ret >= 1 &&
-		    (((const uint8_t *)buf)[0] == RADCLI_DISCONNECT_REQUEST ||
-		     ((const uint8_t *)buf)[0] == RADCLI_COA_REQUEST)) {
-			radcli2_priv_dae_on_radsec_packet(st->rh, buf, (size_t)ret);
-			continue;
-		}
 		break;
 	}
 
@@ -793,47 +777,6 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 	return restart_session(rh, st);
 }
 
-/*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
- * the ordinary tls_recvfrom() path) to read one already-available record
- * into buf (capacity cap).
- *
- * @param rh a handle to parsed configuration.
- * @param buf destination for the record.
- * @param cap buf's capacity in bytes.
- * @return the record length (>0) on success, 0 if nothing was ready, -1
- *  on a session error.
- -*/
-int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
-{
-	tls_st *st;
-	int ret;
-
-	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
-		return 0;
-
-	st = rh->so.ptr;
-	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
-		return 0; /* not connected -- nothing to poll; reconnecting is
-			   * radcli_dae_start()'s/an ordinary request's job, not
-			   * this opportunistic idle-time check's. */
-
-	ret = gnutls_record_recv(st->ctx.session, buf, cap);
-
-	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
-		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
-
-	if (ret <= 0) {
-		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__,
-		       gnutls_strerror(ret));
-		st->ctx.need_restart = 1;
-		return -1;
-	}
-
-	st->ctx.last_msg = time(0);
-	st->ctx.last_recv = st->ctx.last_msg;
-	return ret;
-}
-
 /*- Make one non-blocking attempt to send a DAE-over-RadSec reply.
  *
  * Unlike tls_sendto() (used for ordinary requests, where blocking until
@@ -878,24 +821,16 @@ int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 	return ret;
 }
 
-/*- One non-blocking attempt to read a record for the async request
- * registry (lib/sendserver.c's radcli2_priv_reqreg_drain()) over TLS/DTLS.
- * Unlike radcli2_priv_tls_dae_poll(), this does NOT take rh's session lock
- * itself: its only caller holds it (via rc_sockets_override.lock, i.e.
- * tls_lock()) around this single call. Never retries on
- * GNUTLS_E_AGAIN (same "single attempt" contract as
- * radcli2_priv_tls_dae_poll()). A Disconnect-Request/CoA-Request record
- * arriving while waiting is dispatched inline via
- * radcli2_priv_dae_on_radsec_packet(), exactly as tls_recvfrom()'s own
- * inline demux does, and this then reports "not ready yet" rather than
- * returning it as the pending reply.
+/*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
+ * tls_recvfrom()) to read one already-available record from rh's TLS/DTLS
+ * session, for lib/sendserver.c's radcli2_priv_radsec_drain() to route.
  *
  * @param rh a handle to parsed configuration.
  * @param buf destination for the record.
  * @param cap buf's capacity in bytes.
- * @return the record length (>0) on success, 0 if nothing is ready yet,
- *  -1 on a session error (also marks the session for reconnection, same
- *  as tls_recvfrom()'s own error handling).
+ * @return the record length (>0) on success, 0 if nothing is ready or no
+ *  session is established, -1 on a session error (also marks the session
+ *  for reconnection, same as tls_recvfrom()'s own error handling).
  -*/
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 {
@@ -906,30 +841,19 @@ int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 		return -1;
 
 	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
+		return 0; /* reconnecting is an ordinary send's job, not a read's */
 
 	ret = gnutls_record_recv(st->ctx.session, buf, cap);
 
 	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
-		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
+		return 0;
 
 	if (ret == GNUTLS_E_WARNING_ALERT_RECEIVED) {
 		rc_log(LOG_ERR, "%s: received alert: %s", __func__,
 		       gnutls_alert_get_name(gnutls_alert_get(st->ctx.session)));
 		return 0; /* transient, same as tls_recvfrom()'s own handling of this
 			   * alert -- not a reason to tear down the session */
-	}
-
-	/* RFC 6614 SS2.1/SS2.5, RFC 7360 SS2.2: one connection carries every
-	 * packet type. A Disconnect-Request/CoA-Request arriving here is
-	 * never the reply this exchange is waiting for -- hand it to lib/
-	 * dae.c's RadSec pipeline right here, exactly as tls_recvfrom()'s own
-	 * inline demux does, and report "not ready yet"; a genuine reply
-	 * queued right behind it is picked up on the next call. */
-	if (ret >= 1 &&
-	    (((const uint8_t *)buf)[0] == RADCLI_DISCONNECT_REQUEST ||
-	     ((const uint8_t *)buf)[0] == RADCLI_COA_REQUEST)) {
-		radcli2_priv_dae_on_radsec_packet(st->rh, buf, (size_t)ret);
-		return 0;
 	}
 
 	if (ret <= 0) {
@@ -941,6 +865,25 @@ int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 	st->ctx.last_msg = time(0);
 	st->ctx.last_recv = st->ctx.last_msg;
 	return ret;
+}
+
+/*- Report whether rh's TLS/DTLS session holds already-decrypted data that
+ * no read has returned yet -- data no poll() on the socket will signal.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return nonzero if a read would return data without waiting.
+ -*/
+int radcli2_priv_tls_pending(rc_handle *rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return 0;
+
+	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
+		return 0;
+	return gnutls_record_check_pending(st->ctx.session) > 0;
 }
 
 /*- This function will deinitialize a previously initialed DTLS or TLS session.
@@ -1320,14 +1263,6 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 	return -1;
 }
 
-int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
-{
-	(void)rh;
-	(void)buf;
-	(void)cap;
-	return 0;
-}
-
 int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 {
 	(void)rh;
@@ -1342,6 +1277,12 @@ int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 	(void)buf;
 	(void)cap;
 	return -1;
+}
+
+int radcli2_priv_tls_pending(rc_handle *rh)
+{
+	(void)rh;
+	return 0;
 }
 
 #endif

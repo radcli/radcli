@@ -1090,6 +1090,9 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, fd));
 
 		fold_timeout(timeout_ms, radcli2_priv_reqreg_earliest_deadline_ms(rh));
+		/* A record GnuTLS already holds raises no POLLIN. */
+		if (radcli2_priv_tls_pending(rh))
+			*timeout_ms = 0;
 
 		*nfds = n;
 		return 0;
@@ -2177,8 +2180,8 @@ static void send_radsec_unsupported_nak(rc_handle *rh, const uint8_t *reqbuf, si
 
 /*- Process one RADIUS/TLS or RADIUS/DTLS record already known to carry
  * Code 40 (Disconnect-Request) or 43 (CoA-Request) -- called from lib/
- * tls.c's tls_recvfrom() (inline, mid-exchange) and from this file's own
- * radcli_ctx_dispatch() (via radcli2_priv_tls_dae_poll()). Never invokes a
+ * sendserver.c's radcli2_priv_radsec_route(), whichever call read the
+ * record (a blocking exchange, or radcli_ctx_dispatch()). Never invokes a
  * registered radcli_dae_handler directly (that would let it run on
  * whatever thread/call stack happens to be inside rc_auth()/rc_acct() at
  * the time): a validated request is queued for radcli_ctx_dispatch() to
@@ -2269,10 +2272,13 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 
 	rh->in_dispatch = 1;
 
-	/* REQ-NET2-SEND-013: unconditional and non-blocking, regardless of
-	 * transport or whether any RADCLI_REQUEST_SENDONLY exchange is
-	 * actually in flight (both functions no-op on a NULL rh->reqreg). */
-	radcli2_priv_reqreg_drain(rh);
+	/* Unconditional and non-blocking: everything readable is routed to
+	 * the request or DAE listener it belongs to (REQ-NET2-NET-004,
+	 * REQ-NET2-SEND-013). */
+	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS)
+		radcli2_priv_radsec_drain(rh);
+	else
+		radcli2_priv_reqreg_drain(rh);
 	radcli2_priv_reqreg_service_timeouts(rh);
 
 	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
@@ -2301,21 +2307,8 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 		 * non-blocking attempt per queued reply; never a wait. */
 		radsec_flush_reply_queue(dae);
 
-		int ret = radcli2_priv_tls_dae_poll(rh, buf, sizeof(buf) - 1);
-
-		if (ret > 0) {
-			if (buf[0] == RADCLI_DISCONNECT_REQUEST || buf[0] == RADCLI_COA_REQUEST) {
-				radcli2_priv_dae_on_radsec_packet(rh, buf, (size_t)ret);
-			} else {
-				rc_log(LOG_INFO, "radcli_ctx_dispatch: unexpected packet code "
-				       "%u on the RadSec session while idle, ignored",
-				       (unsigned)buf[0]);
-			}
-		}
-
-		/* Drain whatever is queued -- from the poll above, or from an
-		 * earlier blocking exchange that demuxed a record via
-		 * tls_recvfrom()'s inline path. */
+		/* Deliver whatever is queued -- read by the drain above, or by
+		 * an earlier blocking exchange. */
 		for (;;) {
 			req = radsec_queue_pop(dae);
 			if (req == NULL)

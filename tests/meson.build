@@ -22,7 +22,7 @@ if have_gnutls
   shell_tests += ['dae-radsec-tests.sh', 'dae-radsec-stress-tests.sh', 'dae-radsec-backpressure-tests.sh', 'dae-radsec-watchdog-tests.sh']
   shell_tests += ['watchdog-aaa-tests.sh']
   shell_tests += ['request-tls-secret-tests.sh']
-  shell_tests += ['tls-lock-restart-tests.sh']
+  shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
@@ -110,6 +110,11 @@ if have_gnutls
   # A blocking request reading a reply with another Identifier
   # (tests/request-stray-reply-tests.sh, peer: tests/radius-server.py).
   request_stray_reply = executable('request-stray-reply', 'request-stray-reply.c',
+    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+    dependencies: link_libs, install: false)
+  # Async and blocking requests sharing one TLS session
+  # (tests/request-tls-interleave-tests.sh, peer: tests/watchdog-aaa-server.py).
+  request_tls_interleave = executable('request-tls-interleave', 'request-tls-interleave.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
   # DAE-over-RadSec concurrency stress test (tests/dae-radsec-stress-tests.sh),
