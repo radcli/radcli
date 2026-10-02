@@ -979,10 +979,11 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 				 * error (<0, already logged by the transport)
 				 * neither this nor any other slot can act on here */
 
-		if ((size_t)recv_length < AUTH_HDR_LEN)
-			continue; /* too short to even carry an Identifier -- discard, keep draining */
-
 		recv_auth = (AUTH_HDR *)recv_buf;
+		/* recv_buf is reused across iterations: bytes past a short read
+		 * belong to an earlier datagram (REQ-NET2-SEND-017). */
+		if ((size_t)recv_length < AUTH_HDR_LEN || recv_length < ntohs(recv_auth->length))
+			continue;
 		id = recv_auth->id;
 
 		pthread_mutex_lock(&reg->lock);

@@ -8,12 +8,15 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
 - `tests/msg-auth-tests.sh` — Message-Authenticator handling (Access-Request/Accept)
 - `tests/acct-async-tests.sh` — `rc_acct_async()` delivery and non-blocking return
   (Accounting-Request/Response, `--no-reply`)
+- `tests/request-async-validation-tests.sh` — reply validation on the
+  `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`)
 
 ## Invocation
 
 ```
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
                                [--msg-auth correct|absent|wrong] [--no-reply]
+                               [--stale-truncated]
 ```
 
 | Option | Default | Meaning |
@@ -22,9 +25,10 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--secret` | `testing123` | Shared secret (must match the client config) |
 | `--msg-auth` | `correct` | How to handle the Message-Authenticator attribute in an Access-Accept reply (ignored for Accounting-Request) |
 | `--no-reply` | off | Log every received Access-/Accounting-Request but send no response (UDP transport only) |
+| `--stale-truncated` | off | Send each reply as two datagrams: the full valid reply under the next Identifier, then only the real reply's 20-byte header with its Length unchanged (UDP transport only) |
 
-The server accepts one UDP packet at a time and, unless `--no-reply` is given,
-sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
+The server accepts one UDP packet at a time and, unless `--no-reply` or
+`--stale-truncated` is given, sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
 recognized request (Access-Request or Accounting-Request) is logged to stdout
 as `radius-server: received <Access-Request|Accounting-Request> id=<N>` as soon
 as it's parsed — regardless of `--no-reply` — so a test can grep the server's
@@ -41,6 +45,19 @@ requests but never (or slowly) answers, to verify a client's non-blocking send
 path — see `tests/acct-async-tests.sh` for how it drives two such servers to
 verify both that `rc_acct_async()` returns promptly and that every configured
 server was actually reached.
+
+### `--stale-truncated`
+
+Models a reply truncated in transit, arriving right after another datagram
+the client discards. The first datagram is the complete, correctly
+authenticated reply but with Identifier + 1, so it matches no outstanding
+request. The second is only the first 20 bytes (the header) of the real
+reply, with the correct Identifier and a Length that still claims the full
+packet. A client that reuses its receive buffer and does not reject a
+datagram shorter than its own Length field ends up authenticating the real
+header plus the decoy's leftover attribute bytes, and accepts the reply.
+`tests/request-async-validation-tests.sh` uses this to check that the
+`RADCLI_REQUEST_SENDONLY` drain rejects it (`REQ-NET2-SEND-017`).
 
 ---
 

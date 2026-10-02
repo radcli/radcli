@@ -631,6 +631,33 @@ apply only to `radcli2`'s async surface (`radcli_request_*`,
 `radcli_transport_exchange()` core (lib/sendserver.c) are unaffected: they
 continue to open and close one socket per call, exactly as before.
 
+### REQ-NET2-SEND-017 — the request-registry drain discards a datagram shorter than the RADIUS header or than its own Length field
+
+**Requirement:** `radcli_ctx_dispatch()`'s request-registry drain MUST
+compare the number of bytes actually received for each datagram (UDP) or
+record (TLS/DTLS) against both `AUTH_HDR_LEN` and the packet's own Length
+field, and MUST discard it — before Identifier matching, Response
+Authenticator verification, or decoding — if it is shorter than either,
+leaving any registry slot it names still waiting. The receive buffer is
+reused across datagrams within one drain, so without this check the bytes
+past a short read are left over from an earlier datagram and would be
+authenticated as part of this one. This is the same length rule
+REQ-NET-ERR-005 sets for the blocking path; it differs only in discarding
+the datagram instead of failing the exchange, matching how the drain
+already treats every other datagram it cannot validate.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: the drain checked only `AUTH_HDR_LEN`,
+so a reply's bare header, received right after a discarded datagram that
+carried the same reply's full contents under another Identifier, was
+accepted as that complete reply.
+**Source:** lib/sendserver.c (`radcli2_priv_reqreg_drain()`)
+**Acceptance:** [SEND] negative, local, no root —
+`tests/request-async-validation-tests.sh` (peer: `tests/radius-server.py
+--stale-truncated`) confirms the request ends in `RADCLI_TIMEOUT`;
+confirmed failing (`RADCLI_OK`) against the unfixed code.
+**Links:** REQ-NET-ERR-005, REQ-NET2-SEND-013, REQ-NET2-SEND-016,
+REQ-GEN-TEST-003
+
 ---
 
 ## RECV — reply handling and accessors

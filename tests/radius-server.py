@@ -216,7 +216,8 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
 
     return packet
 
-def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0'):
+def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
+        stale_truncated=False):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -227,7 +228,18 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
     while True:
         data, addr = sock.recvfrom(4096)
         response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply)
-        if response is not None:
+        if response is None:
+            continue
+        if stale_truncated:
+            # A full, valid reply under a different Identifier (which the
+            # client discards), then only the real reply's 20-byte header,
+            # whose Length still claims the full packet: a client that does
+            # not check the received length against Length authenticates
+            # the header plus the decoy's leftover bytes in its buffer.
+            decoy = response[:1] + bytes([(response[1] + 1) % 256]) + response[2:]
+            sock.sendto(decoy, addr)
+            sock.sendto(response[:20], addr)
+        else:
             sock.sendto(response, addr)
 
 def recv_exact(conn, n):
@@ -316,16 +328,21 @@ def main():
     parser.add_argument('--bind', default='0.0.0.0',
                         help='Local address to bind to (default 0.0.0.0). An address '
                              'containing \':\' selects AF_INET6, e.g. \'::1\'. UDP transport only.')
+    parser.add_argument('--stale-truncated', action='store_true',
+                        help='Answer each request with a valid reply under the next '
+                             'Identifier, then with only the real reply\'s 20-byte header '
+                             '(Length unchanged). UDP transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
-        if args.no_reply:
-            parser.error('--no-reply is only supported with --transport udp')
+        if args.no_reply or args.stale_truncated:
+            parser.error('--no-reply/--stale-truncated are only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
-        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind)
+        run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
+            args.stale_truncated)
 
 if __name__ == '__main__':
     main()
