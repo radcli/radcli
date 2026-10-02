@@ -366,7 +366,6 @@ devel/ABI2-x86_64.dump
 `ninja -C build abi-dump2` in a separate commit after an intentional,
 reviewed addition (mirroring REQ-GEN-ABI-002).
 **Links:** REQ-GEN-ABI-001, REQ-GEN-ABI-002
-**Links:** REQ-GEN-ABI-001
 
 ---
 

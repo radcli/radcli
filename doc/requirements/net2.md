@@ -42,8 +42,8 @@ document a full send/retry/receive/verify cycle built on the same
 legacy `rc_send_server()`/`rc_send_server_ctx()` entry point and this document
 for `radcli_request_perform()` — but the two share no other source, no
 lifecycle, and no ABI-versioning history (`radcli_request_*` symbols are new
-additions to `lib/radcli2.map`'s single version node, not migrations of
-existing ones). Both take a `radcli_ctx` built via `config2.md`'s
+additions to `lib/radcli2.map.in`'s public `RADCLI2_@LIBMAJOR2@` version
+node, not migrations of existing ones; REQ-GEN-ABI-004). Both take a `radcli_ctx` built via `config2.md`'s
 `radcli_ctx_new()`/`_read_config()`/`_apply()` as a given — this document
 treats `radcli_ctx` construction as out of scope and reads option values
 from it only through the internal `radcli2_priv_conf_*` accessors
@@ -744,7 +744,7 @@ success -- that pattern silently treats an unhandled outcome (such as
 also means a future outcome can be added as a new negative value without
 turning a caller's existing `!= RADCLI_OK` check into a security regression.
 **Strength:** MUST
-**Status:** NEW
+**Status:** DERIVED
 **Source:** include/radcli/radcli2.h (`radcli_result` enum)
 **Acceptance:** [RECV] unit, local — `tests/request.c` and `tests/aaa2.c`
 already test each outcome by comparing against its own named constant
