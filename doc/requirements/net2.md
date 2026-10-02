@@ -723,8 +723,11 @@ is not currently exercised. `[UNDOCUMENTED-BY-TEST]`
 
 ### REQ-NET2-RECV-015 — accessors are safe on an unperformed or NULL request; code defaults to 0
 
-**Requirement:** `radcli_request_code()` MUST return `0` if `r` is `NULL` or
-has not yet had a successful `radcli_request_perform()` call.
+**Requirement:** `radcli_request_code()` MUST return `0` if `r` is `NULL`, or
+unless `r`'s outcome was `RADCLI_OK` — returned by `radcli_request_perform()`
+or, for `RADCLI_REQUEST_SENDONLY`, by `radcli_request_done()`. A reply that
+was received but rejected (e.g. an unrecognised reply code) MUST NOT have
+its code reported.
 `radcli_request_attrs()` MUST return `NULL` if `r` is `NULL` or carries no
 decoded reply attributes. `radcli_request_server()` MUST return a non-NULL
 empty string (never `NULL`) if `r` is `NULL`, and the configured server name
@@ -736,7 +739,12 @@ otherwise, valid even before `radcli_request_perform()` is called.
 **Acceptance:** [RECV] unit, local — `tests/request.c` calls all three
 accessors on a freshly-constructed, not-yet-performed request and on `NULL`,
 confirming the defaults above (including that `radcli_request_server()`
-never returns `NULL`).
+never returns `NULL`). [RECV] negative, local, no root —
+`tests/request-reply-code-tests.sh` (peer: `tests/radius-server.py
+--reply-code 42`) fails a request through `radcli_request_perform()` and
+through `radcli_request_done()` with a correctly authenticated reply of an
+unrecognised code, and confirms `radcli_request_code()` returns `0` after
+each; confirmed failing (`42`) against the unfixed code.
 
 ### REQ-NET2-RECV-016 — RADCLI_OK is the only success value; every other `radcli_result`, present or future, is failure
 

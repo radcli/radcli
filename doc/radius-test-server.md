@@ -10,6 +10,8 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
   (Accounting-Request/Response, `--no-reply`)
 - `tests/request-async-validation-tests.sh` — reply validation on the
   `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`, `--spoof-source`)
+- `tests/request-reply-code-tests.sh` — `radcli_request_code()` after a
+  rejected reply (`--reply-code`)
 
 ## Invocation
 
@@ -17,6 +19,7 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
                                [--msg-auth correct|absent|wrong] [--no-reply]
                                [--stale-truncated] [--spoof-source]
+                               [--reply-code N]
 ```
 
 | Option | Default | Meaning |
@@ -26,6 +29,7 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--msg-auth` | `correct` | How to handle the Message-Authenticator attribute in an Access-Accept reply (ignored for Accounting-Request) |
 | `--no-reply` | off | Log every received Access-/Accounting-Request but send no response (UDP transport only) |
 | `--stale-truncated` | off | Send each reply as two datagrams: the full valid reply under the next Identifier, then only the real reply's 20-byte header with its Length unchanged (UDP transport only) |
+| `--reply-code` | 2 | RADIUS code of the reply to an Access-Request; the packet is otherwise built exactly like the Access-Accept, authenticators included (UDP transport only) |
 | `--spoof-source` | off | Send each valid reply from a different local port than the one the request arrived on (UDP transport only) |
 
 The server accepts one UDP packet at a time and, unless `--no-reply` or

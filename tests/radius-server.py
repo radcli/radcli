@@ -132,7 +132,8 @@ def compute_hmac_md5(packet, secret):
     """HMAC-MD5 over the full packet (MA value must already be zeroed)."""
     return hmac.new(secret.encode(), packet, hashlib.md5).digest()
 
-def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=False):
+def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=False,
+                  reply_code=ACCESS_ACCEPT):
     """
     Parse an Access-Request or Accounting-Request and build the matching
     reply. Returns the response bytes, or None if the packet's code is not
@@ -190,17 +191,17 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
         # field — NOT the Response Authenticator.  Build a scratch packet with
         # req_auth and zeroed MA, compute the HMAC, then fill in the result.
         scratch = bytearray(
-            struct.pack('!BBH', ACCESS_ACCEPT, ident, total_len) + req_auth + attrs)
+            struct.pack('!BBH', reply_code, ident, total_len) + req_auth + attrs)
         ma_value = compute_hmac_md5(bytes(scratch), secret)
         scratch[ma_offset:ma_offset + MA_LEN] = ma_value
         attrs = bytes(scratch[20:])   # attrs now carry the real MA value
 
     # Compute Response Authenticator over the final attributes (MA filled in)
     resp_auth = compute_response_authenticator(
-        ACCESS_ACCEPT, ident, total_len, req_auth, attrs, secret)
+        reply_code, ident, total_len, req_auth, attrs, secret)
 
     # Assemble final packet with Response Authenticator in the header
-    packet = struct.pack('!BBH', ACCESS_ACCEPT, ident, total_len) + resp_auth + attrs
+    packet = struct.pack('!BBH', reply_code, ident, total_len) + resp_auth + attrs
     # 'wrong':  MA value stays as 16 zero bytes — deliberately incorrect
     # 'absent': no MA attribute at all
 
@@ -212,12 +213,12 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
         # BADRESP_RC (length < 20), but the earlier gating logic let it
         # through anyway, and decode_reply() then asserted totallen >=
         # AUTH_HDR_LEN and aborted the client process.
-        packet = struct.pack('!BBH', ACCESS_ACCEPT, ident, 5) + packet[4:]
+        packet = struct.pack('!BBH', reply_code, ident, 5) + packet[4:]
 
     return packet
 
 def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
-        stale_truncated=False, spoof_source=False):
+        stale_truncated=False, spoof_source=False, reply_code=ACCESS_ACCEPT):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -227,7 +228,7 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
 
     while True:
         data, addr = sock.recvfrom(4096)
-        response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply)
+        response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply, reply_code)
         if response is None:
             continue
         if stale_truncated:
@@ -340,18 +341,23 @@ def main():
     parser.add_argument('--spoof-source', action='store_true',
                         help='Send each valid reply from a different local port than the '
                              'one the request arrived on. UDP transport only.')
+    parser.add_argument('--reply-code', type=int, default=ACCESS_ACCEPT,
+                        help='RADIUS code to answer an Access-Request with, otherwise '
+                             'built exactly like the Access-Accept (default 2). UDP '
+                             'transport only.')
     args = parser.parse_args()
 
     if args.transport == 'tls':
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
-        if args.no_reply or args.stale_truncated or args.spoof_source:
-            parser.error('--no-reply/--stale-truncated/--spoof-source are only supported '
-                         'with --transport udp')
+        if (args.no_reply or args.stale_truncated or args.spoof_source or
+                args.reply_code != ACCESS_ACCEPT):
+            parser.error('--no-reply/--stale-truncated/--spoof-source/--reply-code are '
+                         'only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
         run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
-            args.stale_truncated, args.spoof_source)
+            args.stale_truncated, args.spoof_source, args.reply_code)
 
 if __name__ == '__main__':
     main()

@@ -369,6 +369,7 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 	uint8_t recv_buffer[RC_BUFFER_LEN];
 	unsigned char vector[AUTH_VECTOR_LEN];
 	size_t recv_len = 0;
+	uint8_t reply_code = 0;
 	int result;
 
 	if (r == NULL || r->performed)
@@ -406,8 +407,10 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 
 	result = radcli_do_exchange(r->rh, r->code, r->send, r->server, r->svc_port, r->secret,
 				    r->timeout, r->retries, 0, r->type,
-				    recv_buffer, sizeof(recv_buffer), &recv_len, vector, &r->reply_code);
+				    recv_buffer, sizeof(recv_buffer), &recv_len, vector, &reply_code);
 
+	/* reply_code is set even for a reply that is then rejected; only a
+	 * RADCLI_OK outcome reports it (REQ-NET2-RECV-015). */
 	switch (result) {
 	case OK_RC:
 	case REJECT_RC:
@@ -417,6 +420,7 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 					      &r->reply_attrs) != 0)
 				return RADCLI_ERROR;
 		}
+		r->reply_code = reply_code;
 		return RADCLI_OK;
 	case TIMEOUT_RC:
 		return RADCLI_TIMEOUT;
@@ -452,7 +456,6 @@ int radcli_request_done(radcli_request *r)
 	if (!r->async.delivered)
 		return RADCLI_AGAIN;
 
-	r->reply_code = r->async.reply_code;
 	r->reply_attrs = r->async.reply_attrs;
 	r->async.reply_attrs = NULL; /* ownership moved to r */
 	r->async.active = 0;
@@ -461,6 +464,7 @@ int radcli_request_done(radcli_request *r)
 	case OK_RC:
 	case REJECT_RC:
 	case CHALLENGE_RC:
+		r->reply_code = r->async.reply_code; /* REQ-NET2-RECV-015 */
 		return RADCLI_OK;
 	case TIMEOUT_RC:
 		return RADCLI_TIMEOUT;

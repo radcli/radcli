@@ -17,7 +17,8 @@ shell_tests = [
 if have_gnutls
   shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
   shell_tests += ['avp-codec-freeradius-tests.sh', 'request-freeradius-tests.sh']
-  shell_tests += ['request-poll-multi-tests.sh', 'request-async-validation-tests.sh']
+  shell_tests += ['request-poll-multi-tests.sh', 'request-async-validation-tests.sh',
+                  'request-reply-code-tests.sh']
   shell_tests += ['dae-radsec-tests.sh', 'dae-radsec-stress-tests.sh', 'dae-radsec-backpressure-tests.sh', 'dae-radsec-watchdog-tests.sh']
   shell_tests += ['watchdog-aaa-tests.sh']
   shell_tests += ['request-tls-secret-tests.sh']
@@ -98,6 +99,11 @@ if have_gnutls
   # Reply validation on the RADCLI_REQUEST_SENDONLY path
   # (tests/request-async-validation-tests.sh, peer: tests/radius-server.py).
   request_async_validation = executable('request-async-validation', 'request-async-validation.c',
+    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+    dependencies: link_libs, install: false)
+  # radcli_request_code() after a failed request
+  # (tests/request-reply-code-tests.sh, peer: tests/radius-server.py).
+  request_reply_code = executable('request-reply-code', 'request-reply-code.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
   # DAE-over-RadSec concurrency stress test (tests/dae-radsec-stress-tests.sh),
