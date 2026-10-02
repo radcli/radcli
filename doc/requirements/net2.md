@@ -903,6 +903,29 @@ to exercise the success path at all; not currently exercised locally, same
 as `net2.md`'s existing `[UNDOCUMENTED-BY-TEST]` RECV-category notes.
 `[UNDOCUMENTED-BY-TEST]`
 
+### REQ-NET2-AAA-008 — radcli_aaa() decodes a reply with the secret its request was built with
+
+**Requirement:** `radcli_aaa()` MUST decode each attempt's reply
+(`radcli_avp_decode()`) with the same effective secret
+`radcli_encode_request()` used to build that attempt's request — for a
+TLS/DTLS `ctx`, the RFC 6614 SS2.3/RFC 7360 SS3.2 fixed RadSec secret
+(`REQ-NET2-SEND-015`), not the server entry's configured secret — so that
+salt-encrypted reply attributes (RFC 2868 SS3.5 Tunnel-Password, RFC 2548
+MS-MPPE-*-Key) decrypt correctly, as `REQ-NET2-RECV-014` already requires
+of `radcli_request_perform()`.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: `radcli_aaa()` decoded with
+`servers->secret[]` (empty for an ordinarily configured TLS `authserver`),
+so salt-encrypted reply attributes were silently dropped or garbled.
+**Source:** lib/aaa2.c (`radcli_aaa()`, success path); lib/request.c
+(`radcli_encode_request()`)
+**Acceptance:** [AAA] interoperability, local —
+`tests/request-tls-secret-tests.sh`'s `aaa` mode: the peer returns a
+salt-encrypted Tunnel-Password keyed with the fixed secret and
+`radcli_aaa()`'s decoded reply must carry its plaintext; confirmed failing
+(attribute missing) against the unfixed code.
+**Links:** REQ-NET2-SEND-015, REQ-NET2-RECV-014, REQ-NET2-AAA-006
+
 ### REQ-NET2-AAA-007 — `radius_timeout <= 0` / `radius_retries < 0` MUST be rejected before `radcli_aaa()`'s first attempt, matching the config-file path's check — WITHDRAWN
 
 **Status:** WITHDRAWN — superseded by `REQ-CONFIG2-CFG-004`, same reasoning

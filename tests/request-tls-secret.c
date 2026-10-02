@@ -43,6 +43,10 @@
  * session must be established lazily by that send (REQ-NET-NET-005,
  * REQ-NET2-SEND-012), and the same fixed secret must key it
  * (REQ-NET2-SEND-015 covers both callers of radcli_encode_request()).
+ *
+ * With "aaa", the exchange goes through radcli_aaa() instead, and the peer
+ * also returns a salt-encrypted Tunnel-Password: radcli_aaa() must decrypt
+ * it with the same fixed secret (REQ-NET2-AAA-008).
  */
 
 #include <config.h>
@@ -53,6 +57,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <poll.h>
+
+/* Must match the --reply-tunnel-password value tests/request-tls-secret-tests.sh
+ * gives the peer in aaa mode. */
+#define TUNNEL_PASSWORD "tunnel-secret"
 
 static void die(const char *msg) __attribute__((noreturn));
 
@@ -69,13 +77,14 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	int rc;
-	int sendonly;
+	int sendonly, aaa;
 
-	if (argc != 3 && !(argc == 4 && strcmp(argv[3], "sendonly") == 0)) {
-		fprintf(stderr, "usage: %s <port> <tls-ca-file> [sendonly]\n", argv[0]);
+	sendonly = (argc == 4 && strcmp(argv[3], "sendonly") == 0);
+	aaa = (argc == 4 && strcmp(argv[3], "aaa") == 0);
+	if (argc != 3 && !sendonly && !aaa) {
+		fprintf(stderr, "usage: %s <port> <tls-ca-file> [sendonly|aaa]\n", argv[0]);
 		return 2;
 	}
-	sendonly = (argc == 4);
 
 	ctx = radcli_ctx_new(0);
 	if (ctx == NULL)
@@ -105,6 +114,38 @@ int main(int argc, char **argv)
 		die("radcli_avp_add_str_by_num(PW_USER_NAME)");
 	if (radcli_avp_add_str_by_num(send_list, ctx, PW_USER_PASSWORD, 0, "test") != 0)
 		die("radcli_avp_add_str_by_num(PW_USER_PASSWORD)");
+
+	if (aaa) {
+		radcli_code code = 0;
+		radcli_avp_list *reply = NULL;
+		const radcli_attr_def *d_tp;
+		const radcli_avp *tp;
+		const void *val;
+		size_t len;
+
+		rc = radcli_aaa(ctx, RADCLI_CODE_ACCESS_REQUEST, send_list, &code, &reply);
+		radcli_avp_list_free(send_list);
+		if (rc != RADCLI_OK || code != RADCLI_CODE_ACCESS_ACCEPT) {
+			fprintf(stderr, "request-tls-secret: radcli_aaa() returned %d, code %d; "
+					"expected an Access-Accept\n", rc, (int)code);
+			return 1;
+		}
+		d_tp = radcli_dict_lookup_num(ctx, PW_TUNNEL_PASSWORD, 0);
+		tp = d_tp != NULL ? radcli_avp_get(reply, d_tp, 0) : NULL;
+		if (tp == NULL || radcli_avp_get_bytes(tp, &val, &len) != 0) {
+			fprintf(stderr, "request-tls-secret: no Tunnel-Password in the decoded reply\n");
+			return 1;
+		}
+		if (len != strlen(TUNNEL_PASSWORD) || memcmp(val, TUNNEL_PASSWORD, len) != 0) {
+			fprintf(stderr, "request-tls-secret: Tunnel-Password decrypted to the "
+					"wrong value (not keyed with the RFC 6614 fixed secret)\n");
+			return 1;
+		}
+		radcli_avp_list_free(reply);
+		radcli_ctx_free(ctx);
+		printf("request-tls-secret: radcli_aaa() decrypted Tunnel-Password correctly\n");
+		return 0;
+	}
 
 	r = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, send_list);
 	radcli_avp_list_free(send_list);

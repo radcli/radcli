@@ -231,6 +231,8 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 		uint8_t reply_code = 0;
 		char server[AUTH_ID_LEN + 1] = "";
 		char secret[MAX_SECRET_LENGTH + 1] = "";
+		radcli_avp_list *decoded = NULL;
+		int decode_ret = 0;
 
 		attempt = build_attempt(send, code, d_adt, start_time);
 		if (attempt == NULL)
@@ -247,16 +249,18 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 					    vector, &reply_code);
 
 		radcli_avp_list_free(attempt);
+
+		/* secret, not servers->secret[]: radcli_encode_request() replaced
+		 * it with the fixed RadSec secret over TLS/DTLS (REQ-NET2-AAA-008). */
+		if ((result == OK_RC || result == REJECT_RC || result == CHALLENGE_RC) &&
+		    recv_len > 0)
+			decode_ret = radcli_avp_decode(rh, secret, vector, recv_buffer,
+						       recv_len, 0, &decoded);
 		memset(secret, 0, sizeof(secret));
 
 		if (result == OK_RC || result == REJECT_RC || result == CHALLENGE_RC) {
-			radcli_avp_list *decoded = NULL;
-
-			if (recv_len > 0) {
-				if (radcli_avp_decode(rh, servers->secret[servernum] ? servers->secret[servernum] : "",
-						      vector, recv_buffer, recv_len, 0, &decoded) != 0)
-					return RADCLI_ERROR;
-			}
+			if (decode_ret != 0)
+				return RADCLI_ERROR;
 
 			if (out_code != NULL)
 				*out_code = (radcli_code)reply_code;

@@ -51,13 +51,15 @@ fi
 
 # $1: empty for the blocking radcli_request_perform() path, "sendonly" for
 # RADCLI_REQUEST_SENDONLY as the ctx's first operation, driven via
-# radcli_ctx_get_poll()/radcli_ctx_dispatch().
+# radcli_ctx_get_poll()/radcli_ctx_dispatch(), or "aaa" for radcli_aaa(),
+# which also checks the reply's salt-encrypted Tunnel-Password.
 function run_mode {
 	local mode="$1"
 
 	eval "$GETPORT"
 	python3 ${srcdir}/request-tls-secret-server.py --host 127.0.0.1 --port ${PORT} \
-		--cert $CERT --key $KEY --expect-password test >$SERVEROUT 2>&1 &
+		--cert $CERT --key $KEY --expect-password test \
+		--reply-tunnel-password tunnel-secret >$SERVEROUT 2>&1 &
 	SERVERPID=$!
 	sleep 0.5
 
@@ -87,6 +89,7 @@ function run_mode {
 
 run_mode ""
 run_mode sendonly
+run_mode aaa
 
 echo "[  OK  ] Message-Authenticator and User-Password both keyed with the RFC 6614/7360 fixed secret"
 exit 0

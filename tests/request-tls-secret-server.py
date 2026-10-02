@@ -37,6 +37,7 @@ import sys
 
 ATTR_USER_NAME = 1
 ATTR_USER_PASSWORD = 2
+ATTR_TUNNEL_PASSWORD = 69
 ATTR_MESSAGE_AUTHENTICATOR = 80
 ACCESS_REQUEST = 1
 ACCESS_ACCEPT = 2
@@ -102,14 +103,37 @@ def decrypt_user_password(ciphertext, secret, request_auth):
     return plaintext.rstrip(b'\x00')
 
 
-def build_access_accept(ident, request_auth, secret):
+def tunnel_password_attr(value, secret, request_auth):
+    """RFC 2868 SS3.5: Tag, Salt (high bit set), then a length octet plus
+    value, zero-padded to 16 octets, encrypted with the keystream
+    b(1) = MD5(secret + Request Authenticator + Salt),
+    b(i) = MD5(secret + c(i-1))."""
+    salt = bytes([0x80 | 0x15, 0x2a])
+    plain = bytes([len(value)]) + value
+    plain += bytes((16 - len(plain) % 16) % 16)
+    secret_b = secret.encode()
+    prev = request_auth + salt
+    cipher = b''
+    for i in range(0, len(plain), 16):
+        b = hashlib.md5(secret_b + prev).digest()
+        block = bytes(x ^ y for x, y in zip(plain[i:i + 16], b))
+        cipher += block
+        prev = block
+    data = bytes([1]) + salt + cipher
+    return bytes([ATTR_TUNNEL_PASSWORD, 2 + len(data)]) + data
+
+
+def build_access_accept(ident, request_auth, secret, tunnel_password=None):
     ma_hdr = bytes([ATTR_MESSAGE_AUTHENTICATOR, 18])
-    body_zeroed = ma_hdr + bytes(16)
+    extra = b''
+    if tunnel_password is not None:
+        extra = tunnel_password_attr(tunnel_password.encode(), secret, request_auth)
+    body_zeroed = ma_hdr + bytes(16) + extra
     length = 20 + len(body_zeroed)
     header_no_auth = struct.pack('!BBH', ACCESS_ACCEPT, ident, length)
     ma = hmac.new(secret.encode(), header_no_auth + request_auth + body_zeroed,
                   hashlib.md5).digest()
-    body = ma_hdr + ma
+    body = ma_hdr + ma + extra
     resp_auth = hashlib.md5(header_no_auth + request_auth + body + secret.encode()).digest()
     return header_no_auth + resp_auth + body
 
@@ -122,6 +146,9 @@ def main():
     parser.add_argument('--key', required=True)
     parser.add_argument('--secret', default='radsec')
     parser.add_argument('--expect-password', default='test')
+    parser.add_argument('--reply-tunnel-password', default=None,
+                        help='add this value to the Access-Accept as a salt-encrypted '
+                             'Tunnel-Password (RFC 2868 SS3.5)')
     parser.add_argument('--timeout', type=float, default=15.0)
     args = parser.parse_args()
 
@@ -178,7 +205,8 @@ def main():
             break
 
     try:
-        conn.sendall(build_access_accept(ident, request_auth, args.secret))
+        conn.sendall(build_access_accept(ident, request_auth, args.secret,
+                                         args.reply_tunnel_password))
     except (socket.timeout, ssl.SSLError, ConnectionError) as e:
         sys.stderr.write('request-tls-secret-server: reply send failed: %s\n' % e)
 
