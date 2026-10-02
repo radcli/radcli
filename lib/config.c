@@ -146,6 +146,21 @@ char *rc_conf_str_id(rc_handle const *rh, rc_option_id id)
 	return (char *)option->val;
 }
 
+/*- Get the value of a server-list-typed config option by compile-time index.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param id the option's compile-time index; must be RADCLI_OPT_TYPE_SRV.
+ * @return config option value, or NULL if unset.
+ -*/
+SERVER *rc_conf_srv_id(rc_handle const *rh, rc_option_id id)
+{
+	OPTION *option = rc_option_by_id(rh, id);
+
+	assert(option->type & RADCLI_OPT_TYPE_SRV);
+
+	return (SERVER *)option->val;
+}
+
 /*- Set a string-typed option's value, duplicating p.
  *
  * @param filename the name of the config file (for logging purposes).
@@ -636,16 +651,16 @@ static int set_addr(struct sockaddr_storage *ss, const char *ip)
  * RC_SOCKET_TLS/_DTLS branch), and radcli_transport_exchange()
  * (lib/sendserver.c) overwrites it with the RFC 6614/7360 fixed secret
  * before it would ever be used regardless. */
-/*- Fill in optname's first server entry's secret from the "secret"
+/*- Fill in a server list's first entry's secret from the "secret"
  * option, but only when that entry has no secret of its own yet.
  *
  * @param rh a handle to parsed configuration.
- * @param optname "authserver" or "acctserver".
+ * @param id OPT_AUTHSERVER or OPT_ACCTSERVER.
  * @param secret the fallback secret to apply.
  -*/
-static void apply_secret_fallback_one(rc_handle *rh, const char *optname, const char *secret)
+static void apply_secret_fallback_one(rc_handle *rh, rc_option_id id, const char *secret)
 {
-	SERVER *serv = radcli2_priv_conf_srv(rh, optname);
+	SERVER *serv = rc_conf_srv_id(rh, id);
 	char *dup;
 
 	if (serv == NULL || serv->max == 0)
@@ -673,8 +688,8 @@ static void apply_secret_fallback(rc_handle *rh)
 	if (secret == NULL || secret[0] == '\0')
 		return;
 
-	apply_secret_fallback_one(rh, "authserver", secret);
-	apply_secret_fallback_one(rh, "acctserver", secret);
+	apply_secret_fallback_one(rh, OPT_AUTHSERVER, secret);
+	apply_secret_fallback_one(rh, OPT_ACCTSERVER, secret);
 }
 
 /*- Materialize optname's default into rh's config table if it was never
@@ -729,7 +744,7 @@ static int radcli2_priv_check_config(rc_handle *rh, char const *source)
 	 * by radcli_dae_new() itself) is enough to signal that intent here;
 	 * this function only gates the cheap, universal requirement, not
 	 * dae-accept's own grammar. */
-	srv = radcli2_priv_conf_srv(rh, "authserver");
+	srv = rc_conf_srv_id(rh, OPT_AUTHSERVER);
 	if (!srv || !srv->max)
 	{
 		if (rc_conf_str_id(rh, OPT_DAE_ACCEPT) == NULL)
@@ -745,7 +760,7 @@ static int radcli2_priv_check_config(rc_handle *rh, char const *source)
 	}
 	else
 	{
-		srv = radcli2_priv_conf_srv(rh, "acctserver");
+		srv = rc_conf_srv_id(rh, OPT_ACCTSERVER);
 		if (!srv || !srv->max)
 		{
 			/* it is allowed not to have acct servers under TLS/DTLS. rh->so_type
@@ -1214,7 +1229,6 @@ int radcli2_priv_find_server_addr (rc_handle const *rh, char const *server_name,
 	SERVER	       *servers;
 	struct addrinfo *tmpinfo = NULL;
 	const char      *fservers;
-	char const      *optname;
 
 	/* Lookup the IP address of the radius server */
 	if ((*info = rc_getaddrinfo (server_name, type==AUTH?PW_AI_AUTH:PW_AI_ACCT)) == NULL)
@@ -1222,13 +1236,12 @@ int radcli2_priv_find_server_addr (rc_handle const *rh, char const *server_name,
 
 	switch (type)
 	{
-	case AUTH: optname = "authserver"; break;
-	case ACCT: optname = "acctserver"; break;
-	default:   optname = NULL;
+	case AUTH: servers = rc_conf_srv_id(rh, OPT_AUTHSERVER); break;
+	case ACCT: servers = rc_conf_srv_id(rh, OPT_ACCTSERVER); break;
+	default:   servers = NULL;
 	}
 
-	if ( (optname != NULL) &&
-	     ((servers = radcli2_priv_conf_srv(rh, optname)) != NULL) )
+	if (servers != NULL)
 	{
 		/* Check to see if the server secret is defined in the rh config */
 		unsigned  servernum;

@@ -912,9 +912,10 @@ redundant.
 **Requirement:** Internal radcli2 code — `lib/config.c`, `lib/config2.c`,
 `lib/tls.c`, `lib/dae.c`, `lib/sendserver.c`, `lib/request.c`, `lib/aaa2.c`,
 `lib/ip_util.c` — MUST read an option whose name is known at compile time
-via the `id`-indexed accessor (`rc_conf_int_id()`/`rc_conf_str_id()`,
-`lib/options.h`), never via a string-name lookup
-(`radcli2_priv_conf_str()`/`radcli2_priv_conf_int()`) and never via a
+via the `id`-indexed accessor (`rc_conf_int_id()`/`rc_conf_str_id()`/
+`rc_conf_srv_id()`, `lib/options.h`), never via a string-name lookup
+(`radcli2_priv_conf_str()`/`radcli2_priv_conf_int()`/
+`radcli2_priv_conf_srv()`) and never via a
 runtime-default-supplying variant. An option whose effective value needs a
 non-zero default when unset MUST have that default materialized into the
 config table once, during `radcli2_priv_apply_config()` — never substituted
@@ -930,7 +931,7 @@ at exactly the 2 options — `watchdog-interval`, `dae-max-clock-skew` — that
 needed one) is what exposed the gap this closes: every other internal
 config read already used `rc_conf_int_id()` before this, `rc_conf_int_def()`
 was the one inconsistent holdout.
-**Acceptance:** [STYLE] negative, local — `grep -n 'radcli2_priv_conf_str(rh, "\|radcli2_priv_conf_int(rh, "\|rc_conf_int_def(' lib/config.c lib/config2.c lib/tls.c lib/dae.c lib/sendserver.c lib/request.c lib/aaa2.c lib/ip_util.c` returns no matches outside the accessor functions' own definitions. [STYLE] positive, local — `tests/ctx.c` confirms `watchdog-interval`'s default is visible via the *public* `radcli_ctx_get_opt_int()` after `radcli_ctx_apply()`, proving the default is materialized in the table rather than substituted only inside whichever internal reader used to supply it (`REQ-CONFIG-CFG-021`).
+**Acceptance:** [STYLE] negative, local — `grep -n 'radcli2_priv_conf_str(\|radcli2_priv_conf_int(\|radcli2_priv_conf_srv(\|rc_conf_int_def(' lib/config.c lib/config2.c lib/tls.c lib/dae.c lib/sendserver.c lib/request.c lib/aaa2.c lib/ip_util.c` returns no matches outside the accessor functions' own definitions. [STYLE] positive, local — `tests/ctx.c` confirms `watchdog-interval`'s default is visible via the *public* `radcli_ctx_get_opt_int()` after `radcli_ctx_apply()`, proving the default is materialized in the table rather than substituted only inside whichever internal reader used to supply it (`REQ-CONFIG-CFG-021`).
 **Links:** REQ-CONFIG-CFG-021
 
 ### REQ-GEN-STYLE-012 — Every `lib/*.c` file MUST carry a one-line `@file`/`@brief` block

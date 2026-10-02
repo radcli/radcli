@@ -100,6 +100,7 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	struct radcli_request_st *r;
 	SERVER *servers;
 	const char *optname;
+	rc_option_id optid;
 	rc_type type;
 	radcli_avp_list *send_copy;
 	radcli_avp_iter it;
@@ -120,13 +121,15 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS ||
 	    code == RADCLI_CODE_ACCESS_REQUEST) {
 		optname = "authserver";
+		optid = OPT_AUTHSERVER;
 		type = AUTH;
 	} else {
 		optname = "acctserver";
+		optid = OPT_ACCTSERVER;
 		type = ACCT;
 	}
 
-	servers = radcli2_priv_conf_srv(rh, optname);
+	servers = rc_conf_srv_id(rh, optid);
 	if (servers == NULL || servers->max == 0) {
 		rc_log(LOG_ERR, "radcli_request_new: no %s configured", optname);
 		return NULL;

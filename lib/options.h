@@ -75,3 +75,4 @@ typedef enum {
  * rc_conf_int()/rc_conf_str() otherwise. */
 int rc_conf_int_id(rc_handle const *rh, rc_option_id id);
 char *rc_conf_str_id(rc_handle const *rh, rc_option_id id);
+SERVER *rc_conf_srv_id(rc_handle const *rh, rc_option_id id);

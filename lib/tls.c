@@ -1154,7 +1154,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 	}
 
 	/* Read the PSK key if any */
-	authservers = radcli2_priv_conf_srv(rh, "authserver");
+	authservers = rc_conf_srv_id(rh, OPT_AUTHSERVER);
 	if (authservers == NULL) {
 		rc_log(LOG_ERR,
 		       "%s: cannot find authserver", __func__);

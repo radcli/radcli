@@ -329,18 +329,18 @@ int radcli_ctx_get_opt_int(const radcli_ctx *ctx, radcli_opt_id opt, long *out)
 }
 
 /* The new API is single-server-per-context, so only the first
- * (only) entry of the SERVER list named by optname needs a secret. */
-/*- Set secret on the first entry of the SERVER list named by optname.
+ * (only) entry of the SERVER list needs a secret. */
+/*- Set secret on the first entry of a SERVER list.
  *
- * @param ctx a context whose optname server is already configured.
- * @param optname "authserver" or "acctserver".
+ * @param ctx a context whose id server list is already configured.
+ * @param id OPT_AUTHSERVER or OPT_ACCTSERVER.
  * @param secret the shared secret to copy onto that server entry.
  * @return 0 on success, -1 if that server type has not been configured
  * yet or the secret could not be duplicated.
  -*/
-static int radcli_set_one_secret(radcli_ctx *ctx, const char *optname, const char *secret)
+static int radcli_set_one_secret(radcli_ctx *ctx, rc_option_id id, const char *secret)
 {
-	SERVER *serv = radcli2_priv_conf_srv(ctx, optname);
+	SERVER *serv = rc_conf_srv_id(ctx, id);
 	char *dup;
 
 	if (serv == NULL || serv->max == 0)
@@ -384,9 +384,9 @@ int radcli_ctx_set_secret(radcli_ctx *ctx, unsigned target_mask, const char *sec
 		return -1;
 
 	if (target_mask & RADCLI_SECRET_AUTH)
-		ret |= radcli_set_one_secret(ctx, "authserver", secret);
+		ret |= radcli_set_one_secret(ctx, OPT_AUTHSERVER, secret);
 	if (target_mask & RADCLI_SECRET_ACCT)
-		ret |= radcli_set_one_secret(ctx, "acctserver", secret);
+		ret |= radcli_set_one_secret(ctx, OPT_ACCTSERVER, secret);
 
 	return ret == 0 ? 0 : -1;
 }
