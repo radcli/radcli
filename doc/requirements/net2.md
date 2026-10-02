@@ -269,15 +269,56 @@ every connection attempt so far failed), and MUST return `0` rather than
 crash or report failure; `radcli_ctx_get_poll()` MUST report no descriptor
 for it (`*nfds == 0`). This holds even when a
 `RADCLI_REQUEST_SENDONLY` request has already used `ctx`'s in-flight
-registry, so the registry drain runs.
+registry.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dae.c (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`);
-lib/sendserver.c (`radcli2_priv_reqreg_drain()`); lib/tls.c
-(`tls_get_active_fd()`, REQ-NET-NET-019)
+lib/sendserver.c (`radcli2_priv_radsec_drain()`); lib/tls.c
+(`radcli2_priv_tls_try_recv()`, `tls_get_active_fd()`, REQ-NET-NET-019)
 **Acceptance:** [NET] negative, unit, local — `tests/request.c`'s
 refused-PSK-TLS-server case (REQ-NET-NET-019's acceptance).
 **Links:** REQ-NET-NET-019, REQ-NET2-NET-001, REQ-NET2-SEND-012
+
+### REQ-NET2-NET-004 — every record read from a RadSec session reaches what it belongs to, whichever call reads it
+
+**Requirement:** Every record read from a TLS/DTLS `ctx`'s session — by a
+blocking exchange (`radcli_request_perform()` with default flags,
+`radcli_aaa()`, or the legacy `rc_auth()`/`rc_acct()`) or by
+`radcli_ctx_dispatch()` — MUST be routed through one function,
+`radcli2_priv_radsec_route()` (RFC 6614 §2.1/§2.5, RFC 7360 §2.2: one
+connection carries every packet type). A Disconnect-/CoA-Request MUST go to
+the DAE pipeline (queued for `radcli_ctx_dispatch()`'s handler, or answered
+with a 406 NAK when dynamic authorization is off), and a reply to an
+in-flight `RADCLI_REQUEST_SENDONLY` request MUST resolve that request
+(REQ-NET2-SEND-013/016/017) — never be discarded because another call
+happened to read it. A blocking exchange MUST keep waiting for its own reply
+after routing a record that is not (REQ-NET-NET-010). Anything that matches
+nothing in flight is dropped. `radcli_ctx_dispatch()` reads every record
+already available, but stops after a DAE request, so a burst of them
+re-arms the caller's loop one per call; `radcli_ctx_get_poll()` reports a
+zero timeout while GnuTLS holds a record no read has returned, since that
+raises no `POLLIN`.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: a blocking exchange discarded every
+record other than its own reply, losing replies to in-flight
+`RADCLI_REQUEST_SENDONLY` requests, and `radcli_ctx_dispatch()` read the
+session through two paths (the request drain and the idle DAE poll), the
+second of which dropped any reply it read.
+**Source:** lib/sendserver.c (`radcli2_priv_radsec_route()`,
+`radcli2_priv_radsec_drain()`, `radcli_transport_exchange()`); lib/tls.c
+(`radcli2_priv_tls_try_recv()`, `radcli2_priv_tls_pending()`); lib/dae.c
+(`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`)
+**Acceptance:** [NET] negative, local, no root —
+`tests/request-tls-interleave-tests.sh` (peer: `tests/watchdog-aaa-server.py`)
+sends a `RADCLI_REQUEST_SENDONLY` request with no retries, lets its reply
+arrive, then performs a blocking request that reads it first; the async
+request must still complete with its Access-Accept. Confirmed failing
+(`RADCLI_TIMEOUT`) against the unfixed code. `tests/dae-radsec-stress-tests.sh`
+covers DAE requests read by either path. `[UNDOCUMENTED-BY-TEST: the old
+dispatch-internal race between the two readers was timing-dependent and is
+covered by construction, not by a test.]`
+**Links:** REQ-NET2-NET-001, REQ-NET2-NET-003, REQ-NET2-SEND-013,
+REQ-NET2-SEND-016, REQ-NET-NET-010, REQ-DAE-SEC-015
 
 ---
 

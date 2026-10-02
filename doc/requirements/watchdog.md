@@ -212,8 +212,8 @@ never from a radcli-owned thread or signal.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dae.c's `radcli2_priv_dae_send_watchdog()`; lib/tls.c's
-`tls_int_st.last_recv` (updated by `tls_recvfrom()`,
-`radcli2_priv_tls_dae_poll()`, `radcli2_priv_tls_try_recv()`) and
+`tls_int_st.last_recv` (updated by `tls_recvfrom()` and
+`radcli2_priv_tls_try_recv()`, the session's only readers) and
 `radcli2_priv_tls_force_reconnect()`
 **Acceptance:** [NET] positive, local — `tests/watchdog-aaa.c`'s phase 4:
 after the peer answers nothing at all for well over 2.5x watchdog-interval

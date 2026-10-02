@@ -369,7 +369,7 @@ REQ-NET-NET-017 (`no_wait`'s single-address exception to this requirement)
 number — until `init_session()` first succeeds (REQ-NET-NET-005's
 deferred handshake). Every caller that treats a non-negative
 `get_active_fd()` result as "a session exists" — `lib/sendserver.c`'s
-request-registry drain and retransmit paths — depends on this to avoid
+request-registry retransmit path — depends on this to avoid
 calling into a GnuTLS session that was never created. A caller that needs
 the session established, rather than merely inspected, MUST use
 `get_fd()`/`sendto()` (which restart it), not `get_active_fd()`.
@@ -379,8 +379,8 @@ the session established, rather than merely inspected, MUST use
 `RADCLI_REQUEST_SENDONLY` send had failed to connect called
 `gnutls_record_recv()` on a NULL session and crashed.
 **Source:** lib/tls.c (`rc_init_tls()`, `tls_get_active_fd()`);
-lib/sendserver.c (`radcli2_priv_reqreg_drain()`,
-`radcli2_priv_reqreg_service_timeouts()`, `radcli_transport_send_async()`)
+lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`,
+`radcli_transport_send_async()`)
 **Acceptance:** [NET] negative, unit, local — `tests/request.c` performs a
 `RADCLI_REQUEST_SENDONLY` request on a PSK TLS `ctx` whose server refuses
 the connection, then calls `radcli_ctx_dispatch()` and

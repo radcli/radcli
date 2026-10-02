@@ -415,6 +415,15 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
 
 void radcli2_priv_reqreg_drain(rc_handle *rh);
 
+/* radcli2_priv_radsec_route()'s results. */
+#define RADSEC_ROUTE_DAE	1
+#define RADSEC_ROUTE_REPLY	2
+#define RADSEC_ROUTE_DROPPED	3
+
+int radcli2_priv_radsec_route(rc_handle *rh, uint8_t *buf, size_t cap, int len);
+
+void radcli2_priv_radsec_drain(rc_handle *rh);
+
 void radcli2_priv_reqreg_service_timeouts(rc_handle *rh);
 
 /* No longer public (radcli2.h). */
@@ -464,10 +473,10 @@ time_t radcli2_priv_tls_last_msg(rc_handle *rh);
 time_t radcli2_priv_tls_last_recv(rc_handle *rh);
 int radcli2_priv_tls_force_reconnect(rc_handle *rh);
 int radcli2_priv_tls_ensure_connected(rc_handle *rh);
-int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap);
 int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
+int radcli2_priv_tls_pending(rc_handle *rh);
 
 int radcli2_priv_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria);
 
