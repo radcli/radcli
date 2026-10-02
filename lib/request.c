@@ -432,8 +432,9 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
  * every other concurrently in-flight RADCLI_REQUEST_SENDONLY request, and
  * radcli_ctx_dispatch() is what actually drives it to completion (draining
  * replies, retransmitting, expiring on timeout) -- this call never performs
- * I/O itself, so calling it any number of times between
- * radcli_ctx_dispatch() calls is free.
+ * I/O itself, so polling it any number of times between
+ * radcli_ctx_dispatch() calls is free. The terminal result is reported
+ * once; the reply then stays readable with radcli_request_code()/_attrs().
  *
  * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
  *  returned RADCLI_OK for.
@@ -441,8 +442,8 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
  *  radcli_ctx_dispatch() and try again), RADCLI_OK if a validated reply was
  *  received (read it with radcli_request_code()/_attrs(), same as
  *  radcli_request_perform()), RADCLI_TIMEOUT if retries are exhausted, or
- *  RADCLI_ERROR on failure or if r was never sent with
- *  RADCLI_REQUEST_SENDONLY.
+ *  RADCLI_ERROR on failure, if r was never sent with
+ *  RADCLI_REQUEST_SENDONLY, or if its terminal result was already returned.
  */
 int radcli_request_done(radcli_request *r)
 {

@@ -457,12 +457,16 @@ Response Authenticator / Message-Authenticator verification and
 `radcli_avp_decode()` call the default (`flags == 0`) path uses, populate
 `r->reply_code`/`r->reply_attrs` identically, and mark the slot `RADCLI_OK`.
 `radcli_request_done(r)` MUST perform no I/O of its own: it MUST return
-`RADCLI_AGAIN` while `r`'s registry slot is still unresolved, and otherwise
-the terminal result `radcli_ctx_dispatch()` already recorded
-(`RADCLI_OK`/`RADCLI_TIMEOUT`/`RADCLI_ERROR`) — a caller may call it as often
-as it likes between `dispatch()` calls without side effects. Calling
-`radcli_request_done()` on a request never sent with `RADCLI_REQUEST_SENDONLY`
-MUST return `RADCLI_ERROR` without touching `r->reply_code`/`r->reply_attrs`.
+`RADCLI_AGAIN` while `r`'s registry slot is still unresolved — a caller may
+poll it as often as it likes between `dispatch()` calls without side
+effects — and, on the first call after the slot resolves, the terminal
+result `radcli_ctx_dispatch()` recorded (`RADCLI_OK`/`RADCLI_TIMEOUT`/
+`RADCLI_ERROR`), moving the decoded reply into `r` for
+`radcli_request_code()`/`radcli_request_attrs()`. The terminal result is
+reported once: every later call MUST return `RADCLI_ERROR`, while the reply
+stays readable through those accessors. Calling `radcli_request_done()` on a
+request never sent with `RADCLI_REQUEST_SENDONLY` MUST return
+`RADCLI_ERROR` without touching `r->reply_code`/`r->reply_attrs`.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c's `radcli_request_done()`; lib/dae.c's
@@ -482,7 +486,8 @@ synchronous path's own result byte-for-byte (same `Framed-IP-Address`).
 concurrent `RADCLI_REQUEST_SENDONLY` requests on one `ctx` and confirms all
 resolve correctly while genuinely sharing one descriptor
 (`radcli_ctx_get_poll()` reports the same fd throughout, not one per
-request).
+request), and that a second `radcli_request_done()` after a request's
+terminal result returns `RADCLI_ERROR`.
 **Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-016, REQ-NET2-NET-001,
 REQ-WATCHDOG-NET-001, REQ-GEN-SEC-003
 
