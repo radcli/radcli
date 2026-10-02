@@ -238,7 +238,7 @@ Five jobs run on every push (`.github/workflows/tests.yaml`):
 - **static-analyzer** — clang static analysis (`scan-build`)
 - **tests-asan** — build + `sudo meson test` with `-Db_sanitize=address`
 - **tests-ubsan** — build + `sudo meson test` with `-Db_sanitize=undefined` plus extra sanitizer flags
-- **tests** — standard build, `sudo meson test`, `ninja abi-check`, `ninja compare-exported`, `meson dist`
+- **tests** — standard build, `sudo meson test`, `ninja abi-check`/`abi-check2`, `ninja compare-exported`/`compare-exported2`, `meson dist`
 - **tests-notls** — build + `sudo meson test` with `-Dtls=disabled`
 
 ## Coding conventions

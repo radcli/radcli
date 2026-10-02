@@ -125,9 +125,11 @@ jobs:
             - name: ABI check
               run: |
                   ninja -C build abi-check
+                  ninja -C build abi-check2
             - name: Compare exported symbols
               run: |
                   ninja -C build compare-exported
+                  ninja -C build compare-exported2
             - name: Upload artifacts
               if: failure()
               uses: actions/upload-artifact@v7
