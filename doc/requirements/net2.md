@@ -364,47 +364,58 @@ lib/legacy/send.c (`rc_send_server_ctx()`'s equivalent branch)
 (a server that recomputes and rejects a mismatched Authenticator would fail
 this test).
 
-### REQ-NET2-SEND-010 — the request ID's source depends on whether the request shares ctx's persistent socket
+### REQ-NET2-SEND-010 — the request ID's source depends on whether the request shares a socket or session with other requests in flight
 
 **Requirement:** `radcli_encode_request()` (lib/request.c, shared by every
 call path: the blocking `flags == 0` path via `radcli_do_exchange()`/
-`radcli_transport_exchange()`, `radcli_aaa()`, and `RADCLI_REQUEST_SENDONLY`)
-takes the packet's `id` octet as a required parameter and MUST use exactly
-the value passed — it does not draw one itself, so each call site is
-responsible for stating explicitly where its `id` comes from. The blocking
-path and `radcli_aaa()` MUST pass an `id` drawn from `rc_get_random_byte()`
-(lib/rc-random.c, dispatching to `gnutls_rnd()`/`getentropy()`), never from
-`random()`/`rand()` (REQ-GEN-SEC-007's ban on weak PRNGs): each of those
-gets its own per-call socket via `radcli_transport_exchange()`
-(REQ-NET2-SEND-016's scope note), so no other concurrently in-flight request
-can collide with it and a CSPRNG-random value is sufficient. For
-`RADCLI_REQUEST_SENDONLY` specifically, `radcli_request_perform()` MUST pass
-the Identifier `ctx`'s in-flight registry already reserved for it
-(REQ-NET2-SEND-016's LRU allocation, reserved *before* this call — never
-patched into the wire packet afterward, since `id` is itself covered by the
-Message-Authenticator HMAC), since that request shares `ctx`'s persistent
-socket with every other concurrently in-flight `RADCLI_REQUEST_SENDONLY`
-request and needs the registry's collision-freedom and RFC 5080 §2.1.1
-reuse-cooldown property, which a random draw does not provide. Neither RFC
-2865 §3 nor RFC 5080 requires the Identifier itself to be unpredictable —
-RFC 5080 §2.1.1 recommends LRU (rotating, not random) allocation for its
-own, unrelated reason (minimizing stale-duplicate misattribution); see
-REQ-NET2-SEND-016.
+`radcli_transport_exchange()`, `radcli_aaa()`, the watchdog, and
+`RADCLI_REQUEST_SENDONLY`) takes the packet's `id` octet as a required
+parameter and MUST use exactly the value passed — it does not draw one
+itself, so each call site states where its `id` comes from:
+
+- `RADCLI_REQUEST_SENDONLY` MUST pass the Identifier `ctx`'s in-flight
+  registry reserved for it (REQ-NET2-SEND-016's LRU allocation), reserved
+  *before* this call — never patched into the wire packet afterward, since
+  `id` is itself covered by the Message-Authenticator HMAC.
+- On a TLS/DTLS `ctx` whose registry exists (some `RADCLI_REQUEST_SENDONLY`
+  request has used it), the blocking path, `radcli_aaa()` and the watchdog
+  share one session with those requests, so they MUST also reserve their
+  Identifier from the registry: a blocking request holds it until its
+  exchange ends, a watchdog until its reply arrives or the next watchdog is
+  sent. With every Identifier in flight, a blocking request MUST fail with
+  `RADCLI_ERROR` without sending, and the watchdog MUST skip that send.
+- Otherwise — UDP, where each blocking exchange has its own socket, or a
+  TLS/DTLS `ctx` with no registry, so nothing else is in flight on the
+  session — the `id` MUST be drawn from `rc_get_random_byte()`
+  (lib/rc-random.c), never from `random()`/`rand()` (REQ-GEN-SEC-007).
+
+Neither RFC 2865 §3 nor RFC 5080 requires the Identifier to be
+unpredictable; RFC 5080 §2.1.1 recommends LRU (rotating, not random)
+allocation and forbids reusing one still in flight. The legacy
+`rc_auth()`/`rc_acct()` path keeps its caller-visible `SEND_DATA.seq_nbr`
+(random by default) and does not reserve from the registry: interleaving it
+with in-flight `RADCLI_REQUEST_SENDONLY` requests on one TLS/DTLS handle can
+reuse an Identifier still in flight.
 **Strength:** MUST
-**Status:** DERIVED — narrowed 2026-09-01: neither RFC 2865 nor RFC 5080
-requires the Identifier to be unpredictable, so `RADCLI_REQUEST_SENDONLY`'s
-Identifier comes from LRU allocation, not a CSPRNG draw; see `general.md`'s
-REQ-GEN-SEC-007, narrowed alongside this.
-**Source:** lib/request.c (`radcli_encode_request()`'s `id` parameter and
-its call sites); RFC 2865 §3; RFC 5080 §2.1.1
+**Status:** DERIVED — extended 2026-10-02: the blocking path and watchdog
+used a random Identifier even on a TLS/DTLS session shared with in-flight
+`RADCLI_REQUEST_SENDONLY` requests, so it could equal one of theirs.
+**Source:** lib/request.c (`radcli_encode_request()`, `radcli_do_exchange()`);
+lib/sendserver.c (`radcli2_priv_reqreg_pick_id()`); lib/dae.c
+(`radcli2_priv_dae_send_watchdog()`); RFC 2865 §3; RFC 5080 §2.1.1
 **Acceptance:** [SEND] unit, local — a request performed with `flags == 0`
-or via `radcli_aaa()` is confirmed to still carry a `rc_get_random_byte()`-
-sourced `id` (statistical/uniqueness testing `Needs-domain-check`, as
-before). [SEND] unit, local — a `RADCLI_REQUEST_SENDONLY` request's `id` on
-the wire is confirmed to equal the Identifier `radcli_ctx_get_poll()`/the
-registry assigned it (REQ-NET2-SEND-016's acceptance), not an independent
-random draw.
-**Links:** REQ-GEN-SEC-007, REQ-NET2-SEND-016
+or via `radcli_aaa()` over UDP carries a `rc_get_random_byte()`-sourced
+`id` (statistical/uniqueness testing `Needs-domain-check`). [SEND] unit,
+local — a `RADCLI_REQUEST_SENDONLY` request's `id` on the wire equals the
+Identifier the registry assigned it (REQ-NET2-SEND-016's acceptance).
+[SEND] negative, local, no root — `tests/radsec-shared-ids-tests.sh` (peer:
+`tests/watchdog-aaa-server.py`) fills a TLS `ctx`'s registry directly: with
+one Identifier free a blocking request uses exactly that one; with none
+free it fails without sending and a due watchdog is skipped; once one is
+freed the watchdog uses exactly that one. Confirmed failing (a random
+Identifier, and a request sent with none free) against the unfixed code.
+**Links:** REQ-GEN-SEC-007, REQ-NET2-SEND-016, REQ-NET2-NET-004,
+REQ-WATCHDOG-NET-001
 
 ### REQ-NET2-SEND-011 — a request may be performed at most once, regardless of flags
 

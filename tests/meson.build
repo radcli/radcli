@@ -22,7 +22,8 @@ if have_gnutls
   shell_tests += ['dae-radsec-tests.sh', 'dae-radsec-stress-tests.sh', 'dae-radsec-backpressure-tests.sh', 'dae-radsec-watchdog-tests.sh']
   shell_tests += ['watchdog-aaa-tests.sh']
   shell_tests += ['request-tls-secret-tests.sh']
-  shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh']
+  shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh',
+                  'radsec-shared-ids-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
@@ -167,6 +168,13 @@ if have_gnutls
   # tests.sh, peer: tests/watchdog-aaa-server.py); needs lib/ internals
   # (rc_handle's socket vtable), so links libradcli_static like dae_codec.
   tls_lock_restart = executable('tls-lock-restart', 'tls-lock-restart.c',
+    include_directories: tests_incdirs + [include_directories('../lib')],
+    link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
+  # One Identifier space per RadSec session (tests/radsec-shared-ids-tests.sh,
+  # peer: tests/watchdog-aaa-server.py); fills the registry directly, so it
+  # links libradcli_static like tls_lock_restart.
+  radsec_shared_ids = executable('radsec-shared-ids', 'radsec-shared-ids.c',
     include_directories: tests_incdirs + [include_directories('../lib')],
     link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)

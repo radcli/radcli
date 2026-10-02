@@ -977,8 +977,14 @@ static int watchdog_deadline_ms(rc_handle *rh, int fd)
 	interval = rc_conf_int_id(rh, OPT_WATCHDOG_INTERVAL);
 	if (interval > 0) {
 		time_t last = radcli2_priv_tls_last_msg(rh);
-		long elapsed_ms = (long)(time(0) - last) * 1000L;
-		long remaining_ms = (long)interval * 1000L - elapsed_ms;
+		long elapsed_ms, remaining_ms;
+
+		/* A skipped watchdog counts as this round's attempt, so the
+		 * caller is not told to dispatch again at once. */
+		if (rh->watchdog_skipped > last)
+			last = rh->watchdog_skipped;
+		elapsed_ms = (long)(time(0) - last) * 1000L;
+		remaining_ms = (long)interval * 1000L - elapsed_ms;
 
 		return (remaining_ms > 0) ? (int)remaining_ms : 0;
 	}
@@ -1192,6 +1198,8 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 	char secret[MAX_SECRET_LENGTH + 1];
 	radcli_avp_list *empty;
 	int total_length;
+	uint8_t id;
+	int slot;
 	int ret;
 
 	if (rh == NULL)
@@ -1231,16 +1239,33 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 	if (empty == NULL)
 		return -1;
 
-	/* Own established RadSec session, correlated to no other in-flight
-	 * exchange (REQ-WATCHDOG-NET-001 never queues/retries this) -- a
-	 * CSPRNG draw is sufficient (REQ-NET2-SEND-010). */
-	ret = radcli_encode_request(rh, PW_STATUS_SERVER, empty, secret,
-				    send_buffer, rc_get_random_byte(), vector, &total_length);
-	radcli_avp_list_free(empty);
-	if (ret < 0)
+	/* A new watchdog supersedes the previous one's Identifier
+	 * (REQ-NET2-SEND-010). */
+	radcli2_priv_reqreg_release(rh, rh->watchdog_slot);
+	rh->watchdog_slot = -1;
+	if (radcli2_priv_reqreg_pick_id(rh, &id, &slot) != 0) {
+		radcli_avp_list_free(empty);
+		rh->watchdog_skipped = time(0);
 		return -1;
+	}
 
-	return radcli2_priv_tls_dae_send(rh, send_buffer, (size_t)total_length);
+	ret = radcli_encode_request(rh, PW_STATUS_SERVER, empty, secret,
+				    send_buffer, id, vector, &total_length);
+	radcli_avp_list_free(empty);
+	if (ret < 0) {
+		radcli2_priv_reqreg_release(rh, slot);
+		return -1;
+	}
+
+	ret = radcli2_priv_tls_dae_send(rh, send_buffer, (size_t)total_length);
+	if (ret > 0) {
+		rh->watchdog_slot = slot;
+	} else {
+		radcli2_priv_reqreg_release(rh, slot);
+		if (ret == 0)
+			rh->watchdog_skipped = time(0);
+	}
+	return ret;
 }
 
 /* If sa is an IPv4-mapped IPv6 address ("::ffff:a.b.c.d"), extracts the

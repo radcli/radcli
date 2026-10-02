@@ -804,6 +804,41 @@ static int reqreg_ensure(rc_handle *rh)
 	return rh->reqreg != NULL ? 0 : -1;
 }
 
+/*- Mark reg's least-recently-used free slot in use (RFC 5080 SS2.1.1),
+ * not yet armed, and return its index -- the Identifier.
+ *
+ * @param reg the registry to take a slot from.
+ * @param owner stored on the slot; NULL for a blocking request or watchdog,
+ *  whose reply is never delivered through the registry.
+ * @return the slot index, or -1 (logged) if every slot is in use.
+ -*/
+static int reqreg_take_lru(struct radcli_reqreg *reg, struct radcli_async_send_st *owner)
+{
+	int best = -1;
+	uint64_t best_seq = 0;
+	int i;
+
+	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
+		if (reg->slots[i].valid)
+			continue;
+		/* LRU: the slot free the longest wins; free_seq == 0 (never
+		 * used yet) sorts first automatically. */
+		if (best == -1 || reg->slots[i].free_seq < best_seq) {
+			best = i;
+			best_seq = reg->slots[i].free_seq;
+		}
+	}
+	if (best == -1) {
+		rc_log(LOG_ERR, "%s: no free Identifier (%d requests already in flight)",
+		       __func__, RADCLI_CTX_MAX_INFLIGHT);
+		return -1;
+	}
+	reg->slots[best].valid = 1;
+	reg->slots[best].armed = 0;
+	reg->slots[best].owner = owner;
+	return best;
+}
+
 /*- Reserve a slot in rh's in-flight registry (REQ-NET2-SEND-016),
  * allocating the registry itself on first use. The Identifier is chosen by
  * least-recently-used selection among currently-free slots (RFC 5080
@@ -822,38 +857,47 @@ static int reqreg_ensure(rc_handle *rh)
  -*/
 int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owner, uint8_t *out_id)
 {
-	struct radcli_reqreg *reg;
-	int best = -1;
-	uint64_t best_seq = 0;
-	int i;
+	int best;
 
 	if (rh == NULL || owner == NULL || out_id == NULL)
 		return -1;
 	if (reqreg_ensure(rh) != 0)
 		return -1;
-	reg = rh->reqreg;
 
-	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
-		if (reg->slots[i].valid)
-			continue;
-		/* LRU: the slot free the longest wins (RFC 5080 SS2.1.1);
-		 * free_seq == 0 (never used yet) sorts first automatically. */
-		if (best == -1 || reg->slots[i].free_seq < best_seq) {
-			best = i;
-			best_seq = reg->slots[i].free_seq;
-		}
-	}
-	if (best == -1) {
-		rc_log(LOG_ERR, "%s: no free Identifier (%d requests already in flight)",
-		       __func__, RADCLI_CTX_MAX_INFLIGHT);
+	best = reqreg_take_lru(rh->reqreg, owner);
+	if (best == -1)
 		return -1;
-	}
-	reg->slots[best].valid = 1;
-	reg->slots[best].armed = 0;
-	reg->slots[best].owner = owner;
 
 	*out_id = (uint8_t)best;
 	return best;
+}
+
+/*- Choose the Identifier for a blocking request or watchdog
+ * (REQ-NET2-SEND-010): reserved from the in-flight registry when one exists
+ * on a TLS/DTLS session, shared with RADCLI_REQUEST_SENDONLY requests;
+ * drawn at random otherwise.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param out_id set to the Identifier to use.
+ * @param out_slot set to the reserved slot, to release once the exchange
+ *  ends, or to -1 when nothing was reserved.
+ * @return 0 on success, -1 if every Identifier is in flight.
+ -*/
+int radcli2_priv_reqreg_pick_id(rc_handle *rh, uint8_t *out_id, int *out_slot)
+{
+	*out_slot = -1;
+	if ((rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) &&
+	    rh->reqreg != NULL) {
+		int slot = reqreg_take_lru(rh->reqreg, NULL);
+
+		if (slot == -1)
+			return -1;
+		*out_id = (uint8_t)slot;
+		*out_slot = slot;
+		return 0;
+	}
+	*out_id = rc_get_random_byte();
+	return 0;
 }
 
 /*- Unconditionally vacate slot (valid=0, armed=0, owner=NULL, secret
@@ -944,6 +988,12 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 	id = recv_auth->id;
 
 	rslot = &reg->slots[id];
+	if (rslot->valid && !rslot->armed && id == rh->watchdog_slot) {
+		/* The watchdog's reply only frees its Identifier (REQ-NET2-SEND-010). */
+		radcli2_priv_reqreg_release(rh, id);
+		rh->watchdog_slot = -1;
+		return 1;
+	}
 	if (!rslot->valid || !rslot->armed)
 		return 0; /* no in-flight exchange for this Identifier */
 	if (from != NULL && !reqreg_peer_matches(from, SA(&rslot->peer)))
