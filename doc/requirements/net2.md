@@ -869,7 +869,10 @@ with no `"authserver"` configured at all.
 list in order, advancing to the next only when the current attempt's
 `radcli_do_exchange()` result is a timeout or network-unreachable condition,
 and MUST return `RADCLI_TIMEOUT` only once every configured entry has been
-tried and none produced a validated reply.
+tried and none produced a validated reply. When every entry has failed this
+way, the result reflects the last entry tried: `RADCLI_TIMEOUT` if it timed
+out, `RADCLI_ERROR` if its network was unreachable (a local routing failure,
+not a silent server).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/aaa2.c (`radcli_aaa()`, the server retry loop)
@@ -877,6 +880,8 @@ tried and none produced a validated reply.
 unreachable `TEST-NET` (RFC 5737) authservers with a 1s timeout and 0
 retries, and confirms `radcli_aaa()` takes roughly 2s (both tried) and
 returns `RADCLI_TIMEOUT`, versus roughly 1s for a single configured entry.
+`[UNDOCUMENTED-BY-TEST: the unreachable-network outcome needs a host with no
+route to the server and is not exercised locally.]`
 
 ### REQ-NET2-AAA-005 — Acct-Delay-Time is recomputed fresh on every attempt, accumulating real elapsed time across fail-over
 

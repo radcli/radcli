@@ -153,9 +153,10 @@ static radcli_avp_list *build_attempt(const radcli_avp_list *send,
  *  Accounting-Request caller uninterested in the (typically empty) reply.
  * @return RADCLI_OK if any configured server produced a validated reply
  *  (check out_code for Access-Accept/Access-Reject/Access-Challenge),
- *  RADCLI_TIMEOUT if every configured server timed out or was unreachable,
- *  RADCLI_ERROR on failure (NULL ctx/send, an invalid code, no server
- *  configured for that code's type, or an allocation/encoding failure).
+ *  RADCLI_TIMEOUT if no server produced one and the last server tried timed
+ *  out, RADCLI_ERROR on failure (NULL ctx/send, an invalid code, no server
+ *  configured for that code's type, an allocation/encoding failure, or the
+ *  last server tried being on an unreachable network).
  */
 int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 	       radcli_code *out_code, radcli_avp_list **out_attrs)
