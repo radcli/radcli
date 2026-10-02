@@ -23,6 +23,7 @@
 import argparse
 import socket
 import ssl
+import time
 import struct
 import sys
 import importlib.util
@@ -43,6 +44,9 @@ def main():
     parser.add_argument('--secret', default='radsec')
     parser.add_argument('--count', type=int, required=True)
     parser.add_argument('--timeout', type=float, default=15.0)
+    parser.add_argument('--hold', type=float, default=0.0,
+                        help='seconds to keep not reading after the burst, before '
+                             'draining replies')
     args = parser.parse_args()
 
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -86,6 +90,7 @@ def main():
             break
 
     print('radsec-backpressure-server: sent %d/%d burst messages' % (sent, args.count), flush=True)
+    time.sleep(args.hold)
 
     # Best-effort drain of whatever replies do eventually show up (relevant
     # once the fix this test is meant to drive is in place: queued replies

@@ -367,10 +367,8 @@ REQ-NET-NET-017 (`no_wait`'s single-address exception to this requirement)
 (`st->ctx.sockfd`) to `-1`, so that `rc_sockets_override.get_active_fd()`
 (`tls_get_active_fd()`) returns `-1` — never `0`, a valid descriptor
 number — until `init_session()` first succeeds (REQ-NET-NET-005's
-deferred handshake). Every caller that treats a non-negative
-`get_active_fd()` result as "a session exists" — `lib/sendserver.c`'s
-request-registry retransmit path — depends on this to avoid
-calling into a GnuTLS session that was never created. A caller that needs
+deferred handshake), so that no caller of `get_active_fd()` mistakes a
+session that was never created for one on descriptor 0. A caller that needs
 the session established, rather than merely inspected, MUST use
 `get_fd()`/`sendto()` (which restart it), not `get_active_fd()`.
 **Strength:** MUST
@@ -379,8 +377,7 @@ the session established, rather than merely inspected, MUST use
 `RADCLI_REQUEST_SENDONLY` send had failed to connect called
 `gnutls_record_recv()` on a NULL session and crashed.
 **Source:** lib/tls.c (`rc_init_tls()`, `tls_get_active_fd()`);
-lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`,
-`radcli_transport_send_async()`)
+lib/sendserver.c (`radcli_transport_send_async()`)
 **Acceptance:** [NET] negative, unit, local — `tests/request.c` performs a
 `RADCLI_REQUEST_SENDONLY` request on a PSK TLS `ctx` whose server refuses
 the connection, then calls `radcli_ctx_dispatch()` and

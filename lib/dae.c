@@ -131,26 +131,6 @@ struct radcli_dae_dac {
  * limit. */
 #define RADCLI_DAE_RADSEC_QUEUE_SIZE 8
 
-/* REQ-DAE-SEC-013: bound on radcli_ctx_dispatch()'s queue of RadSec
- * replies (ACK/NAK) that could not be sent immediately without blocking
- * (radcli2_priv_tls_dae_send() returned "would block") -- send_reply()
- * defers to this queue instead of waiting, so a slow-reading DAC cannot
- * turn a dispatch() call into a multi-second stall of the caller's event
- * loop. A fixed byte size per slot, not RC_BUFFER_LEN: every DAE reply is
- * a header plus at most one Error-Cause (6 bytes) and Proxy-State
- * attributes mirrored from the request (RFC 5176 SS3, bounded by whatever
- * the request itself carried) plus a Message-Authenticator (18 bytes) --
- * 512 bytes is generous headroom over any of this without the ~8KB
- * per-slot cost RC_BUFFER_LEN would add for a queue that is expected to
- * hold at most a handful of entries at once. */
-#define RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE 8
-#define RADCLI_DAE_RADSEC_REPLY_MAX_LEN 512
-
-struct radcli_dae_pending_reply {
-	uint8_t buf[RADCLI_DAE_RADSEC_REPLY_MAX_LEN];
-	size_t len;
-};
-
 struct radcli_dae_st {
 	rc_handle *rh;
 	char *secret;
@@ -183,14 +163,6 @@ struct radcli_dae_st {
 	 * the oldest still-undelivered request. */
 	struct radcli_dae_request_st *radsec_queue[RADCLI_DAE_RADSEC_QUEUE_SIZE];
 	unsigned radsec_queue_len;
-
-	/* REQ-DAE-SEC-013: outbound replies deferred by send_reply() when
-	 * radcli2_priv_tls_dae_send() reports the send would block. FIFO,
-	 * drained in order (a later reply must not overtake an earlier one
-	 * still waiting) by radsec_flush_reply_queue(), called from
-	 * radcli_ctx_dispatch()'s radsec branch. */
-	struct radcli_dae_pending_reply radsec_reply_queue[RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE];
-	unsigned radsec_reply_queue_len;
 };
 
 struct radcli_dae_request_st {
@@ -284,69 +256,6 @@ static struct radcli_dae_request_st *radsec_queue_pop(struct radcli_dae_st *dae)
 		dae->radsec_queue[i - 1] = dae->radsec_queue[i];
 	dae->radsec_queue_len--;
 	return req;
-}
-
-/* Appends one reply to dae->radsec_reply_queue -- REQ-DAE-SEC-013. If the queue is already at
- * RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE, the OLDEST queued reply is dropped
- * (and logged) to make room, per that requirement's own text ("dropped
- * rather than buffered without limit"); a reply longer than
- * RADCLI_DAE_RADSEC_REPLY_MAX_LEN is dropped outright rather than queued
- * (RFC 5176 replies are small and fixed-shape -- see that constant's
- * comment -- so this should never actually happen in practice). */
-/*- Append one reply to dae->radsec_reply_queue -- see the comment above
- * for the drop policy.
- *
- * @param dae the listener whose reply queue to append to.
- * @param buf the reply bytes to enqueue.
- * @param len buf's length in bytes.
- -*/
-static void radsec_reply_queue_push(struct radcli_dae_st *dae, const uint8_t *buf, size_t len)
-{
-	unsigned i;
-
-	if (len > RADCLI_DAE_RADSEC_REPLY_MAX_LEN) {
-		rc_log(LOG_ERR, "radcli_ctx_dispatch: RadSec reply of %zu bytes exceeds "
-		       "the %d-byte queue slot size, dropping", len,
-		       RADCLI_DAE_RADSEC_REPLY_MAX_LEN);
-		return;
-	}
-	if (dae->radsec_reply_queue_len == RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE) {
-		rc_log(LOG_WARNING, "radcli_ctx_dispatch: RadSec reply queue full (%u), "
-		       "dropping the oldest unsent reply", (unsigned)RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE);
-		for (i = 1; i < dae->radsec_reply_queue_len; i++)
-			dae->radsec_reply_queue[i - 1] = dae->radsec_reply_queue[i];
-		dae->radsec_reply_queue_len--;
-	}
-	memcpy(dae->radsec_reply_queue[dae->radsec_reply_queue_len].buf, buf, len);
-	dae->radsec_reply_queue[dae->radsec_reply_queue_len].len = len;
-	dae->radsec_reply_queue_len++;
-}
-
-/* Attempts to send every reply currently queued, in order, stopping at
- * the first one that would still block (a later reply must never
- * overtake an earlier one that has not gone out yet) -- one non-blocking
- * attempt per queued reply per call, never a wait. A session error (radcli2_priv_tls_dae_send()
- * returning -1) drops the reply it was attempting: the session is being
- * marked for reconnection anyway, and there is nothing more sensible to
- * do with a reply for a connection that no longer exists. */
-/*- Attempt one non-blocking send per queued reply, in order, stopping at
- * the first one that would still block -- see the comment above.
- *
- * @param dae the listener whose reply queue to flush.
- -*/
-static void radsec_flush_reply_queue(struct radcli_dae_st *dae)
-{
-	while (dae->radsec_reply_queue_len > 0) {
-		struct radcli_dae_pending_reply *p = &dae->radsec_reply_queue[0];
-		int ret = radcli2_priv_tls_dae_send(dae->rh, p->buf, p->len);
-		unsigned i;
-
-		if (ret == 0)
-			break; /* still would block -- try again on a later call */
-		for (i = 1; i < dae->radsec_reply_queue_len; i++)
-			dae->radsec_reply_queue[i - 1] = dae->radsec_reply_queue[i];
-		dae->radsec_reply_queue_len--;
-	}
 }
 
 /* Parses one "address_or_hostname[:secret]" dae-server entry. IPv6
@@ -979,8 +888,8 @@ static int watchdog_deadline_ms(rc_handle *rh, int fd)
 		time_t last = radcli2_priv_tls_last_msg(rh);
 		long elapsed_ms, remaining_ms;
 
-		/* A skipped watchdog counts as this round's attempt, so the
-		 * caller is not told to dispatch again at once. */
+		/* A skipped or still-queued watchdog counts as this round's
+		 * attempt, so the caller is not told to dispatch again at once. */
 		if (rh->watchdog_skipped > last)
 			last = rh->watchdog_skipped;
 		elapsed_ms = (long)(time(0) - last) * 1000L;
@@ -1062,19 +971,14 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		 * avoiding a rehandshake after an idle period), not of DAE -- an
 		 * application using radcli purely as an ordinary rc_auth()/
 		 * rc_acct() RadSec client, with no radcli_dae at all, is as
-		 * entitled to it as one with dae-accept=yes. The DAE-specific
-		 * reply-queue bits just below are the only part still gated on
-		 * an active radcli_dae. */
+		 * entitled to it as one with dae-accept=yes. */
 		int dae_radsec = (rh->active_dae != NULL && rh->active_dae->radsec);
 		int fd = radcli2_priv_tls_fd(rh);
 		unsigned events = (fd != -1) ? POLLIN : 0;
 
-		/* REQ-DAE-SEC-013: a reply send_reply() deferred (radsec_reply_
-		 * queue non-empty) needs POLLOUT too, or a poll()-driven
-		 * application waiting only on POLLIN (the common case) may
-		 * never learn the socket became writable again and call
-		 * dispatch() to flush it. DAE-only. */
-		if (dae_radsec && fd != -1 && rh->active_dae->radsec_reply_queue_len > 0)
+		/* Queued records go out once the socket is writable again
+		 * (REQ-NET2-NET-005). */
+		if (fd != -1 && radcli2_priv_tls_send_pending(rh))
 			events |= POLLOUT;
 
 		if (fd != -1) {
@@ -1089,8 +993,7 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		 * with no further fd activity to prompt a redispatch -- ask the
 		 * caller back promptly rather than only on the next POLLIN.
 		 * DAE-only, same reason as above. */
-		if (dae_radsec && (rh->active_dae->radsec_queue_len > 0 ||
-				   rh->active_dae->radsec_reply_queue_len > 0))
+		if (dae_radsec && rh->active_dae->radsec_queue_len > 0)
 			*timeout_ms = 0;
 		else
 			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, fd));
@@ -1257,14 +1160,15 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 		return -1;
 	}
 
-	ret = radcli2_priv_tls_dae_send(rh, send_buffer, (size_t)total_length);
-	if (ret > 0) {
-		rh->watchdog_slot = slot;
-	} else {
+	ret = radcli2_priv_tls_send_queued(rh, send_buffer, (size_t)total_length,
+					   RADSEC_SEND_WATCHDOG);
+	if (ret >= 0)
+		rh->watchdog_slot = slot; /* sent, or queued to go out */
+	else
 		radcli2_priv_reqreg_release(rh, slot);
-		if (ret == 0)
-			rh->watchdog_skipped = time(0);
-	}
+	/* A queued watchdog does not advance last_msg until it goes out. */
+	if (ret == 0 || ret == -2)
+		rh->watchdog_skipped = time(0);
 	return ret;
 }
 
@@ -1512,35 +1416,12 @@ static int send_reply(struct radcli_dae_request_st *req, uint8_t reply_code, uin
 
 	if (req->dae->radsec) {
 		/* No dae-owned socket/peer address under RadSec: the reply goes
-		 * back over rh's own established TLS/DTLS session. Unlike an
-		 * ordinary request (which may legitimately block up to
-		 * radius_timeout waiting for POLLOUT via tls_sendto()), this can
-		 * be called from radcli_ctx_dispatch() -- invoked only because
-		 * the descriptor was reported readable -- which must never turn
-		 * into a multi-second stall of the caller's event loop just
-		 * because a reply happens to need one. One non-blocking attempt
-		 * (radcli2_priv_tls_dae_send()); if it would block, defer to
-		 * REQ-DAE-SEC-013's bounded queue instead of waiting, to be
-		 * flushed by a later radcli_ctx_dispatch() call
-		 * (radsec_flush_reply_queue()). Order matters: flush whatever is
-		 * already queued first, and if anything remains queued after
-		 * that, this reply queues behind it too rather than jumping the
-		 * line by being attempted directly. */
-		struct radcli_dae_st *dae = req->dae;
-		int ret;
-
-		radsec_flush_reply_queue(dae);
-		if (dae->radsec_reply_queue_len > 0) {
-			radsec_reply_queue_push(dae, send_buffer, (size_t)total_length);
-			return 0;
-		}
-
-		ret = radcli2_priv_tls_dae_send(dae->rh, send_buffer, (size_t)total_length);
-		if (ret == 0) {
-			radsec_reply_queue_push(dae, send_buffer, (size_t)total_length);
-			return 0;
-		}
-		return (ret > 0) ? 0 : -1;
+		 * back over rh's own established TLS/DTLS session, without ever
+		 * waiting for write room (REQ-DAE-SEC-013, REQ-NET2-NET-005). */
+		if (radcli2_priv_tls_send_queued(req->dae->rh, send_buffer, (size_t)total_length,
+						 RADSEC_SEND_DAE_REPLY) == -1)
+			return -1;
+		return 0;
 	}
 
 	if (sendto(req->dae->fd, send_buffer, (size_t)total_length, 0,
@@ -2193,14 +2074,10 @@ static void send_radsec_unsupported_nak(rc_handle *rh, const uint8_t *reqbuf, si
 	rc_md5_calc(digest, out, (size_t)total_length + secretlen);
 	memcpy(auth->vector, digest, AUTH_VECTOR_LEN);
 
-	/* One non-blocking attempt, matching send_reply()'s own reasoning
-	 * (this can run from radcli_ctx_dispatch(), which must never turn
-	 * into a multi-second stall) -- but dropped rather than queued if it
-	 * would block: there is no radcli_dae_st here to hold a queue on
-	 * (dynamic authorization is off, or in UDP mode, which is exactly why
-	 * this path was reached at all), and RFC 6614 SS2.5's 406 signal is
-	 * best-effort, not a delivery this library owes a guarantee for. */
-	radcli2_priv_tls_dae_send(rh, out, (size_t)total_length);
+	/* Never waits for write room, like send_reply() (REQ-NET2-NET-005);
+	 * RFC 6614 SS2.5's 406 signal is best-effort, so a full queue simply
+	 * drops it. */
+	radcli2_priv_tls_send_queued(rh, out, (size_t)total_length, RADSEC_SEND_DAE_REPLY);
 }
 
 /*- Process one RADIUS/TLS or RADIUS/DTLS record already known to carry
@@ -2297,13 +2174,15 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 
 	rh->in_dispatch = 1;
 
-	/* Unconditional and non-blocking: everything readable is routed to
-	 * the request or DAE listener it belongs to (REQ-NET2-NET-004,
-	 * REQ-NET2-SEND-013). */
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS)
+	/* Unconditional and non-blocking: what is queued to send goes first,
+	 * and everything readable is routed to the request or DAE listener
+	 * it belongs to (REQ-NET2-NET-004/005, REQ-NET2-SEND-013). */
+	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
+		radcli2_priv_tls_flush(rh);
 		radcli2_priv_radsec_drain(rh);
-	else
+	} else {
 		radcli2_priv_reqreg_drain(rh);
+	}
 	radcli2_priv_reqreg_service_timeouts(rh);
 
 	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
@@ -2325,13 +2204,6 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 	}
 
 	if (dae->radsec) {
-		/* REQ-DAE-SEC-013: retry any replies send_reply() deferred
-		 * earlier before doing anything else -- this call may be here
-		 * because radcli_ctx_get_poll() reported POLLOUT specifically
-		 * for this, not because there is new data to read at all. One
-		 * non-blocking attempt per queued reply; never a wait. */
-		radsec_flush_reply_queue(dae);
-
 		/* Deliver whatever is queued -- read by the drain above, or by
 		 * an earlier blocking exchange. */
 		for (;;) {

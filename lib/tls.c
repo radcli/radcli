@@ -73,6 +73,15 @@ typedef struct tls_int_st {
 	time_t last_recv;	/* last receive only -- REQ-WATCHDOG-NET-003's dead-peer clock */
 } tls_int_st;
 
+/* REQ-NET2-NET-005: capacity of a session's send queue. */
+#define TLS_SENDQ_SIZE 8
+
+struct tls_pending_send {
+	uint8_t buf[RC_MAX_PACKET_LEN];
+	size_t len;
+	int kind; /* RADSEC_SEND_* */
+};
+
 typedef struct tls_st {
 	gnutls_psk_client_credentials_t psk_cred;
 	gnutls_certificate_credentials_t x509_cred;
@@ -82,11 +91,19 @@ typedef struct tls_st {
 	/* Here, not in ctx: restart_session() replaces ctx wholesale, possibly
 	 * while this lock is held (REQ-NET-TEARDOWN-006). */
 	pthread_mutex_t lock;
+	/* Records radcli_ctx_dispatch() could not send at once, oldest first
+	 * (REQ-NET2-NET-005). A record is queued only behind one GnuTLS
+	 * refused, so the head is always partly accepted by GnuTLS, which
+	 * requires it to be passed again unchanged. Discarded by every
+	 * restart: the records belong to the failed session. */
+	struct tls_pending_send sendq[TLS_SENDQ_SIZE];
+	unsigned sendq_len;
 } tls_st;
 
 /** @} */
 
 static int restart_session(rc_handle *rh, tls_st *st);
+static int sendq_try_head(tls_st *st);
 
 /*- rc_sockets_override.get_fd: return st's session socket, restarting the
  * session first if it was marked for restart.
@@ -189,6 +206,19 @@ static ssize_t tls_sendto(void *ptr, int sockfd,
 			errno = EIO;
 			return -1;
 		}
+	}
+
+	/* What radcli_ctx_dispatch() queued goes first, in order
+	 * (REQ-NET2-NET-005); a blocking exchange may wait for it. */
+	while (st->sendq_len > 0) {
+		int r = sendq_try_head(st);
+
+		if (r < 0) {
+			errno = EIO;
+			return -1;
+		}
+		if (r == 0 && tls_wait_or_give_up(st, POLLOUT, "send") < 0)
+			return -1;
 	}
 
 	for (;;) {
@@ -614,6 +644,7 @@ static int restart_session(rc_handle *rh, tls_st *st)
 	deinit_session(&st->ctx);
 	memcpy(&st->ctx, &tmps, sizeof(tmps));
 	st->ctx.need_restart = 0;
+	st->sendq_len = 0;
 
 	return 0;
 }
@@ -641,7 +672,7 @@ int radcli2_priv_tls_fd(rc_handle * rh)
 
 /*- Return the time of the last message sent or received on rh's TLS/DTLS
  * session (tls_int_st.last_msg, updated by every successful send/receive
- * on this session, including radcli2_priv_tls_dae_send()). Used by lib/
+ * on this session, including radcli2_priv_tls_send_queued()). Used by lib/
  * dae.c's radcli_ctx_get_poll() to compute a watchdog deadline
  * (watchdog-interval) without lib/dae.c needing to see the private
  * tls_int_st layout.
@@ -777,48 +808,160 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 	return restart_session(rh, st);
 }
 
-/*- Make one non-blocking attempt to send a DAE-over-RadSec reply.
+/*- Make one non-blocking attempt to send st's oldest queued record.
  *
- * Unlike tls_sendto() (used for ordinary requests, where blocking until
- * radius_timeout elapses waiting for POLLOUT is the caller's own,
- * accepted contract), this never waits: a poll()-driven application's
- * dispatch action (lib/dae.c's radcli_ctx_dispatch(), invoked only
- * because the descriptor was reported readable) must not turn into a
- * multi-second stall just because sending a reply as a side effect would
- * otherwise block. On GNUTLS_E_AGAIN/_INTERRUPTED, the caller is expected
- * to queue buf and retry this same call later (lib/dae.c's bounded
- * radsec_reply_queue) rather than wait here.
- *
- * @return the number of bytes GnuTLS accepted as one complete record
- *  (matching gnutls_record_send()'s own return convention) on success, 0
- *  if the send would block (nothing was sent; retry the identical buf/len
- *  later), -1 on a session error (also marks the session for
- *  reconnection, same as tls_sendto()'s own error handling).
+ * @param st the session whose queue to advance.
+ * @return 1 if the record went out, 0 if it would block, -1 on a session
+ *  error (the session is marked for restart and the queue discarded).
  -*/
-int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
+static int sendq_try_head(tls_st *st)
 {
-	tls_st *st;
-	int ret;
-
-	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
-		return -1;
-
-	st = rh->so.ptr;
-	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
-		return -1;
-
-	ret = gnutls_record_send(st->ctx.session, buf, len);
+	int ret = gnutls_record_send(st->ctx.session, st->sendq[0].buf, st->sendq[0].len);
 
 	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
 		return 0;
 	if (ret < 0) {
 		rc_log(LOG_ERR, "%s: error in sending: %s", __func__, gnutls_strerror(ret));
 		st->ctx.need_restart = 1;
+		st->sendq_len = 0;
 		return -1;
 	}
 
 	st->ctx.last_msg = time(0);
-	return ret;
+	st->sendq_len--;
+	memmove(&st->sendq[0], &st->sendq[1], st->sendq_len * sizeof(st->sendq[0]));
+	return 1;
+}
+
+/*- Append a record to st's send queue, which must have room.
+ *
+ * @param st the session whose queue to append to.
+ * @param buf the record.
+ * @param len buf's length in bytes, at most RC_MAX_PACKET_LEN.
+ * @param kind the record's RADSEC_SEND_* kind.
+ -*/
+static void sendq_append(tls_st *st, const void *buf, size_t len, int kind)
+{
+	struct tls_pending_send *p = &st->sendq[st->sendq_len++];
+
+	memcpy(p->buf, buf, len);
+	p->len = len;
+	p->kind = kind;
+}
+
+/*- Send whatever rh's session has queued that can go out without waiting
+ * (REQ-NET2-NET-005).
+ *
+ * @param rh a handle to parsed configuration.
+ -*/
+void radcli2_priv_tls_flush(rc_handle *rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return;
+	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
+		return;
+	while (st->sendq_len > 0 && sendq_try_head(st) == 1)
+		;
+}
+
+/*- Report whether rh's session has queued records waiting for POLLOUT.
+ *
+ * @param rh a handle to parsed configuration.
+ * @return nonzero if anything is queued.
+ -*/
+int radcli2_priv_tls_send_pending(rc_handle *rh)
+{
+	tls_st *st;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return 0;
+	st = rh->so.ptr;
+	return st->ctx.init != 0 && st->ctx.need_restart == 0 && st->sendq_len > 0;
+}
+
+/*- Send a record on rh's session without ever waiting for write room
+ * (REQ-NET2-NET-005): sent at once when nothing is queued ahead of it,
+ * queued otherwise. With the queue full, a DAE reply displaces the oldest
+ * unstarted DAE reply (REQ-DAE-SEC-013) and anything else is skipped. A
+ * retransmit on a failed session reconnects first (REQ-NET2-NET-001's
+ * exception); other kinds fail instead.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param buf the record.
+ * @param len buf's length in bytes.
+ * @param kind RADSEC_SEND_DAE_REPLY, RADSEC_SEND_RETRANSMIT or
+ *  RADSEC_SEND_WATCHDOG.
+ * @return the number of bytes sent if it went out at once, 0 if queued,
+ *  -1 on a session error or with no session, -2 if skipped or dropped
+ *  because the queue is full.
+ -*/
+int radcli2_priv_tls_send_queued(rc_handle *rh, const void *buf, size_t len, int kind)
+{
+	tls_st *st;
+	unsigned i;
+	int ret;
+
+	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
+		return -1;
+	if (len > RC_MAX_PACKET_LEN)
+		return -1;
+
+	st = rh->so.ptr;
+	if (st->ctx.init == 0 || st->ctx.need_restart != 0) {
+		if (kind != RADSEC_SEND_RETRANSMIT || restart_session(rh, st) < 0)
+			return -1;
+	}
+
+	radcli2_priv_tls_flush(rh);
+	if (st->ctx.need_restart != 0)
+		return -1;
+
+	if (st->sendq_len == 0) {
+		ret = gnutls_record_send(st->ctx.session, buf, len);
+		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
+			sendq_append(st, buf, len, kind);
+			return 0;
+		}
+		if (ret < 0) {
+			rc_log(LOG_ERR, "%s: error in sending: %s", __func__, gnutls_strerror(ret));
+			st->ctx.need_restart = 1;
+			return -1;
+		}
+		st->ctx.last_msg = time(0);
+		return ret;
+	}
+
+	if (st->sendq_len < TLS_SENDQ_SIZE) {
+		sendq_append(st, buf, len, kind);
+		return 0;
+	}
+
+	if (kind == RADSEC_SEND_DAE_REPLY) {
+		/* From 1: the head is partly sent and must not be dropped. */
+		for (i = 1; i < st->sendq_len; i++) {
+			if (st->sendq[i].kind == RADSEC_SEND_DAE_REPLY)
+				break;
+		}
+		if (i < st->sendq_len) {
+			rc_log(LOG_WARNING, "%s: RadSec send queue full (%u), dropping the "
+			       "oldest unsent dynamic-authorization reply", __func__,
+			       (unsigned)TLS_SENDQ_SIZE);
+			st->sendq_len--;
+			memmove(&st->sendq[i], &st->sendq[i + 1],
+				(st->sendq_len - i) * sizeof(st->sendq[0]));
+			sendq_append(st, buf, len, kind);
+			return 0;
+		}
+	}
+
+	rc_log(LOG_WARNING, "%s: RadSec send queue full (%u), skipping this %s", __func__,
+	       (unsigned)TLS_SENDQ_SIZE,
+	       kind == RADSEC_SEND_RETRANSMIT ? "retransmission" :
+	       kind == RADSEC_SEND_WATCHDOG ? "watchdog" : "dynamic-authorization reply");
+	return -2;
 }
 
 /*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
@@ -1263,12 +1406,24 @@ int radcli2_priv_tls_ensure_connected(rc_handle *rh)
 	return -1;
 }
 
-int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
+int radcli2_priv_tls_send_queued(rc_handle *rh, const void *buf, size_t len, int kind)
 {
 	(void)rh;
 	(void)buf;
 	(void)len;
+	(void)kind;
 	return -1;
+}
+
+void radcli2_priv_tls_flush(rc_handle *rh)
+{
+	(void)rh;
+}
+
+int radcli2_priv_tls_send_pending(rc_handle *rh)
+{
+	(void)rh;
+	return 0;
 }
 
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)

@@ -295,7 +295,7 @@ struct rc_conf
 	struct radcli_reqreg	*reqreg;
 	/* The registry slot holding the last watchdog's Identifier until its
 	 * reply arrives, or -1 (REQ-NET2-SEND-010); and when a watchdog was
-	 * last skipped, which counts as that round's attempt. */
+	 * last skipped or queued unsent, which counts as that round's attempt. */
 	int			watchdog_slot;
 	time_t			watchdog_skipped;
 
@@ -480,7 +480,14 @@ time_t radcli2_priv_tls_last_msg(rc_handle *rh);
 time_t radcli2_priv_tls_last_recv(rc_handle *rh);
 int radcli2_priv_tls_force_reconnect(rc_handle *rh);
 int radcli2_priv_tls_ensure_connected(rc_handle *rh);
-int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len);
+/* radcli2_priv_tls_send_queued()'s record kinds (REQ-NET2-NET-005). */
+#define RADSEC_SEND_DAE_REPLY	1
+#define RADSEC_SEND_RETRANSMIT	2
+#define RADSEC_SEND_WATCHDOG	3
+
+int radcli2_priv_tls_send_queued(rc_handle *rh, const void *buf, size_t len, int kind);
+void radcli2_priv_tls_flush(rc_handle *rh);
+int radcli2_priv_tls_send_pending(rc_handle *rh);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
 int radcli2_priv_tls_pending(rc_handle *rh);

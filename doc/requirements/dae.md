@@ -478,9 +478,12 @@ inside of.
 #### REQ-DAE-SEC-013 — the RadSec reply queue is bounded, and dispatch never blocks to avoid it
 
 **Requirement:** Under the RadSec transport, a queued but unsent reply MUST be
-bounded, and MUST be dropped (the oldest one) rather than buffered without limit
-when the queue is full, so that a DAC that stops reading cannot cause unbounded
-memory growth on the NAS. Equally, `radcli_ctx_dispatch()` -- invoked by a
+bounded, and MUST be dropped (the oldest one that has not started sending) rather
+than buffered without limit when the queue is full, so that a DAC that stops
+reading cannot cause unbounded memory growth on the NAS. The queue is the
+session's single send queue (net2.md's REQ-NET2-NET-005), shared with
+retransmits and watchdogs; a reply that GnuTLS has partly accepted is never
+dropped. Equally, `radcli_ctx_dispatch()` -- invoked by a
 poll()-driven application only because its descriptor was reported readable --
 MUST NOT itself block waiting to send a reply that cannot go out immediately: the
 queue exists specifically so a slow-reading peer degrades to deferred replies and
@@ -492,7 +495,7 @@ requirement hold at once.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 6614 (implicit: a persistent connection means a reply born from processing inbound data can be delayed by outbound backpressure, unlike UDP's fire-and-forget replies); REQ-GEN-SEC-005 (no unbounded packet-driven allocation)
-**Acceptance:** [SEC] positive and negative, local — `tests/dae-radsec-backpressure.c`/`tests/radsec-backpressure-server.py`: the peer shrinks its own TCP receive buffer and sends a 200-message burst of Disconnect-Requests without ever reading a reply, deterministically filling the send-side TCP window; every `radcli_ctx_dispatch()` call on the client side is timed and must return within a short bound (500ms) regardless -- proving it defers to `lib/dae.c`'s `radsec_reply_queue` (`radcli2_priv_tls_dae_send()`, one non-blocking attempt, `RADCLI_DAE_RADSEC_REPLY_QUEUE_SIZE` = 8 slots, oldest dropped on overflow) rather than blocking inside `tls_sendto()`'s ordinary retry-with-timeout path the way an outbound Access-Request legitimately may. UDP replies do not queue (a UDP `sendto()` on a non-blocking socket does not block the way a stalled TCP/TLS send can).
+**Acceptance:** [SEC] positive and negative, local — `tests/dae-radsec-backpressure.c`/`tests/radsec-backpressure-server.py`: the peer shrinks its own TCP receive buffer and sends a 200-message burst of Disconnect-Requests without ever reading a reply, deterministically filling the send-side TCP window; every `radcli_ctx_dispatch()` call on the client side is timed and must return within a short bound (500ms) regardless -- proving it defers to the session's send queue (`lib/tls.c`'s `radcli2_priv_tls_send_queued()`, one non-blocking attempt, 8 slots, oldest unstarted DAE reply dropped on overflow) rather than blocking inside `tls_sendto()`'s ordinary retry-with-timeout path the way an outbound Access-Request legitimately may. UDP replies do not queue (a UDP `sendto()` on a non-blocking socket does not block the way a stalled TCP/TLS send can).
 **Links:** REQ-DAE-NET-004
 
 #### REQ-DAE-SEC-014 — Identifier space is separated per packet direction on a shared connection
@@ -704,7 +707,7 @@ can log or retry rather than assume delivery.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** REQ-GEN-STYLE-* (error propagation)
-**Acceptance:** [ERR] negative, local — `send_reply()`/`reply_and_record()` (`lib/dae.c`) already return -1 when the underlying `sendto()`/`radcli2_priv_tls_dae_send()` call fails, and `radcli_dae_reply()`/`_reply_error()` propagate that return value unchanged. `tests/dae-codec.c` (test 18) defers a request's reply, closes the dae's own socket out from under it, then confirms `radcli_dae_reply()` returns -1 rather than reporting success for a reply that was silently dropped.
+**Acceptance:** [ERR] negative, local — `send_reply()`/`reply_and_record()` (`lib/dae.c`) already return -1 when the underlying `sendto()`/`radcli2_priv_tls_send_queued()` call fails, and `radcli_dae_reply()`/`_reply_error()` propagate that return value unchanged. `tests/dae-codec.c` (test 18) defers a request's reply, closes the dae's own socket out from under it, then confirms `radcli_dae_reply()` returns -1 rather than reporting success for a reply that was silently dropped.
 **Links:** REQ-DAE-NET-004
 
 ### TEARDOWN — lifetimes
