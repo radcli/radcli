@@ -366,8 +366,9 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      uint8_t *out_code);
 
 /* Handle for one poll()-driven send-then-wait-for-reply cycle, started by
- * radcli_transport_send_async() and driven to completion by repeated calls
- * to radcli_transport_service_async(). lib/request.c embeds one of these by
+ * radcli_transport_send_async(), driven to completion by
+ * radcli_ctx_dispatch() and read back by radcli_request_done().
+ * lib/request.c embeds one of these by
  * value in struct radcli_request_st; internal only, never exposed through
  * radcli2.h.
  *
@@ -380,18 +381,15 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
  * in-flight RADCLI_REQUEST_SENDONLY exchange on the same ctx.
  * result/reply_code/reply_attrs below are written to directly by
  * radcli2_priv_reqreg_drain()/_service_timeouts() (lib/sendserver.c) the
- * moment the slot resolves -- which may happen inside a *different*
- * radcli_request*'s own radcli_transport_service_async() call, since one
- * call drains every ready datagram on the shared socket/session, not just
- * this exchange's own. */
+ * moment the slot resolves, during whichever radcli_ctx_dispatch() call
+ * drains the datagram that resolves it. */
 struct radcli_async_send_st {
 	rc_handle *rh;
 	int active; /* 1 from a successful radcli_transport_send_async() until
-		     * radcli_transport_service_async() itself consumes a
-		     * delivered result (below) and returns it -- deliberately
-		     * NOT cleared at the moment delivered flips to 1, which can
-		     * happen asynchronously inside a *different* exchange's own
-		     * drain call; staying active in the meantime is what lets
+		     * radcli_request_done() consumes a delivered result
+		     * (below) -- deliberately NOT cleared at the moment
+		     * delivered flips to 1 inside a drain; staying active in
+		     * the meantime is what lets
 		     * radcli_transport_async_abort() still find and free a
 		     * delivered-but-never-read reply_attrs instead of leaking
 		     * it. Also cleared by radcli_transport_async_abort(). */
@@ -407,24 +405,13 @@ struct radcli_async_send_st {
 	                               * is OK_RC/REJECT_RC/CHALLENGE_RC */
 };
 
-/* Sentinel returned only by radcli_transport_service_async(), meaning
- * "still waiting, call again after the caller's poll()/select() reports
- * ctx's fd ready or its deadline elapses". Deliberately not added to
- * radcli.h's public rc_send_status enum (NETUNREACH_RC..CHALLENGE_RC):
- * that enum documents rc_send_server()'s return values, and no public
- * function -- rc_send_server()/rc_auth()/rc_acct() included -- ever
- * returns this one. */
-#define RADCLI_ASYNC_AGAIN 100
-
-/* radcli_transport_send_async()/_service_async()/_async_abort() and the
+/* radcli_transport_send_async()/_async_abort() and the
  * radcli2_priv_reqreg_*() registry helpers below implement REQ-NET2-SEND-016. */
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
 				int timeout, int retries,
 				struct radcli_async_send_st *out);
-
-int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready);
 
 void radcli_transport_async_abort(struct radcli_async_send_st *st);
 

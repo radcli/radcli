@@ -284,7 +284,7 @@ int validate_message_authenticator(const uint8_t *recv_buffer,
  * and Response Authenticator (rc_check_reply() returned OK_RC) into
  * recv_buf's attribute region, exactly as radcli_transport_exchange()'s own
  * `got_reply:` block used to do inline. Factored out so
- * radcli_transport_service_async() below can reuse the identical RFC
+ * radcli2_priv_reqreg_drain() below can reuse the identical RFC
  * 2865/2869/Blast-RADIUS validation instead of a second copy.
  * secret/vector/type/server_name/svc_port are as radcli_transport_exchange()
  * received them; recv_buf/recv_buf_cap/recv_len/out_code are as documented
@@ -1167,18 +1167,18 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
  * fail-over, matching radcli_transport_exchange()'s own no_wait
  * simplification), send send_buf once over ctx's shared, persistent
  * request socket (UDP, opened lazily here if not already; TLS/DTLS reuses
- * sfuncs->get_active_fd() instead), and arm the slot for
- * radcli_transport_service_async() to drive to completion -- REQ-NET2-SEND-016.
+ * the session, establishing it if needed), and arm the slot for
+ * radcli_ctx_dispatch() to drive to completion -- REQ-NET2-SEND-016.
  *
  * Unlike radcli_transport_exchange(), does not itself hold the configured
  * network namespace (lib/util.c's rc_set_netns()) switched for its whole
  * duration: namespace membership is per-thread, and this call, unlike a
  * blocking exchange, returns to a caller's event loop that may run other
- * socket I/O on the same thread before radcli_transport_service_async()
- * is next called -- switching once and resetting only at the very end
- * would leak the RADIUS server's namespace into that other I/O. Instead,
- * each of this function and radcli_transport_service_async() brackets
- * only its own, brief syscall(s) with a set/reset pair.
+ * socket I/O on the same thread before radcli_ctx_dispatch() is next
+ * called -- switching once and resetting only at the very end would leak
+ * the RADIUS server's namespace into that other I/O. Instead, each of this
+ * function and the registry's drain/retransmit helpers brackets only its
+ * own, brief syscall(s) with a set/reset pair.
  *
  * @param rh a handle to parsed configuration.
  * @param slot the registry slot radcli2_priv_reqreg_reserve() already
@@ -1249,13 +1249,9 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	if (sfuncs->static_secret)
 		strlcpy(secret, sfuncs->static_secret, MAX_SECRET_LENGTH + 1);
 
-	/* Locked only around this one send, not the whole exchange: REQ-NET2-
-	 * SEND-016's shared socket/session must let every other concurrently
-	 * in-flight slot make its own progress independently -- unlike the
-	 * pre-registry design, which held sfuncs->lock() from here through
-	 * service_async()'s terminal result, serializing an entire
-	 * multi-round-trip exchange (harmless when each exchange had its own
-	 * socket, but would now block every other slot on a shared one). */
+	/* Locked only around this one send, not the whole exchange: every
+	 * other in-flight slot on the shared socket/session must make progress
+	 * independently (REQ-NET2-SEND-016). */
 	if (sfuncs->lock) {
 		if (sfuncs->lock(sfuncs->ptr) != 0) {
 			rc_log(LOG_ERR, "%s: lock error", __func__);
@@ -1416,47 +1412,6 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 			rc_log(LOG_ERR, "%s: namespace %s reset failed", __func__, ns);
 	}
 	return result;
-}
-
-/*- Advance one async exchange by one non-blocking step: drains every ready
- * datagram on ctx's shared request socket/session (delivering each to
- * whichever exchange's slot it actually resolves, not necessarily st's
- * own), then services every registry slot whose retransmit/timeout deadline
- * has passed (again, not just st's), then reports st's own outcome.
- *
- * Call after the caller's poll()/select() reports ctx's fd ready (fd_ready
- * nonzero), or after it returns with the fd not ready because
- * radcli_ctx_get_poll()'s timeout_ms elapsed instead (fd_ready zero).
- *
- * On a validated reply, decodes it via the same logic
- * radcli_transport_exchange() uses (RFC 2865 Response Authenticator, RFC
- * 2869/Blast-RADIUS Message-Authenticator), storing the outcome directly on
- * st (see struct radcli_async_send_st's own doc comment) rather than
- * returning raw bytes -- decoding happens once, inside the drain, for
- * whichever exchange a given datagram actually resolves, not necessarily
- * the one whose service_async() call triggered the drain.
- *
- * @param st state from a successful radcli_transport_send_async().
- * @param fd_ready nonzero if the caller's poll()/select() reported ctx's fd
- *  ready.
- * @return RADCLI_ASYNC_AGAIN if still waiting, or whatever
- *  radcli_transport_exchange() itself would return for a terminal outcome
- *  (OK_RC/REJECT_RC/CHALLENGE_RC/TIMEOUT_RC/ERROR_RC).
- -*/
-int radcli_transport_service_async(struct radcli_async_send_st *st, int fd_ready)
-{
-	if (st == NULL || !st->active)
-		return ERROR_RC;
-
-	if (fd_ready)
-		radcli2_priv_reqreg_drain(st->rh);
-	if (!st->delivered)
-		radcli2_priv_reqreg_service_timeouts(st->rh);
-	if (!st->delivered)
-		return RADCLI_ASYNC_AGAIN;
-
-	st->active = 0;
-	return st->result;
 }
 
 /*- Release st's registry slot without waiting for a terminal result. A

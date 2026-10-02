@@ -312,7 +312,7 @@ the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
 `rc_send_server_ctx(rh, NULL, &data, NULL, type, 1)` and treating only `OK_RC` as per-server
 success). Note: `radcli2.h`'s `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` no longer
 routes through this `no_wait` parameter at all -- it calls the separate
-`radcli_transport_send_async()`/`radcli_transport_service_async()` pair instead, which leaves the
+`radcli_transport_send_async()` instead, which leaves the
 socket open (as `ctx`'s persistent, shared request socket — `REQ-NET2-SEND-016`) rather than
 closing it immediately, so a later `radcli_ctx_dispatch()` can still read the reply, reported via
 `radcli_request_done()`; see `REQ-NET2-SEND-012`/`013`/`014`/`016` in `net2.md` for that path's own

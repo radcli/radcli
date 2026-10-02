@@ -957,17 +957,11 @@ int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 	return ret;
 }
 
-/*- One non-blocking attempt to read the reply an in-flight async
- * request/reply exchange (lib/sendserver.c's radcli_transport_service_
- * async()) is waiting for, over TLS/DTLS. Unlike radcli2_priv_tls_dae_poll(),
- * this does NOT take rh's session lock itself: its only caller already
- * holds it, acquired (via rc_sockets_override.lock, i.e. tls_lock()) by
- * radcli_transport_send_async() when the exchange started and held across
- * every radcli_transport_service_async() call until a terminal result --
- * exactly the same lock, held for the same span, that a blocking
- * radcli_transport_exchange() call already holds for its own, longer
- * synchronous duration; this function just lets that duration be spread
- * across several non-blocking calls instead. Never retries on
+/*- One non-blocking attempt to read a record for the async request
+ * registry (lib/sendserver.c's radcli2_priv_reqreg_drain()) over TLS/DTLS.
+ * Unlike radcli2_priv_tls_dae_poll(), this does NOT take rh's session lock
+ * itself: its only caller holds it (via rc_sockets_override.lock, i.e.
+ * tls_lock()) around this single call. Never retries on
  * GNUTLS_E_AGAIN (same "single attempt" contract as
  * radcli2_priv_tls_dae_poll()). A Disconnect-Request/CoA-Request record
  * arriving while waiting is dispatched inline via

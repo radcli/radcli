@@ -465,8 +465,7 @@ MUST return `RADCLI_ERROR` without touching `r->reply_code`/`r->reply_attrs`.
 **Status:** DERIVED
 **Source:** lib/request.c's `radcli_request_done()`; lib/dae.c's
 `radcli_ctx_get_poll()`/`radcli_ctx_dispatch()`; lib/sendserver.c's
-request-registry drain (replacing `radcli_transport_service_async()`'s old
-per-call socket) and shared `decode_reply()` helper (also used by
+request-registry drain (replacing the old per-call socket) and shared `decode_reply()` helper (also used by
 `radcli_transport_exchange()`'s blocking path, untouched by this change)
 **Acceptance:** [SEND] unit, local — `tests/request.c` drives
 `radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` through a real `poll()` loop
