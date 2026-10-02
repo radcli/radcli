@@ -38,7 +38,7 @@ static int rc_conf_int_2(rc_handle const *rh, char const *optname, int complain)
 /* The template every rc_handle's config_options[] is memcpy()'d from
  * (lib/config.c's radcli2_priv_new()/radcli2_priv_read_config()); the per-id enum in
  * lib/options.h's RC_OPTION_TABLE indexes straight into it/its copies. */
-static OPTION config_options_default[] = {
+static const OPTION config_options_default[] = {
 #define RADCLI_OPT_ENTRY(id, name, type) {name, type, ST_UNDEF, NULL},
 	RC_OPTION_TABLE
 #undef RADCLI_OPT_ENTRY
