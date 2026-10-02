@@ -36,6 +36,13 @@
  * server.py) decodes both independently against the real secret and reports
  * each, rather than just accepting or rejecting the packet, so a fix that
  * only addresses one symptom does not pass.
+ *
+ * With a third "sendonly" argument the same exchange is instead sent with
+ * RADCLI_REQUEST_SENDONLY as the ctx's very first operation and driven to
+ * completion through radcli_ctx_get_poll()/radcli_ctx_dispatch(): the
+ * session must be established lazily by that send (REQ-NET-NET-005,
+ * REQ-NET2-SEND-012), and the same fixed secret must key it
+ * (REQ-NET2-SEND-015 covers both callers of radcli_encode_request()).
  */
 
 #include <config.h>
@@ -44,6 +51,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <poll.h>
 
 static void die(const char *msg) __attribute__((noreturn));
 
@@ -60,11 +69,13 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	int rc;
+	int sendonly;
 
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <port> <tls-ca-file>\n", argv[0]);
+	if (argc != 3 && !(argc == 4 && strcmp(argv[3], "sendonly") == 0)) {
+		fprintf(stderr, "usage: %s <port> <tls-ca-file> [sendonly]\n", argv[0]);
 		return 2;
 	}
+	sendonly = (argc == 4);
 
 	ctx = radcli_ctx_new(0);
 	if (ctx == NULL)
@@ -100,7 +111,29 @@ int main(int argc, char **argv)
 	if (r == NULL)
 		die("radcli_request_new(RADCLI_CODE_ACCESS_REQUEST)");
 
-	rc = radcli_request_perform(r, RADCLI_REQUEST_NONE);
+	if (sendonly) {
+		int iterations = 0;
+
+		if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK)
+			die("radcli_request_perform(RADCLI_REQUEST_SENDONLY) as the first "
+			    "operation on a TLS ctx");
+		while ((rc = radcli_request_done(r)) == RADCLI_AGAIN) {
+			struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+			size_t nfds;
+			int timeout_ms;
+
+			if (++iterations > 100)
+				die("radcli_request_done() never left RADCLI_AGAIN");
+			if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds,
+						&timeout_ms) != 0)
+				die("radcli_ctx_get_poll");
+			poll(pfds, (nfds_t)nfds, timeout_ms);
+			if (radcli_ctx_dispatch(ctx) != 0)
+				die("radcli_ctx_dispatch");
+		}
+	} else {
+		rc = radcli_request_perform(r, RADCLI_REQUEST_NONE);
+	}
 	if (rc != RADCLI_OK) {
 		fprintf(stderr, "request-tls-secret: radcli_request_perform() "
 				"returned %d, expected RADCLI_OK\n", rc);

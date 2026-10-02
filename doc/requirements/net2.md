@@ -390,6 +390,11 @@ patterns without a second flag or a second entry point: fire-and-forget
 — see REQ-NET2-SEND-014) and poll-driven async request/reply (drive
 `radcli_ctx_get_poll()`/`radcli_ctx_dispatch()` — REQ-NET2-NET-001 —
 to completion, reading the outcome with `radcli_request_done()`).
+On a TLS/DTLS `ctx` whose session is not yet established (or is marked for
+restart), this call MUST establish it before transmitting, exactly as the
+default flags do (REQ-NET-NET-005's deferred, first-use handshake) — it
+MUST NOT fail merely because no earlier call happened to connect the
+session first.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c:298-359 (`radcli_request_perform()`'s
@@ -401,8 +406,12 @@ registry rather than closed, lock held across calls — REQ-NET2-SEND-016)
 `RADCLI_REQUEST_SENDONLY` Accounting-Request to an unreachable address
 (192.0.2.1, RFC 5737), used purely as fire-and-forget (freed without
 calling `radcli_ctx_dispatch()`), and confirms `RADCLI_OK` is returned
-promptly (no timeout wait).
-**Links:** REQ-NET2-SEND-008, REQ-NET2-SEND-009, REQ-NET2-SEND-010,
+promptly (no timeout wait). [SEND] positive, local —
+`tests/request-tls-secret-tests.sh`'s `sendonly` mode issues
+`RADCLI_REQUEST_SENDONLY` as a fresh TLS `ctx`'s first operation and
+drives it to an Access-Accept via `radcli_ctx_get_poll()`/
+`radcli_ctx_dispatch()`.
+**Links:** REQ-NET-NET-005, REQ-NET2-SEND-008, REQ-NET2-SEND-009, REQ-NET2-SEND-010,
 REQ-NET2-SEND-011, REQ-NET2-SEND-013, REQ-NET2-SEND-014
 
 ### REQ-NET2-SEND-013 — radcli_ctx_get_poll()/radcli_ctx_dispatch() drive a RADCLI_REQUEST_SENDONLY request's reply to completion; radcli_request_done() reads the outcome without I/O
@@ -521,7 +530,9 @@ packet `radcli_encode_request()` already built.
 server.py` (decodes the Access-Request's Message-Authenticator and
 `User-Password` independently against the real RFC 6614 secret and reports
 each on its own): confirmed failing (`msgauth=bad`, `password=bad`) against
-the unfixed code, passing (`msgauth=ok`, `password=ok`) after.
+the unfixed code, passing (`msgauth=ok`, `password=ok`) after. Its
+`sendonly` mode repeats the check through the `RADCLI_REQUEST_SENDONLY`
+caller.
 **Links:** REQ-CONFIG-CFG-019, REQ-NET2-SEND-008
 
 ### REQ-NET2-SEND-016 — one ctx-owned socket serves every RADCLI_REQUEST_SENDONLY exchange, demultiplexed by a 256-slot Identifier registry

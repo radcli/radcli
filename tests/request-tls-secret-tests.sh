@@ -36,8 +36,6 @@ CERT=request-tls-secret-cert$PID.pem
 KEY=request-tls-secret-key$PID.pem
 SERVEROUT=request-tls-secret-server-out$PID.txt
 
-eval "$GETPORT"
-
 function finish {
 	rm -f $CERT $KEY $SERVEROUT
 }
@@ -51,33 +49,44 @@ if test ! -s "$CERT" || test ! -s "$KEY"; then
 	exit 1
 fi
 
-python3 ${srcdir}/request-tls-secret-server.py --host 127.0.0.1 --port ${PORT} \
-	--cert $CERT --key $KEY --expect-password test >$SERVEROUT 2>&1 &
-SERVERPID=$!
-sleep 0.5
+# $1: empty for the blocking radcli_request_perform() path, "sendonly" for
+# RADCLI_REQUEST_SENDONLY as the ctx's first operation, driven via
+# radcli_ctx_get_poll()/radcli_ctx_dispatch().
+function run_mode {
+	local mode="$1"
 
-${top_builddir}/tests/request-tls-secret ${PORT} $CERT
-RET=$?
+	eval "$GETPORT"
+	python3 ${srcdir}/request-tls-secret-server.py --host 127.0.0.1 --port ${PORT} \
+		--cert $CERT --key $KEY --expect-password test >$SERVEROUT 2>&1 &
+	SERVERPID=$!
+	sleep 0.5
 
-wait ${SERVERPID}
+	${top_builddir}/tests/request-tls-secret ${PORT} $CERT $mode
+	RET=$?
 
-echo "--- peer output ---"
-cat $SERVEROUT
+	wait ${SERVERPID}
 
-if test ${RET} -ne 0; then
-	echo "[ FAIL ] request-tls-secret reported a failure -- see its stderr above"
-	exit 1
-fi
+	echo "--- peer output (${mode:-blocking}) ---"
+	cat $SERVEROUT
 
-if ! grep -q '^AUTH .*msgauth=ok' $SERVEROUT; then
-	echo "[ FAIL ] Message-Authenticator did not verify against the RFC 6614/7360 fixed secret"
-	exit 1
-fi
+	if test ${RET} -ne 0; then
+		echo "[ FAIL ] request-tls-secret ${mode} reported a failure -- see its stderr above"
+		exit 1
+	fi
 
-if ! grep -q '^AUTH .*password=ok' $SERVEROUT; then
-	echo "[ FAIL ] User-Password did not decrypt correctly against the RFC 6614/7360 fixed secret"
-	exit 1
-fi
+	if ! grep -q '^AUTH .*msgauth=ok' $SERVEROUT; then
+		echo "[ FAIL ] ${mode:-blocking}: Message-Authenticator did not verify against the RFC 6614/7360 fixed secret"
+		exit 1
+	fi
+
+	if ! grep -q '^AUTH .*password=ok' $SERVEROUT; then
+		echo "[ FAIL ] ${mode:-blocking}: User-Password did not decrypt correctly against the RFC 6614/7360 fixed secret"
+		exit 1
+	fi
+}
+
+run_mode ""
+run_mode sendonly
 
 echo "[  OK  ] Message-Authenticator and User-Password both keyed with the RFC 6614/7360 fixed secret"
 exit 0
