@@ -1024,6 +1024,7 @@ int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 	}
 
 	st->ctx.last_msg = time(0);
+	st->ctx.last_recv = st->ctx.last_msg;
 	return ret;
 }
 

@@ -19,6 +19,8 @@ echo " 3. an unsolicited reply to a watchdog is read and silently dropped"
 echo " 4. a peer silent for 2.5x the interval -- connection still open,"
 echo "    just unanswered -- is presumed dead and the connection"
 echo "    reestablished"
+echo " 5. a peer answering every watchdog, read only by the async request"
+echo "    drain, is never presumed dead"
 echo "==================================================="
 
 if ! python3 -c 'import ssl' 2>/dev/null; then
@@ -93,6 +95,42 @@ if test $(grep -c '^ACCEPT ' $SERVEROUT) -lt 2; then
 	exit 1
 fi
 
+# Phase 5: a separate run whose only traffic after one async request is
+# watchdogs, every one answered; --timeout exceeds watchdog-interval so the
+# peer never ends the connection itself, and a second ACCEPT can only mean
+# radcli wrongly presumed it dead.
+eval "$GETPORT"
+python3 ${srcdir}/watchdog-aaa-server.py --host 127.0.0.1 --port ${PORT} \
+	--cert $CERT --key $KEY --timeout 10 --accept-timeout 3 \
+	--accepts 2 >$SERVEROUT 2>&1 &
+SERVERPID=$!
+sleep 0.5
+
+${top_builddir}/tests/watchdog-aaa ${PORT} $CERT async
+RET=$?
+
+wait ${SERVERPID}
+
+echo "--- peer output (async) ---"
+cat $SERVEROUT
+
+if test ${RET} -ne 0; then
+	echo "[ FAIL ] watchdog-aaa async reported a failure -- see its stderr above"
+	exit 1
+fi
+
+if test $(grep -c '^WATCHDOG id=.*msgauth=ok' $SERVEROUT) -lt 2; then
+	echo "[ FAIL ] expected at least 2 answered watchdogs in the async run"
+	exit 1
+fi
+
+if test $(grep -c '^ACCEPT ' $SERVEROUT) -ne 1; then
+	echo "[ FAIL ] async run: a peer answering every watchdog was presumed dead"
+	echo "         and the connection reestablished (REQ-WATCHDOG-NET-003)"
+	exit 1
+fi
+
 echo "[  OK  ] watchdog deadline resets on any peer message; watchdog-interval floor enforced;"
-echo "         an unsolicited watchdog reply was silently absorbed; a silent peer triggered reconnection"
+echo "         an unsolicited watchdog reply was silently absorbed; a silent peer triggered reconnection;"
+echo "         a peer answering watchdogs read only by the async drain was kept"
 exit 0

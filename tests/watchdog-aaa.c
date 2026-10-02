@@ -66,6 +66,14 @@
  * well before that; tests/watchdog-aaa-tests.sh confirms the peer saw a
  * *second* TLS connection accepted, which is the only observable proof
  * that reconnection specifically (not just "still works") happened.
+ *
+ * Phase 5 (third argument "async", a separate run against a fresh peer):
+ * on a ctx whose only traffic is RADCLI_REQUEST_SENDONLY requests and
+ * watchdogs, every record is read by radcli_ctx_dispatch()'s request-
+ * registry drain rather than an ordinary blocking exchange. The peer
+ * answers every watchdog, so it must never be presumed dead: after well
+ * over 2.5x watchdog-interval of such traffic, tests/watchdog-aaa-tests.sh
+ * confirms the peer saw only the one TLS connection (REQ-WATCHDOG-NET-003).
  */
 
 #include <config.h>
@@ -74,7 +82,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <poll.h>
+#include <time.h>
 
 #define WATCHDOG_INTERVAL_SECS 6
 
@@ -176,6 +186,73 @@ static int check_watchdog_interval_bounds(void)
 	return ret;
 }
 
+static double mono_secs(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+}
+
+/* Phase 5: one RADCLI_REQUEST_SENDONLY Access-Request driven to completion,
+ * then only radcli_ctx_get_poll()/radcli_ctx_dispatch() -- and so only
+ * watchdogs -- for well over 2.5x watchdog-interval.
+ *
+ * @return 0 on success, -1 otherwise (a message already printed to stderr).
+ */
+static int run_async_phase(radcli_ctx *ctx)
+{
+	radcli_avp_list *send_list;
+	radcli_request *r;
+	struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+	size_t nfds;
+	int timeout_ms, rc, iterations = 0;
+	int remaining_ms = (int)(WATCHDOG_INTERVAL_SECS * 2.5 * 1000) + 4000;
+
+	send_list = radcli_avp_list_new();
+	if (send_list == NULL ||
+	    radcli_avp_add_str_by_num(send_list, ctx, PW_USER_NAME, 0, "radcli-watchdog-aaa-5") != 0 ||
+	    radcli_avp_add_str_by_num(send_list, ctx, PW_USER_PASSWORD, 0, "test") != 0)
+		die("attribute setup");
+	r = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, send_list);
+	radcli_avp_list_free(send_list);
+	if (r == NULL)
+		die("radcli_request_new(RADCLI_CODE_ACCESS_REQUEST)");
+
+	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK) {
+		fprintf(stderr, "error: radcli_request_perform(RADCLI_REQUEST_SENDONLY) failed\n");
+		return -1;
+	}
+	while ((rc = radcli_request_done(r)) == RADCLI_AGAIN) {
+		if (++iterations > 100)
+			die("radcli_request_done() never left RADCLI_AGAIN");
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
+			die("radcli_ctx_get_poll");
+		poll(pfds, (nfds_t)nfds, timeout_ms);
+		if (radcli_ctx_dispatch(ctx) != 0)
+			die("radcli_ctx_dispatch");
+	}
+	radcli_request_free(r);
+	if (rc != RADCLI_OK) {
+		fprintf(stderr, "error: async Access-Request returned %d, expected RADCLI_OK\n", rc);
+		return -1;
+	}
+
+	while (remaining_ms > 0) {
+		double start = mono_secs();
+
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
+			die("radcli_ctx_get_poll");
+		if (timeout_ms < 0 || timeout_ms > remaining_ms)
+			timeout_ms = remaining_ms;
+		poll(pfds, (nfds_t)nfds, timeout_ms);
+		if (radcli_ctx_dispatch(ctx) != 0)
+			die("radcli_ctx_dispatch");
+		remaining_ms -= (int)((mono_secs() - start) * 1000) + 1;
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	radcli_ctx *ctx;
@@ -184,8 +261,8 @@ int main(int argc, char **argv)
 	size_t nfds;
 	int timeout_ms;
 
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <port> <tls-ca-file>\n", argv[0]);
+	if (argc != 3 && !(argc == 4 && strcmp(argv[3], "async") == 0)) {
+		fprintf(stderr, "usage: %s <port> <tls-ca-file> [async]\n", argv[0]);
 		return 2;
 	}
 
@@ -215,6 +292,18 @@ int main(int argc, char **argv)
 	if (radcli_ctx_apply(ctx) != 0) {
 		fprintf(stderr, "watchdog-aaa: radcli_ctx_apply() failed\n");
 		return 1;
+	}
+
+	if (argc == 4) {
+		/* --- Phase 5: a peer answering every watchdog is never
+		 * presumed dead, when only the request-registry drain reads
+		 * the session --- */
+		if (run_async_phase(ctx) != 0)
+			return 1;
+		radcli_ctx_free(ctx);
+		printf("OK: async-only traffic over well over 2.5x watchdog-interval "
+		       "(single connection verified server-side)\n");
+		return 0;
 	}
 
 	/* --- Phase 1: the watchdog deadline resets on ANY message from the

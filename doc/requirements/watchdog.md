@@ -192,7 +192,10 @@ specifically.
 automatic call — `REQ-WATCHDOG-NET-001` — and `rc_check_tls()`'s direct one
 — `REQ-WATCHDOG-NET-004`) MUST track the timestamp of
 the last record actually *received* on the session, separately from
-`REQ-WATCHDOG-NET-002`'s last-activity (send-or-receive) clock. Before building
+`REQ-WATCHDOG-NET-002`'s last-activity (send-or-receive) clock, and every
+path that reads a record from the session MUST update it — the blocking
+exchange's `tls_recvfrom()`, the idle DAE poll, and `radcli_ctx_dispatch()`'s
+request-registry drain alike. Before building
 and sending, if `watchdog-interval > 0` and the elapsed time since that
 last receive is `>= 2.5 * watchdog-interval`, it MUST force the session to
 reconnect (a fresh TCP/TLS handshake, the same way an actual send/recv
@@ -209,14 +212,22 @@ never from a radcli-owned thread or signal.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dae.c's `radcli2_priv_dae_send_watchdog()`; lib/tls.c's
-`tls_int_st.last_recv` and `radcli2_priv_tls_force_reconnect()`
+`tls_int_st.last_recv` (updated by `tls_recvfrom()`,
+`radcli2_priv_tls_dae_poll()`, `radcli2_priv_tls_try_recv()`) and
+`radcli2_priv_tls_force_reconnect()`
 **Acceptance:** [NET] positive, local — `tests/watchdog-aaa.c`'s phase 4:
 after the peer answers nothing at all for well over 2.5x watchdog-interval
 (connection left open throughout, not closed), the next
 `radcli_ctx_dispatch()` call once the watchdog is due still succeeds, and
 `tests/watchdog-aaa-tests.sh` confirms the peer's log shows a *second* TLS
 connection accepted -- the only observable proof that reconnection
-specifically (not just "the call didn't fail") happened. Threshold
+specifically (not just "the call didn't fail") happened. [NET] negative,
+local — `tests/watchdog-aaa.c`'s phase 5 (`async` mode): after one
+`RADCLI_REQUEST_SENDONLY` request, only watchdogs flow for well over 2.5x
+watchdog-interval, all answered and all read by the request-registry drain;
+`tests/watchdog-aaa-tests.sh` confirms the peer saw exactly one TLS
+connection. Confirmed failing (a second connection) when the drain's read
+path did not update the last-receive clock. Threshold
 (2.5x) is a user-specified choice, not itself derived from RFC 3539 (which
 leaves the failed-transport detection algorithm's exact multiplier
 unspecified, only that it exist, SS3.4). This same mechanism is also
