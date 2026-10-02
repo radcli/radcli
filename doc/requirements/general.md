@@ -129,7 +129,7 @@ non-`const` variables at file scope or function scope, or globals declared in
 headers) MUST NOT be added. One pre-existing instance in radcli2 core is an
 accepted, maintainer-reviewed exception and MUST NOT be treated as precedent
 for adding further global state:
-  - `_initialized` (`lib/config.c:1182`, `static int`) — a process-wide
+  - `_initialized` (`lib/config.c`, `static int`) — a process-wide
     reference count guarding GnuTLS global init/deinit idempotency across
     multiple `rc_handle` instances in one process. Accepted because it only
     guards one-time process-wide init/deinit calls; see `REQ-CONFIG-SEC-004`
@@ -161,7 +161,8 @@ each other.
 **Strength:** MUST NOT
 **Status:** DERIVED
 **Source:** contrib/ai/personas/radcli-core-dev.md ("Process-state neutrality");
-lib/config.c:1182; lib/util.c:105-106; lib/includes.h (`struct rc_conf.debug`);
+lib/config.c (`_initialized`, `radcli2_priv_new()`/`radcli2_priv_destroy()`);
+lib/includes.h (`struct rc_conf.debug`);
 lib/legacy/compat.c (`radcli_legacy_debug`, `rc_setdebug()`)
 **Acceptance:** [SEC] code-review — every new `static` non-`const` file- or
 function-scope variable or new `extern` global declared in a header MUST be
@@ -495,8 +496,8 @@ this is an accepted exception, not a violation.
 **Strength:** MUST NOT (OpenSSL) ; MUST (GnuTLS for TLS/DTLS sessions)
 **Status:** DERIVED
 **Source:** contrib/ai/personas/radcli-core-dev.md ("Canonical technology
-choices" — Cryptography); lib/config.c:1195 (`gnutls_global_init`);
-lib/sendserver.c:303 (`gnutls_rnd`)
+choices" — Cryptography); lib/config.c (`radcli2_priv_new()`'s `gnutls_global_init()`);
+lib/rc-random.c (`rc_get_random_bytes()`'s `gnutls_rnd()`)
 **Acceptance:** [TECH] code-review — new cryptographic code reviewed for
 GnuTLS-only usage; `meson.build`'s dependency list reviewed for no added
 OpenSSL dependency.
@@ -544,7 +545,7 @@ independently) does so against radcli's own documented intent, not with it.
 **Strength:** MUST NOT
 **Status:** DERIVED
 **Source:** Maintainer directive (2026-08-30); see also this document's
-review of `lib/sendserver.c:314` (`net.md`/`REQ-NET-*`, forthcoming) for a
+`REQ-GEN-STYLE-009` (`lib/sendserver.c`'s `decode_reply()`) for a
 concrete case this policy was written to keep loud rather than latent.
 **Acceptance:** [TECH] negative, local — `grep -rn 'NDEBUG\|b_ndebug'
 meson.build lib/meson.build` finds no line that defines `NDEBUG` or sets
@@ -571,7 +572,7 @@ Running radcli on a platform that does not meet this baseline (an
 **unsupported**, not a runtime condition `lib/rc-random.c` is required to
 handle gracefully. This requirement exists specifically to make
 `rc_get_random_bytes()`/`rc_get_random_byte()`'s `assert(ret >= 0)` /
-`assert(ret == 0)` (`lib/rc-random.c:50,53`) justified as unreachable under
+`assert(ret == 0)` (`lib/rc-random.c`'s `rc_get_random_bytes()`) justified as unreachable under
 the platforms radcli claims to support, per REQ-GEN-STYLE-009's "impossible
 under our own assumptions" bar — without this requirement on record, that
 assert would instead be a plausible, unhandled runtime failure on an
@@ -579,7 +580,7 @@ under-specified platform.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** Maintainer directive (2026-08-30, in response to reviewing
-`lib/rc-random.c:50,53`); lib/rc-random.c; meson.build (`get_option('tls')`
+`lib/rc-random.c`'s `rc_get_random_bytes()`); lib/rc-random.c; meson.build (`get_option('tls')`
 making the GnuTLS path optional, which is why the `getentropy()` fallback's
 own platform assumption needs to be independently documented rather than
 inherited from a GnuTLS requirement)
@@ -707,7 +708,7 @@ resolving an attribute identity supplied at runtime as a name or OID string
 **Status:** DERIVED
 **Source:** lib/dae.c (`build_reply()`/`radcli_dae_req_*()` family, migrated
 from `radcli_dict_lookup(rh, "NAS-Port")` etc. to
-`radcli_dict_lookup_num(rh, PW_NAS_PORT, 0)`); include/radcli/radcli2.h:104-141
+`radcli_dict_lookup_num(rh, PW_NAS_PORT, 0)`); lib/dict2.c
 (`radcli_dict_lookup`/`_lookup_oid`/`_lookup_num` doc comments — `_lookup_num()`
 is documented as "equivalent to radcli_dict_lookup_oid() with the same
 attribute expressed as an OID", i.e. the direct numeric path with no string
@@ -816,8 +817,9 @@ same. `radcli-defs.h` MUST declare nothing beyond these shared definitions
 declaration belongs in it.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/radcli/radcli-defs.h; include/radcli/radcli2.h:28-41,56;
-include/radcli/radcli.h:148-153; lib/options.h:10; include/meson.build:1
+**Source:** include/radcli/radcli-defs.h; the `#include <radcli/radcli-defs.h>`
+in include/radcli/radcli2.h, include/radcli/radcli.h and lib/options.h;
+include/meson.build (`install_headers()`)
 **Acceptance:** [STYLE] build, local — `include/radcli/radcli-defs.h` is
 the only header `radcli.h`/`radcli2.h`/`lib/options.h` include for these
 definitions; `include/meson.build`'s `install_headers()` call lists
@@ -861,7 +863,7 @@ actually a "this cannot happen" case.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** Maintainer directive (2026-08-30); illustrated by
-`lib/sendserver.c:314`'s former `assert(pb_pull(&rb, AUTH_HDR_LEN) == 0)`,
+`lib/sendserver.c`'s `decode_reply()`'s former `assert(pb_pull(&rb, AUTH_HDR_LEN) == 0)`,
 whose invariant ("the reply is at least `AUTH_HDR_LEN` bytes") was stated in
 the function's own preceding comment but was not actually enforced on every
 path that reached it. Fixed by gating both `decode_reply()` call sites on
@@ -1086,7 +1088,7 @@ for a matching update.
 every entry point it needs (context construction, dictionary loading, AVP
 handling) through `radcli_*` functions, not `rc_*` ones from `radcli.h` --
 even though `radcli_ctx` and `rc_handle` name the same underlying object
-(`radcli2.h:44,76`; `lib/config2.c:30`) and so are freely interchangeable at
+(`radcli2.h`'s `typedef struct rc_conf radcli_ctx`; `lib/config2.c`'s `@file` comment) and so are freely interchangeable at
 the type level, mixing the two APIs in one test file blurs which API is
 actually under test and can silently depend on a legacy-side effect a
 radcli2.h-only caller would never get. If a `radcli2.h`-only test needs an

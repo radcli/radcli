@@ -80,7 +80,7 @@ effects if `ctx` is `NULL`, or if `code` is neither `RADCLI_CODE_ACCESS_REQUEST`
 nor `RADCLI_CODE_ACCOUNTING_REQUEST`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:79-86
+**Source:** lib/request.c (`radcli_request_new()`, argument checks)
 **Acceptance:** [INIT] unit, local — `tests/request.c` calls
 `radcli_request_new(NULL, RADCLI_CODE_ACCESS_REQUEST, send_list)` and
 `radcli_request_new(ctx, (radcli_code)0, send_list)` and confirms both return
@@ -96,8 +96,8 @@ request types over one connection to `authserver`); otherwise (a non-TLS/DTLS
 Accounting-Request) it MUST select `"acctserver"` and `ACCT`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:88-98 (comment explicitly cross-references
-`rc_select_aaa_server()`, lib/buildreq.c)
+**Source:** lib/request.c (`radcli_request_new()`, server/type selection; its
+comment cross-references `rc_select_aaa_server()`, lib/legacy/buildreq.c)
 **Acceptance:** [INIT] unit, local — construct a handle with `so_type` forced
 to `RC_SOCKET_TLS` and only `"authserver"` configured, call
 `radcli_request_new()` with `RADCLI_CODE_ACCOUNTING_REQUEST`, confirm it
@@ -114,7 +114,7 @@ it as an error), so a caller migrating a legacy multi-server config one entry
 point at a time is not broken by the leftover entries.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:100-117 (comment: "By design, the new API carries
+**Source:** lib/request.c (`radcli_request_new()`; comment: "By design, the new API carries
 one server per handle...")
 **Acceptance:** [INIT] unit, local — configure two `"authserver"` entries,
 call `radcli_request_new()`, confirm `radcli_request_server()` on the result
@@ -128,7 +128,7 @@ output) that a `LOG_WARNING` was emitted.
 for the selected option returns `NULL` or an empty (`max == 0`) list.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:100-104
+**Source:** lib/request.c (`radcli_request_new()`, server lookup)
 **Acceptance:** [INIT] unit, local — `tests/request.c`'s construction with no
 `"authserver"`/`"acctserver"` configured confirms `radcli_request_new()`
 returns `NULL`.
@@ -144,7 +144,7 @@ into request-owned storage before returning, so the caller may free or mutate
 without allocating the request object.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:119-142; contract restated in include/radcli/radcli2.h's
+**Source:** lib/request.c (`radcli_request_new()`, copy of `send`); contract restated in include/radcli/radcli2.h's
 `radcli_request_new()` doc comment ("send may be freed or reused by the
 caller immediately after this call returns")
 **Acceptance:** [INIT] unit, local — build a `send_list`, call
@@ -161,7 +161,8 @@ succeeds; a full `radcli_request_perform()` round trip is covered by
 configuration.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:151-152 (capture), lib/request.c:218-219 (use)
+**Source:** lib/request.c (`radcli_request_new()` captures,
+`radcli_request_perform()` uses)
 **Acceptance:** [INIT] unit, local — construct a request, then change
 `"radius_timeout"` in the handle's configuration, and confirm (by code
 inspection / a mock transport) that the original value is what
@@ -175,7 +176,7 @@ inspection / a mock transport) that the original value is what
 as a no-op.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:268-276
+**Source:** lib/request.c (`radcli_request_free()`)
 **Acceptance:** [INIT] unit, local — `tests/request.c` frees a constructed
 request and calls `radcli_request_free(NULL)`, confirming no crash (ASan/UBSan
 clean, per `REQ-GEN-MEM-*`).
@@ -298,8 +299,8 @@ used whatever secret was configured (empty, ordinarily) instead, a real
 divergence this requirement's own text did not previously flag.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:202-216; cf. lib/sendserver.c:1051-1062
-(`rc_send_server_ctx()`'s equivalent branch)
+**Source:** lib/request.c (`radcli_encode_request()`, non-accounting branch); cf.
+lib/legacy/send.c (`rc_send_server_ctx()`'s equivalent branch)
 **Acceptance:** [SEND] interoperability, root+FreeRADIUS —
 `tests/request-freeradius.c`'s Access-Request/Access-Accept check (needs
 Message-Authenticator to be accepted by a real FreeRADIUS server).
@@ -315,7 +316,8 @@ shared secret (secret truncated to `MAX_SECRET_LENGTH` if longer), per RFC
 2866 — mirroring `rc_send_server_ctx()`'s accounting path.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:179-201; cf. lib/sendserver.c:1029-1041
+**Source:** lib/request.c (`radcli_encode_request()`, accounting branch); cf.
+lib/legacy/send.c (`rc_send_server_ctx()`'s equivalent branch)
 **Acceptance:** [SEND] interoperability, root+FreeRADIUS —
 `tests/request-freeradius.c`'s Accounting-Request/Accounting-Response check
 (a server that recomputes and rejects a mismatched Authenticator would fail
@@ -373,7 +375,7 @@ retransmission with different content MUST construct a new
 `radcli_request` via `radcli_request_new()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:306-308 (`radcli_request_perform()` checks/sets
+**Source:** lib/request.c (`radcli_request_perform()` checks/sets
 `r->performed` before branching on `flags`); contract restated in
 `include/radcli/radcli2.h`'s doc comment ("May be called only once per
 request")
@@ -415,7 +417,7 @@ MUST NOT fail merely because no earlier call happened to connect the
 session first.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:298-359 (`radcli_request_perform()`'s
+**Source:** lib/request.c (`radcli_request_perform()`'s
 `RADCLI_REQUEST_SENDONLY` branch calling `radcli_transport_send_async()`);
 lib/sendserver.c's `radcli_transport_send_async()` (single address, `ctx`'s
 persistent request socket left open and registered in `ctx`'s in-flight
@@ -559,7 +561,7 @@ persistent, unconnected request socket, lazily on the first
 `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` call that needs one,
 kept open for `ctx`'s own lifetime and closed only by `radcli_ctx_free()`.
 This socket MUST serve both Access-Request and Accounting-Request traffic on
-the same `ctx`: `plain_get_fd()` (`lib/config.c:544`) binds an ephemeral port
+the same `ctx`: `plain_get_fd()` (`lib/config.c`) binds an ephemeral port
 independent of destination, so only the destination address/port/secret
 recorded per in-flight registry slot (below) distinguishes an Access-Request
 bound for `authserver` from an Accounting-Request bound for `acctserver`. A
@@ -600,10 +602,10 @@ for free, the same principle dae.md's REQ-DAE-SEC-001 applies to the DAE
 listener's own shared socket.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:544 (`plain_get_fd()`, ephemeral-port bind
+**Source:** lib/config.c (`plain_get_fd()`, ephemeral-port bind
 independent of destination/type); lib/sendserver.c (`radcli_transport_send_async()`/registry
 drain, replacing the old per-call `sfuncs->get_fd()`); lib/includes.h
-(`struct rc_conf`'s `req_fd`/in-flight-registry fields); cf. lib/dae.c:98-112
+(`struct rc_conf`'s `req_fd`/in-flight-registry fields); cf. lib/dae.c
 (`RADCLI_DAE_SLOTS`/`struct radcli_dae_slot`, the precedent this mirrors)
 **Acceptance:** [SEND] unit, local — `tests/request-poll-multi.c` performs
 `RADCLI_CTX_MAX_INFLIGHT` concurrent `RADCLI_REQUEST_SENDONLY` requests on
@@ -674,7 +676,7 @@ Authenticator and, for AUTH, Message-Authenticator already verified inside
 accept from a reject or challenge, not the `radcli_result` return value.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:223-232
+**Source:** lib/request.c (`radcli_request_perform()`, result mapping)
 **Acceptance:** [RECV] interoperability, root+FreeRADIUS —
 `tests/request-freeradius.c` checks `radcli_request_perform()` returns
 `RADCLI_OK` and `radcli_request_code()` reports `RADCLI_CODE_ACCESS_ACCEPT`
@@ -691,7 +693,7 @@ the server name resolved to), and `RADCLI_ERROR` for every other outcome
 (including a `radcli_avp_decode()` failure on an otherwise-validated reply).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:223-237
+**Source:** lib/request.c (`radcli_request_perform()`, result mapping)
 **Acceptance:** [RECV] unit/integration — point the request at an
 unreachable/black-holed address with a short timeout and confirm
 `RADCLI_TIMEOUT`; `[UNDOCUMENTED-BY-TEST: not exercised by the current test
@@ -708,7 +710,7 @@ requirement for decrypting salt-encrypted attributes (e.g. Tunnel-Password)
 against the original request authenticator.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:228-230
+**Source:** lib/request.c (`radcli_request_perform()`'s `radcli_avp_decode()` call)
 **Acceptance:** [RECV] interoperability, root+FreeRADIUS —
 `tests/request-freeradius.c`'s Framed-IP-Address decode check confirms
 successful decoding against a live server's reply; a salt-encrypted attribute
@@ -724,7 +726,8 @@ empty string (never `NULL`) if `r` is `NULL`, and the configured server name
 otherwise, valid even before `radcli_request_perform()` is called.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:241-265
+**Source:** lib/request.c (`radcli_request_code()`, `radcli_request_attrs()`,
+`radcli_request_server()`)
 **Acceptance:** [RECV] unit, local — `tests/request.c` calls all three
 accessors on a freshly-constructed, not-yet-performed request and on `NULL`,
 confirming the defaults above (including that `radcli_request_server()`
@@ -764,8 +767,8 @@ object's own `calloc()` failure) MUST return `NULL` and MUST NOT leak the
 partially-built `send_copy` list.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:79-142 (every early return frees `send_copy` before
-it, if allocated)
+**Source:** lib/request.c (`radcli_request_new()`; every early return frees
+`send_copy` before it, if allocated)
 **Acceptance:** [ERR] would require fault-injecting `calloc()`/`radcli_avp_add_bytes()`
 to exercise the leak-free property directly; `Needs-domain-check` per
 `REQ-AVP2-ERR-008`'s precedent (same open question, same project).
@@ -779,7 +782,8 @@ MUST return `RADCLI_ERROR` without calling `radcli_transport_exchange()` (no
 packet is sent).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:189-190, lib/request.c:210-211
+**Source:** lib/request.c (`radcli_encode_request()`'s checks of
+`radcli_avp_encode()`'s result)
 **Acceptance:** [ERR] unit, local — construct a request whose attributes
 exceed `RC_MAX_PACKET_LEN` once encoded (e.g. a large binary attribute
 repeated many times) and confirm `radcli_request_perform()` returns
@@ -794,7 +798,7 @@ which `flags` value either call used, MUST both return `RADCLI_ERROR`
 deterministically, never crash or resend.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/request.c:306-308 (`radcli_request_perform()`)
+**Source:** lib/request.c (`radcli_request_perform()`)
 **Acceptance:** [ERR] unit, local — same tests as REQ-NET2-SEND-011's
 acceptance criteria; listed separately here because it is also the
 NULL-safety/no-UB contract `REQ-GEN-MEM-002`-style requirements care about.
