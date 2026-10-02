@@ -69,7 +69,6 @@ typedef struct tls_int_st {
 				  * finished (or started) its handshake. */
 	unsigned need_restart;
 	unsigned skip_hostname_check; /* whether to verify hostname */
-	pthread_mutex_t lock;
 	time_t last_msg;	/* last send OR receive -- when the next watchdog is due */
 	time_t last_recv;	/* last receive only -- REQ-WATCHDOG-NET-003's dead-peer clock */
 } tls_int_st;
@@ -80,6 +79,9 @@ typedef struct tls_st {
 	struct tls_int_st ctx;	/* one for ACCT and another for AUTH */
 	unsigned flags; /* the flags set on init */
 	rc_handle *rh; /* a pointer to our owner */
+	/* Here, not in ctx: restart_session() replaces ctx wholesale, possibly
+	 * while this lock is held (REQ-NET-TEARDOWN-006). */
+	pthread_mutex_t lock;
 } tls_st;
 
 /** @} */
@@ -221,7 +223,7 @@ static int tls_lock(void *ptr)
 {
 	tls_st *st = ptr;
 
-	return pthread_mutex_lock(&st->ctx.lock);
+	return pthread_mutex_lock(&st->lock);
 }
 
 /*- rc_sockets_override.unlock: release st's session lock.
@@ -233,7 +235,7 @@ static int tls_unlock(void *ptr)
 {
 	tls_st *st = ptr;
 
-	return pthread_mutex_unlock(&st->ctx.lock);
+	return pthread_mutex_unlock(&st->lock);
 }
 
 /*- rc_sockets_override.recvfrom: read one reply from st's GnuTLS session,
@@ -391,7 +393,6 @@ static void deinit_session(tls_int_st *ses)
 			}
 			gnutls_deinit(ses->session);
 		}
-		pthread_mutex_destroy(&ses->lock);
 		if (ses->sockfd != -1)
 			close(ses->sockfd);
 	}
@@ -429,26 +430,6 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 	ses->init = 1;
 	ses->handshake_done = 0;
 
-	{
-		/* Recursive, not the default (non-recursive) type: DAE-over-
-		 * RadSec's demux (lib/dae.c's radcli2_priv_dae_on_radsec_packet(),
-		 * called inline from tls_recvfrom() below) can itself need to
-		 * send an immediate reply -- a retransmission's cached ACK/NAK
-		 * (PROCESS_DUP_ANSWERED), or an RFC 6614 SS2.5 406 NAK when
-		 * dynamic authorization isn't enabled -- via this same rh's
-		 * so.sendto()/so.lock(), while tls_recvfrom() itself is being
-		 * called from inside radcli_transport_exchange() (lib/sendserver.c),
-		 * which already holds this exact lock for its entire send-and-
-		 * wait cycle, on this same thread. A plain mutex would deadlock
-		 * (or be undefined behavior) the moment that reply path is taken
-		 * from that call chain; a recursive one simply nests. */
-		pthread_mutexattr_t attr;
-
-		pthread_mutexattr_init(&attr);
-		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-		pthread_mutex_init(&ses->lock, &attr);
-		pthread_mutexattr_destroy(&attr);
-	}
 	sockfd = socket(our_sockaddr->ss_family, (secflags&SEC_FLAG_DTLS)?SOCK_DGRAM:SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		rc_log(LOG_ERR,
@@ -863,13 +844,13 @@ int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 	 * arrives while it holds the lock (tls_recvfrom()'s own inline
 	 * demux, above) -- so contention here simply means "nothing new to
 	 * report this call", never a stall of the caller's event loop. */
-	if (pthread_mutex_trylock(&st->ctx.lock) != 0)
+	if (pthread_mutex_trylock(&st->lock) != 0)
 		return 0;
 
 	ret = gnutls_record_recv(st->ctx.session, buf, cap);
 
 	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-		pthread_mutex_unlock(&st->ctx.lock);
+		pthread_mutex_unlock(&st->lock);
 		return 0; /* nothing ready this call -- no retry, unlike tls_recvfrom() */
 	}
 
@@ -877,7 +858,7 @@ int radcli2_priv_tls_dae_poll(rc_handle *rh, uint8_t *buf, size_t cap)
 		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__,
 		       gnutls_strerror(ret));
 		st->ctx.need_restart = 1;
-		pthread_mutex_unlock(&st->ctx.lock);
+		pthread_mutex_unlock(&st->lock);
 		return -1;
 	}
 
@@ -896,7 +877,7 @@ void radcli2_priv_tls_dae_poll_done(rc_handle *rh)
 	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
 		return;
 	st = rh->so.ptr;
-	pthread_mutex_unlock(&st->ctx.lock);
+	pthread_mutex_unlock(&st->lock);
 }
 
 /*- Make one non-blocking attempt to send a DAE-over-RadSec reply.
@@ -938,22 +919,22 @@ int radcli2_priv_tls_dae_send(rc_handle *rh, const void *buf, size_t len)
 	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
 		return -1;
 
-	pthread_mutex_lock(&st->ctx.lock);
+	pthread_mutex_lock(&st->lock);
 	ret = gnutls_record_send(st->ctx.session, buf, len);
 
 	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
-		pthread_mutex_unlock(&st->ctx.lock);
+		pthread_mutex_unlock(&st->lock);
 		return 0;
 	}
 	if (ret < 0) {
 		rc_log(LOG_ERR, "%s: error in sending: %s", __func__, gnutls_strerror(ret));
 		st->ctx.need_restart = 1;
-		pthread_mutex_unlock(&st->ctx.lock);
+		pthread_mutex_unlock(&st->lock);
 		return -1;
 	}
 
 	st->ctx.last_msg = time(0);
-	pthread_mutex_unlock(&st->ctx.lock);
+	pthread_mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -1046,6 +1027,7 @@ void rc_deinit_tls(rc_handle * rh)
 			gnutls_certificate_free_credentials(st->x509_cred);
 		if (st->psk_cred)
 			gnutls_psk_free_client_credentials(st->psk_cred);
+		pthread_mutex_destroy(&st->lock);
 		if (ns != NULL) {
 			if(-1 == rc_reset_netns(&ns_def_hdl))
 			rc_log(LOG_ERR, "rc_send_server: namespace %s reset failed", ns);
@@ -1105,6 +1087,26 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 
 	st->rh = rh;
 	st->flags = flags;
+	{
+		/* Recursive, not the default (non-recursive) type: DAE-over-
+		 * RadSec's demux (lib/dae.c's radcli2_priv_dae_on_radsec_packet(),
+		 * called inline from tls_recvfrom() below) can itself need to
+		 * send an immediate reply -- a retransmission's cached ACK/NAK
+		 * (PROCESS_DUP_ANSWERED), or an RFC 6614 SS2.5 406 NAK when
+		 * dynamic authorization isn't enabled -- via this same rh's
+		 * so.sendto()/so.lock(), while tls_recvfrom() itself is being
+		 * called from inside radcli_transport_exchange() (lib/sendserver.c),
+		 * which already holds this exact lock for its entire send-and-
+		 * wait cycle, on this same thread. A plain mutex would deadlock
+		 * (or be undefined behavior) the moment that reply path is taken
+		 * from that call chain; a recursive one simply nests. */
+		pthread_mutexattr_t attr;
+
+		pthread_mutexattr_init(&attr);
+		pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+		pthread_mutex_init(&st->lock, &attr);
+		pthread_mutexattr_destroy(&attr);
+	}
 	/* calloc() left 0, a valid descriptor: no session exists yet (REQ-NET-NET-019). */
 	st->ctx.sockfd = -1;
 
@@ -1346,6 +1348,7 @@ int rc_init_tls(rc_handle * rh, unsigned flags)
 			gnutls_certificate_free_credentials(st->x509_cred);
 		if (st->psk_cred)
 			gnutls_psk_free_client_credentials(st->psk_cred);
+		pthread_mutex_destroy(&st->lock);
 	}
 	free(st);
 	rh->so.ptr = NULL;

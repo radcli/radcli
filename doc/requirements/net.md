@@ -883,6 +883,27 @@ session's fd MUST remain open and usable afterward.
 **Links:** REQ-GEN-MEM-003, REQ-NET-NET-016 (same `tmps`, covering its starting state rather
 than the failure path)
 
+### REQ-NET-TEARDOWN-006 — The TLS/DTLS session lock persists across `restart_session()`
+
+**Requirement:** The lock behind `rc_sockets_override.lock`/`.unlock` for a
+TLS/DTLS handle MUST belong to the handle's `tls_st` itself, initialized once
+by `rc_init_tls()` and destroyed only by `rc_deinit_tls()` (or
+`rc_init_tls()`'s own failure cleanup) — never to the per-connection state
+that `restart_session()` destroys and replaces. A caller holding the lock
+across a restart (as `radcli_transport_exchange()` does when `tls_sendto()`
+restarts a dead session mid-exchange) MUST be able to release it afterwards.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: the lock lived in the per-connection
+`tls_int_st`, so `restart_session()` destroyed the held mutex and copied a
+fresh, unlocked one over it, and the holder's unlock then failed.
+**Source:** lib/tls.c (`tls_st.lock`, `tls_lock()`/`tls_unlock()`,
+`rc_init_tls()`, `rc_deinit_tls()`, `restart_session()`)
+**Acceptance:** [TEARDOWN] negative, local, no root —
+`tests/tls-lock-restart-tests.sh` takes the session lock, forces a session
+restart, and confirms the lock can still be released; confirmed failing
+against the unfixed code.
+**Links:** REQ-NET-TEARDOWN-004, REQ-NET-NET-007, REQ-GEN-SEC-009
+
 ### REQ-NET-TEARDOWN-005 — Namespace context is always restored before `rc_send_server_ctx()`/`rc_init_tls()`/`rc_deinit_tls()` return, even on every error branch
 
 **Requirement:** See `REQ-NET-NET-015` for the full analysis; restated here as a teardown
