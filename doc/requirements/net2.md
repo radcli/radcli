@@ -238,9 +238,20 @@ one either — REQ-NET2-SEND-013): descriptors belong to the `radcli_ctx`, so
 that a transport sharing one descriptor between DAE and ordinary requests
 (already true for TLS/DTLS) never leaves an application holding a watcher on
 a descriptor that silently starts meaning something else.
+
+One exception: when the TLS/DTLS session has failed and
+`radcli_ctx_dispatch()` must send on it — a `RADCLI_REQUEST_SENDONLY`
+retransmit, or the watchdog's forced reconnect to a silent peer
+(REQ-WATCHDOG-NET-003) — it reconnects synchronously first, and blocks for
+as long as that takes: name resolution, bounded only by the system
+resolver; `connect()`, bounded only by the operating system (for TCP, its
+SYN retry timeout); and the TLS/DTLS handshake, bounded by
+`radius_timeout`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** REQ-GEN-SEC-003
+**Source:** REQ-GEN-SEC-003; lib/tls.c (`restart_session()`,
+`init_session()`); lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`);
+lib/dae.c (`radcli2_priv_dae_send_watchdog()`)
 **Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
 **Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
 
