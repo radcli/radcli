@@ -757,7 +757,7 @@ int radcli2_priv_tls_force_reconnect(rc_handle * rh)
  * (REQ-WATCHDOG-NET-003), so this one call covers both probing and recovering. A
  * dead session is normally detected and reconnected transparently on the
  * next request anyway; this exists for a caller that wants that detected
- * proactively instead (e.g. from a dedicated watchdog thread), same as
+ * proactively instead (e.g. from a periodic timer), same as
  * before this used a TLS heartbeat for it.
  *
  * @param rh a handle to parsed configuration.

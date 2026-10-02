@@ -1138,8 +1138,8 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		 * without dae->radsec_lock deliberately: this is an advisory
 		 * hint only (worst case a stale read costs one extra dispatch()
 		 * call that finds nothing, never a correctness issue), and
-		 * radcli_ctx_get_poll() is documented to be callable from any
-		 * thread cheaply and often. DAE-only, same reason as above. */
+		 * radcli_ctx_get_poll() is meant to be called cheaply and
+		 * often. DAE-only, same reason as above. */
 		if (dae_radsec && (rh->active_dae->radsec_queue_len > 0 ||
 				   rh->active_dae->radsec_reply_queue_len > 0))
 			*timeout_ms = 0;

@@ -240,7 +240,7 @@ REQ-NET-NET-007, REQ-WATCHDOG-NET-004
 ### REQ-WATCHDOG-NET-004 — `rc_check_tls()`'s guarantee is opt-in idle-session detection via an RFC 5997 watchdog probe; it is never called implicitly by radcli itself
 
 **Requirement:** `rc_check_tls()` MUST only be invoked by the application, on its own schedule
-(e.g. a watchdog thread) — radcli MUST NOT call `rc_check_tls()` from `rc_send_server_ctx()`,
+(e.g. a periodic timer) — radcli MUST NOT call `rc_check_tls()` from `rc_send_server_ctx()`,
 `rc_auth()`, or any other internal path. When called on an established session with
 `need_restart` already set, it MUST reconnect via `restart_session()`, same as
 `REQ-NET-NET-007`. Otherwise, once `watchdog-interval` (default 15s, floor 6s,

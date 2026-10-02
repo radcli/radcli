@@ -252,6 +252,30 @@ TLS transport rather than the UDP MD5 path.
 **Links:** REQ-DAE-SEC-002, REQ-DAE-SEC-005, REQ-DAE-SEC-008, REQ-DAE-INIT-007,
 REQ-GEN-SEC-006
 
+### REQ-GEN-SEC-009 — A handle is used by one thread at a time
+
+**Requirement:** An `rc_handle`/`radcli_ctx`, together with every
+`radcli_request` and `radcli_dae` created from it, MUST be used by one
+thread at a time; a caller using it from several threads MUST serialize
+those calls itself. radcli makes no promise about concurrent calls on one
+handle.
+This holds for every function taking the handle or one of those objects —
+`radcli_ctx_get_poll()` and `rc_check_tls()` included — and for both the
+`radcli.h` and `radcli2.h` APIs. This is the contract radcli has always
+documented (1.x's `rc_check_tls()`: "must be called when no other thread is
+using the session"), stated once; it adds no guarantee. Any locking radcli
+does internally is an implementation detail, not part of this contract.
+Distinct handles are independent of each other per `REQ-GEN-SEC-005`.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** maintainer decision (2026-10-02); 1.5.3's `rc_check_tls()`
+documentation (lib/tls.c); `attrs.md`'s cross-cutting thread-safety note;
+include/radcli/radcli2.h (`radcli_ctx`)
+**Acceptance:** [SEC] documentation review — `radcli2.h`'s `radcli_ctx`
+documentation states the one-thread-at-a-time rule, and no public
+documentation or requirement promises concurrent use of one handle.
+**Links:** REQ-GEN-SEC-002, REQ-GEN-SEC-005, REQ-WATCHDOG-NET-004
+
 ---
 
 ## ABI — public symbol and ABI stability

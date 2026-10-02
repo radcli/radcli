@@ -75,6 +75,9 @@ extern "C" {
  * radcli_ctx and rc_handle (radcli.h) are typedefs of the same incomplete
  * struct type; the two headers may be used together and a context created
  * through one API's constructors is valid input to the other's functions.
+ *
+ * A context, and every radcli_request and radcli_dae created from it, must
+ * be used by one thread at a time; separate contexts are independent.
  */
 struct rc_conf;
 typedef struct rc_conf radcli_ctx;
