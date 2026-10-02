@@ -331,6 +331,49 @@ covered by construction, not by a test.]`
 **Links:** REQ-NET2-NET-001, REQ-NET2-NET-003, REQ-NET2-SEND-013,
 REQ-NET2-SEND-016, REQ-NET-NET-010, REQ-DAE-SEC-015
 
+### REQ-NET2-NET-005 — radcli_ctx_dispatch() never waits to send on a RadSec session; one bounded queue holds what cannot go out yet
+
+**Requirement:** `radcli_ctx_dispatch()` MUST NOT wait for a TLS/DTLS
+session to become writable, whatever it sends: a DAE reply, a
+`RADCLI_REQUEST_SENDONLY` retransmit, or a watchdog. Each makes one
+non-blocking attempt; what cannot go out at once waits in one per-session
+queue of 8 records, sent in order, which `radcli_ctx_dispatch()` flushes
+first (non-blocking) and for which `radcli_ctx_get_poll()` asks for
+`POLLOUT` while it is non-empty. A record GnuTLS has partly accepted
+(`GNUTLS_E_AGAIN`) MUST stay at the head until it is sent in full — GnuTLS
+requires the same data to be passed again — so it is never dropped or
+overtaken. A queued watchdog counts as that round's attempt, so the
+watchdog is not due again until the next interval. When the queue is full: a
+retransmit is skipped, as if the packet were lost (its timeout still runs); a
+watchdog is skipped (likewise counting as that round's attempt,
+REQ-NET2-SEND-010); a DAE reply displaces the oldest queued DAE reply other
+than the head, or is dropped itself if there is none (dae.md's
+REQ-DAE-SEC-013). A blocking exchange may wait, as its contract
+allows: it first sends everything queued, then its own request. A session
+restart discards the queue, whose records belong to the failed session.
+Reconnecting a failed session is REQ-NET2-NET-001's separate, documented
+exception.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: a retransmit (and, over the shared
+session, any send behind a deferred DAE reply) waited up to
+`radius_timeout` for write room inside `radcli_ctx_dispatch()`, and the DAE
+reply queue's overflow could drop a partly-sent record.
+**Source:** lib/tls.c (`radcli2_priv_tls_send_queued()`,
+`radcli2_priv_tls_flush()`, `tls_sendto()`, `restart_session()`); lib/dae.c
+(`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`, `send_reply()`,
+`radcli2_priv_dae_send_watchdog()`); lib/sendserver.c
+(`radcli2_priv_reqreg_service_timeouts()`)
+**Acceptance:** [NET] negative, local, no root —
+`tests/radsec-send-backpressure-tests.sh` (peer:
+`tests/radsec-backpressure-server.py --count 2000 --hold 10`): the peer
+floods Disconnect-Requests and stops reading, so the DAE replies fill the
+send window while a large `RADCLI_REQUEST_SENDONLY` request keeps
+retransmitting; every `radcli_ctx_dispatch()` call must return within
+500ms. Confirmed failing (2s, a retransmit waiting for write room) against
+the unfixed code.
+**Links:** REQ-NET2-NET-001, REQ-NET2-SEND-013, REQ-NET2-SEND-010,
+REQ-DAE-SEC-013, REQ-WATCHDOG-NET-001
+
 ---
 
 ## SEND — packet construction

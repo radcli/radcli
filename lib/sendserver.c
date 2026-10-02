@@ -1187,14 +1187,22 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 			continue;
 		}
 
+		if (is_radsec) {
+			/* Never waits for write room: a retransmit the session
+			 * cannot take now is queued, or skipped like a lost packet
+			 * when the queue is full (REQ-NET2-NET-005); either way its
+			 * timeout runs on. */
+			radcli2_priv_tls_send_queued(rh, rslot->send_buf, (size_t)rslot->send_len,
+						     RADSEC_SEND_RETRANSMIT);
+			rslot->deadline = rc_getmtime() + rslot->timeout;
+			continue;
+		}
+
 		{
 			int ns_def_hdl = 0;
-			int sockfd;
 			int sresult;
 
-			sockfd = is_radsec ? (sfuncs->get_active_fd ? sfuncs->get_active_fd(sfuncs->ptr) : -1)
-					    : rh->req_fd;
-			if (sockfd == -1)
+			if (rh->req_fd == -1)
 				continue;
 
 			if (ns != NULL && -1 == rc_set_netns(ns, &ns_def_hdl)) {
@@ -1203,7 +1211,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 			}
 
 			do {
-				sresult = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)rslot->send_buf,
+				sresult = sfuncs->sendto(sfuncs->ptr, rh->req_fd, (const char *)rslot->send_buf,
 							 (unsigned int)rslot->send_len, 0,
 							 SA(&rslot->peer), rslot->peer_len);
 			} while (sresult == -1 && errno == EINTR);

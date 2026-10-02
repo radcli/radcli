@@ -84,10 +84,11 @@ same way any other outbound request is (an Identifier per net2.md's
 REQ-NET2-SEND-010, a random Request Authenticator, a correct
 Message-Authenticator, no other attributes), using the RFC 6614 §2.3/RFC
 7360 §3.2 fixed RadSec secret. It MUST NOT wait for any reply — a reply only
-frees the watchdog's Identifier — and MUST NOT queue or retry a send that
-would block — unlike a DAE reply (`REQ-DAE-SEC-013`), a dropped watchdog is
-not a delivery failure worth that machinery: the next call to
-`radcli_ctx_dispatch()` once the interval elapses again covers it. This
+frees the watchdog's Identifier — and MUST NOT wait to send: a watchdog that
+cannot go out at once waits in the session's send queue like any other
+record (net2.md's REQ-NET2-NET-005), and is skipped when that queue is
+full; the next call to `radcli_ctx_dispatch()` once the interval elapses
+again covers it. This
 applies on any established RadSec `radcli_ctx`, not only one with dynamic
 authorization active, matching net2.md's `REQ-NET2-NET-001`'s reasoning for keeping
 RadSec-session facilities at the ctx level rather than the `radcli_dae`

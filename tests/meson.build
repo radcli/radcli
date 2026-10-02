@@ -23,7 +23,7 @@ if have_gnutls
   shell_tests += ['watchdog-aaa-tests.sh']
   shell_tests += ['request-tls-secret-tests.sh']
   shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh',
-                  'radsec-shared-ids-tests.sh']
+                  'radsec-shared-ids-tests.sh', 'radsec-send-backpressure-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
@@ -175,6 +175,14 @@ if have_gnutls
   # peer: tests/watchdog-aaa-server.py); fills the registry directly, so it
   # links libradcli_static like tls_lock_restart.
   radsec_shared_ids = executable('radsec-shared-ids', 'radsec-shared-ids.c',
+    include_directories: tests_incdirs + [include_directories('../lib')],
+    link_with: libradcli_static,
+    dependencies: [gnutls_dep, nettle_dep], install: false)
+  # dispatch() never waits to send on a RadSec session
+  # (tests/radsec-send-backpressure-tests.sh, peer: tests/radsec-
+  # backpressure-server.py); shrinks the session socket's send buffer, so it
+  # links libradcli_static like tls_lock_restart.
+  radsec_send_backpressure = executable('radsec-send-backpressure', 'radsec-send-backpressure.c',
     include_directories: tests_incdirs + [include_directories('../lib')],
     link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
