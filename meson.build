@@ -67,7 +67,7 @@ endif
 socket_dep = cc.find_library('socket', required: false)
 
 # TLS / crypto
-gnutls_dep = dependency('gnutls', version: '>=3.1.0', required: get_option('tls'))
+gnutls_dep = dependency('gnutls', version: '>=3.3.0', required: get_option('tls'))
 have_gnutls = gnutls_dep.found()
 conf.set('HAVE_GNUTLS', have_gnutls ? 1 : false)
 

@@ -50,26 +50,21 @@ lines 32-43 and 71; see `REQ-GEN-ABI-001`.
 
 ## INIT — handle allocation, transport initialisation, and teardown
 
-### REQ-CONFIG-INIT-001 — `rc_new()` MUST perform process-wide crypto/RNG init exactly once, gated by a reference count
+### REQ-CONFIG-INIT-001 — `rc_new()` MUST NOT perform process-wide crypto/RNG initialisation
 
-**Requirement:** `rc_new()` MUST allocate and zero-initialise a new `rc_handle`
-via `calloc()`, and MUST perform the one-time process setup (`gnutls_global_init()`
-on GnuTLS < 3.3.0, and seeding `srandom()` from `time()+getpid()`) only when the
-internal reference counter `_initialized` is `0`, incrementing it on every call
-regardless. `rc_destroy()` MUST decrement the same counter and call
-`gnutls_global_deinit()` only when it reaches `0` again.
-**Strength:** MUST
+**Requirement:** `rc_new()` (`radcli2_priv_new()`) MUST allocate and
+zero-initialise a new `rc_handle` via `calloc()`, and MUST NOT call
+`gnutls_global_init()`/`gnutls_global_deinit()` or keep any process-wide
+count of live handles: the minimum supported GnuTLS (3.3.0, `meson.build`)
+initialises itself, and the RNG is `rc_get_random_bytes()`'s CSPRNG, which
+needs no seeding (`REQ-GEN-SEC-007`).
+**Strength:** MUST NOT
 **Status:** DERIVED
-**Source:** lib/config.c:1182 (`_initialized`), lib/config.c:1188-1213 (`rc_new`),
-lib/config.c:1219-1234 (`rc_destroy`)
-**Acceptance:** [INIT] unit, local — creating and destroying two `rc_handle`s
-sequentially calls `gnutls_global_init`/`gnutls_global_deinit` at most once each
-(observable only on GnuTLS < 3.3.0 builds); `srandom()` reseeded on the first
-`rc_new()` of the process only.
-**Links:** REQ-GEN-SEC-005 (process-wide state) — `_initialized` is itself a
-`static` file-scope mutable counter distinct from the `radcli_debug` exception
-that `REQ-GEN-SEC-005` names as the *sole* accepted exception; see
-`REQ-CONFIG-SEC-004` below for the discrepancy this raises.
+**Source:** lib/config.c (`radcli2_priv_new()`, `radcli2_priv_destroy()`);
+meson.build (`dependency('gnutls', version: '>=3.3.0')`)
+**Acceptance:** [INIT] negative, local — `grep -n 'gnutls_global_init\|_initialized'
+lib/config.c` finds no match.
+**Links:** REQ-GEN-SEC-005, REQ-GEN-SEC-007, REQ-CONFIG-SEC-004 (withdrawn)
 
 ### REQ-CONFIG-INIT-002 — `rc_config_init()` MUST prepare a handle for programmatic (file-less) configuration
 
@@ -619,24 +614,13 @@ these option names outside `lib/config.c`'s Doxygen comment and
 shows only the Doxygen comment, no parsing logic.
 **Links:** REQ-GEN-SEC-006
 
-### REQ-CONFIG-SEC-004 — `_initialized` is an accepted exception to `REQ-GEN-SEC-005`'s "no new global state" rule
+### REQ-CONFIG-SEC-004 — `_initialized` is an accepted exception to `REQ-GEN-SEC-005`'s "no new global state" rule — WITHDRAWN
 
-**Requirement:** `_initialized` (`static int`, `lib/config.c:1182`) is a
-process-wide reference count guarding GnuTLS global init/deinit idempotency
-across multiple `rc_handle` instances in one process. It is an accepted,
-documented exception to `REQ-GEN-SEC-005`, alongside the legacy-shim-only
-`radcli_legacy_debug` (`lib/legacy/compat.c`): it has
-no correctness impact on any individual `rc_handle`'s behavior (it only
-guards one-time process-wide init/deinit calls) and is not a precedent for
-adding further arbitrary global state.
-**Strength:** N/A (accepted exception, not a defect)
-**Status:** DERIVED
-**Source:** lib/config.c:1182 (`static int _initialized = 0;`);
-doc/requirements/general.md `REQ-GEN-SEC-005`
-**Acceptance:** [SEC] documentation consistency — `general.md`'s
-`REQ-GEN-SEC-005` enumerates this exception explicitly alongside
-`radcli_legacy_debug`.
-**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001, REQ-GEN-SEC-007 (general.md)
+**Status:** WITHDRAWN — `_initialized` no longer exists. It only guarded
+`gnutls_global_init()`/`gnutls_global_deinit()` for GnuTLS < 3.3.0; the
+minimum supported GnuTLS is now 3.3.0, which initialises itself, so the
+counter and its unsynchronised updates were removed (`REQ-CONFIG-INIT-001`).
+**Links:** REQ-GEN-SEC-005, REQ-CONFIG-INIT-001
 
 ---
 

@@ -1389,8 +1389,6 @@ void radcli2_priv_config_free(rc_handle *rh)
 	rh->first_dict_read = NULL;
 }
 
-static int _initialized = 0;
-
 /*- Initialise a new Radius client handle.
  *
  * @return a new rc_handle (free with radcli2_priv_destroy()), or NULL on
@@ -1399,20 +1397,6 @@ static int _initialized = 0;
 rc_handle *radcli2_priv_new(void)
 {
 	rc_handle *rh;
-
-	if (_initialized == 0) {
-#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x030300
-		int ret;
-		ret = gnutls_global_init();
-		if (ret < 0) {
-			rc_log(LOG_ERR,
-			       "%s: error initializing gnutls: %s",
-			       __func__, gnutls_strerror(ret));
-			return NULL;
-		}
-#endif
-	}
-	_initialized++;
 
 	rh = calloc(1, sizeof(*rh));
 	if (rh == NULL) {
@@ -1449,13 +1433,6 @@ void radcli2_priv_destroy(rc_handle *rh)
 	free(rh->tls_psk_identity);
 	free(rh->tls_psk_key);
 	free(rh);
-
-#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x030300
-	_initialized--;
-	if (_initialized == 0) {
-		gnutls_global_deinit();
-	}
-#endif
 }
 
  /*

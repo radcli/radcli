@@ -126,23 +126,18 @@ returns no matches.
 
 **Requirement:** New library-owned process-wide mutable state (`static`
 non-`const` variables at file scope or function scope, or globals declared in
-headers) MUST NOT be added. One pre-existing instance in radcli2 core is an
-accepted, maintainer-reviewed exception and MUST NOT be treated as precedent
-for adding further global state:
-  - `_initialized` (`lib/config.c`, `static int`) — a process-wide
-    reference count guarding GnuTLS global init/deinit idempotency across
-    multiple `rc_handle` instances in one process. Accepted because it only
-    guards one-time process-wide init/deinit calls; see `REQ-CONFIG-SEC-004`
-    in `config.md`.
+headers) MUST NOT be added. radcli2 core has no such state; the former
+`_initialized` GnuTLS init refcount in `lib/config.c` was removed together
+with GnuTLS < 3.3.0 support (`config.md`'s `REQ-CONFIG-SEC-004`, withdrawn).
 
 `rc_mksid()`'s `static char buf[15]`/`static unsigned short int cnt`
-(`lib/legacy/compat.c`) is a second pre-existing instance, also accepted as-is:
+(`lib/legacy/compat.c`) is a pre-existing instance, accepted as-is:
 the function is marked `@deprecated` in its own Doxygen comment, and the
 non-reentrancy/cross-instance-sharing hazard this implies is an accepted,
 documented property of a deprecated function rather than something requiring
 a code change. See `util.md`'s Phase 5 gap analysis for the full citation.
 
-Debug verbosity was formerly a third exception (`radcli_debug`, a plain
+Debug verbosity was formerly another exception (`radcli_debug`, a plain
 process-wide global read from every `DEBUG()` call site) but is no longer
 global in radcli2 core: it's now the `debug` field on `struct rc_conf`
 (`lib/includes.h`), so each `rc_handle`/`radcli_ctx` carries its own
@@ -161,12 +156,11 @@ each other.
 **Strength:** MUST NOT
 **Status:** DERIVED
 **Source:** contrib/ai/personas/radcli-core-dev.md ("Process-state neutrality");
-lib/config.c (`_initialized`, `radcli2_priv_new()`/`radcli2_priv_destroy()`);
 lib/includes.h (`struct rc_conf.debug`);
 lib/legacy/compat.c (`radcli_legacy_debug`, `rc_setdebug()`)
 **Acceptance:** [SEC] code-review — every new `static` non-`const` file- or
 function-scope variable or new `extern` global declared in a header MUST be
-justified in the same terms as the two accepted radcli2-core exceptions above
+justified in the same terms as the accepted exceptions above
 (no correctness impact beyond one-time process-wide init, no cross-`rc_handle`
 interference for correctness-relevant state) or rejected. Legacy-shim-only
 globals (`lib/legacy/*.c`) that exist purely for source compatibility with a

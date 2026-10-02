@@ -530,8 +530,8 @@ when written)
   marked `@deprecated` in its own Doxygen comment (`lib/legacy/compat.c`) —
   returns a pointer to a `static`, non-reentrant buffer overwritten on each
   call. Accepted as a documented exception to `general.md`'s
-  `REQ-GEN-SEC-005`, alongside `_initialized` (and, in the optional legacy
-  shim, `radcli_legacy_debug`): the
+  `REQ-GEN-SEC-005`, alongside (in the optional legacy shim)
+  `radcli_legacy_debug`: the
   non-reentrancy hazard is an accepted, documented property of a deprecated
   function. No dedicated `REQ-UTIL-*` requirement was written for it beyond
   this note, since its only normative content ("do not call concurrently, do

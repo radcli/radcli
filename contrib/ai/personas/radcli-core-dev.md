@@ -78,9 +78,8 @@ Reject (or push to the caller) any change that:
   (`REQ-GEN-SEC-004`)
 - Introduces new library-owned global or `static` mutable state. (`radcli_debug`
   is a pre-existing, narrowly-scoped exception — not a precedent to extend.
-  `REQ-GEN-SEC-005`, currently `Status: REVIEW` — two more pre-existing
-  instances, `config.c`'s `_initialized` and `util.c`'s `rc_mksid()` static
-  buffer, are open questions for a maintainer, not yet accepted exceptions.)
+  `REQ-GEN-SEC-005` — `rc_mksid()`'s static buffer in the legacy shim is
+  the one other pre-existing, accepted instance.)
 - Verdict: *no process-state changes* | *responsibility pushed to caller/test — documented* | *REJECT*
 
 **Canonical technology choices.** (`REQ-GEN-TECH-001`, `REQ-GEN-TECH-002`, `REQ-GEN-MEM-001`)
