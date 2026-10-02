@@ -12,6 +12,8 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
   `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`, `--spoof-source`)
 - `tests/request-reply-code-tests.sh` — `radcli_request_code()` after a
   rejected reply (`--reply-code`)
+- `tests/request-stray-reply-tests.sh` — a blocking request ignoring a reply
+  with another Identifier (`--stray-first`)
 
 ## Invocation
 
@@ -19,7 +21,7 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
                                [--msg-auth correct|absent|wrong] [--no-reply]
                                [--stale-truncated] [--spoof-source]
-                               [--reply-code N]
+                               [--reply-code N] [--stray-first]
 ```
 
 | Option | Default | Meaning |
@@ -30,6 +32,7 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--no-reply` | off | Log every received Access-/Accounting-Request but send no response (UDP transport only) |
 | `--stale-truncated` | off | Send each reply as two datagrams: the full valid reply under the next Identifier, then only the real reply's 20-byte header with its Length unchanged (UDP transport only) |
 | `--reply-code` | 2 | RADIUS code of the reply to an Access-Request; the packet is otherwise built exactly like the Access-Accept, authenticators included (UDP transport only) |
+| `--stray-first` | off | Send each reply twice: first a valid copy under the next Identifier, then the reply itself (UDP transport only) |
 | `--spoof-source` | off | Send each valid reply from a different local port than the one the request arrived on (UDP transport only) |
 
 The server accepts one UDP packet at a time and, unless `--no-reply` or

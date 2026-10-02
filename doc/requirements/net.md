@@ -199,11 +199,14 @@ caller-installed non-fatal signal during `poll()` does not extend the wait past 
 remaining timeout, because DTLS's UDP-like channel is shared and duplicate or out-of-order
 packets (including stale replies from an earlier request) are expected.
 **Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/sendserver.c:763-772 (comment explicitly cites DTLS duplicate/out-of-order
-delivery)
-**Acceptance:** [NET] unit, local — injecting a reply with a stale/foreign `id` followed by the
-correct reply within the timeout window still yields `OK_RC`.
+**Status:** DERIVED — the code previously ended the attempt instead (retransmitting, or
+returning `TIMEOUT_RC` with no retries left); fixed.
+**Source:** lib/sendserver.c (`radcli_transport_exchange()`'s per-attempt wait loop)
+**Acceptance:** [NET] negative, local, no root — `tests/request-stray-reply-tests.sh` (peer:
+`tests/radius-server.py --stray-first`) sends a valid reply with another `id` ahead of the
+correct one, with `radius_retries 0`; the request must still yield the Access-Accept and the
+server must see exactly one Access-Request. Confirmed failing (`TIMEOUT_RC`) against the
+unfixed code.
 **Links:** REQ-NET-SEC-004 (this is not authentication — a spoofed ID-matching packet is still
 subject to Response Authenticator/Message-Authenticator checks below)
 

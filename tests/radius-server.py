@@ -218,7 +218,8 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
     return packet
 
 def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
-        stale_truncated=False, spoof_source=False, reply_code=ACCESS_ACCEPT):
+        stale_truncated=False, spoof_source=False, reply_code=ACCESS_ACCEPT,
+        stray_first=False):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -240,6 +241,11 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
             decoy = response[:1] + bytes([(response[1] + 1) % 256]) + response[2:]
             sock.sendto(decoy, addr)
             sock.sendto(response[:20], addr)
+        elif stray_first:
+            # A valid reply under the next Identifier, which the client must
+            # ignore, ahead of the real one.
+            sock.sendto(response[:1] + bytes([(response[1] + 1) % 256]) + response[2:], addr)
+            sock.sendto(response, addr)
         elif spoof_source:
             # The correct, valid reply, but from another local port than
             # the one the request was sent to.
@@ -341,6 +347,9 @@ def main():
     parser.add_argument('--spoof-source', action='store_true',
                         help='Send each valid reply from a different local port than the '
                              'one the request arrived on. UDP transport only.')
+    parser.add_argument('--stray-first', action='store_true',
+                        help='Send each reply twice: first under the next Identifier, then '
+                             'unchanged. UDP transport only.')
     parser.add_argument('--reply-code', type=int, default=ACCESS_ACCEPT,
                         help='RADIUS code to answer an Access-Request with, otherwise '
                              'built exactly like the Access-Accept (default 2). UDP '
@@ -351,13 +360,13 @@ def main():
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
         if (args.no_reply or args.stale_truncated or args.spoof_source or
-                args.reply_code != ACCESS_ACCEPT):
-            parser.error('--no-reply/--stale-truncated/--spoof-source/--reply-code are '
-                         'only supported with --transport udp')
+                args.stray_first or args.reply_code != ACCESS_ACCEPT):
+            parser.error('--no-reply/--stale-truncated/--spoof-source/--stray-first/'
+                         '--reply-code are only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
         run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
-            args.stale_truncated, args.spoof_source, args.reply_code)
+            args.stale_truncated, args.spoof_source, args.reply_code, args.stray_first)
 
 if __name__ == '__main__':
     main()

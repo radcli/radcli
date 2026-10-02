@@ -612,7 +612,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			socklen_t salen;
 			int recv_length;
 			struct pollfd pfd;
-			double start_time, poll_timeout;
+			double deadline;
 
 			do {
 				result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
@@ -636,25 +636,32 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 				if (new_fd >= 0)
 					sockfd = new_fd;
 			}
-			pfd.fd = sockfd;
-			pfd.events = POLLIN;
-			pfd.revents = 0;
-			start_time = rc_getmtime();
-			for (poll_timeout = timeout; poll_timeout > 0;
-			     poll_timeout -= rc_getmtime() - start_time) {
-				result = poll(&pfd, 1, poll_timeout * 1000);
-				if (result != -1 || errno != EINTR)
+
+			/* Wait out this attempt's whole timeout for our own reply:
+			 * a reply that is not ours only continues the wait, it does
+			 * not end the attempt (REQ-NET-NET-010). */
+			deadline = rc_getmtime() + timeout;
+			for (;;) {
+				double remaining = deadline - rc_getmtime();
+
+				if (remaining <= 0)
 					break;
-			}
+				pfd.fd = sockfd;
+				pfd.events = POLLIN;
+				pfd.revents = 0;
+				do {
+					result = poll(&pfd, 1, (int)(remaining * 1000) + 1);
+				} while (result == -1 && errno == EINTR);
 
-			if (result == -1) {
-				rc_log(LOG_ERR, "radcli_transport_exchange: poll: %s", strerror(errno));
-				SCLOSE(sockfd);
-				result = ERROR_RC;
-				goto cleanup;
-			}
+				if (result == -1) {
+					rc_log(LOG_ERR, "radcli_transport_exchange: poll: %s", strerror(errno));
+					SCLOSE(sockfd);
+					result = ERROR_RC;
+					goto cleanup;
+				}
+				if (result == 0 || (pfd.revents & POLLIN) == 0)
+					break;
 
-			if (result == 1 && (pfd.revents & POLLIN) != 0) {
 				salen = cur_addr->ai_addrlen;
 				do {
 					recv_length = sfuncs->recvfrom(sfuncs->ptr, sockfd,
@@ -667,7 +674,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 					int e = errno;
 					rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: %s:%d: %s",
 					       server_name, svc_port, strerror(e));
-					if (recv_length == -1 && (e == EAGAIN || e == EINTR))
+					if (recv_length == -1 && e == EAGAIN)
 						continue;
 					SCLOSE(sockfd);
 					result = ERROR_RC;
@@ -689,7 +696,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 					result = rc_check_reply(recv_auth, (int)recv_buf_cap, secret,
 								vector, seq_nbr);
 					if (result == OK_RC)
-						goto got_reply; /* out of both loops */
+						goto got_reply; /* out of every loop */
 					/* BADRESPID_RC (some other packet arrived, e.g. a stale
 					 * retransmit's answer) and BADRESP_RC (bad length or
 					 * Response Authenticator -- possibly spoofed) are both
