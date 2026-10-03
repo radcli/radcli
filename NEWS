@@ -1,3 +1,11 @@
+* Version 2.0.1 (unreleased)
+- Fixed several issues in the TLS/DTLS transport and in the handling of
+  asynchronous requests and replies, including dropped salt-encrypted
+  attributes in radcli_aaa() replies over RadSec, a deadlock on TLS
+  session restart, and a crash in radcli_ctx_dispatch().
+- GnuTLS 3.3 or later is now required.
+
+
 * Version 2.0.0 (released 2026-09-13)
 - Introduced a new API, provided by the libradcli2 library, built around
   opaque structures so the library can evolve without breaking ABI, and

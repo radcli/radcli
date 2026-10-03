@@ -1,5 +1,5 @@
 project('radcli', 'c',
-  version: '2.0.0',
+  version: '2.0.1',
   license: 'BSD-2-Clause AND UMich-Merit AND HPND-Fenneberg-Livingston AND BSD-MIT AND CC0-1.0 AND BSD-1-Clause',
   default_options: ['c_std=gnu99', 'warning_level=1'],
   meson_version: '>=1.1.0',
