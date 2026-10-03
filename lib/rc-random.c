@@ -30,7 +30,7 @@
 #include <config.h>
 #include "rc-random.h"
 
-#include <assert.h>
+#include "util.h"
 
 #if defined(HAVE_GNUTLS)
 # include <gnutls/gnutls.h>
