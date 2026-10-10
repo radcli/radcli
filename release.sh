@@ -37,6 +37,17 @@ fi
 
 echo "Version checks passed: meson.build and NEWS both have ${version}"
 
+# Ask up front so the rest of the release can run unattended. The token is
+# passed to gh via GH_TOKEN for the release command only, which takes
+# precedence over gh's stored credentials without modifying them.
+echo ""
+read -rsp "GitHub release token: " release_token
+echo ""
+if test -z "$release_token"; then
+	echo "ERROR: no release token given"
+	exit 1
+fi
+
 # Build and check the tarball
 echo ""
 if ! test -d "${builddir}"; then
@@ -74,17 +85,18 @@ git tag -fs "${version}" -m "Released ${version}"
 
 echo ""
 echo "Pushing tag..."
-git push origin "${version}"
+git push -f origin "${version}"
 
 # Create GitHub release with notes and artifacts
 echo ""
 echo "Creating GitHub release ${version}..."
-gh release create "${version}" \
+GH_TOKEN="${release_token}" gh release create "${version}" \
 	--title "${version}" \
 	--notes "${release_notes}" \
 	"${tarball}" \
 	"${tarball}.sig" \
 	"${distdir}/${tarball}.sha256sum"
+unset release_token
 
 echo ""
 echo "Release ${version} is ready."
