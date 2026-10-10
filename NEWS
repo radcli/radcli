@@ -1,4 +1,4 @@
-* Version 2.0.1 (unreleased)
+* Version 2.0.1 (released 2026-10-10)
 - Fixed several issues in the TLS/DTLS transport and in the handling of
   asynchronous requests and replies, including dropped salt-encrypted
   attributes in radcli_aaa() replies over RadSec, a deadlock on TLS
