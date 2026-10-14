@@ -20,9 +20,10 @@ jobs:
       - fedora-rawhide
       - epel10
 
-  # When a Koji build completes, submit a Bodhi update
+  # Fires on the Koji build of a dist-git commit; trigger koji_build is
+  # sidetag mode and never matches without a sidetag_group
   - job: bodhi_update
-    trigger: koji_build
+    trigger: commit
     dist_git_branches:
       - fedora-latest
       - fedora-rawhide
