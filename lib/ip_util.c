@@ -18,6 +18,10 @@
 #include "options.h"
 #include "util.h"
 
+#if defined(__linux__)
+#include <linux/in6.h>
+#endif
+
 #define HOSTBUF_SIZE 1024
 
 /*- Returns a struct addrinfo from a host name or address in textual notation.
@@ -121,4 +125,42 @@ void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia)
        }
 
        return;
+}
+
+/*- Prefer a public over a temporary IPv6 source address when
+ * use-public-addr asks for it.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param fd an AF_INET6 socket, not yet connected.
+ * @return 0 on success, -1 on failure.
+ -*/
+int radcli2_priv_prefer_public_addr(rc_handle *rh, int fd)
+{
+	char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
+
+	if (non_temp_addr == NULL || strcasecmp(non_temp_addr, "true") != 0)
+		return 0;
+#if defined(__linux__)
+	{
+		int sock_opt = IPV6_PREFER_SRC_PUBLIC;
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
+			       &sock_opt, sizeof(sock_opt)) != 0) {
+			rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+			return -1;
+		}
+	}
+#elif defined(BSD) || defined(__APPLE__)
+	{
+		int sock_opt = 0;
+		if (setsockopt(fd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
+			       &sock_opt, sizeof(sock_opt)) != 0) {
+			rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
+			return -1;
+		}
+	}
+#else
+	rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
+	       "supported in this system", __func__);
+#endif
+	return 0;
 }
