@@ -9,9 +9,11 @@ categories:
   TEARDOWN: socket, TLS/DTLS session, and namespace teardown
 sources:
   - lib/sendserver.c
+  - lib/session.c
+  - lib/session.h
   - lib/tls.c
   - lib/tls.h
-  - lib/config.c (default_socket_funcs, default_tcp_socket_funcs, rc_apply_config, rc_get_socket_type)
+  - lib/config.c (default_socket_funcs, rc_apply_config, rc_get_socket_type)
   - lib/util.c (rc_set_netns, rc_reset_netns, rc_memcmp, rc_getmtime)
   - include/radcli/radcli.h (rc_send_server, rc_send_server_ctx, SEND_DATA, rc_socket_type, rc_send_status, rc_tls_fd, rc_check_tls, rc_get_socket_type)
   - include/includes.h (rc_sockets_override, struct rc_conf's so/so_type fields)
@@ -25,8 +27,9 @@ sources:
 
 Scope: the socket abstraction (`rc_sockets_override`, `include/includes.h:167-182`) that lets
 UDP, TCP, TLS and DTLS share one request/response code path in `lib/sendserver.c`; the
-per-transport implementations (`default_socket_funcs`/`default_tcp_socket_funcs` in
-`lib/config.c`, the GnuTLS-backed vtable installed by `rc_init_tls()` in `lib/tls.c`); the
+per-transport implementations (`default_socket_funcs` in `lib/config.c` for UDP, and the
+persistent-connection vtable of `lib/session.c` for TCP, TLS and DTLS, whose GnuTLS backend
+`rc_init_tls()` installs from `lib/tls.c`); the
 retry/timeout loop in `rc_send_server_ctx()`; and RADIUS-level response authentication at the
 wire — Response Authenticator (RFC 2865 §3) and Message-Authenticator (RFC 2869 §5.14, RFC 3579
 §3.2) verification. Packet *construction* (`rc_send_server_ctx()` converts `data->send_pairs`
@@ -70,14 +73,15 @@ through the same code path with a different `rh->so`.
 
 **Requirement:** No function exported in `lib/radcli.map.in` MUST set or expose `rh->so` to a
 caller-supplied vtable; `rc_sockets_override` (`include/includes.h:167-182`) MUST be populated
-only by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP/TCP tables
-(`default_socket_funcs`, `default_tcp_socket_funcs` in `lib/config.c:500-512`) or the GnuTLS
-wrappers (`lib/tls.c:839-844`). Any future public API that exposes this vtable to callers MUST be
+only by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP table
+(`default_socket_funcs` in `lib/config.c`) or the session vtable (`radcli2_priv_sess_init()`,
+`lib/session.c`) for TCP, TLS and DTLS. Any future public API that exposes this vtable to callers MUST be
 reconciled with `REQ-GEN-SEC-005` (no new library-owned global state) and `REQ-GEN-ABI-001`
 (header+map co-declaration) before being added.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/includes.h:167-182; lib/config.c:500-512; lib/tls.c:839-844;
+**Source:** include/includes.h:167-182; lib/config.c (`default_socket_funcs`); lib/session.c
+(`radcli2_priv_sess_init()`);
 lib/radcli.map.in (no `rc_set_sockets`/`rc_sockets_override`-related symbol); AGENTS.md
 ("Key data structures")
 **Acceptance:** [NET] code-review — confirm no public setter exists; if one is added, it must
@@ -97,66 +101,81 @@ different local address/port than it was addressed on (RFC 2865 tolerates this).
 **Acceptance:** [NET] unit, local — a UDP round-trip against a test server on an unprivileged
 port succeeds without the client `connect()`-ing the socket.
 
-### REQ-NET-NET-004 — TCP transport binds an ephemeral local port, then explicitly `connect()`s on the first send
+### REQ-NET-NET-004 — TCP transport carries every request of a ctx over one persistent connection to the authserver
 
-**Requirement:** `plain_tcp_get_fd()` MUST create a `SOCK_STREAM` socket, bind it to an ephemeral
-local port, and defer the peer `connect()` to `plain_tcp_sendto()`, which MUST `connect()`
-before calling `sendto()` and MUST return -1 (logging via `rc_log`) on connect failure without
-calling `sendto()`.
+**Requirement:** With `serv-type=tcp`, `rc_apply_config()` MUST give the ctx a session
+(`radcli2_priv_sess_init_tcp()`), like TLS/DTLS's: one `SOCK_STREAM` connection to the single
+authserver (REQ-NET-NET-006), bound to an ephemeral port on the configured bind address,
+established on first use (REQ-NET-NET-005), and shared by every request — blocking and
+`RADCLI_REQUEST_SENDONLY`, Access- and Accounting-Requests alike (RFC 6613 §2.6.5 multiplexes
+requests on one connection by Identifier). An Accounting-Request therefore goes to the
+authserver, never to `acctserver`, and `acctserver` need not be configured. Replies are framed
+by their Length field (REQ-NET-NET-020), and a connection that fails is reconnected on the next
+send (REQ-NET-NET-007).
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: each request opened its own connection, which
+`RADCLI_REQUEST_SENDONLY`'s non-blocking socket could not complete (`connect()` returned
+`EINPROGRESS` and the request failed), and replies were read as if each read were one packet.
+**Source:** lib/session.c (`radcli2_priv_sess_init_tcp()`, `conn_open()`, `tcp_send()`,
+`tcp_recv()`); lib/config.c (`radcli2_priv_apply_config()`); lib/request.c, lib/aaa2.c,
+lib/legacy/buildreq.c (server selection)
+**Acceptance:** [NET] positive, local — `tests/tcp-session-tests.sh`: blocking and
+`RADCLI_REQUEST_SENDONLY` Access-Requests, and an Accounting-Request with no `acctserver`
+configured, all complete over the peer's single connection, including replies the peer splits
+or coalesces; confirmed failing against the per-request-connection code.
+**Links:** REQ-NET-ERR-001 (error propagation), REQ-NET2-INIT-002, REQ-NET2-SEND-016
+
+### REQ-NET-NET-005 — TCP/TLS/DTLS session establishment is deferred to first use
+
+**Requirement:** `rc_init_tls()` and `radcli2_priv_sess_init_tcp()` MUST NOT open a socket or
+perform a handshake; they MUST only validate configuration (for TLS/DTLS, CA file / cert+key /
+PSK), store `hostname`/`port`/`our_sockaddr` in the `rc_session`
+(`radcli2_priv_sess_init()`), and set `need_restart = 1`. The actual
+`socket()`+`connect()`(+`gnutls_handshake()`) sequence in `conn_open()` MUST run only on the
+first `sess_get_fd()` or `sess_sendto()` call that observes `need_restart != 0`, via
+`restart_session()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:478-497,426-436,507-512
-**Acceptance:** [NET] unit, local — with `serv-type=tcp` and an unreachable server, the first
-`rc_send_server()` call fails at `plain_tcp_sendto()`'s `connect()`, not at socket creation.
-**Links:** REQ-NET-ERR-001 (error propagation)
-
-### REQ-NET-NET-005 — TLS/DTLS session establishment is deferred to first use
-
-**Requirement:** `rc_init_tls()` MUST NOT open a socket or perform a handshake; it MUST only
-validate configuration (CA file / cert+key / PSK), store `hostname`/`port`/`our_sockaddr` in
-`st->ctx`, and set `need_restart = 1`. The actual `socket()`+`connect()`+`gnutls_handshake()`
-sequence in `init_session()` MUST run only on the first `tls_get_fd()` or `tls_sendto()` call
-that observes `need_restart != 0`, via `restart_session()`.
-**Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/tls.c:663-869 (`rc_init_tls`, comment at 831-837); lib/tls.c:87-95 (`tls_get_fd`);
-lib/tls.c:152-165 (`tls_sendto`)
+**Source:** lib/tls.c (`rc_init_tls`); lib/session.c (`radcli2_priv_sess_init()`,
+`sess_get_fd()`, `sess_sendto()`, `conn_open()`)
 **Acceptance:** [NET] unit, local — `rc_apply_config()` with `serv-type=tls` and an unreachable
 server returns success; the connection failure surfaces only on the first `rc_auth()`/`rc_acct()`
 call.
 
-### REQ-NET-NET-006 — Exactly one auth server is permitted when TLS or DTLS is configured
+### REQ-NET-NET-006 — Exactly one auth server is permitted when TCP, TLS or DTLS is configured
 
-**Requirement:** `rc_init_tls()` MUST reject configuration (return -1, log at `LOG_ERR`) if
-`rc_conf_srv(rh, "authserver")` yields more than one server (`authservers->max > 1`), since a
-`tls_st` holds exactly one persistent session/hostname/port, not a server list to iterate like
-UDP/TCP's `rc_find_server_addr()`-driven multi-server retry.
+**Requirement:** `radcli2_priv_sess_init()` (reached from `rc_init_tls()` and
+`radcli2_priv_sess_init_tcp()`) MUST reject configuration (return -1, log at `LOG_ERR`) if
+`rc_conf_srv(rh, "authserver")` yields more than one server (`authservers->max > 1`), since an
+`rc_session` holds exactly one persistent connection/hostname/port, not a server list to
+iterate like UDP's `rc_find_server_addr()`-driven multi-server retry.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:752-766
+**Source:** lib/session.c (`radcli2_priv_sess_init()`)
 **Acceptance:** [NET] negative, local — a config with two `authserver` lines and `serv-type=tls`
-fails `rc_apply_config()`/`rc_init_tls()`.
+or `serv-type=tcp` fails `rc_apply_config()`.
 
-### REQ-NET-NET-007 — A broken TLS/DTLS session reconnects transparently on the next transport call
+### REQ-NET-NET-007 — A broken TCP/TLS/DTLS session reconnects transparently on the next transport call
 
-**Requirement:** When `tls_sendto()`/`tls_recvfrom()` observe a fatal GnuTLS error or an
-unrecoverable `tls_wait_or_give_up()` timeout, they MUST set `st->ctx.need_restart = 1`. The next
-`tls_get_fd()` or `tls_sendto()` call MUST invoke `restart_session()`, which tears down and
-reinitializes the session via `init_session()` unconditionally — every call site
-(`tls_get_fd()`, `tls_sendto()`, `tls_recvfrom()`, `radcli2_priv_tls_ensure_connected()`,
-`radcli2_priv_tls_force_reconnect()`, and `rc_check_tls()`'s own `need_restart != 0` branch)
+**Requirement:** When `sess_sendto()`/`sess_recvfrom()` observe a fatal backend error, the end
+of the stream, or an unrecoverable `sess_wait_or_give_up()` timeout, they MUST set
+`s->conn.need_restart = 1`. The next `sess_get_fd()` or `sess_sendto()` call MUST invoke
+`restart_session()`, which tears down and reinitializes the connection via `conn_open()`
+unconditionally — every call site (`sess_get_fd()`, `sess_sendto()`,
+`radcli2_priv_sess_send_queued()`, `radcli2_priv_sess_ensure_connected()`,
+`radcli2_priv_sess_force_reconnect()`, and `rc_check_tls()`'s own `need_restart != 0` branch)
 only ever invokes it once the session is already known to need it (a send/recv failure
-already set `need_restart`, or `rc_init_tls()` preset it before the first connection), so
+already set `need_restart`, or session init preset it before the first connection), so
 there is nothing to throttle: `restart_session()` carries no rate limit of its own.
 (A previous revision of this requirement described a `TIME_ALIVE`-based throttle guarding a
 *proactive*, `need_restart == 0` call from a TLS heartbeat probe — that call site no longer
 exists, `rc_check_tls()`'s RFC 5997 watchdog probe reaches `restart_session()` only via
-`radcli2_priv_dae_send_watchdog()`'s own `need_restart`-setting `radcli2_priv_tls_force_reconnect()`,
+`radcli2_priv_dae_send_watchdog()`'s own `need_restart`-setting `radcli2_priv_sess_force_reconnect()`,
 `REQ-WATCHDOG-NET-004`/`REQ-WATCHDOG-NET-003` (`doc/requirements/watchdog.md`) — so the throttle
 became unreachable dead code and was removed along with it.)
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c (`tls_wait_or_give_up`, `tls_sendto`/`tls_recvfrom`, `restart_session`)
+**Source:** lib/session.c (`sess_wait_or_give_up`, `sess_sendto`/`sess_recvfrom`, `restart_session`)
 **Acceptance:** [NET] unit, local — killing and restarting the TLS test server between two
 `rc_auth()` calls causes the second call to reconnect and succeed, without the caller calling
 `rc_check_tls()` (`tests/tls-idle-restart.c`, also the historical regression test for issue
@@ -168,12 +187,12 @@ must not be blocked).
 
 **Requirement:** After calling `sfuncs->sendto()`, `rc_send_server_ctx()` MUST call
 `sfuncs->get_active_fd()` (when non-NULL) and use its return value as the fd to `poll()` on,
-because a TLS/DTLS `sendto()` that observed `need_restart` may have replaced the underlying
+because a TCP/TLS/DTLS `sendto()` that observed `need_restart` may have replaced the underlying
 socket via `restart_session()`; polling the fd captured before `sendto()` would wait on a closed
 descriptor.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:697-706; lib/tls.c:98-104 (`tls_get_active_fd`)
+**Source:** lib/sendserver.c:697-706; lib/session.c (`sess_get_active_fd`)
 **Acceptance:** [NET] unit, local — a TLS session restart triggered mid-`sendto()` still yields
 a valid reply within the configured timeout, not a `poll()` hang or `EBADF`.
 
@@ -236,7 +255,7 @@ immediately; `rc_tls_fd()` returns -1.
 ### REQ-NET-NET-015 — Namespace switching around socket creation is scoped to the call, not left ambient
 
 **Requirement:** When the `namespace` config option is set, `rc_send_server_ctx()` and
-`rc_init_tls()`/`rc_deinit_tls()` MUST call `rc_set_netns()` before creating/tearing down sockets
+`rc_init_tls()`/`radcli2_priv_sess_deinit()` MUST call `rc_set_netns()` before creating/tearing down sockets
 and `rc_reset_netns()` before returning on every exit path (success and error), restoring the
 caller's original network namespace. This is a Linux-specific `setns(CLONE_NEWNET)` call, which
 changes the *calling thread's* namespace for the duration; it is bounded by explicit set/reset
@@ -250,28 +269,29 @@ to enforce set/reset symmetry structurally, so this remains a code-review obliga
 change to these three functions' exit paths, not a compiler-enforced invariant.
 **Strength:** MUST (symmetric set/reset on every exit path)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:460-466,941-947; lib/tls.c:680-686,845-851,864-867 (`rc_init_tls`);
-lib/tls.c:634-640,647-649 (`rc_deinit_tls`); lib/util.c:174-253 (`rc_set_netns`/`rc_reset_netns`);
+**Source:** lib/sendserver.c:460-466,941-947; lib/tls.c (`rc_init_tls`);
+lib/session.c (`radcli2_priv_sess_deinit`); lib/util.c:174-253 (`rc_set_netns`/`rc_reset_netns`);
 tests/namespace-tests.sh (existing root-requiring test coverage, wired into `tests/meson.build`)
 **Acceptance:** [NET][SEC] `tests/namespace-tests.sh` (root, CI-only per `REQ-GEN-TEST-002`) plus
 code-review — every new early-return added to `rc_send_server_ctx()`, `rc_init_tls()`, or
-`rc_deinit_tls()` between a `rc_set_netns()` call and function exit must be verified to still
+`radcli2_priv_sess_deinit()` between a `rc_set_netns()` call and function exit must be verified to still
 reach the matching `rc_reset_netns()`.
 **Links:** REQ-GEN-SEC-004
 
-### REQ-NET-NET-016 — `restart_session()` MUST build the replacement session in a zero-initialized `tls_int_st`
+### REQ-NET-NET-016 — `restart_session()` MUST build the replacement connection in a zero-initialized `rc_sess_conn`
 
-**Requirement:** The local `struct tls_int_st tmps` that `restart_session()` passes to
-`init_session()` MUST be zero-initialized before the call. `init_session()` sets some fields
-(e.g. `skip_hostname_check`, per `REQ-NET-SEC-014`) only conditionally, with no corresponding
-else-branch, relying entirely on the struct's starting state for every field it does not
-unconditionally write. Because `REQ-NET-NET-005` routes all session (re)establishment —
-including the first connection, not just reconnects — through `restart_session()`'s `tmps`, this
-zero-initialization is the only initialization such fields ever receive.
+**Requirement:** The local `rc_sess_conn tmpc` that `restart_session()` passes to
+`conn_open()` MUST be zero-initialized before the call. `conn_open()` and the backend's
+`start()` leave fields they do not write (the reassembly buffer's `rlen`, plain TCP's `wpos`,
+TLS's `session`/`handshake_done`) at the struct's starting state. Because `REQ-NET-NET-005`
+routes all connection (re)establishment — including the first connection, not just reconnects —
+through `restart_session()`'s `tmpc`, this zero-initialization is the only initialization such
+fields ever receive. `skip_hostname_check` (`REQ-NET-SEC-014`), the field this was found to
+affect, now lives in the `calloc()`ed `rc_session` and is likewise only ever set, never cleared.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:522 (`tmps` declaration); lib/tls.c:396-399 (`skip_hostname_check`'s
-conditional set, the field this was found to affect)
+**Source:** lib/session.c (`restart_session()`'s `tmpc`, `conn_open()`); lib/tls.c
+(`tls_start()`'s conditional `skip_hostname_check` set)
 **Acceptance:** [SEC][NET] negative, local — with `tmps` left uninitialized, a config that never
 sets `tls-verify-hostname` (the secure default) can intermittently accept a server certificate
 whose hostname does not match, depending on leftover stack contents at the call site (varies by
@@ -286,10 +306,11 @@ read reaching a branch, but that job builds with `-Dtls=disabled`, so `lib/tls.c
 into it at all. `scan-build` (`static-analyzer`) cannot see the call from `cert_verify_callback()`
 either — it is reached only via a function pointer GnuTLS invokes internally
 (`gnutls_certificate_set_verify_function`), an opaque callback edge outside the analyzer's
-callgraph. Until `tests-msan` builds with TLS enabled (or some other tool-checkable acceptance is
-found), enforcement of this requirement is code-review only.
+callgraph. `lib/session.c` is compiled into `tests-msan`, so the transport-neutral fields are
+exercised there over TCP; until `tests-msan` builds with TLS enabled (or some other
+tool-checkable acceptance is found), enforcement for the TLS-specific fields is code-review only.
 **Links:** REQ-NET-SEC-014 (the specific field this left undefined), REQ-NET-NET-005 (why every
-`init_session()` call goes through this path), REQ-NET-TEARDOWN-004 (the same `tmps`/
+`conn_open()` call goes through this path), REQ-NET-TEARDOWN-004 (the same `tmpc`/
 `restart_session()` pairing — covers failure-path safety, not initial-state correctness)
 
 ### REQ-NET-NET-017 — `rc_send_server_ctx()`'s `no_wait` parameter is an explicit fire-and-forget mode: transmit once and return `OK_RC` without waiting for a reply, never `TIMEOUT_RC`
@@ -345,7 +366,8 @@ retry budget is exhausted (`TIMEOUT_RC`) or its socket cannot be opened/bound. `
 only be returned once every address in the list has been exhausted this way. `no_wait` mode
 (`REQ-NET-NET-017`) is unaffected by this requirement: it sends once, to the first resolved
 address only, and returns without trying any other address, since there is no reply to judge a
-second attempt by.
+second attempt by. Nor is a TCP/TLS/DTLS session: it connects to the first address its single
+server resolves to (`conn_open()`), and every address's budget is spent on that connection.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/sendserver.c:477-716 (`radcli_transport_exchange()`'s `for (cur_addr = auth_addr;
@@ -361,12 +383,12 @@ that the first address was actually tried and abandoned before the second answer
 **Links:** REQ-NET-NET-009 (the per-address retry/timeout budget this layers on top of),
 REQ-NET-NET-017 (`no_wait`'s single-address exception to this requirement)
 
-### REQ-NET-NET-019 — A TLS/DTLS transport with no established session MUST report no active descriptor
+### REQ-NET-NET-019 — A TCP/TLS/DTLS transport with no established session MUST report no active descriptor
 
-**Requirement:** `rc_init_tls()` MUST initialize the session's socket
-(`st->ctx.sockfd`) to `-1`, so that `rc_sockets_override.get_active_fd()`
-(`tls_get_active_fd()`) returns `-1` — never `0`, a valid descriptor
-number — until `init_session()` first succeeds (REQ-NET-NET-005's
+**Requirement:** `radcli2_priv_sess_init()` MUST initialize the session's socket
+(`s->conn.sockfd`) to `-1`, so that `rc_sockets_override.get_active_fd()`
+(`sess_get_active_fd()`) returns `-1` — never `0`, a valid descriptor
+number — until `conn_open()` first succeeds (REQ-NET-NET-005's
 deferred handshake), so that no caller of `get_active_fd()` mistakes a
 session that was never created for one on descriptor 0. A caller that needs
 the session established, rather than merely inspected, MUST use
@@ -376,7 +398,7 @@ the session established, rather than merely inspected, MUST use
 `sockfd` at `0`, so `radcli_ctx_dispatch()` on a TLS `ctx` whose first
 `RADCLI_REQUEST_SENDONLY` send had failed to connect called
 `gnutls_record_recv()` on a NULL session and crashed.
-**Source:** lib/tls.c (`rc_init_tls()`, `tls_get_active_fd()`);
+**Source:** lib/session.c (`radcli2_priv_sess_init()`, `sess_get_active_fd()`);
 lib/sendserver.c (`radcli_transport_send_async()`)
 **Acceptance:** [NET] negative, unit, local — `tests/request.c` performs a
 `RADCLI_REQUEST_SENDONLY` request on a PSK TLS `ctx` whose server refuses
@@ -385,17 +407,17 @@ the connection, then calls `radcli_ctx_dispatch()` and
 code, passing after.
 **Links:** REQ-NET-NET-005, REQ-NET2-NET-003, REQ-NET2-SEND-012
 
-### REQ-NET-NET-020 — A TLS session yields whole RADIUS packets, delimited by their Length field, not by TLS record boundaries
+### REQ-NET-NET-020 — A TCP or TLS session yields whole RADIUS packets, delimited by their Length field, not by how the peer split its writes
 
-**Requirement:** Every read from a TLS (not DTLS) session — `tls_recvfrom()`
-for a blocking exchange and `radcli2_priv_tls_try_recv()` for
+**Requirement:** Every read from a TCP or TLS (not DTLS) session — `sess_recvfrom()`
+for a blocking exchange and `radcli2_priv_sess_try_recv()` for
 `radcli_ctx_dispatch()` — MUST return exactly one complete RADIUS packet,
-delimited by the packet's own Length field (RFC 6614 §3.4 (1)), however the
-peer split the stream into TLS records: a packet spanning several records
-MUST be reassembled, and several packets in one record MUST be returned one
-per read, the rest staying available to the next read (and to
-`radcli2_priv_tls_pending()`). A partly received packet MUST persist across
-`radcli2_priv_tls_try_recv()` calls, which return "nothing ready" until it
+delimited by the packet's own Length field (RFC 6614 §3.4 (1), RFC 6613 §2.6.4),
+however the peer split the stream into TLS records or TCP segments: a packet
+spanning several MUST be reassembled, and several packets in one MUST be
+returned one per read, the rest staying available to the next read (and to
+`radcli2_priv_sess_pending()`). A partly received packet MUST persist across
+`radcli2_priv_sess_try_recv()` calls, which return "nothing ready" until it
 completes, and MUST be discarded with the session on restart. A Length
 outside [20, 4096] is a framing error: the session MUST be marked for restart
 so that it is closed rather than read further (RFC 6613 §2.6.4). A DTLS
@@ -404,13 +426,14 @@ session keeps reading one packet per record (RFC 7360 §2.2).
 **Status:** DERIVED — fixes a bug: each read returned one TLS record as one
 packet, so a reply split across records was rejected as truncated and two
 packets in one record were seen as one.
-**Source:** lib/tls.c (`tls_recvfrom()`, `radcli2_priv_tls_try_recv()`)
-**Acceptance:** [NET] positive, local — `tests/radsec-framing-tests.sh`: a
-peer that splits a reply across two TLS records and one that coalesces two
-replies into one record both complete, on a blocking
-`radcli_request_perform()` and on `RADCLI_REQUEST_SENDONLY` requests driven by
-`radcli_ctx_dispatch()`. [NET][ERR] negative, local — a reply whose Length
-is 4 makes the next request use a new TLS connection rather than the one the
+**Source:** lib/session.c (`sess_recv_packet()`, `sess_recvfrom()`,
+`radcli2_priv_sess_try_recv()`)
+**Acceptance:** [NET] positive, local — `tests/radsec-framing-tests.sh` (TLS) and
+`tests/tcp-session-tests.sh` (TCP): a peer that splits a reply across two
+writes and one that coalesces two replies into one write both complete, on a
+blocking `radcli_request_perform()` and on `RADCLI_REQUEST_SENDONLY` requests
+driven by `radcli_ctx_dispatch()`. [NET][ERR] negative, local — a reply whose
+Length is 4 makes the next request use a new connection rather than the one the
 error arrived on.
 **Links:** REQ-NET-ERR-002, REQ-NET-ERR-005, REQ-NET2-NET-004
 
@@ -565,17 +588,22 @@ with a Message-Authenticator attribute present but cryptographically wrong MUST 
 **Links:** REQ-GEN-TEST-003, REQ-NET-SEC-006, REQ-NET-NET-012 (`rh->so_type` is what this
 requirement branches on), REQ-CONFIG-* (`require-message-authenticator` option, see `config.md`)
 
-### REQ-NET-SEC-008 — Message-Authenticator enforcement (REQ-NET-SEC-006/007) applies only to `AUTH`-type exchanges, not `ACCT`
+### REQ-NET-SEC-008 — Message-Authenticator enforcement (REQ-NET-SEC-006/007) applies only to `AUTH`-type exchanges, and its presence/position check never to an Accounting-Request's reply
 
 **Requirement:** `rc_send_server_ctx()` MUST NOT apply the Message-Authenticator presence,
 position, or validity checks to Accounting-Response packets (`type == ACCT`); accounting
 integrity relies solely on the Response Authenticator (`REQ-NET-SEC-004`), per RFC 2866, which
-predates the Message-Authenticator/BLAST RADIUS mitigation and does not require it.
+predates the Message-Authenticator/BLAST RADIUS mitigation and does not require it. An
+Accounting-Request sent as `AUTH` to a TCP/TLS/DTLS authserver (REQ-NET-NET-004) MUST likewise
+not have its reply's presence/position checked: `decode_reply()` keys that check on the
+request's Code, not only on `type`.
 **Strength:** MUST NOT
 **Status:** DERIVED
-**Source:** lib/sendserver.c:865 (`if (type == AUTH)` gates the entire MA-verification block)
+**Source:** lib/sendserver.c (`decode_reply()`: `if (type == AUTH)` gates the entire
+MA-verification block, and `req_code != PW_ACCOUNTING_REQUEST` the presence/position check)
 **Acceptance:** [SEC] unit, local — an Accounting-Response with no Message-Authenticator
-attribute at all is accepted (`OK_RC`) as long as its Response Authenticator is valid.
+attribute at all is accepted (`OK_RC`) as long as its Response Authenticator is valid, over UDP
+and, in `tests/tcp-session-tests.sh`'s `acct` case, over TCP.
 
 ### REQ-NET-SEC-009 — Shared secret MUST be zeroed from stack memory on every exit path of `rc_send_server_ctx()`, scrubbed by the buffer's owner rather than by `radcli_transport_exchange()`
 
@@ -636,19 +664,19 @@ cert+key pair) nor a PSK key was configured — either via `authserver`'s secret
 `psk@user@hexkey` form, or via `radcli2.h`'s `radcli_ctx_set_tls_psk()`
 (`doc/requirements/config2.md` `REQ-CONFIG2-SECRET-002`), which `rc_init_tls()` checks first and
 which sets the same `st->psk_cred` this requirement's `cred_set` check reads regardless of which
-path set it — `cred_set` MUST be nonzero before `init_session()` is reached. This prevents silently
+path set it — `cred_set` MUST be nonzero before `tls_start()` begins the handshake. This prevents silently
 establishing an anonymous/unauthenticated TLS session (GnuTLS would otherwise be willing to
 negotiate anonymous key exchange under some priority strings) that provides confidentiality
 without server authentication.
 **Strength:** MUST NOT (proceed with `cred_set == 0`) ; MUST (fail closed)
 **Status:** DERIVED
-**Source:** lib/tls.c:401-460 (credential setup), 454-460 (`cred_set == 0` check)
+**Source:** lib/tls.c (`rc_init_tls()`'s credential setup, `tls_start()`'s `cred_set == 0` check)
 **Acceptance:** [SEC] negative, local — a config with `serv-type=tls` and neither `tls-ca-file`
 nor a `psk@...` secret fails `rc_apply_config()`.
 
 ### REQ-NET-SEC-012 — PSK priority string MUST exclude TLS 1.0 and non-PSK key exchange when PSK credentials are used
 
-**Requirement:** When `st->psk_cred` is set, `init_session()` MUST call
+**Requirement:** When the PSK credentials (`psk_cred`) are set, `tls_start()` MUST call
 `gnutls_priority_set_direct()` with `"NORMAL:-KX-ALL:+ECDHE-PSK:+DHE-PSK:+PSK:-VERS-TLS1.0"` —
 disabling all non-PSK key exchange methods and TLS 1.0 — rather than relying on GnuTLS's
 default priority string, which would otherwise permit certificate-based key exchange (irrelevant
@@ -696,8 +724,8 @@ found to be left undefined on the call path used for every session, not just rec
 
 ### REQ-NET-SEC-015 — Session teardown sends a TLS/DTLS close-notify only after a completed handshake; radcli does not suppress the SIGPIPE this can raise
 
-**Requirement:** `deinit_session()` MUST call `gnutls_bye(session, GNUTLS_SHUT_WR)` (retrying on
-`GNUTLS_E_INTERRUPTED`) only when `ses->handshake_done` is set — never on a session whose
+**Requirement:** `tls_stop()` MUST call `gnutls_bye(session, GNUTLS_SHUT_WR)` (retrying on
+`GNUTLS_E_INTERRUPTED`) only when `c->handshake_done` is set — never on a session whose
 handshake never completed (e.g. `connect()` failure), where no negotiated cipher state exists for
 `gnutls_bye()` to use meaningfully. Per `REQ-GEN-SEC-001`, radcli MUST NOT call
 `signal()`/`sigaction()` to suppress the `SIGPIPE` this write can raise if the peer has already
@@ -705,8 +733,8 @@ reset the connection; that decision belongs entirely to the embedding applicatio
 **Strength:** MUST (gate `gnutls_bye` on `handshake_done`) ; MUST NOT (install a signal handler
 or pass `MSG_NOSIGNAL`-equivalent suppression to work around it)
 **Status:** DERIVED
-**Source:** lib/tls.c:306-329 (`deinit_session`, comment at 312-317 explains the
-`handshake_done` gate); grep confirms no `MSG_NOSIGNAL`/`SO_NOSIGPIPE`/`signal(`/`sigaction(` in
+**Source:** lib/tls.c (`tls_stop`, whose comment explains the `handshake_done` gate; called
+from lib/session.c's `conn_close()`); grep confirms no `MSG_NOSIGNAL`/`SO_NOSIGPIPE`/`signal(`/`sigaction(` in
 `lib/*.c`
 **Acceptance:** [SEC] negative, local — `grep -n 'MSG_NOSIGNAL\|SO_NOSIGPIPE' lib/*.c` returns no
 matches; a TLS teardown against a session whose `connect()` failed does not call `gnutls_bye()`.
@@ -784,7 +812,7 @@ generic `ERROR_RC`, so callers/`rc_aaa_ctx_server()` can distinguish "try next s
 `attrs.md`'s multi-server loop, `lib/buildreq.c:264`).
 **Links:** REQ-GEN-SEC-001
 
-### REQ-NET-ERR-005 — A short (`length < AUTH_HDR_LEN`) or truncated (`length < ntohs(auth->length)`) UDP/TCP/TLS read is rejected immediately, not padded or partially processed
+### REQ-NET-ERR-005 — A short (`length < AUTH_HDR_LEN`) or truncated (`length < ntohs(auth->length)`) read is rejected immediately, not padded or partially processed
 
 **Requirement:** `rc_send_server_ctx()` MUST check the raw byte count returned by `recvfrom()`
 against both `AUTH_HDR_LEN` (20) and the packet's own declared `length` field before doing
@@ -830,12 +858,12 @@ Response Authenticator) yields `BADRESP_RC`.
 
 ## TEARDOWN — socket, session, and namespace lifecycle
 
-### REQ-NET-TEARDOWN-001 — The UDP/TCP socket opened for a request is closed via `sfuncs->close_fd` exactly once, on every exit path after `get_fd()` succeeds
+### REQ-NET-TEARDOWN-001 — The UDP socket opened for a request is closed via `sfuncs->close_fd` exactly once, on every exit path after `get_fd()` succeeds
 
 **Requirement:** Every error and success path in `radcli_transport_exchange()` (the socket/retry/
 receive step `rc_send_server_ctx()` and `radcli_request_perform()`
 all delegate to) reached after `sfuncs->get_fd()` returns a valid descriptor MUST call
-`SCLOSE(sockfd)` exactly once before returning — a plain UDP/TCP socket MUST NOT be leaked (never
+`SCLOSE(sockfd)` exactly once before returning — a plain UDP socket MUST NOT be leaked (never
 closed) across repeated `rc_auth()`/`rc_acct()`/`radcli_request_*()` calls, and MUST NOT be closed
 twice: closing an already-closed fd risks closing an unrelated descriptor that another allocation
 (in this process, or another thread, since radcli is called from caller-created threads) has since
@@ -844,7 +872,7 @@ itself enforces the "at most once" half of this: it calls `sfuncs->close_fd(fd)`
 `close_fd` is NULL) and then sets `fd = -1`, so a later unconditional close guarded by
 `if (sockfd >= 0)` (the shared `cleanup:` label) cannot repeat an already-done close — this is
 enforced once, in the macro, rather than by convention at each of its call sites. This requirement
-does not apply to the TLS/DTLS vtable, whose `close_fd` is intentionally NULL — see
+does not apply to the TCP/TLS/DTLS session vtable, whose `close_fd` is intentionally NULL — see
 `REQ-NET-TEARDOWN-002`.
 **Strength:** MUST
 **Status:** DERIVED
@@ -853,87 +881,89 @@ does not apply to the TLS/DTLS vtable, whose `close_fd` is intentionally NULL �
 re-acquires `sockfd` before it could reach `cleanup:`), 626, 650, 670, 682, 706 (mid-function
 closes, each safe to immediately follow with `cleanup:`'s own guarded close since the macro already
 nulled `sockfd`), and 845 (`cleanup:` label's own close, guarded by `if (sockfd >= 0)`);
-lib/config.c:500-512 (`close_fd` set to `plain_close_fd` for UDP/TCP, so `SCLOSE` is a real
+lib/config.c (`close_fd` set to `plain_close_fd` for UDP, so `SCLOSE` is a real
 `close(2)`, not a no-op, for the default transport)
 **Acceptance:** [TEARDOWN] code-review — every new early-return in `radcli_transport_exchange()`
 after `get_fd()` succeeds must be checked for a preceding `SCLOSE(sockfd)` (no leak); the
 no-double-close half no longer needs a per-call-site check, since the macro enforces it structurally.
 
-### REQ-NET-TEARDOWN-002 — TLS/DTLS sockets are NOT closed per-request; they persist across calls and are torn down only by `rc_deinit_tls()`/session restart
+### REQ-NET-TEARDOWN-002 — TCP/TLS/DTLS sockets are NOT closed per-request; they persist across calls and are torn down only by `radcli2_priv_sess_deinit()`/session restart
 
-**Requirement:** `default_socket_funcs`'s TLS/DTLS equivalent (`rh->so` as populated by
-`rc_init_tls()`) MUST leave `close_fd` NULL, so `SCLOSE()` in `rc_send_server_ctx()` is a no-op
-for TLS/DTLS transport — the underlying `gnutls_session_t`/socket is a long-lived connection
-reused across many `rc_auth()`/`rc_acct()` calls, not opened and closed per request like UDP/TCP.
-It MUST be torn down only by `deinit_session()`, invoked either from `restart_session()`
-(replacing it with a fresh session) or `rc_deinit_tls()` (final, caller-invoked cleanup via
+**Requirement:** The session vtable (`rh->so` as populated by `radcli2_priv_sess_init()` for
+TCP, TLS and DTLS) MUST leave `close_fd` NULL, so `SCLOSE()` in `rc_send_server_ctx()` is a
+no-op for these transports — the underlying socket (and `gnutls_session_t`) is a long-lived
+connection reused across many `rc_auth()`/`rc_acct()` calls, not opened and closed per request
+like UDP. It MUST be torn down only by `conn_close()`, invoked either from `restart_session()`
+(replacing it with a fresh connection) or `radcli2_priv_sess_deinit()` (final cleanup via
 `rc_destroy()`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:839-844 (`rh->so.close_fd` never assigned, i.e. stays NULL from the
-`memset(&rh->so, 0, ...)` at line 678); lib/sendserver.c:32 (`SCLOSE` no-ops on NULL `close_fd`)
+**Source:** lib/session.c (`radcli2_priv_sess_init()` never assigns `rh->so.close_fd`, which
+stays NULL from the caller's `memset(&rh->so, 0, ...)`); lib/sendserver.c:32 (`SCLOSE` no-ops on
+NULL `close_fd`)
 **Acceptance:** [TEARDOWN] unit, local — 100 consecutive `rc_auth()` calls over a TLS-configured
 `rh` use the same underlying fd (via `rc_tls_fd()`), not a new one per call.
 **Links:** REQ-NET-NET-007
 
-### REQ-NET-TEARDOWN-003 — `rc_deinit_tls()` releases the session, both credential sets, and the `tls_st` itself, and is safe to call on a partially-initialized state
+### REQ-NET-TEARDOWN-003 — `radcli2_priv_sess_deinit()` releases the connection, the backend's credentials, and the `rc_session` itself, and is safe to call on a partially-initialized state
 
-**Requirement:** `rc_deinit_tls()` MUST call `deinit_session()` only if `st->ctx.init != 0`
-(guards against a `tls_st` that was allocated but never reached `init_session()`), MUST free
-`st->x509_cred` and `st->psk_cred` independently (only one is normally set, but both are checked
-unconditionally), and MUST `free(st)` unconditionally at the end — including when `st` is NULL
-(the top-level `if (st)` guard makes the body a no-op, but the trailing `free(st)` is outside
-that guard and MUST tolerate `free(NULL)`).
+**Requirement:** `radcli2_priv_sess_deinit()` MUST do nothing when `rh` has no session (a UDP
+transport, or `rh->so.ptr == NULL` after a failed init); otherwise it MUST close the connection
+only if `s->conn.init != 0` (`conn_close()`, guarding against a session that never connected),
+release the backend's state through `ops->free` — for TLS/DTLS, `x509_cred` and `psk_cred`
+independently (only one is normally set, but both are checked) — and free the `rc_session`.
+`rc_init_tls()` MUST release its credentials itself if it fails before the session takes them.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:627-653
-**Acceptance:** [TEARDOWN][MEM] unit, local — `rc_deinit_tls()` on an `rh` where `rc_init_tls()`
-failed before allocating `st` (`rh->so.ptr == NULL`) does not crash; `rc_deinit_tls()` after a
-successful PSK-only init does not attempt to free an unset `x509_cred`.
+**Source:** lib/session.c (`radcli2_priv_sess_deinit()`, `conn_close()`); lib/tls.c
+(`tls_free()`, `free_creds()`, `rc_init_tls()`'s cleanup)
+**Acceptance:** [TEARDOWN][MEM] unit, local — `rc_destroy()` on an `rh` where `rc_init_tls()`
+failed (`rh->so.ptr == NULL`) does not crash; destroying a handle after a successful PSK-only
+init does not attempt to free an unset `x509_cred`.
 **Links:** REQ-GEN-MEM-002
 
-### REQ-NET-TEARDOWN-004 — `restart_session()` never leaves `st->ctx` in a state pointing at a freed session on failure
+### REQ-NET-TEARDOWN-004 — `restart_session()` never leaves `s->conn` in a state pointing at a freed connection on failure
 
-**Requirement:** If `init_session()` (called from `restart_session()` to build a replacement
-session into a local `tmps`) fails, `restart_session()` MUST return -1 without modifying
-`st->ctx` at all — the old (broken but still-allocated) session remains in place, so a caller
-retry loop sees a consistent, non-dangling `tls_st`. Only on `init_session()` success does
-`restart_session()` deinit the old `st->ctx` and `memcpy` `tmps` over it. When the new session
-happens to reuse the same fd number as the old one (`tmps.sockfd == st->ctx.sockfd`), it MUST
-mark the old `ctx.sockfd` as `-1` before calling `deinit_session(&st->ctx)`, so that
-`deinit_session()`'s `close(ses->sockfd)` does not close the fd the new session now owns.
+**Requirement:** If `conn_open()` (called from `restart_session()` to build a replacement
+connection into a local `tmpc`) fails, `restart_session()` MUST return -1 without modifying
+`s->conn` at all — the old (broken but still-allocated) connection remains in place, so a caller
+retry loop sees a consistent, non-dangling `rc_session`. Only on `conn_open()` success does
+`restart_session()` close the old `s->conn` and `memcpy` `tmpc` over it. When the new connection
+happens to reuse the same fd number as the old one (`tmpc.sockfd == s->conn.sockfd`), it MUST
+mark the old `conn.sockfd` as `-1` before calling `conn_close(s, &s->conn)`, so that
+`conn_close()`'s `close(c->sockfd)` does not close the fd the new connection now owns.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:519-553
-**Acceptance:** [TEARDOWN][MEM] unit, local — force `init_session()` to fail during a restart
+**Source:** lib/session.c (`restart_session()`)
+**Acceptance:** [TEARDOWN][MEM] unit, local — force `conn_open()` to fail during a restart
 (e.g. unreachable server); `rc_tls_fd()` afterward still returns the previous session's fd, not
 -1 or a closed descriptor. Force a restart where the kernel reissues the same fd number; the new
 session's fd MUST remain open and usable afterward.
-**Links:** REQ-GEN-MEM-003, REQ-NET-NET-016 (same `tmps`, covering its starting state rather
+**Links:** REQ-GEN-MEM-003, REQ-NET-NET-016 (same `tmpc`, covering its starting state rather
 than the failure path)
 
-### REQ-NET-TEARDOWN-006 — The TLS/DTLS session lock persists across `restart_session()`
+### REQ-NET-TEARDOWN-006 — The TCP/TLS/DTLS session lock persists across `restart_session()`
 
 **Requirement:** The lock behind `rc_sockets_override.lock`/`.unlock` for a
-TLS/DTLS handle MUST belong to the handle's `tls_st` itself, initialized once
-by `rc_init_tls()` and destroyed only by `rc_deinit_tls()` (or
-`rc_init_tls()`'s own failure cleanup) — never to the per-connection state
-that `restart_session()` destroys and replaces. A caller holding the lock
-across a restart (as `radcli_transport_exchange()` does when `tls_sendto()`
-restarts a dead session mid-exchange) MUST be able to release it afterwards.
+TCP/TLS/DTLS handle MUST belong to the handle's `rc_session` itself, initialized
+once by `radcli2_priv_sess_init()` and destroyed only by
+`radcli2_priv_sess_deinit()` — never to the per-connection state that
+`restart_session()` destroys and replaces. A caller holding the lock across a
+restart (as `radcli_transport_exchange()` does when `sess_sendto()` restarts a
+dead connection mid-exchange) MUST be able to release it afterwards.
 **Strength:** MUST
 **Status:** DERIVED — fixes a bug: the lock lived in the per-connection
 `tls_int_st`, so `restart_session()` destroyed the held mutex and copied a
 fresh, unlocked one over it, and the holder's unlock then failed.
-**Source:** lib/tls.c (`tls_st.lock`, `tls_lock()`/`tls_unlock()`,
-`rc_init_tls()`, `rc_deinit_tls()`, `restart_session()`)
+**Source:** lib/session.c (`rc_session.lock`, `sess_lock()`/`sess_unlock()`,
+`radcli2_priv_sess_init()`, `radcli2_priv_sess_deinit()`, `restart_session()`)
 **Acceptance:** [TEARDOWN] negative, local, no root —
 `tests/tls-lock-restart-tests.sh` takes the session lock, forces a session
 restart, and confirms the lock can still be released; confirmed failing
 against the unfixed code.
 **Links:** REQ-NET-TEARDOWN-004, REQ-NET-NET-007, REQ-GEN-SEC-009
 
-### REQ-NET-TEARDOWN-005 — Namespace context is always restored before `rc_send_server_ctx()`/`rc_init_tls()`/`rc_deinit_tls()` return, even on every error branch
+### REQ-NET-TEARDOWN-005 — Namespace context is always restored before `rc_send_server_ctx()`/`rc_init_tls()`/`radcli2_priv_sess_deinit()` return, even on every error branch
 
 **Requirement:** See `REQ-NET-NET-015` for the full analysis; restated here as a teardown
 obligation: every function that calls `rc_set_netns()` MUST reach a matching `rc_reset_netns()`
@@ -942,7 +972,8 @@ the saved namespace file descriptor (`lib/util.c:244-248`) — skipping it on an
 a namespace leak (thread stuck in the wrong netns) and a file descriptor leak.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:460-466,932-947; lib/tls.c:680-686,845-851,864-867; lib/util.c:174-253
+**Source:** lib/sendserver.c:460-466,932-947; lib/tls.c (`rc_init_tls()`); lib/session.c
+(`radcli2_priv_sess_deinit()`); lib/util.c:174-253
 **Acceptance:** [TEARDOWN] code-review — same acceptance criterion as `REQ-NET-NET-015`.
 **Links:** REQ-NET-NET-015
 
@@ -978,7 +1009,7 @@ requirement was needed since `RC_AAA_CTX`'s own contract (constructed correctly,
 `rc_sockets_override` and `struct rc_conf`'s `so`/`so_type` fields (`include/includes.h`) are
 internal-only per `REQ-NET-NET-002`; every function pointer in the vtable (`get_fd`,
 `get_active_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`, `static_secret`, `ptr`) is
-exercised by at least one requirement above (`REQ-NET-NET-001/003/004/008`,
+exercised by at least one requirement above (`REQ-NET-NET-001/003/005/008`,
 `REQ-NET-TEARDOWN-001/002`, `REQ-NET-SEC-011`'s `static_secret` handling via
 `sfuncs->static_secret` at `lib/sendserver.c:498-501`).
 

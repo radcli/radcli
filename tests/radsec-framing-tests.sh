@@ -5,7 +5,7 @@
 # License: BSD
 #
 # REQ-NET-NET-020: RADIUS packets on a TLS session are delimited by their
-# Length field, not by TLS record boundaries. See tests/radsec-framing.c.
+# Length field, not by TLS record boundaries. See tests/session-framing.c.
 
 srcdir="${srcdir:-.}"
 
@@ -51,12 +51,15 @@ function run_case {
 	# The server's own redirection runs in its child, possibly after the
 	# wait below has looked: it must not find the previous case's READY.
 	: >$SERVEROUT
-	python3 ${srcdir}/radsec-framing-server.py --port ${PORT} \
+	python3 ${srcdir}/session-framing-server.py --port ${PORT} \
 		--cert $CERT --key $KEY --mode $smode "$@" >$SERVEROUT 2>&1 &
 	SERVERPID=$!
-	sleep 0.5
+	for i in $(seq 50); do
+		grep -q '^READY' $SERVEROUT && break
+		sleep 0.1
+	done
 
-	${top_builddir}/tests/radsec-framing ${PORT} $CERT $cmode
+	${top_builddir}/tests/session-framing tls ${PORT} $CERT $cmode
 	RET=$?
 
 	wait ${SERVERPID}

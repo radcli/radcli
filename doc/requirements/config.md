@@ -109,8 +109,9 @@ non-NULL handle with `rc_get_socket_type() == RC_SOCKET_UDP` by default;
 **Requirement:** `rc_apply_config()` MUST read `serv-type` (falling back to the
 legacy alias `serv-auth-type`, then to `"udp"` if neither is set) and MUST
 initialise `rh->so`/`rh->so_type` for exactly one of: `udp` (default UDP
-socket ops), `tcp` (connect-then-send TCP socket ops), `tls` or `dtls` (via
-`rc_init_tls()`, only when built `HAVE_GNUTLS`). Any other value MUST cause
+socket ops), `tcp` (a persistent TCP session, `radcli2_priv_sess_init_tcp()`,
+net.md's REQ-NET-NET-004), `tls` or `dtls` (via `rc_init_tls()`, only when built
+`HAVE_GNUTLS`). Any other value MUST cause
 `rc_apply_config()` to log `LOG_CRIT` and return `-1` without partially setting
 `rh->so`. It MUST also resolve and cache `rh->own_bind_addr` (from `bindaddr`)
 and, if `nas-ip` is set, validate and cache `rh->nas_addr`.
@@ -123,13 +124,13 @@ lib/config.c:550-560 (bind/nas-ip)
 local — `serv-type bogus` makes `rc_apply_config()` return `-1` (`lib/config.c:585-587`).
 **Links:** REQ-CONFIG-CFG-012, REQ-CONFIG-CFG-013
 
-### REQ-CONFIG-INIT-005 — `rc_destroy()` MUST release dictionary, TLS, and config state in that order before freeing the handle
+### REQ-CONFIG-INIT-005 — `rc_destroy()` MUST release dictionary, session, and config state in that order before freeing the handle
 
 **Requirement:** `rc_destroy(rh)` MUST call, in order, `rc_dict_free(rh)`,
-`rc_deinit_tls(rh)` (when `HAVE_GNUTLS`), `rc_config_free(rh)`, and finally
+`radcli2_priv_sess_deinit(rh)` (the TCP/TLS/DTLS connection, if any), `rc_config_free(rh)`, and finally
 `free(rh)`. `rc_destroy(NULL)` MUST NOT be assumed safe by callers unless the
 called functions handle `NULL` (not verified here; see `dict.md`/`net.md` for
-`rc_dict_free`/`rc_deinit_tls` NULL-handling). Every `rc_new()`-produced handle
+`rc_dict_free`/`radcli2_priv_sess_deinit` NULL-handling). Every `rc_new()`-produced handle
 that a caller stops using MUST eventually reach `rc_destroy()` exactly once —
 double-destroy or leaked handles are caller bugs this API cannot detect.
 **Strength:** MUST
@@ -372,16 +373,17 @@ config file with neither an `authserver` line nor `dae-accept`,
 calls `rc_test_config()` internally) and `radcli_ctx_apply()` alike.
 **Links:** REQ-CONFIG-INIT-003, REQ-CONFIG-CFG-006, REQ-CONFIG2-CFG-004
 
-### REQ-CONFIG-CFG-011 — `rc_test_config()` MUST suppress the "no acctserver specified" debug log under TLS/DTLS
+### REQ-CONFIG-CFG-011 — `rc_test_config()` MUST suppress the "no acctserver specified" debug log under TCP/TLS/DTLS
 
 **Requirement:** `rc_test_config()`'s missing-`acctserver` branch MUST log
 `LOG_DEBUG` "no acctserver specified" unless the configured transport is
-TLS/DTLS. This can't be decided from `rh->so_type`, since that field is only
+TCP/TLS/DTLS, which send accounting to the authserver (net.md's
+REQ-NET-NET-004). This can't be decided from `rh->so_type`, since that field is only
 set by the same function's later call to `rc_apply_config()`
 (`REQ-CONFIG-INIT-004`); instead, the check reads the `serv-type`/
 `serv-auth-type` config string directly (the same fallback order
 `rc_apply_config()` itself uses) and suppresses the log only when that
-string is `"tls"` or `"dtls"` (case-insensitively).
+string is `"tcp"`, `"tls"` or `"dtls"` (case-insensitively).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/config.c:897-910 (check); lib/config.c:562-567

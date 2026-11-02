@@ -327,9 +327,10 @@ it.
 ### REQ-ATTR-NET-022 — rc_aaa_ctx picks authserver vs. acctserver by transport and request code
 
 **Requirement:** For a given `request_type`, `rc_aaa_ctx()` MUST select the
-`"authserver"` list when `rh->so_type` is `RC_SOCKET_TLS`/`RC_SOCKET_DTLS`
-*or* `request_type != PW_ACCOUNTING_REQUEST`, and the `"acctserver"` list
-otherwise (plain accounting request over UDP/TCP), then forward to
+`"authserver"` list when `rh->so_type` is `RC_SOCKET_TCP`/`RC_SOCKET_TLS`/
+`RC_SOCKET_DTLS` (one connection to the authserver carries every request,
+net.md's REQ-NET-NET-004) *or* `request_type != PW_ACCOUNTING_REQUEST`, and the
+`"acctserver"` list otherwise (plain accounting request over UDP), then forward to
 `rc_aaa_ctx_server()`. It MUST return `ERROR_RC` if the selected list is
 empty/unconfigured (`rc_conf_srv()` returns `NULL`). This selection logic is
 factored into the internal helper `rc_select_aaa_server()`, shared verbatim
@@ -488,7 +489,7 @@ outright.
 **Acceptance:** [NET] unit, local — a 2-server `acctserver` list with the first
 unreachable and the second reachable yields `OK_RC` and the second server MUST still be
 contacted even though it comes after the first send returned a terminal state; a config
-with no `acctserver` (and no TLS/DTLS `authserver` fallback trigger) returns `ERROR_RC`
+with no `acctserver` (and no TCP/TLS/DTLS `authserver` fallback trigger) returns `ERROR_RC`
 before any packet is built. `tests/acct-async-tests.sh` — end-to-end via
 `src/radiusclient -A`, asserting completion in well under `radius_timeout` against an
 unreachable first server, i.e. no blocking failover wait (contrast with

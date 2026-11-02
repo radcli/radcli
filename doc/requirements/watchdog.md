@@ -14,8 +14,8 @@ sources:
   - lib/config.c (`set_option_int()`)
   - lib/dae.c (`radcli2_priv_dae_send_watchdog()`, called automatically from
     `radcli_ctx_dispatch()`; `radcli_ctx_get_poll()`)
-  - lib/tls.c (`radcli2_priv_check_tls()` / `rc_check_tls()`, `tls_int_st.last_recv`,
-    `radcli2_priv_tls_force_reconnect()`)
+  - lib/session.c (`radcli2_priv_check_tls()` / `rc_check_tls()`, `rc_sess_conn.last_recv`,
+    `radcli2_priv_sess_force_reconnect()`)
   - include/radcli/radcli2.h
   - include/radcli/radcli-defs.h
   - tests/dae-radsec-watchdog.c
@@ -196,7 +196,7 @@ automatic call — `REQ-WATCHDOG-NET-001` — and `rc_check_tls()`'s direct one
 the last record actually *received* on the session, separately from
 `REQ-WATCHDOG-NET-002`'s last-activity (send-or-receive) clock, and every
 path that reads a record from the session MUST update it — the blocking
-exchange's `tls_recvfrom()`, the idle DAE poll, and `radcli_ctx_dispatch()`'s
+exchange's `sess_recvfrom()`, the idle DAE poll, and `radcli_ctx_dispatch()`'s
 request-registry drain alike. Before building
 and sending, if `watchdog-interval > 0` and the elapsed time since that
 last receive is `>= 2.5 * watchdog-interval`, it MUST force the session to
@@ -213,10 +213,10 @@ on its own schedule (typically driven by `REQ-WATCHDOG-NET-002`'s `timeout_ms`),
 never from a radcli-owned thread or signal.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dae.c's `radcli2_priv_dae_send_watchdog()`; lib/tls.c's
-`tls_int_st.last_recv` (updated by `tls_recvfrom()` and
-`radcli2_priv_tls_try_recv()`, the session's only readers) and
-`radcli2_priv_tls_force_reconnect()`
+**Source:** lib/dae.c's `radcli2_priv_dae_send_watchdog()`; lib/session.c's
+`rc_sess_conn.last_recv` (updated by `sess_recvfrom()` and
+`radcli2_priv_sess_try_recv()`, the session's only readers) and
+`radcli2_priv_sess_force_reconnect()`
 **Acceptance:** [NET] positive, local — `tests/watchdog-aaa.c`'s phase 4:
 after the peer answers nothing at all for well over 2.5x watchdog-interval
 (connection left open throughout, not closed), the next
@@ -257,13 +257,13 @@ failure-handling logic. Unlike the TLS heartbeat this replaced, `rc_check_tls()`
 for no lock of its own: like every call on a handle, it is made by one thread at a time
 (`REQ-GEN-SEC-009`). Idle-session breakage is
 also, independently, always detected transparently on the next ordinary transport call via
-`need_restart`/`tls_wait_or_give_up()` (`REQ-NET-NET-007`) whether or not `rc_check_tls()` is
+`need_restart`/`sess_wait_or_give_up()` (`REQ-NET-NET-007`) whether or not `rc_check_tls()` is
 ever called — this requirement documents what `rc_check_tls()` additionally guarantees *if*
 called, not a promise that radcli calls it for the application.
 **Strength:** MUST NOT (radcli-internal auto-invocation of `rc_check_tls()` itself) ; MUST (the
 guarantee documented, if the caller does invoke it)
 **Status:** DERIVED
-**Source:** lib/tls.c's `radcli2_priv_check_tls()` (`rc_check_tls()`'s implementation); grep
+**Source:** lib/session.c's `radcli2_priv_check_tls()` (`rc_check_tls()`'s implementation); grep
 confirms no `rc_check_tls(` call site inside `lib/*.c` other than its own definition
 **Acceptance:** [NET] negative, local — `grep -n 'rc_check_tls(' lib/*.c` shows only the
 function definition, no internal call site. [NET] positive, local — exercised indirectly via

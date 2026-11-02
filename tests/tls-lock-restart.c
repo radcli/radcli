@@ -22,9 +22,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* The TLS session lock (rc_sockets_override.lock/.unlock, lib/tls.c) must
- * survive a session restart: radcli_transport_exchange() holds it for a
- * whole send-and-wait cycle, during which tls_sendto() may call
+/* The TLS session lock (rc_sockets_override.lock/.unlock, lib/session.c)
+ * must survive a session restart: radcli_transport_exchange() holds it for a
+ * whole send-and-wait cycle, during which sess_sendto() may call
  * restart_session() to replace a dead session (REQ-NET-TEARDOWN-006).
  * This takes the lock, forces that restart, and checks the holder can
  * still release the lock it took. Peer: tests/watchdog-aaa-server.py,
@@ -68,12 +68,12 @@ int main(int argc, char **argv)
 		die("context setup");
 	rh = (rc_handle *)ctx;
 
-	if (radcli2_priv_tls_ensure_connected(rh) != 0)
+	if (radcli2_priv_sess_ensure_connected(rh) != 0)
 		die("initial TLS connection");
 
 	if (rh->so.lock(rh->so.ptr) != 0)
 		die("taking the session lock");
-	if (radcli2_priv_tls_force_reconnect(rh) != 0)
+	if (radcli2_priv_sess_force_reconnect(rh) != 0)
 		die("session restart");
 	if (rh->so.unlock(rh->so.ptr) != 0) {
 		fprintf(stderr, "error: the session lock could not be released after a "

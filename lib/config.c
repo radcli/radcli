@@ -26,6 +26,7 @@
 #include <options.h>
 #include "util.h"
 #include "tls.h"
+#include "session.h"
 #include "dict_rfc_gen.h"
 
 #ifndef TRUE
@@ -517,21 +518,7 @@ static ssize_t plain_sendto(void *ptr, int sockfd,
 	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
 }
 
-/*- rc_sockets_override.sendto for the plain TCP transport: connect(2)
- * then sendto(2).
- -*/
-static ssize_t plain_tcp_sendto(void *ptr, int sockfd,
-			    const void *buf, size_t len, int flags,
-			    const struct sockaddr *dest_addr, socklen_t addrlen)
-{
-	if((connect(sockfd, dest_addr, addrlen)) != 0){
-		rc_log(LOG_ERR, "%s: Connect Call Failed : %s", __FUNCTION__, strerror(errno));
-		return -1;
-	}
-	return sendto(sockfd, buf, len, flags, dest_addr, addrlen);
-}
-
-/*- rc_sockets_override.recvfrom for the plain UDP/TCP transports: a thin
+/*- rc_sockets_override.recvfrom for the plain UDP transport: a thin
  * recvfrom(2) wrapper.
  -*/
 static ssize_t plain_recvfrom(void *ptr, int sockfd,
@@ -541,7 +528,7 @@ static ssize_t plain_recvfrom(void *ptr, int sockfd,
 	return recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
 }
 
-/*- rc_sockets_override.close_fd for the plain UDP/TCP transports: a thin
+/*- rc_sockets_override.close_fd for the plain UDP transport: a thin
  * close(2) wrapper.
  -*/
 static void plain_close_fd(int fd)
@@ -577,45 +564,10 @@ static int plain_get_fd(void *ptr, struct sockaddr *our_sockaddr)
 	return sockfd;
 }
 
-/*- rc_sockets_override.get_fd for the plain TCP transport: open and bind
- * a TCP socket at an ephemeral port on our_sockaddr's address/family.
- *
- * @param ptr unused; part of the get_fd calling convention.
- * @param our_sockaddr the local address to bind to (port overwritten with 0).
- * @return the new socket, or -1 on failure.
- -*/
-static int plain_tcp_get_fd(void *ptr, struct sockaddr *our_sockaddr)
-{
-	int sockfd;
-
-	sockfd = socket(our_sockaddr->sa_family, SOCK_STREAM, 0);
-	if (sockfd < 0) {
-		return -1;
-	}
-
-	if (our_sockaddr->sa_family == AF_INET)
-		((struct sockaddr_in *)our_sockaddr)->sin_port = 0;
-	else
-		((struct sockaddr_in6 *)our_sockaddr)->sin6_port = 0;
-
-	if (bind(sockfd, SA(our_sockaddr), SA_LEN(our_sockaddr)) < 0) {
-		close(sockfd);
-		return -1;
-	}
-	return sockfd;
-}
-
 static const rc_sockets_override default_socket_funcs = {
 	.get_fd = plain_get_fd,
 	.close_fd = plain_close_fd,
 	.sendto = plain_sendto,
-	.recvfrom = plain_recvfrom
-};
-
-static const rc_sockets_override default_tcp_socket_funcs = {
-	.get_fd = plain_tcp_get_fd,
-	.close_fd = plain_close_fd,
-	.sendto = plain_tcp_sendto,
 	.recvfrom = plain_recvfrom
 };
 
@@ -763,7 +715,7 @@ static int radcli2_priv_check_config(rc_handle *rh, char const *source)
 		srv = rc_conf_srv_id(rh, OPT_ACCTSERVER);
 		if (!srv || !srv->max)
 		{
-			/* it is allowed not to have acct servers under TLS/DTLS. rh->so_type
+			/* it is allowed not to have acct servers under TCP/TLS/DTLS. rh->so_type
 			 * isn't set until radcli2_priv_apply_config() runs, so check the
 			 * configured serv-type string directly rather than the not-yet-
 			 * initialized transport state. */
@@ -771,7 +723,8 @@ static int radcli2_priv_check_config(rc_handle *rh, char const *source)
 			if (stype == NULL)
 				stype = rc_conf_str_id(rh, OPT_SERV_AUTH_TYPE);
 			if (stype == NULL ||
-			    (strcasecmp(stype, "tls") != 0 && strcasecmp(stype, "dtls") != 0))
+			    (strcasecmp(stype, "tcp") != 0 && strcasecmp(stype, "tls") != 0 &&
+			     strcasecmp(stype, "dtls") != 0))
 				rc_log(LOG_DEBUG,"%s: no acctserver specified", source);
 		}
 	}
@@ -839,10 +792,7 @@ int radcli2_priv_apply_config(rc_handle *rh)
 		memcpy(&rh->so, &default_socket_funcs, sizeof(rh->so));
 		ret = 0;
 	} else if (strcasecmp(txt, "tcp") == 0) {
-		memset(&rh->so, 0, sizeof(rh->so));
-		rh->so_type = RC_SOCKET_TCP;
-		memcpy(&rh->so, &default_tcp_socket_funcs, sizeof(rh->so));
-		ret = 0;
+		ret = radcli2_priv_sess_init_tcp(rh);
 #ifdef HAVE_GNUTLS
 	} else if (strcasecmp(txt, "dtls") == 0) {
 		ret = rc_init_tls(rh, SEC_FLAG_DTLS);
@@ -1429,9 +1379,7 @@ rc_handle *radcli2_priv_new(void)
 void radcli2_priv_destroy(rc_handle *rh)
 {
 	radcli2_priv_dict_free(rh);
-#ifdef HAVE_GNUTLS
-	rc_deinit_tls(rh);
-#endif
+	radcli2_priv_sess_deinit(rh);
 	radcli2_priv_config_free(rh);
 	/* REQ-NET2-SEND-016: ctx's persistent request socket/registry, never
 	 * touched by radcli2_priv_config_free() (which only frees config
