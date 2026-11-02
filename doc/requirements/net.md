@@ -173,10 +173,11 @@ or `serv-type=tcp` fails `rc_apply_config()`.
 **Requirement:** When `sess_sendto()`/`sess_recvfrom()` observe a fatal backend error or the end
 of the stream, or `sess_sendto()` an unrecoverable `sess_wait_or_give_up()` timeout, they MUST set
 `s->conn.need_restart = 1`. The next `sess_get_fd()` or `sess_sendto()` call MUST invoke
-`restart_session()`, which tears down and reinitializes the connection via `conn_open()`
-unconditionally — every call site (`sess_get_fd()`, `sess_sendto()`,
-`radcli2_priv_sess_send_queued()`, `radcli2_priv_sess_ensure_connected()`,
-`radcli2_priv_sess_force_reconnect()`, and `rc_check_tls()`'s own `need_restart != 0` branch)
+`restart_session()`, which runs a connection attempt (REQ-NET-NET-023) to completion and only then
+replaces the connection — continuing one `radcli_ctx_dispatch()` already began. Every call site
+that begins an attempt (`sess_get_fd()`, `sess_sendto()`, `radcli2_priv_sess_send_queued()`,
+`radcli2_priv_sess_ensure_connected()`, `radcli2_priv_sess_force_reconnect()`, and
+`rc_check_tls()`'s own `need_restart != 0` branch)
 only ever invokes it once the session is already known to need it (a send/recv failure
 already set `need_restart`, or session init preset it before the first connection), so
 there is nothing to throttle: `restart_session()` carries no rate limit of its own.
@@ -188,7 +189,8 @@ exists, `rc_check_tls()`'s RFC 5997 watchdog probe reaches `restart_session()` o
 became unreachable dead code and was removed along with it.)
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/session.c (`sess_wait_or_give_up`, `sess_sendto`/`sess_recvfrom`, `restart_session`)
+**Source:** lib/session.c (`sess_wait_or_give_up`, `sess_sendto`/`sess_recvfrom`, `restart_session`,
+`attempt_begin`)
 **Acceptance:** [NET] unit, local — killing and restarting the TLS test server between two
 `rc_auth()` calls causes the second call to reconnect and succeed, without the caller calling
 `rc_check_tls()` (`tests/tls-idle-restart.c`, also the historical regression test for issue
@@ -213,13 +215,15 @@ a valid reply within the configured timeout, not a `poll()` hang or `EBADF`.
 
 **Requirement:** The send/poll/recv sequence MUST repeat until a reply with a matching sequence
 ID is received (`rc_check_reply()` returns anything other than `BADRESPID_RC`) or
-`retries` exceeds `data->retries`, at which point it MUST return `TIMEOUT_RC`. The remaining
+`retries` exceeds `data->retries`, at which point it MUST return `TIMEOUT_RC`. On a TCP or TLS
+session, a repetition only waits again, without sending, while the connection the request went
+out on is still up (REQ-NET-NET-022). The remaining
 timeout budget within a single attempt MUST be computed from `rc_getmtime()` (monotonic clock
 when available), decremented across `EINTR`-interrupted `poll()` calls, not restarted.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/sendserver.c:682-793; lib/util.c:69-85 (`rc_getmtime`)
-**Acceptance:** [NET] unit, local — a server that never replies causes exactly
+**Acceptance:** [NET] unit, local — a UDP server that never replies causes exactly
 `data->retries + 1` transmissions before `TIMEOUT_RC`; interrupting the process with a
 caller-installed non-fatal signal during `poll()` does not extend the wait past `data->timeout`.
 **Links:** REQ-GEN-SEC-003
@@ -291,19 +295,18 @@ code-review — every new early-return added to `rc_send_server_ctx()`, `rc_init
 reach the matching `rc_reset_netns()`.
 **Links:** REQ-GEN-SEC-004
 
-### REQ-NET-NET-016 — `restart_session()` MUST build the replacement connection in a zero-initialized `rc_sess_conn`
+### REQ-NET-NET-016 — A connection attempt MUST build the replacement connection in a zero-initialized `rc_sess_conn`
 
-**Requirement:** The local `rc_sess_conn tmpc` that `restart_session()` passes to
-`conn_open()` MUST be zero-initialized before the call. `conn_open()` and the backend's
-`start()` leave fields they do not write (the reassembly buffer's `rlen`, plain TCP's `wpos`,
-TLS's `session`/`handshake_done`) at the struct's starting state. Because `REQ-NET-NET-005`
-routes all connection (re)establishment — including the first connection, not just reconnects —
-through `restart_session()`'s `tmpc`, this zero-initialization is the only initialization such
-fields ever receive. `skip_hostname_check` (`REQ-NET-SEC-014`), the field this was found to
+**Requirement:** `attempt_begin()` MUST zero the session's `next` connection before opening its
+socket. The attempt and the backend's `start()`/`handshake()` leave fields they do not write
+(the reassembly buffer's `rlen`, plain TCP's `wpos`, TLS's `session`/`handshake_done`) at the
+struct's starting state. Because `REQ-NET-NET-005` routes all connection (re)establishment —
+including the first connection, not just reconnects — through this attempt, this
+zero-initialization is the only initialization such fields ever receive. `skip_hostname_check` (`REQ-NET-SEC-014`), the field this was found to
 affect, now lives in the `calloc()`ed `rc_session` and is likewise only ever set, never cleared.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/session.c (`restart_session()`'s `tmpc`, `conn_open()`); lib/tls.c
+**Source:** lib/session.c (`attempt_begin()`, `attempt_step()`); lib/tls.c
 (`tls_start()`'s conditional `skip_hostname_check` set)
 **Acceptance:** [SEC][NET] negative, local — with `tmps` left uninitialized, a config that never
 sets `tls-verify-hostname` (the secure default) can intermittently accept a server certificate
@@ -323,8 +326,8 @@ callgraph. `lib/session.c` is compiled into `tests-msan`, so the transport-neutr
 exercised there over TCP; until `tests-msan` builds with TLS enabled (or some other
 tool-checkable acceptance is found), enforcement for the TLS-specific fields is code-review only.
 **Links:** REQ-NET-SEC-014 (the specific field this left undefined), REQ-NET-NET-005 (why every
-`conn_open()` call goes through this path), REQ-NET-TEARDOWN-004 (the same `tmpc`/
-`restart_session()` pairing — covers failure-path safety, not initial-state correctness)
+attempt goes through this path), REQ-NET-TEARDOWN-004 (the same attempt — covers failure-path
+safety, not initial-state correctness)
 
 ### REQ-NET-NET-017 — `rc_send_server_ctx()`'s `no_wait` parameter is an explicit fire-and-forget mode: transmit once and return `OK_RC` without waiting for a reply, never `TIMEOUT_RC`
 
@@ -470,6 +473,74 @@ TLS peer that never answers (Python's TLS 1.3 server sends session tickets after
 ends in `RADCLI_TIMEOUT`; confirmed ending in an error against the unfixed code. The same over
 plain TCP.
 **Links:** REQ-NET-ERR-004, REQ-NET-NET-007, REQ-NET-NET-020
+
+### REQ-NET-NET-022 — A request is never retransmitted over the TCP/TLS connection it already went out on
+
+**Requirement:** On a TCP or TLS session, a request whose reply is overdue MUST NOT be sent
+again over the connection it already went out on while that connection is still up (RFC 6613
+§2.6.1; RADIUS/TLS runs over TCP connections established per RFC 6613, RFC 6614 §2.3): the
+timeout only uses up one of its retries,
+and the request keeps waiting for its reply there. Once that connection is known to have failed
+(an error or the end of the stream on it, or the watchdog's REQ-WATCHDOG-NET-003), the request
+MUST be retransmitted at its next deadline over a new connection, which RFC 6613 §2.6.1 permits,
+with the same Identifier and contents. The blocking exchange (`radcli_transport_exchange()`) and
+the `RADCLI_REQUEST_SENDONLY` registry (`radcli2_priv_reqreg_service_timeouts()`) both record the
+connection a request went out on (`radcli2_priv_sess_gen()`) and consult
+`radcli2_priv_sess_holds()` before resending. A DTLS session, being datagram-based, keeps
+retransmitting over the same session, like UDP (REQ-NET-NET-009).
+**Strength:** MUST NOT (retransmit over the same TCP/TLS connection) ; MUST (retransmit over a new
+one once the old one failed)
+**Status:** DERIVED — fixes a bug: each retry resent the request over the same connection.
+**Source:** lib/session.c (`radcli2_priv_sess_gen()`, `radcli2_priv_sess_holds()`);
+lib/sendserver.c (`radcli_transport_exchange()`'s retry loop,
+`radcli2_priv_reqreg_service_timeouts()`, `radcli_transport_send_async()`); lib/includes.h
+(`struct radcli_reqreg_slot.conn_gen`)
+**Acceptance:** [NET] negative, local — `tests/session-timeout-tests.sh`'s `once` cases: a TCP
+and a TLS peer that never answer receive the request exactly once, over one connection, from a
+blocking and from a `RADCLI_REQUEST_SENDONLY` request with `radius_retries 1`, both ending in
+`RADCLI_TIMEOUT`; confirmed receiving it twice against the unfixed code. [NET] positive, local —
+its `drop` case: a TCP peer that closes the connection on the unanswered request receives it
+again over a new connection, and its reply completes the request.
+**Links:** REQ-NET-NET-009, REQ-NET-NET-007, REQ-NET2-SEND-016
+
+### REQ-NET-NET-023 — A TCP/TLS/DTLS connection is established by a non-blocking attempt with one deadline
+
+**Requirement:** A connection attempt (`attempt_begin()`) MUST open a non-blocking socket and
+start `connect()` without waiting (`EINPROGRESS` is an attempt in progress, not a failure);
+`attempt_step()` MUST then advance it without waiting — completing `connect()` once the socket is
+writable, then setting up the backend and taking one step of the TLS/DTLS handshake at a time,
+with GnuTLS in non-blocking mode (`GNUTLS_NONBLOCK`) so that it never waits for its own timeouts,
+including DTLS's handshake retransmission timer, which `attempt_wait()` reports instead. The
+attempt MUST have a single deadline, `radius_timeout` from its start, covering both the connect
+and the handshake and not extended by any step; past it, the attempt fails. Until the attempt is
+established, the session's current connection stays in place (REQ-NET-TEARDOWN-004), and records
+queued for the attempt go out once it is (REQ-NET2-NET-005). Blocking callers
+(`restart_session()`) drive the same attempt, polling for what `attempt_wait()` reports; only
+name resolution, when the attempt begins, may block. A DTLS handshake waiting for a reply or its
+retransmission timer MUST NOT report `POLLOUT` on a writable socket, whatever
+`gnutls_record_get_direction()` says (it can stay "write" after a flight went out, GnuTLS #1992),
+since that would spin until the deadline; `dtls_handshake_wait()` asks the socket with a
+zero-timeout `poll()`, which never waits. A send that cannot complete because the socket is full
+MUST report `POLLOUT`, with only the attempt's deadline as its timeout, since no retransmission
+can run until the send clears.
+A send that fails on a socket that is still writable cannot be told apart from that stale
+direction, so `dtls_handshake()` MUST retry the handshake once at once, which sends nothing if the
+flight already went out.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug (#147): `connect()` and the handshake ran to completion inside
+whichever call needed the connection, including `radcli_ctx_dispatch()` (REQ-NET2-NET-001).
+**Source:** lib/session.c (`attempt_begin()`, `attempt_connected()`, `attempt_step()`,
+`attempt_wait()`, `restart_session()`); lib/tls.c (`tls_start()`, `tls_handshake()`,
+`dtls_handshake()`, `tls_handshake_wait()`, `dtls_handshake_wait()`)
+**Acceptance:** [NET] negative, local — `tests/session-timeout-tests.sh`'s `stall` case
+(REQ-NET2-NET-001's acceptance): a TLS handshake that never completes fails at its deadline while
+every `radcli_ctx_dispatch()` call returns promptly. [NET] positive, local — every TLS test
+(`tests/tls-*-tests.sh`, `tests/radsec-*-tests.sh`) connects through this attempt. [NET] negative,
+local — `tests/session-timeout-tests.sh`'s DTLS cases, with a peer that never answers:
+`blocking-mute` must not spend most of its wait on the CPU. Confirmed failing against the unfixed code.
+[NET] negative, local — `tests/session-timeout-tests.sh`'s DTLS `sendfail-once` case: one failed
+send is retried well before the 1 s retransmission timer.
+**Links:** REQ-NET2-NET-001, REQ-NET-NET-005, REQ-NET-NET-007, REQ-NET-TEARDOWN-004
 
 ---
 
@@ -963,24 +1034,24 @@ failed (`rh->so.ptr == NULL`) does not crash; destroying a handle after a succes
 init does not attempt to free an unset `x509_cred`.
 **Links:** REQ-GEN-MEM-002
 
-### REQ-NET-TEARDOWN-004 — `restart_session()` never leaves `s->conn` in a state pointing at a freed connection on failure
+### REQ-NET-TEARDOWN-004 — A connection attempt never leaves `s->conn` in a state pointing at a freed connection on failure
 
-**Requirement:** If `conn_open()` (called from `restart_session()` to build a replacement
-connection into a local `tmpc`) fails, `restart_session()` MUST return -1 without modifying
+**Requirement:** If a connection attempt (built in the session's `next` connection) fails,
+`attempt_step()` (and `restart_session()` with it) MUST close only `next`, without modifying
 `s->conn` at all — the old (broken but still-allocated) connection remains in place, so a caller
-retry loop sees a consistent, non-dangling `rc_session`. Only on `conn_open()` success does
-`restart_session()` close the old `s->conn` and `memcpy` `tmpc` over it. When the new connection
-happens to reuse the same fd number as the old one (`tmpc.sockfd == s->conn.sockfd`), it MUST
+retry loop sees a consistent, non-dangling `rc_session`. Only once the attempt is established
+does `attempt_step()` close the old `s->conn` and `memcpy` `next` over it. When the new connection
+happens to reuse the same fd number as the old one (`next.sockfd == s->conn.sockfd`), it MUST
 mark the old `conn.sockfd` as `-1` before calling `conn_close(s, &s->conn)`, so that
 `conn_close()`'s `close(c->sockfd)` does not close the fd the new connection now owns.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/session.c (`restart_session()`)
-**Acceptance:** [TEARDOWN][MEM] unit, local — force `conn_open()` to fail during a restart
+**Source:** lib/session.c (`attempt_step()`, `restart_session()`)
+**Acceptance:** [TEARDOWN][MEM] unit, local — force a connection attempt to fail during a restart
 (e.g. unreachable server); `rc_tls_fd()` afterward still returns the previous session's fd, not
 -1 or a closed descriptor. Force a restart where the kernel reissues the same fd number; the new
 session's fd MUST remain open and usable afterward.
-**Links:** REQ-GEN-MEM-003, REQ-NET-NET-016 (same `tmpc`, covering its starting state rather
+**Links:** REQ-GEN-MEM-003, REQ-NET-NET-016 (same attempt, covering its starting state rather
 than the failure path)
 
 ### REQ-NET-TEARDOWN-006 — The TCP/TLS/DTLS session lock persists across `restart_session()`

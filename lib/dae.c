@@ -938,15 +938,22 @@ static void fold_timeout(int *timeout_ms, int candidate)
  * radcli_request_perform(), rc_destroy()), never asynchronously -- but
  * re-query after any of those regardless, since one may replace it.
  *
+ * The caller MUST call radcli_ctx_dispatch() when *timeout_ms expires, even
+ * if no descriptor became ready, and MUST call this function again afterwards
+ * rather than reusing the descriptors, events or timeout it reported:
+ * retransmissions, timeouts and connection attempts only advance from
+ * radcli_ctx_dispatch(), so a loop waiting on descriptors alone may leave a
+ * request pending forever. *timeout_ms is never -1 while a request or a
+ * connection attempt is pending.
+ *
  * @param ctx a context, with or without an active radcli_dae.
  * @param[out] pfds filled with up to RADCLI_CTX_MAX_POLLFDS entries
  *  (fd/events; revents is left for the caller's poll() to fill in).
  * @param max_pfds pfds's capacity; MUST be at least RADCLI_CTX_MAX_POLLFDS.
  * @param[out] nfds set to how many of pfds were filled in (0 if there is
  *  nothing to watch yet).
- * @param[out] timeout_ms milliseconds after which to call
- *  radcli_ctx_dispatch() even without I/O readiness; -1 for "no timeout
- *  needed".
+ * @param[out] timeout_ms milliseconds after which radcli_ctx_dispatch()
+ *  MUST be called even without I/O readiness; -1 for "no timeout needed".
  * @return 0 on success, -1 if ctx or an out-parameter is NULL, or max_pfds
  *  is too small.
  */
@@ -973,17 +980,13 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		 * rc_acct() RadSec client, with no radcli_dae at all, is as
 		 * entitled to it as one with dae-accept=yes. */
 		int dae_radsec = (rh->active_dae != NULL && rh->active_dae->radsec);
-		int fd = radcli2_priv_sess_fd(rh);
-		unsigned events = (fd != -1) ? POLLIN : 0;
-
-		/* Queued records go out once the socket is writable again
-		 * (REQ-NET2-NET-005). */
-		if (fd != -1 && radcli2_priv_sess_send_pending(rh))
-			events |= POLLOUT;
+		short events;
+		int sess_timeout_ms;
+		int fd = radcli2_priv_sess_poll(rh, &events, &sess_timeout_ms);
 
 		if (fd != -1) {
 			pfds[n].fd = fd;
-			pfds[n].events = (short)events;
+			pfds[n].events = events;
 			pfds[n].revents = 0;
 			n++;
 		}
@@ -996,12 +999,12 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		if (dae_radsec && rh->active_dae->radsec_queue_len > 0)
 			*timeout_ms = 0;
 		else
-			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, fd));
+			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, radcli2_priv_sess_fd(rh)));
 
 		fold_timeout(timeout_ms, radcli2_priv_reqreg_earliest_deadline_ms(rh));
-		/* A record GnuTLS already holds raises no POLLIN. */
-		if (radcli2_priv_sess_pending(rh))
-			*timeout_ms = 0;
+		/* A connection attempt's deadline, or a record GnuTLS already
+		 * holds, which raises no POLLIN. */
+		fold_timeout(timeout_ms, sess_timeout_ms);
 
 		*nfds = n;
 		return 0;
@@ -1018,16 +1021,17 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		n++;
 	}
 	if (rh->so_type == RC_SOCKET_TCP) {
-		int fd = radcli2_priv_sess_fd(rh);
+		short events;
+		int sess_timeout_ms;
+		int fd = radcli2_priv_sess_poll(rh, &events, &sess_timeout_ms);
 
 		if (fd != -1) {
 			pfds[n].fd = fd;
-			/* Queued records go out once the socket is writable again
-			 * (REQ-NET2-NET-005). */
-			pfds[n].events = radcli2_priv_sess_send_pending(rh) ? POLLIN | POLLOUT : POLLIN;
+			pfds[n].events = events;
 			pfds[n].revents = 0;
 			n++;
 		}
+		fold_timeout(timeout_ms, sess_timeout_ms);
 	} else if (rh->req_fd != -1) {
 		pfds[n].fd = rh->req_fd;
 		pfds[n].events = POLLIN;
@@ -1134,13 +1138,12 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 			rc_log(LOG_WARNING, "radcli2_priv_dae_send_watchdog: no record received in "
 					    "%.1fx watchdog-interval -- presuming the peer dead "
 					    "and reconnecting", 2.5);
+			/* Only begins reconnecting: the watchdog below is queued
+			 * for the new connection (REQ-NET2-NET-001). */
 			if (radcli2_priv_sess_force_reconnect(rh) < 0)
 				return -1;
 		}
 	}
-
-	if (radcli2_priv_sess_fd(rh) == -1)
-		return -1; /* the forced reconnect above left no usable session */
 
 	if (rh->so.static_secret == NULL)
 		return -1;
@@ -2190,6 +2193,7 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 	 * and everything readable is routed to the request or DAE listener
 	 * it belongs to (REQ-NET2-NET-004/005, REQ-NET2-SEND-013). */
 	if (RC_USES_SESSION(rh)) {
+		radcli2_priv_sess_progress(rh);
 		radcli2_priv_sess_flush(rh);
 		radcli2_priv_sess_drain(rh);
 	} else {

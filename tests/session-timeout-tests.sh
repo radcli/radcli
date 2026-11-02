@@ -4,9 +4,10 @@
 #
 # License: BSD
 #
-# REQ-NET-NET-021: requests left unanswered on a TCP or TLS session time
-# out. See tests/session-timeout.c. TLS cases run only when the build has
-# TLS support and openssl is available.
+# REQ-NET-NET-021/022, REQ-NET2-NET-001: requests left unanswered on a TCP
+# or TLS session time out, are resent only over a new connection, and never
+# make radcli_ctx_dispatch() wait. See tests/session-timeout.c. TLS cases
+# run only when the build has TLS support and openssl is available; DTLS cases only need TLS support.
 
 srcdir="${srcdir:-.}"
 
@@ -40,7 +41,7 @@ function run_case {
 		sargs="--cert $CERT --key $KEY"
 		cred=$CERT
 	else
-		sargs="--plain"
+		sargs="--plain --secret $SECRET"
 		cred=$SECRET
 	fi
 
@@ -74,7 +75,18 @@ function run_case {
 	fi
 }
 
-run_case tcp once once-blocking "COPIES=1 CONNECTIONS=1" 3
+run_case tcp once once-blocking "COPIES=1 CONNECTIONS=1" 4
+run_case tcp once once-sendonly "COPIES=1 CONNECTIONS=1" 4
+run_case tcp drop drop-sendonly "RESENT-ON-NEW" 10
+
+if test "${HAVE_TLS:-yes}" = yes; then
+	for cmode in blocking-mute sendfail-once; do
+		if ! ${top_builddir}/tests/session-timeout dtls - - $cmode; then
+			echo "[ FAIL ] dtls $cmode: client reported a failure"
+			exit 1
+		fi
+	done
+fi
 
 if test "${HAVE_TLS:-yes}" = yes && command -v openssl >/dev/null 2>&1; then
 	openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
@@ -84,8 +96,10 @@ if test "${HAVE_TLS:-yes}" = yes && command -v openssl >/dev/null 2>&1; then
 		echo "Could not generate a throwaway test certificate with openssl"
 		exit 1
 	fi
-	run_case tls once once-blocking "COPIES=1 CONNECTIONS=1" 3
+	run_case tls once once-blocking "COPIES=1 CONNECTIONS=1" 4
+	run_case tls once once-sendonly "COPIES=1 CONNECTIONS=1" 4
+	run_case tls stall stall "STALLED" 10
 fi
 
-echo "[  OK  ] unanswered TCP/TLS requests time out"
+echo "[  OK  ] TCP/TLS requests are resent only over a new connection, without blocking dispatch"
 exit 0

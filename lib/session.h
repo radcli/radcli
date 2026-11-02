@@ -53,6 +53,7 @@ typedef struct rc_sess_conn {
 	uint8_t rbuf[RC_MAX_PACKET_LEN]; /* stream transports: the packet being reassembled */
 	size_t rlen;
 	size_t wpos; /* plain TCP: bytes of the record being sent already written */
+	unsigned gen; /* the session's attempt that opened this connection */
 #ifdef HAVE_GNUTLS
 	gnutls_session_t session;
 	unsigned handshake_done; /* guards gnutls_bye(), invalid before a handshake */
@@ -66,6 +67,13 @@ typedef struct rc_sess_ops {
 	/*- Set up the protocol on c's connected, non-blocking socket.
 	 * @return 0 on success, -1 on failure. -*/
 	int (*start)(struct rc_session *s, rc_sess_conn *c, int timeout);
+	/*- Advance the handshake start() set up, without waiting.
+	 * @return 0 once complete, SESS_AGAIN while in progress, or -1. -*/
+	int (*handshake)(rc_sess_conn *c);
+	/*- What an unfinished handshake waits for.
+	 * @param events set to POLLIN or POLLOUT.
+	 * @return milliseconds after which to advance it regardless, or -1. -*/
+	int (*handshake_wait)(rc_sess_conn *c, short *events);
 	/*- Send a whole record; after SESS_AGAIN, repeat with the same record.
 	 * @return len, SESS_AGAIN, or -1 on error. -*/
 	int (*send)(rc_sess_conn *c, const void *buf, size_t len);
@@ -86,6 +94,11 @@ struct sess_pending_send {
 	int kind; /* RADSEC_SEND_* */
 };
 
+/* Phases of a connection attempt (rc_session.phase). */
+#define SESS_IDLE	0 /* none in progress */
+#define SESS_CONNECTING	1 /* waiting for connect() to complete */
+#define SESS_HANDSHAKING	2 /* waiting for the backend's handshake */
+
 typedef struct rc_session {
 	const rc_sess_ops *ops;
 	void *backend;
@@ -99,6 +112,12 @@ typedef struct rc_session {
 	 * while this lock is held (REQ-NET-TEARDOWN-006). */
 	pthread_mutex_t lock;
 	rc_sess_conn conn;
+	/* The connection attempt replacing conn, which stays in place, marked
+	 * for restart, until the attempt succeeds (REQ-NET-TEARDOWN-004). */
+	rc_sess_conn next;
+	unsigned phase;
+	double deadline; /* rc_getmtime() by which the attempt must complete */
+	unsigned gen; /* counts attempts; 0 is never an attempt's */
 	/* Records radcli_ctx_dispatch() could not send at once, oldest first
 	 * (REQ-NET2-NET-005). A record is queued only behind one the backend
 	 * refused, so the head is always partly accepted, which requires it to
