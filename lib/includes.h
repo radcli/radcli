@@ -413,7 +413,7 @@ struct radcli_async_send_st {
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
-				int timeout, int retries,
+				int timeout, int retries, unsigned nonblock,
 				struct radcli_async_send_st *out);
 
 void radcli_transport_async_abort(struct radcli_async_send_st *st);
@@ -501,8 +501,11 @@ int radcli2_priv_sess_ensure_connected(rc_handle *rh);
 #define RADSEC_SEND_DAE_REPLY	1
 #define RADSEC_SEND_RETRANSMIT	2
 #define RADSEC_SEND_WATCHDOG	3
+#define RADSEC_SEND_REQUEST	4
 
-int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind);
+int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind, int slot);
+int radcli2_priv_sess_queued(rc_handle *rh, int slot);
+void radcli2_priv_sess_unqueue(rc_handle *rh, int slot);
 void radcli2_priv_sess_flush(rc_handle *rh);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
 int radcli2_priv_sess_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);

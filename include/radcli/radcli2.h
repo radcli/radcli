@@ -603,7 +603,18 @@ typedef enum radcli_request_flags {
 	 * tried -- no DNS-level fail-over, unlike RADCLI_REQUEST_NONE -- but
 	 * retransmission to that one address, up to the configured retry
 	 * count, still happens for the poll-driven case. */
-	RADCLI_REQUEST_SENDONLY = 1 << 0
+	RADCLI_REQUEST_SENDONLY = 1 << 0,
+	/** Combined with RADCLI_REQUEST_SENDONLY: never wait for the network,
+	 * not even to connect a TCP/TLS/DTLS session or for it to have room
+	 * for the packet. What cannot go out at once is queued and sent by
+	 * later radcli_ctx_dispatch() calls, so r must be driven to completion
+	 * (radcli_request_done()); a connection that fails before the packet
+	 * is sent counts as a lost packet, ending in RADCLI_TIMEOUT once the
+	 * retries are exhausted. radcli_request_free() before
+	 * radcli_ctx_dispatch() has sent the packet cancels it. Name
+	 * resolution may still block. Without RADCLI_REQUEST_SENDONLY,
+	 * radcli_request_perform() fails. */
+	RADCLI_REQUEST_NONBLOCK = 1 << 1
 } radcli_request_flags;
 
 radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send);

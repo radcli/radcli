@@ -357,30 +357,38 @@ REQ-NET2-SEND-016, REQ-NET-NET-010, REQ-DAE-SEC-015
 session to become writable, whatever it sends: a DAE reply, a
 `RADCLI_REQUEST_SENDONLY` retransmit, or a watchdog. Each makes one
 non-blocking attempt; what cannot go out at once waits in one per-session
-queue of 8 records, sent in order, which `radcli_ctx_dispatch()` flushes
-first (non-blocking) and for which `radcli_ctx_get_poll()` asks for
-`POLLOUT` while it is non-empty. A record the backend has partly accepted
-(GnuTLS's `GNUTLS_E_AGAIN`, or a short TCP write) MUST stay at the head until
-it is sent in full — both resume only from the same data passed again — so
-it is never dropped or overtaken. A queued watchdog counts as that round's attempt, so the
-watchdog is not due again until the next interval. When the queue is full: a
-retransmit is skipped, as if the packet were lost (its timeout still runs); a
-watchdog is skipped (likewise counting as that round's attempt,
-REQ-NET2-SEND-010); a DAE reply displaces the oldest queued DAE reply other
-than the head, or is dropped itself if there is none (dae.md's
-REQ-DAE-SEC-013). A blocking exchange may wait, as its contract
-allows: it first sends everything queued, then its own request. A new
-connection attempt discards the queue, whose records belong to the failed
-connection; a retransmit or watchdog sent while the attempt is in progress
-is queued for the new connection, a DAE reply fails (its request arrived on
-the failed one).
+queue, sent in order, which `radcli_ctx_dispatch()` flushes first
+(non-blocking) and for which `radcli_ctx_get_poll()` asks for `POLLOUT`
+while it is non-empty. The queue copies at most 8 records of its own (DAE
+replies and watchdogs). A request's packet — a retransmit, or the first
+transmission of a `RADCLI_REQUEST_NONBLOCK` request (REQ-NET2-SEND-018) —
+is queued by reference to its in-flight registry slot instead, at most
+once per request, so it never finds the queue full; a retransmit falling
+due while the request's packet is still queued is skipped, its timeout
+running on. A request's packet leaves the queue when its slot is vacated
+(reply, timeout, or `radcli_request_free()`). A record the backend has
+partly accepted (GnuTLS's `GNUTLS_E_AGAIN`, or a short TCP write) MUST stay
+at the head until it is sent in full — both resume only from the same data
+passed again — so it is never dropped or overtaken; if its slot is vacated
+meanwhile, the session keeps its own copy to finish it. A queued watchdog
+counts as that round's attempt, so the watchdog is not due again until the
+next interval. When the 8 copies are in use: a watchdog is skipped
+(likewise counting as that round's attempt, REQ-NET2-SEND-010); a DAE reply
+displaces the oldest queued DAE reply other than the head, or is dropped
+itself if there is none (dae.md's REQ-DAE-SEC-013). A blocking exchange
+may wait, as its contract allows: it first sends everything queued, then
+its own request. A new connection attempt discards the queue, whose
+records belong to the failed connection; a request's packet, a retransmit
+or a watchdog sent while the attempt is in progress is queued for the new
+connection, a DAE reply fails (its request arrived on the failed one).
 **Strength:** MUST
 **Status:** DERIVED — fixes a bug: a retransmit (and, over the shared
 session, any send behind a deferred DAE reply) waited up to
 `radius_timeout` for write room inside `radcli_ctx_dispatch()`, and the DAE
 reply queue's overflow could drop a partly-sent record.
 **Source:** lib/session.c (`radcli2_priv_sess_send_queued()`,
-`radcli2_priv_sess_flush()`, `sess_sendto()`, `tcp_send()`, `attempt_begin()`); lib/dae.c
+`radcli2_priv_sess_flush()`, `radcli2_priv_sess_unqueue()`, `sess_sendto()`,
+`tcp_send()`, `attempt_begin()`); lib/dae.c
 (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`, `send_reply()`,
 `radcli2_priv_dae_send_watchdog()`); lib/sendserver.c
 (`radcli2_priv_reqreg_service_timeouts()`)
@@ -393,7 +401,7 @@ retransmitting; every `radcli_ctx_dispatch()` call must return within
 500ms. Confirmed failing (2s, a retransmit waiting for write room) against
 the unfixed code.
 **Links:** REQ-NET2-NET-001, REQ-NET2-SEND-013, REQ-NET2-SEND-010,
-REQ-DAE-SEC-013, REQ-WATCHDOG-NET-001
+REQ-NET2-SEND-018, REQ-DAE-SEC-013, REQ-WATCHDOG-NET-001
 
 ---
 
@@ -541,7 +549,9 @@ On a TLS/DTLS `ctx` whose session is not yet established (or is marked for
 restart), this call MUST establish it before transmitting, exactly as the
 default flags do (REQ-NET-NET-005's deferred, first-use handshake) — it
 MUST NOT fail merely because no earlier call happened to connect the
-session first.
+session first. `RADCLI_REQUEST_NONBLOCK` (REQ-NET2-SEND-018) is the
+exception: with it, the session is connected and the packet sent by later
+`radcli_ctx_dispatch()` calls instead.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c (`radcli_request_perform()`'s
@@ -632,7 +642,9 @@ only by `radcli_ctx_free()`. This is what makes fire-and-forget under
 with no separate close step for the caller to remember. A request that
 never called `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)`, or whose
 outcome already reached a terminal result, MUST be unaffected (no
-double-release of an already-vacated slot).
+double-release of an already-vacated slot). A packet of `r`'s still queued
+on a TCP/TLS/DTLS session leaves the queue with the slot
+(REQ-NET2-NET-005, REQ-NET2-SEND-018).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c's `radcli_request_free()` calling into
@@ -792,6 +804,62 @@ accepted as that complete reply.
 confirmed failing (`RADCLI_OK`) against the unfixed code.
 **Links:** REQ-NET-ERR-005, REQ-NET2-SEND-013, REQ-NET2-SEND-016,
 REQ-GEN-TEST-003
+
+### REQ-NET2-SEND-018 — RADCLI_REQUEST_NONBLOCK submits a request without waiting for the network
+
+**Requirement:** `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY |
+RADCLI_REQUEST_NONBLOCK)` MUST reserve `r`'s Identifier and encode its
+packet exactly as `RADCLI_REQUEST_SENDONLY` does (REQ-NET2-SEND-012/016),
+then make one non-blocking attempt to send it, and MUST NOT wait for the
+network. On a TCP/TLS/DTLS `ctx` whose session is not established, is
+connecting, or cannot take the packet at once, the packet MUST be queued
+on the session (REQ-NET2-NET-005), beginning a connection attempt if
+none is in progress (REQ-NET-NET-023), and sent by a later
+`radcli_ctx_dispatch()`. On UDP, a send the socket refuses with `EAGAIN`
+counts as a lost packet. Either way `r`'s timeout runs from this call and
+its outcome is read with `radcli_request_done()` (REQ-NET2-SEND-013). A
+packet whose connection fails before it goes out is lost with that
+connection: it is sent again over the next one at its deadline, like any
+retransmission (REQ-NET-NET-022), and `r` ends in `RADCLI_TIMEOUT` once
+its retries are exhausted. The call returns `RADCLI_ERROR` only for what
+fails before the packet is sent or queued: no free Identifier, encoding,
+name resolution, a connection attempt that cannot begin, or a send error
+on an established connection. Name resolution is the one wait that
+remains (REQ-NET2-NET-001).
+
+`radcli_request_free()` on such a request MUST remove its packet from the
+session's queue if it is still there, so a request freed before its first
+`radcli_ctx_dispatch()` is never sent; a packet the backend has partly
+accepted is still sent in full (REQ-NET2-NET-005), and its reply is
+ignored. `RADCLI_REQUEST_NONBLOCK` without `RADCLI_REQUEST_SENDONLY` MUST
+return `RADCLI_ERROR` and leave `r` unperformed.
+**Strength:** MUST
+**Status:** DERIVED — addresses #147: `RADCLI_REQUEST_SENDONLY` waits for
+the TCP connect, the TLS/DTLS handshake, and for write room on a congested
+session; an event-loop application had no way to submit a request without
+those waits.
+**Source:** include/radcli/radcli2.h (`RADCLI_REQUEST_NONBLOCK`);
+lib/request.c (`radcli_request_perform()`); lib/sendserver.c
+(`radcli_transport_send_async()`, `radcli2_priv_reqreg_release()`,
+`radcli2_priv_reqreg_service_timeouts()`); lib/session.c
+(`radcli2_priv_sess_send_queued()`, `radcli2_priv_sess_unqueue()`)
+**Acceptance:** [SEND] negative, unit, local — `tests/request.c`:
+`RADCLI_REQUEST_NONBLOCK` alone returns `RADCLI_ERROR`, after which
+`RADCLI_REQUEST_SENDONLY | RADCLI_REQUEST_NONBLOCK` to the unreachable
+192.0.2.1 returns `RADCLI_OK` and is driven to `RADCLI_TIMEOUT`. [NET]
+negative, local, no root — `tests/session-timeout-tests.sh`'s
+`nonblock-mute` case: a TLS peer accepts the TCP connection and never
+answers the handshake; `radcli_request_perform()` and every
+`radcli_ctx_dispatch()` call must return within 200 ms and the request
+must end in `RADCLI_TIMEOUT`. [SEND] positive, local, no root — its
+`nonblock-burst` case, over TCP and TLS: 20 requests submitted before the
+connection is established, 5 of them freed before the first
+`radcli_ctx_dispatch()`; the other 15 must succeed and the peer must
+receive exactly 15. Both confirmed failing against the code before this
+flag existed.
+**Links:** REQ-NET2-NET-001, REQ-NET2-NET-005, REQ-NET2-SEND-012,
+REQ-NET2-SEND-013, REQ-NET2-SEND-014, REQ-NET2-SEND-016, REQ-NET-NET-022,
+REQ-NET-NET-023
 
 ---
 
