@@ -51,22 +51,35 @@ callers can extend it (`REQ-NET-NET-002`).
 
 ## NET — transport abstraction, connection lifecycle, retry loop
 
-### REQ-NET-NET-001 — Transport is selected once, from config, and is opaque to `rc_send_server()`
+### REQ-NET-NET-001 — Transport is selected once, from config, and `rc_send_server()` does all I/O through `rh->so`
 
 **Requirement:** `rc_apply_config()` MUST select exactly one of UDP, TCP, TLS, or DTLS based on
 the `serv-type`/`serv-auth-type` config option (default `udp` when unset) and populate
-`rh->so`/`rh->so_type` accordingly, before any `rc_send_server()`/`rc_send_server_ctx()` call.
-`rc_send_server_ctx()` MUST perform all I/O through `rh->so`'s function pointers
-(`get_fd`, `sendto`, `recvfrom`, `close_fd`, `lock`, `unlock`) and MUST NOT contain
-transport-specific branches (no `if (so_type == RC_SOCKET_TLS)` in `sendserver.c`), so that
-switching transport is a config-only change.
+`rh->so`/`rh->so_type` accordingly, before any `rc_send_server()`/`rc_send_server_ctx()` call,
+so that switching transport is a config-only change. `lib/sendserver.c` MUST perform all I/O
+through `rh->so`'s function pointers (`get_fd`, `get_active_fd`, `sendto`, `recvfrom`,
+`close_fd`, `lock`, `unlock`) or the session helpers built on the same vtable
+(`radcli2_priv_sess_*()`), never on a socket directly. It MAY branch on the transport only
+for protocol differences, which are of two kinds: whether `ctx` carries every request over one
+persistent session (`RC_USES_SESSION()`: TCP, TLS, DTLS — Identifiers reserved from the shared
+registry, packets that are not this exchange's reply routed onward, already-received data
+checked before `poll()`, the session used instead of the UDP request socket), and rules
+specific to RadSec (TLS/DTLS: no Message-Authenticator presence/position requirement,
+REQ-NET-SEC-007; server-initiated Disconnect/CoA requests routed to dynamic authorization,
+REQ-NET2-NET-004).
 **Strength:** MUST
-**Status:** DERIVED
-**Source:** lib/config.c:562-593 (`rc_apply_config`); lib/sendserver.c:496,503,509,532,685,727,
-719,744,757,788,812,821,830,839,855 (all I/O and lock/unlock routed through `sfuncs`)
-**Acceptance:** [NET] unit, local — `grep -n 'so_type' lib/sendserver.c` returns no matches
-outside comments; a config with `serv-type=tcp` vs `serv-type=tls` reaches `rc_send_server_ctx()`
-through the same code path with a different `rh->so`.
+**Status:** DERIVED — corrected 2026-11-02: an earlier revision required `sendserver.c` to
+contain no transport branch at all, which the RadSec-specific rules above had already
+contradicted.
+**Source:** lib/config.c (`radcli2_priv_apply_config()`); lib/sendserver.c (`sfuncs` I/O in
+`radcli_transport_exchange()`/`radcli_transport_send_async()`; transport branches in
+`decode_reply()`, `radcli_transport_exchange()`, `radcli2_priv_reqreg_pick_id()`,
+`radcli2_priv_sess_route()`, `radcli2_priv_reqreg_service_timeouts()`,
+`radcli_transport_send_async()`)
+**Acceptance:** [NET] code-review — every `so_type`/`RC_USES_SESSION()` match in
+`lib/sendserver.c` is one of the two kinds above; no socket call there bypasses `rh->so`. A
+config with `serv-type=tcp` vs `serv-type=tls` reaches `rc_send_server_ctx()` through the same
+code path with a different `rh->so`.
 **Links:** REQ-CONFIG-* (serv-type parsing, see `config.md`)
 
 ### REQ-NET-NET-002 — `rc_sockets_override` MUST remain an internal abstraction, not a public extension point
@@ -657,22 +670,29 @@ risk under `-Dtls=disabled`
 residual timing side-channel.
 **Links:** REQ-GEN-SEC-006, REQ-GEN-TECH-001
 
-### REQ-NET-SEC-011 — TLS/DTLS transport MUST NOT proceed without either X.509 CA trust or a PSK credential configured
+### REQ-NET-SEC-011 — TLS/DTLS transport MUST NOT establish a session without either X.509 CA trust or a PSK credential configured
 
-**Requirement:** `rc_init_tls()` MUST fail (`ret = -1`, `LOG_CRIT`) if neither a CA file (or
-cert+key pair) nor a PSK key was configured — either via `authserver`'s secret in
-`psk@user@hexkey` form, or via `radcli2.h`'s `radcli_ctx_set_tls_psk()`
-(`doc/requirements/config2.md` `REQ-CONFIG2-SECRET-002`), which `rc_init_tls()` checks first and
-which sets the same `st->psk_cred` this requirement's `cred_set` check reads regardless of which
-path set it — `cred_set` MUST be nonzero before `tls_start()` begins the handshake. This prevents silently
-establishing an anonymous/unauthenticated TLS session (GnuTLS would otherwise be willing to
-negotiate anonymous key exchange under some priority strings) that provides confidentiality
-without server authentication.
-**Strength:** MUST NOT (proceed with `cred_set == 0`) ; MUST (fail closed)
-**Status:** DERIVED
-**Source:** lib/tls.c (`rc_init_tls()`'s credential setup, `tls_start()`'s `cred_set == 0` check)
-**Acceptance:** [SEC] negative, local — a config with `serv-type=tls` and neither `tls-ca-file`
-nor a `psk@...` secret fails `rc_apply_config()`.
+**Requirement:** When neither a CA file (or cert+key pair) nor a PSK key was configured —
+via `authserver`'s secret in `psk@user@hexkey` form, the `tls-psk-identity`/`tls-psk-key`
+options, or `radcli2.h`'s `radcli_ctx_set_tls_psk()` (`doc/requirements/config2.md`
+`REQ-CONFIG2-SECRET-002`) — no TLS/DTLS session MUST ever be established, so that radcli never
+sends a request over an anonymous/unauthenticated session that provides confidentiality
+without server authentication. `rc_init_tls()` accepts such a configuration (`rc_apply_config()`
+succeeds); the guarantee comes at the handshake: `tls_start()` gives GnuTLS neither PSK nor
+certificate credentials and uses GnuTLS's default priority string, which offers no anonymous
+key exchange, so no key exchange can succeed and every request fails without being sent.
+**Strength:** MUST NOT (establish a session without CA trust or a PSK) ; MUST (fail closed)
+**Status:** DERIVED — corrected 2026-11-02: an earlier revision required `rc_init_tls()` to
+reject the configuration, citing a `cred_set == 0` check that the credential setup can never
+reach (`cred_set` is set whenever a credential struct exists, configured or not); the
+fail-closed outcome holds at the handshake instead.
+**Source:** lib/tls.c (`rc_init_tls()`'s credential setup; `tls_start()`'s credential and
+priority selection)
+**Acceptance:** [SEC] negative, local — with `serv-type=tls` and neither `tls-ca-file` nor any
+PSK configured, `radcli_ctx_apply()` succeeds and a `radcli_aaa()` call against a certificate-
+only TLS peer fails, the peer reporting no completed handshake (verified manually 2026-11-02:
+GnuTLS's handshake fails, the peer sees "no shared cipher").
+`[UNDOCUMENTED-BY-TEST: not yet an automated test.]`
 
 ### REQ-NET-SEC-012 — PSK priority string MUST exclude TLS 1.0 and non-PSK key exchange when PSK credentials are used
 
