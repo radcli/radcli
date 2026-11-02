@@ -24,6 +24,7 @@ if have_gnutls
   shell_tests += ['request-tls-secret-tests.sh']
   shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh',
                   'radsec-shared-ids-tests.sh', 'radsec-send-backpressure-tests.sh']
+  shell_tests += ['radsec-framing-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
@@ -148,6 +149,11 @@ if have_gnutls
   # (tests/request-tls-secret-tests.sh, peer: tests/request-tls-secret-
   # server.py), same argv/build shape as dae_radsec_watchdog above.
   request_tls_secret = executable('request-tls-secret', 'request-tls-secret.c',
+    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+    dependencies: link_libs, install: false)
+  # TLS stream framing test (tests/radsec-framing-tests.sh, peer:
+  # tests/radsec-framing-server.py).
+  radsec_framing = executable('radsec-framing', 'radsec-framing.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
   config_unit = executable('config-unit', 'config-unit.c',

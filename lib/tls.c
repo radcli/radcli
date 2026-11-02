@@ -71,6 +71,8 @@ typedef struct tls_int_st {
 	unsigned skip_hostname_check; /* whether to verify hostname */
 	time_t last_msg;	/* last send OR receive -- when the next watchdog is due */
 	time_t last_recv;	/* last receive only -- REQ-WATCHDOG-NET-003's dead-peer clock */
+	uint8_t rbuf[RC_MAX_PACKET_LEN]; /* TLS only: the packet being reassembled */
+	size_t rlen;
 } tls_int_st;
 
 /* REQ-NET2-NET-005: capacity of a session's send queue. */
@@ -180,6 +182,48 @@ give_up:
 	return -1;
 }
 
+/*- Read towards one RADIUS packet on st's session without waiting, on TLS
+ * reassembling it from the stream by its Length field (RFC 6614 SS3.4 (1)).
+ * Reads no further than the packet's end, so what follows stays in GnuTLS.
+ *
+ * @param st the session to read from.
+ * @param buf destination for the packet.
+ * @param cap buf's capacity in bytes.
+ * @return the packet's length, else a gnutls_record_recv() result <= 0 or
+ *  GNUTLS_E_UNEXPECTED_PACKET_LENGTH on a framing error.
+ -*/
+static int tls_recv_packet(tls_st *st, void *buf, size_t cap)
+{
+	tls_int_st *ses = &st->ctx;
+	size_t want = 4; /* Code, Identifier, Length */
+	int ret;
+
+	if (st->flags & SEC_FLAG_DTLS)
+		return gnutls_record_recv(ses->session, buf, cap);
+
+	for (;;) {
+		if (ses->rlen >= 4) {
+			want = ((size_t)ses->rbuf[2] << 8) | ses->rbuf[3];
+			/* RFC 6613 SS2.6.4: a bad Length leaves the stream unframed. */
+			if (want < AUTH_HDR_LEN || want > RC_MAX_PACKET_LEN || want > cap) {
+				rc_log(LOG_ERR, "%s: invalid RADIUS packet length %u on the TLS session",
+				       __func__, (unsigned)want);
+				return GNUTLS_E_UNEXPECTED_PACKET_LENGTH;
+			}
+			if (ses->rlen == want) {
+				memcpy(buf, ses->rbuf, want);
+				ses->rlen = 0;
+				return (int)want;
+			}
+		}
+
+		ret = gnutls_record_recv(ses->session, ses->rbuf + ses->rlen, want - ses->rlen);
+		if (ret <= 0)
+			return ret;
+		ses->rlen += ret;
+	}
+}
+
 /*- rc_sockets_override.sendto: send buf over st's GnuTLS session,
  * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via
  * tls_wait_or_give_up(), restarting the session first if needed.
@@ -268,14 +312,14 @@ static int tls_unlock(void *ptr)
 	return pthread_mutex_unlock(&st->lock);
 }
 
-/*- rc_sockets_override.recvfrom: read one record from st's GnuTLS session,
- * retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via tls_wait_or_give_up().
- * The record may be any packet type (RFC 6614 §2.1/§2.5, RFC 7360 §2.2);
- * the caller routes what is not its own reply.
+/*- rc_sockets_override.recvfrom: read one RADIUS packet from st's GnuTLS
+ * session, retrying on GNUTLS_E_AGAIN/GNUTLS_E_INTERRUPTED via
+ * tls_wait_or_give_up(). The packet may be any type (RFC 6614 §2.1/§2.5,
+ * RFC 7360 §2.2); the caller routes what is not its own reply.
  *
  * @param ptr the tls_st for this session.
  * @param sockfd unused; part of the recvfrom calling convention.
- * @param buf destination buffer for the received record.
+ * @param buf destination buffer for the received packet.
  * @param len buf's capacity in bytes.
  * @param flags unused; part of the recvfrom calling convention.
  * @param src_addr unused; part of the recvfrom calling convention.
@@ -292,7 +336,7 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 	int ret;
 
 	for (;;) {
-		ret = gnutls_record_recv(st->ctx.session, buf, len);
+		ret = tls_recv_packet(st, buf, len);
 		if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED) {
 			if (tls_wait_or_give_up(st, POLLIN, "receive") < 0)
 				return -1;
@@ -308,18 +352,6 @@ static ssize_t tls_recvfrom(void *ptr, int sockfd,
 		errno = EINTR;
 		return -1;
 	}
-
-	/* RFC6614 says: "After the TLS session is established, RADIUS packet payloads are
-	 * exchanged over the encrypted TLS tunnel.  In RADIUS/UDP, the
-	 * packet size can be determined by evaluating the size of the
-	 * datagram that arrived.  Due to the stream nature of TCP and TLS,
-	 * this does not hold true for RADIUS/TLS packet exchange.",
-	 *
-	 * That is correct in principle but it fails to associate the length with
-	 * the TLS record boundaries. Here, when in TLS, we assume that a single TLS
-	 * record holds a single radius packet. It wouldn't make sense anyway to send
-	 * multiple TLS records for a single packet.
-	 */
 
 	if (ret <= 0) {
 		rc_log(LOG_ERR, "%s: error in receiving: %s", __func__,
@@ -965,15 +997,16 @@ int radcli2_priv_tls_send_queued(rc_handle *rh, const void *buf, size_t len, int
 }
 
 /*- Make one non-blocking attempt (never retries on GNUTLS_E_AGAIN, unlike
- * tls_recvfrom()) to read one already-available record from rh's TLS/DTLS
- * session, for lib/sendserver.c's radcli2_priv_radsec_drain() to route.
+ * tls_recvfrom()) to read one already-available RADIUS packet from rh's
+ * TLS/DTLS session, for lib/sendserver.c's radcli2_priv_radsec_drain() to
+ * route. A partly received TLS packet is kept for the next call.
  *
  * @param rh a handle to parsed configuration.
- * @param buf destination for the record.
+ * @param buf destination for the packet.
  * @param cap buf's capacity in bytes.
- * @return the record length (>0) on success, 0 if nothing is ready or no
- *  session is established, -1 on a session error (also marks the session
- *  for reconnection, same as tls_recvfrom()'s own error handling).
+ * @return the packet length (>0) on success, 0 if no whole packet is ready
+ *  or no session is established, -1 on a session error (also marks the
+ *  session for reconnection, same as tls_recvfrom()'s own error handling).
  -*/
 int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 {
@@ -987,7 +1020,7 @@ int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap)
 	if (st->ctx.init == 0 || st->ctx.need_restart != 0)
 		return 0; /* reconnecting is an ordinary send's job, not a read's */
 
-	ret = gnutls_record_recv(st->ctx.session, buf, cap);
+	ret = tls_recv_packet(st, buf, cap);
 
 	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
 		return 0;

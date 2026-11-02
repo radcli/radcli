@@ -385,6 +385,35 @@ the connection, then calls `radcli_ctx_dispatch()` and
 code, passing after.
 **Links:** REQ-NET-NET-005, REQ-NET2-NET-003, REQ-NET2-SEND-012
 
+### REQ-NET-NET-020 — A TLS session yields whole RADIUS packets, delimited by their Length field, not by TLS record boundaries
+
+**Requirement:** Every read from a TLS (not DTLS) session — `tls_recvfrom()`
+for a blocking exchange and `radcli2_priv_tls_try_recv()` for
+`radcli_ctx_dispatch()` — MUST return exactly one complete RADIUS packet,
+delimited by the packet's own Length field (RFC 6614 §3.4 (1)), however the
+peer split the stream into TLS records: a packet spanning several records
+MUST be reassembled, and several packets in one record MUST be returned one
+per read, the rest staying available to the next read (and to
+`radcli2_priv_tls_pending()`). A partly received packet MUST persist across
+`radcli2_priv_tls_try_recv()` calls, which return "nothing ready" until it
+completes, and MUST be discarded with the session on restart. A Length
+outside [20, 4096] is a framing error: the session MUST be marked for restart
+so that it is closed rather than read further (RFC 6613 §2.6.4). A DTLS
+session keeps reading one packet per record (RFC 7360 §2.2).
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: each read returned one TLS record as one
+packet, so a reply split across records was rejected as truncated and two
+packets in one record were seen as one.
+**Source:** lib/tls.c (`tls_recvfrom()`, `radcli2_priv_tls_try_recv()`)
+**Acceptance:** [NET] positive, local — `tests/radsec-framing-tests.sh`: a
+peer that splits a reply across two TLS records and one that coalesces two
+replies into one record both complete, on a blocking
+`radcli_request_perform()` and on `RADCLI_REQUEST_SENDONLY` requests driven by
+`radcli_ctx_dispatch()`. [NET][ERR] negative, local — a reply whose Length
+is 4 makes the next request use a new TLS connection rather than the one the
+error arrived on.
+**Links:** REQ-NET-ERR-002, REQ-NET-ERR-005, REQ-NET2-NET-004
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling
