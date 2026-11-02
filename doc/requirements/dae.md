@@ -184,7 +184,7 @@ the sole authorization for who may send a CoA/Disconnect-Request. This is the on
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 6614 §2.1/§3.4(3) (single-connection model, no dae-server ACL to fall back to); REQ-DAE-INIT-002 (UDP counterpart)
-**Acceptance:** [INIT] negative, unit, local — `radcli_dae_new()` (`lib/dae.c`) reads the same `tls-verify-hostname` value `lib/tls.c`'s `init_session()` already reads and refuses construction (`NULL`, error logged) when it is disabled, under `serv-type = tls`/`dtls` with `dae-accept = yes`.
+**Acceptance:** [INIT] negative, unit, local — `radcli_dae_new()` (`lib/dae.c`) reads the same `tls-verify-hostname` value `lib/tls.c`'s `tls_start()` already reads and refuses construction (`NULL`, error logged) when it is disabled, under `serv-type = tls`/`dtls` with `dae-accept = yes`.
 **Links:** REQ-DAE-INIT-002
 
 #### REQ-DAE-INIT-008 — UDP-only options left set under RadSec MUST warn, never silently disappear or fail construction
@@ -235,7 +235,7 @@ unreachable until the application happens to make its first `rc_auth()`/
 `rc_acct()` call.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c (`radcli2_priv_tls_ensure_connected()`); net2.md's REQ-NET2-NET-001 (radcli_dae_start()'s UDP counterpart binds immediately)
+**Source:** lib/session.c (`radcli2_priv_sess_ensure_connected()`); net2.md's REQ-NET2-NET-001 (radcli_dae_start()'s UDP counterpart binds immediately)
 **Acceptance:** [INIT] positive, unit, local — under `serv-type = tls`/`dtls` with `dae-accept = yes`, `radcli_dae_start()` returns 0 only once the handshake has actually completed (`radcli2_priv_tls_fd()` reports a valid descriptor immediately afterward), without any ordinary `rc_auth()`/`rc_acct()` call having been made first.
 **Links:** REQ-NET2-NET-001
 
@@ -495,7 +495,7 @@ requirement hold at once.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 6614 (implicit: a persistent connection means a reply born from processing inbound data can be delayed by outbound backpressure, unlike UDP's fire-and-forget replies); REQ-GEN-SEC-005 (no unbounded packet-driven allocation)
-**Acceptance:** [SEC] positive and negative, local — `tests/dae-radsec-backpressure.c`/`tests/radsec-backpressure-server.py`: the peer shrinks its own TCP receive buffer and sends a 200-message burst of Disconnect-Requests without ever reading a reply, deterministically filling the send-side TCP window; every `radcli_ctx_dispatch()` call on the client side is timed and must return within a short bound (500ms) regardless -- proving it defers to the session's send queue (`lib/tls.c`'s `radcli2_priv_tls_send_queued()`, one non-blocking attempt, 8 slots, oldest unstarted DAE reply dropped on overflow) rather than blocking inside `tls_sendto()`'s ordinary retry-with-timeout path the way an outbound Access-Request legitimately may. UDP replies do not queue (a UDP `sendto()` on a non-blocking socket does not block the way a stalled TCP/TLS send can).
+**Acceptance:** [SEC] positive and negative, local — `tests/dae-radsec-backpressure.c`/`tests/radsec-backpressure-server.py`: the peer shrinks its own TCP receive buffer and sends a 200-message burst of Disconnect-Requests without ever reading a reply, deterministically filling the send-side TCP window; every `radcli_ctx_dispatch()` call on the client side is timed and must return within a short bound (500ms) regardless -- proving it defers to the session's send queue (`lib/session.c`'s `radcli2_priv_sess_send_queued()`, one non-blocking attempt, 8 slots, oldest unstarted DAE reply dropped on overflow) rather than blocking inside `sess_sendto()`'s ordinary retry-with-timeout path the way an outbound Access-Request legitimately may. UDP replies do not queue (a UDP `sendto()` on a non-blocking socket does not block the way a stalled TCP/TLS send can).
 **Links:** REQ-DAE-NET-004
 
 #### REQ-DAE-SEC-014 — Identifier space is separated per packet direction on a shared connection
@@ -509,7 +509,7 @@ ends.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 5176 §2.3 (Identifier scope); REQ-DAE-SEC-005
-**Acceptance:** [SEC] unit, local, by construction — `lib/tls.c`'s `tls_recvfrom()` demux diverts any record coded Disconnect-Request/CoA-Request into `lib/dae.c`'s own duplicate-suppression table (`dae->slots[]`, keyed by that Identifier) before it can ever reach `radcli_transport_exchange()`'s reply-matching (`rc_check_reply()`, matched against its own `seq_nbr`, a wholly separate variable); every other code is left for `rc_check_reply()` and never touches `dae->slots[]`. The two Identifier spaces are consulted by disjoint code paths, not merely by convention.
+**Acceptance:** [SEC] unit, local, by construction — `lib/sendserver.c`'s `radcli2_priv_sess_route()` diverts any record coded Disconnect-Request/CoA-Request into `lib/dae.c`'s own duplicate-suppression table (`dae->slots[]`, keyed by that Identifier) before it can ever reach `radcli_transport_exchange()`'s reply-matching (`rc_check_reply()`, matched against its own `seq_nbr`, a wholly separate variable); every other code is left for `rc_check_reply()` and never touches `dae->slots[]`. The two Identifier spaces are consulted by disjoint code paths, not merely by convention.
 **Links:** REQ-DAE-SEC-005
 
 #### REQ-DAE-SEC-015 — a RadSec request is honoured only from the session it arrived on
@@ -523,7 +523,7 @@ verification enabled; this is the corresponding per-packet guarantee).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** RFC 6614 §2.1 (one connection); REQ-DAE-SEC-001 (UDP counterpart); REQ-DAE-INIT-007
-**Acceptance:** [SEC] unit, local, by construction — satisfied without a separate runtime check to write: `radcli2_priv_dae_on_radsec_packet()` (`lib/dae.c`) is reachable only from `lib/sendserver.c`'s `radcli2_priv_radsec_route()`, whose only input is a record read from `lib/tls.c`'s own `gnutls_session_t` (by a blocking exchange's `tls_recvfrom()` or `radcli_ctx_dispatch()`'s `radcli2_priv_tls_try_recv()`), and one `rc_handle` holds exactly one such session (`tls_st.ctx`) -- there is no second session within this process a packet could instead have arrived on for `radcli_dae_new()`'s own `rh` to mistakenly honour. A packet replayed onto a genuinely different TLS/DTLS connection is, definitionally, a different `rc_handle`'s session, not reachable from this one at all.
+**Acceptance:** [SEC] unit, local, by construction — satisfied without a separate runtime check to write: `radcli2_priv_dae_on_radsec_packet()` (`lib/dae.c`) is reachable only from `lib/sendserver.c`'s `radcli2_priv_sess_route()`, whose only input is a record read from `lib/tls.c`'s own `gnutls_session_t` (by a blocking exchange's `sess_recvfrom()` or `radcli_ctx_dispatch()`'s `radcli2_priv_sess_try_recv()`), and one `rc_handle` holds exactly one such session (`rc_session.conn`) -- there is no second session within this process a packet could instead have arrived on for `radcli_dae_new()`'s own `rh` to mistakenly honour. A packet replayed onto a genuinely different TLS/DTLS connection is, definitionally, a different `rc_handle`'s session, not reachable from this one at all.
 **Links:** REQ-DAE-SEC-001, REQ-DAE-INIT-007
 
 #### REQ-DAE-SEC-016 — dynamic authorization switched off under RadSec still answers with a protocol-level NAK, not silence
@@ -707,7 +707,7 @@ can log or retry rather than assume delivery.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** REQ-GEN-STYLE-* (error propagation)
-**Acceptance:** [ERR] negative, local — `send_reply()`/`reply_and_record()` (`lib/dae.c`) already return -1 when the underlying `sendto()`/`radcli2_priv_tls_send_queued()` call fails, and `radcli_dae_reply()`/`_reply_error()` propagate that return value unchanged. `tests/dae-codec.c` (test 18) defers a request's reply, closes the dae's own socket out from under it, then confirms `radcli_dae_reply()` returns -1 rather than reporting success for a reply that was silently dropped.
+**Acceptance:** [ERR] negative, local — `send_reply()`/`reply_and_record()` (`lib/dae.c`) already return -1 when the underlying `sendto()`/`radcli2_priv_sess_send_queued()` call fails, and `radcli_dae_reply()`/`_reply_error()` propagate that return value unchanged. `tests/dae-codec.c` (test 18) defers a request's reply, closes the dae's own socket out from under it, then confirms `radcli_dae_reply()` returns -1 rather than reporting success for a reply that was silently dropped.
 **Links:** REQ-DAE-NET-004
 
 ### TEARDOWN — lifetimes

@@ -117,9 +117,8 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 
 	/* Matches rc_select_aaa_server()'s (lib/buildreq.c) rule: an
 	 * Accounting-Request goes to authserver, not acctserver, over
-	 * TLS/DTLS, which carry both request types over one connection. */
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS ||
-	    code == RADCLI_CODE_ACCESS_REQUEST) {
+	 * TCP/TLS/DTLS, which carry both request types over one connection. */
+	if (RC_USES_SESSION(rh) || code == RADCLI_CODE_ACCESS_REQUEST) {
 		optname = "authserver";
 		optid = OPT_AUTHSERVER;
 		type = AUTH;

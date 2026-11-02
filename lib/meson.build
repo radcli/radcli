@@ -43,7 +43,7 @@ dict_rfc_gen_h = custom_target('dict_rfc_gen_h',
 # not the other way around.
 lib2_sources = [
   'sendserver.c', 'avp.c', 'request.c', 'aaa2.c', 'config.c', 'config2.c', 'dict2.c', 'dict2-parse.c',
-  'ip_util.c', 'log.c', 'util.c', 'rc-crypto.c', 'rc-random.c', 'tls.c',
+  'ip_util.c', 'log.c', 'util.c', 'rc-crypto.c', 'rc-random.c', 'tls.c', 'session.c',
   'ccan/list/list.c', 'dae.c',
   dict_rfc_gen_h,
 ]

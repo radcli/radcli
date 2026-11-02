@@ -34,7 +34,7 @@
  *  4. Make request 2 - fails because server closed the TLS connection.
  *     need_restart flag is set.
  *  5. Make request 3 - restart_session() is called, but server is still down,
- *     so init_session() fails; need_restart stays set.
+ *     so conn_open() fails; need_restart stays set.
  *  6. Signal shell: "restart_server".
  *  7. Wait for shell: "server_up" - shell has restarted radiusd.
  *  8. Make request 4 - this is the key: need_restart is still set from
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
 	/* radcli does not touch process-wide signal disposition itself (that's
 	 * for the application embedding it to decide) -- a write to a peer
 	 * that already reset the connection (e.g. the graceful close_notify
-	 * deinit_session() sends for a session whose server just died) would
+	 * tls_stop() sends for a session whose server just died) would
 	 * otherwise raise SIGPIPE, whose default disposition kills the
 	 * process outright with no diagnostic output. */
 	signal(SIGPIPE, SIG_IGN);
@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 	ret = do_auth(rh, send, nas_port);
 	if (ret == OK_RC) {
 		/*
-		 * Occasionally the reconnect in tls_sendto() fires for a
+		 * Occasionally the reconnect in sess_sendto() fires for a
 		 * different reason and succeeds - that's acceptable.
 		 * The bug only manifests on request 4 regardless.
 		 */
@@ -204,7 +204,7 @@ int main(int argc, char **argv)
 
 	/*
 	 * Request 3: need_restart=1 from request 2.  restart_session() is
-	 * called, but init_session() fails because the server is still down;
+	 * called, but conn_open() fails because the server is still down;
 	 * need_restart stays set.  Expected to fail.
 	 */
 	ret = do_auth(rh, send, nas_port);

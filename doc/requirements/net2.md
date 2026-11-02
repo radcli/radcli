@@ -87,13 +87,14 @@ nor `RADCLI_CODE_ACCOUNTING_REQUEST`.
 `NULL`.
 **Links:** REQ-NET2-ERR-010
 
-### REQ-NET2-INIT-002 — request type/server-option selection matches rc_select_aaa_server()'s TLS/DTLS rule
+### REQ-NET2-INIT-002 — request type/server-option selection matches rc_select_aaa_server()'s TCP/TLS/DTLS rule
 
 **Requirement:** `radcli_request_new()` MUST select the `"authserver"` option
 and `AUTH` type when `code` is `RADCLI_CODE_ACCESS_REQUEST`, OR when the
-handle's transport is `RC_SOCKET_TLS`/`RC_SOCKET_DTLS` (which carry both
-request types over one connection to `authserver`); otherwise (a non-TLS/DTLS
-Accounting-Request) it MUST select `"acctserver"` and `ACCT`.
+handle's transport is `RC_SOCKET_TCP`/`RC_SOCKET_TLS`/`RC_SOCKET_DTLS` (which
+carry both request types over one connection to `authserver`, net.md's
+REQ-NET-NET-004); otherwise (a UDP Accounting-Request) it MUST select
+`"acctserver"` and `ACCT`.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c (`radcli_request_new()`, server/type selection; its
@@ -101,7 +102,8 @@ comment cross-references `rc_select_aaa_server()`, lib/legacy/buildreq.c)
 **Acceptance:** [INIT] unit, local — construct a handle with `so_type` forced
 to `RC_SOCKET_TLS` and only `"authserver"` configured, call
 `radcli_request_new()` with `RADCLI_CODE_ACCOUNTING_REQUEST`, confirm it
-succeeds (i.e. did not look for `"acctserver"`).
+succeeds (i.e. did not look for `"acctserver"`); `tests/tcp-session-tests.sh`'s
+`acct` case does the same over `serv-type tcp` end to end.
 **Links:** REQ-ATTR-* (rc_select_aaa_server()'s own requirement, attrs.md)
 
 ### REQ-NET2-INIT-003 — a request carries exactly one server; extra configured entries only warn
@@ -236,10 +238,10 @@ invokes the registered `radcli_dae_handler`. There is deliberately no
 per-object descriptor accessor (no `radcli_dae_fd()`, no per-`radcli_request`
 one either — REQ-NET2-SEND-013): descriptors belong to the `radcli_ctx`, so
 that a transport sharing one descriptor between DAE and ordinary requests
-(already true for TLS/DTLS) never leaves an application holding a watcher on
+(already true for TCP/TLS/DTLS) never leaves an application holding a watcher on
 a descriptor that silently starts meaning something else.
 
-One exception: when the TLS/DTLS session has failed and
+One exception: when the TCP/TLS/DTLS session has failed and
 `radcli_ctx_dispatch()` must send on it — a `RADCLI_REQUEST_SENDONLY`
 retransmit, or the watchdog's forced reconnect to a silent peer
 (REQ-WATCHDOG-NET-003) — it reconnects synchronously first, and blocks for
@@ -249,8 +251,8 @@ SYN retry timeout); and the TLS/DTLS handshake, bounded by
 `radius_timeout`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** REQ-GEN-SEC-003; lib/tls.c (`restart_session()`,
-`init_session()`); lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`);
+**Source:** REQ-GEN-SEC-003; lib/session.c (`restart_session()`,
+`conn_open()`); lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`);
 lib/dae.c (`radcli2_priv_dae_send_watchdog()`)
 **Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
 **Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
@@ -284,22 +286,24 @@ registry.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/dae.c (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`);
-lib/sendserver.c (`radcli2_priv_radsec_drain()`); lib/tls.c
-(`radcli2_priv_tls_try_recv()`, `tls_get_active_fd()`, REQ-NET-NET-019)
+lib/sendserver.c (`radcli2_priv_sess_drain()`); lib/session.c
+(`radcli2_priv_sess_try_recv()`, `sess_get_active_fd()`, REQ-NET-NET-019)
 **Acceptance:** [NET] negative, unit, local — `tests/request.c`'s
 refused-PSK-TLS-server case (REQ-NET-NET-019's acceptance).
 **Links:** REQ-NET-NET-019, REQ-NET2-NET-001, REQ-NET2-SEND-012
 
-### REQ-NET2-NET-004 — every record read from a RadSec session reaches what it belongs to, whichever call reads it
+### REQ-NET2-NET-004 — every record read from a TCP/TLS/DTLS session reaches what it belongs to, whichever call reads it
 
-**Requirement:** Every record read from a TLS/DTLS `ctx`'s session — by a
+**Requirement:** Every record read from a TCP/TLS/DTLS `ctx`'s session — by a
 blocking exchange (`radcli_request_perform()` with default flags,
 `radcli_aaa()`, or the legacy `rc_auth()`/`rc_acct()`) or by
 `radcli_ctx_dispatch()` — MUST be routed through one function,
-`radcli2_priv_radsec_route()` (RFC 6614 §2.1/§2.5, RFC 7360 §2.2: one
-connection carries every packet type). A Disconnect-/CoA-Request MUST go to
-the DAE pipeline (queued for `radcli_ctx_dispatch()`'s handler, or answered
-with a 406 NAK when dynamic authorization is off), and a reply to an
+`radcli2_priv_sess_route()` (RFC 6614 §2.1/§2.5, RFC 7360 §2.2: one
+connection carries every packet type). On a TLS/DTLS session, a
+Disconnect-/CoA-Request MUST go to the DAE pipeline (queued for
+`radcli_ctx_dispatch()`'s handler, or answered with a 406 NAK when dynamic
+authorization is off); a TCP session carries no server-initiated requests,
+so there it matches nothing. A reply to an
 in-flight `RADCLI_REQUEST_SENDONLY` request MUST resolve that request
 (REQ-NET2-SEND-013/016/017) — never be discarded because another call
 happened to read it. A blocking exchange MUST keep waiting for its own reply
@@ -315,9 +319,9 @@ record other than its own reply, losing replies to in-flight
 `RADCLI_REQUEST_SENDONLY` requests, and `radcli_ctx_dispatch()` read the
 session through two paths (the request drain and the idle DAE poll), the
 second of which dropped any reply it read.
-**Source:** lib/sendserver.c (`radcli2_priv_radsec_route()`,
-`radcli2_priv_radsec_drain()`, `radcli_transport_exchange()`); lib/tls.c
-(`radcli2_priv_tls_try_recv()`, `radcli2_priv_tls_pending()`); lib/dae.c
+**Source:** lib/sendserver.c (`radcli2_priv_sess_route()`,
+`radcli2_priv_sess_drain()`, `radcli_transport_exchange()`); lib/session.c
+(`radcli2_priv_sess_try_recv()`, `radcli2_priv_sess_pending()`); lib/dae.c
 (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`)
 **Acceptance:** [NET] negative, local, no root —
 `tests/request-tls-interleave-tests.sh` (peer: `tests/watchdog-aaa-server.py`)
@@ -331,18 +335,18 @@ covered by construction, not by a test.]`
 **Links:** REQ-NET2-NET-001, REQ-NET2-NET-003, REQ-NET2-SEND-013,
 REQ-NET2-SEND-016, REQ-NET-NET-010, REQ-DAE-SEC-015
 
-### REQ-NET2-NET-005 — radcli_ctx_dispatch() never waits to send on a RadSec session; one bounded queue holds what cannot go out yet
+### REQ-NET2-NET-005 — radcli_ctx_dispatch() never waits to send on a TCP/TLS/DTLS session; one bounded queue holds what cannot go out yet
 
-**Requirement:** `radcli_ctx_dispatch()` MUST NOT wait for a TLS/DTLS
+**Requirement:** `radcli_ctx_dispatch()` MUST NOT wait for a TCP/TLS/DTLS
 session to become writable, whatever it sends: a DAE reply, a
 `RADCLI_REQUEST_SENDONLY` retransmit, or a watchdog. Each makes one
 non-blocking attempt; what cannot go out at once waits in one per-session
 queue of 8 records, sent in order, which `radcli_ctx_dispatch()` flushes
 first (non-blocking) and for which `radcli_ctx_get_poll()` asks for
-`POLLOUT` while it is non-empty. A record GnuTLS has partly accepted
-(`GNUTLS_E_AGAIN`) MUST stay at the head until it is sent in full — GnuTLS
-requires the same data to be passed again — so it is never dropped or
-overtaken. A queued watchdog counts as that round's attempt, so the
+`POLLOUT` while it is non-empty. A record the backend has partly accepted
+(GnuTLS's `GNUTLS_E_AGAIN`, or a short TCP write) MUST stay at the head until
+it is sent in full — both resume only from the same data passed again — so
+it is never dropped or overtaken. A queued watchdog counts as that round's attempt, so the
 watchdog is not due again until the next interval. When the queue is full: a
 retransmit is skipped, as if the packet were lost (its timeout still runs); a
 watchdog is skipped (likewise counting as that round's attempt,
@@ -358,8 +362,8 @@ exception.
 session, any send behind a deferred DAE reply) waited up to
 `radius_timeout` for write room inside `radcli_ctx_dispatch()`, and the DAE
 reply queue's overflow could drop a partly-sent record.
-**Source:** lib/tls.c (`radcli2_priv_tls_send_queued()`,
-`radcli2_priv_tls_flush()`, `tls_sendto()`, `restart_session()`); lib/dae.c
+**Source:** lib/session.c (`radcli2_priv_sess_send_queued()`,
+`radcli2_priv_sess_flush()`, `sess_sendto()`, `tcp_send()`, `restart_session()`); lib/dae.c
 (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`, `send_reply()`,
 `radcli2_priv_dae_send_watchdog()`); lib/sendserver.c
 (`radcli2_priv_reqreg_service_timeouts()`)
@@ -431,7 +435,7 @@ itself, so each call site states where its `id` comes from:
   registry reserved for it (REQ-NET2-SEND-016's LRU allocation), reserved
   *before* this call — never patched into the wire packet afterward, since
   `id` is itself covered by the Message-Authenticator HMAC.
-- On a TLS/DTLS `ctx` whose registry exists (some `RADCLI_REQUEST_SENDONLY`
+- On a TCP/TLS/DTLS `ctx` whose registry exists (some `RADCLI_REQUEST_SENDONLY`
   request has used it), the blocking path, `radcli_aaa()` and the watchdog
   share one session with those requests, so they MUST also reserve their
   Identifier from the registry: a blocking request holds it until its
@@ -439,7 +443,7 @@ itself, so each call site states where its `id` comes from:
   sent. With every Identifier in flight, a blocking request MUST fail with
   `RADCLI_ERROR` without sending, and the watchdog MUST skip that send.
 - Otherwise — UDP, where each blocking exchange has its own socket, or a
-  TLS/DTLS `ctx` with no registry, so nothing else is in flight on the
+  TCP/TLS/DTLS `ctx` with no registry, so nothing else is in flight on the
   session — the `id` MUST be drawn from `rc_get_random_byte()`
   (lib/rc-random.c), never from `random()`/`rand()` (REQ-GEN-SEC-007).
 
@@ -448,7 +452,7 @@ unpredictable; RFC 5080 §2.1.1 recommends LRU (rotating, not random)
 allocation and forbids reusing one still in flight. The legacy
 `rc_auth()`/`rc_acct()` path keeps its caller-visible `SEND_DATA.seq_nbr`
 (random by default) and does not reserve from the registry: interleaving it
-with in-flight `RADCLI_REQUEST_SENDONLY` requests on one TLS/DTLS handle can
+with in-flight `RADCLI_REQUEST_SENDONLY` requests on one TCP/TLS/DTLS handle can
 reuse an Identifier still in flight.
 **Strength:** MUST
 **Status:** DERIVED — extended 2026-10-02: the blocking path and watchdog
@@ -676,7 +680,7 @@ the same `ctx`: `plain_get_fd()` (`lib/config.c`) binds an ephemeral port
 independent of destination, so only the destination address/port/secret
 recorded per in-flight registry slot (below) distinguishes an Access-Request
 bound for `authserver` from an Accounting-Request bound for `acctserver`. A
-TLS/DTLS `ctx` needs no separate socket: it reuses its established session fd
+TCP/TLS/DTLS `ctx` needs no separate socket: it reuses its established session fd
 (`sfuncs->get_active_fd()`), already carrying both request types per
 `REQ-NET2-INIT-002`.
 
@@ -954,11 +958,11 @@ validation `radcli_request_new()` performs (`REQ-NET2-INIT-001`).
 a `NULL` ctx, a `NULL` send, and an invalid code, confirming `RADCLI_ERROR`
 in each case.
 
-### REQ-NET2-AAA-002 — server/type selection matches radcli_request_new()'s TLS/DTLS rule
+### REQ-NET2-AAA-002 — server/type selection matches radcli_request_new()'s TCP/TLS/DTLS rule
 
 **Requirement:** `radcli_aaa()` MUST select `"authserver"`/`AUTH` when `code`
 is `RADCLI_CODE_ACCESS_REQUEST` or the handle's transport is
-`RC_SOCKET_TLS`/`RC_SOCKET_DTLS`, and `"acctserver"`/`ACCT` otherwise — the
+`RC_SOCKET_TCP`/`RC_SOCKET_TLS`/`RC_SOCKET_DTLS`, and `"acctserver"`/`ACCT` otherwise — the
 same rule as `REQ-NET2-INIT-002` — and MUST return `RADCLI_ERROR` if the
 selected option has no configured entries.
 **Strength:** MUST

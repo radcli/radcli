@@ -21,6 +21,7 @@
 #include <time.h>
 
 #include <ctype.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -166,6 +167,10 @@ typedef struct pw_auth_hdr
 __attribute__((packed))
 #endif
 AUTH_HDR;
+
+/* Bytes of a RADIUS header up to and including its Length field: what a
+ * stream reader needs before it knows how long the packet is. */
+#define AUTH_HDR_LENGTH_END	offsetof(AUTH_HDR, vector)
 
 typedef struct rc_sockets_override {
 	void *ptr;
@@ -422,14 +427,19 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh);
 
 void radcli2_priv_reqreg_drain(rc_handle *rh);
 
-/* radcli2_priv_radsec_route()'s results. */
+/* TCP, TLS and DTLS carry every request of a ctx over one persistent
+ * connection (lib/session.c); UDP does not. */
+#define RC_USES_SESSION(rh) ((rh)->so_type == RC_SOCKET_TCP || \
+			     (rh)->so_type == RC_SOCKET_TLS || (rh)->so_type == RC_SOCKET_DTLS)
+
+/* radcli2_priv_sess_route()'s results. */
 #define RADSEC_ROUTE_DAE	1
 #define RADSEC_ROUTE_REPLY	2
 #define RADSEC_ROUTE_DROPPED	3
 
-int radcli2_priv_radsec_route(rc_handle *rh, uint8_t *buf, size_t cap, int len);
+int radcli2_priv_sess_route(rc_handle *rh, uint8_t *buf, size_t cap, int len);
 
-void radcli2_priv_radsec_drain(rc_handle *rh);
+void radcli2_priv_sess_drain(rc_handle *rh);
 
 void radcli2_priv_reqreg_service_timeouts(rc_handle *rh);
 
@@ -473,24 +483,26 @@ int radcli2_priv_read_dictionary(rc_handle *rh, char const *filename);
 int radcli2_priv_read_dictionary_from_buffer(rc_handle *rh, char const *buf, size_t size);
 int radcli2_priv_load_builtin_dict(rc_handle *rh);
 
+int radcli2_priv_sess_fd(rc_handle *rh);
 int radcli2_priv_tls_fd(rc_handle *rh);
 int radcli2_priv_check_tls(rc_handle *rh);
+void radcli2_priv_sess_deinit(rc_handle *rh);
 
-time_t radcli2_priv_tls_last_msg(rc_handle *rh);
-time_t radcli2_priv_tls_last_recv(rc_handle *rh);
-int radcli2_priv_tls_force_reconnect(rc_handle *rh);
-int radcli2_priv_tls_ensure_connected(rc_handle *rh);
-/* radcli2_priv_tls_send_queued()'s record kinds (REQ-NET2-NET-005). */
+time_t radcli2_priv_sess_last_msg(rc_handle *rh);
+time_t radcli2_priv_sess_last_recv(rc_handle *rh);
+int radcli2_priv_sess_force_reconnect(rc_handle *rh);
+int radcli2_priv_sess_ensure_connected(rc_handle *rh);
+/* radcli2_priv_sess_send_queued()'s record kinds (REQ-NET2-NET-005). */
 #define RADSEC_SEND_DAE_REPLY	1
 #define RADSEC_SEND_RETRANSMIT	2
 #define RADSEC_SEND_WATCHDOG	3
 
-int radcli2_priv_tls_send_queued(rc_handle *rh, const void *buf, size_t len, int kind);
-void radcli2_priv_tls_flush(rc_handle *rh);
-int radcli2_priv_tls_send_pending(rc_handle *rh);
+int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind);
+void radcli2_priv_sess_flush(rc_handle *rh);
+int radcli2_priv_sess_send_pending(rc_handle *rh);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
-int radcli2_priv_tls_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
-int radcli2_priv_tls_pending(rc_handle *rh);
+int radcli2_priv_sess_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
+int radcli2_priv_sess_pending(rc_handle *rh);
 
 int radcli2_priv_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria);
 

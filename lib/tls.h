@@ -34,6 +34,5 @@
 
 #define SEC_FLAG_DTLS 1
 int rc_init_tls(rc_handle * rh, unsigned flags);
-void rc_deinit_tls(rc_handle * rh);
 
 #endif

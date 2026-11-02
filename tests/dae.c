@@ -236,7 +236,7 @@ int main(int argc, char **argv)
 	ctx = new_ctx();
 	assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_SERV_TYPE, "tls") == 0);
 	/* A local, guaranteed-closed port, not a real-network address like
-	 * 192.0.2.1 (TEST-NET-1): lib/tls.c's init_session() calls connect()
+	 * 192.0.2.1 (TEST-NET-1): lib/session.c's conn_open() calls connect()
 	 * on a still-BLOCKING socket (O_NONBLOCK is only set afterward), so a
 	 * remote address a real network silently drops packets to -- rather
 	 * than actively rejecting -- can hang this connect() call for the

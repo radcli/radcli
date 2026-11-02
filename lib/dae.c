@@ -126,7 +126,7 @@ struct radcli_dae_dac {
  * grown at run time, same "no unbounded packet-driven allocation"
  * principle as RADCLI_DAE_SLOTS/RADCLI_DAE_MAX_DACS above. It fills when
  * requests arrive faster than the application calls radcli_ctx_dispatch(),
- * or during a blocking exchange (tls_recvfrom()'s inline demux); overflow
+ * or during a blocking exchange (radcli2_priv_sess_route()); overflow
  * drops the oldest queued entry and logs, rather than growing without
  * limit. */
 #define RADCLI_DAE_RADSEC_QUEUE_SIZE 8
@@ -150,7 +150,7 @@ struct radcli_dae_st {
 
 	/* Set at construction when dae-accept=yes follows serv-type=tls/dtls
 	 * (radcli_dae_new()): CoA/Disconnect flow over rh's own established
-	 * TLS/DTLS session (lib/tls.c's tls_recvfrom() demux,
+	 * TLS/DTLS session (lib/sendserver.c's radcli2_priv_sess_route(),
 	 * radcli2_priv_dae_on_radsec_packet()) instead of a dae-owned UDP
 	 * listener -- dacs/n_dacs/secret/listen_host/listen_port/fd above are
 	 * all unused in this mode (dae->fd stays -1 throughout). */
@@ -784,7 +784,7 @@ int radcli_dae_start(radcli_dae *dae)
 		 * rc_acct() call, so enabling DAE makes the NAS reachable
 		 * immediately -- matching the UDP listener's own immediate
 		 * bind() below. */
-		if (radcli2_priv_tls_ensure_connected(dae->rh) != 0) {
+		if (radcli2_priv_sess_ensure_connected(dae->rh) != 0) {
 			rc_log(LOG_ERR, "radcli_dae_start: could not establish the "
 			       "RadSec (TLS/DTLS) session");
 			return -1;
@@ -878,14 +878,14 @@ static int watchdog_deadline_ms(rc_handle *rh, int fd)
 	int interval;
 
 	if (fd == -1)
-		/* An unestablished session (radcli2_priv_tls_last_msg() reports
+		/* An unestablished session (radcli2_priv_sess_last_msg() reports
 		 * 0) must not be reported as an overdue watchdog, which would
 		 * otherwise busy-loop a caller not yet polling this fd. */
 		return -1;
 
 	interval = rc_conf_int_id(rh, OPT_WATCHDOG_INTERVAL);
 	if (interval > 0) {
-		time_t last = radcli2_priv_tls_last_msg(rh);
+		time_t last = radcli2_priv_sess_last_msg(rh);
 		long elapsed_ms, remaining_ms;
 
 		/* A skipped or still-queued watchdog counts as this round's
@@ -921,11 +921,11 @@ static void fold_timeout(int *timeout_ms, int candidate)
  * never leaves an application holding a watcher on a descriptor that has
  * quietly started meaning something else.
  *
- * For TLS/DTLS, or for a UDP ctx with no active radcli_dae, this is always
- * exactly one descriptor: the session fd (TLS/DTLS, also carrying any
+ * For TLS/DTLS, or for a UDP/TCP ctx with no active radcli_dae, this is
+ * at most one descriptor: the session fd (TCP/TLS/DTLS, also carrying any
  * in-flight RADCLI_REQUEST_SENDONLY traffic) or the request-registry socket
- * (UDP, REQ-NET2-SEND-016). A UDP ctx with an active radcli_dae reports a
- * second, independent descriptor for the DAE listener alongside it -- the
+ * (UDP, REQ-NET2-SEND-016). A UDP/TCP ctx with an active radcli_dae reports
+ * a second, independent descriptor for the DAE listener alongside it -- the
  * two are genuinely different local sockets/ports and cannot be merged into
  * one without changing the wire protocol; RADCLI_CTX_MAX_POLLFDS (2) is the
  * maximum this API ever needs. *timeout_ms folds together every deadline
@@ -973,12 +973,12 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		 * rc_acct() RadSec client, with no radcli_dae at all, is as
 		 * entitled to it as one with dae-accept=yes. */
 		int dae_radsec = (rh->active_dae != NULL && rh->active_dae->radsec);
-		int fd = radcli2_priv_tls_fd(rh);
+		int fd = radcli2_priv_sess_fd(rh);
 		unsigned events = (fd != -1) ? POLLIN : 0;
 
 		/* Queued records go out once the socket is writable again
 		 * (REQ-NET2-NET-005). */
-		if (fd != -1 && radcli2_priv_tls_send_pending(rh))
+		if (fd != -1 && radcli2_priv_sess_send_pending(rh))
 			events |= POLLOUT;
 
 		if (fd != -1) {
@@ -989,7 +989,7 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		}
 
 		/* A record already pulled off the wire by an in-flight ordinary
-		 * request (tls_recvfrom()'s inline demux) may be sitting queued
+		 * request (radcli2_priv_sess_route()) may be sitting queued
 		 * with no further fd activity to prompt a redispatch -- ask the
 		 * caller back promptly rather than only on the next POLLIN.
 		 * DAE-only, same reason as above. */
@@ -1000,23 +1000,35 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 
 		fold_timeout(timeout_ms, radcli2_priv_reqreg_earliest_deadline_ms(rh));
 		/* A record GnuTLS already holds raises no POLLIN. */
-		if (radcli2_priv_tls_pending(rh))
+		if (radcli2_priv_sess_pending(rh))
 			*timeout_ms = 0;
 
 		*nfds = n;
 		return 0;
 	}
 
-	/* UDP: the DAE listener (if active) and the shared request-registry
-	 * socket (if any RADCLI_REQUEST_SENDONLY exchange has ever used one)
-	 * are genuinely different local sockets -- report both when present. */
+	/* UDP/TCP: the DAE listener (if active) and the request path -- the
+	 * shared UDP request-registry socket (if any RADCLI_REQUEST_SENDONLY
+	 * exchange has ever used one) or the TCP connection (once established)
+	 * -- are genuinely different local sockets; report both when present. */
 	if (rh->active_dae != NULL && rh->active_dae->fd != -1) {
 		pfds[n].fd = rh->active_dae->fd;
 		pfds[n].events = POLLIN;
 		pfds[n].revents = 0;
 		n++;
 	}
-	if (rh->req_fd != -1) {
+	if (rh->so_type == RC_SOCKET_TCP) {
+		int fd = radcli2_priv_sess_fd(rh);
+
+		if (fd != -1) {
+			pfds[n].fd = fd;
+			/* Queued records go out once the socket is writable again
+			 * (REQ-NET2-NET-005). */
+			pfds[n].events = radcli2_priv_sess_send_pending(rh) ? POLLIN | POLLOUT : POLLIN;
+			pfds[n].revents = 0;
+			n++;
+		}
+	} else if (rh->req_fd != -1) {
 		pfds[n].fd = rh->req_fd;
 		pfds[n].events = POLLIN;
 		pfds[n].revents = 0;
@@ -1058,7 +1070,7 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
  * watchdog algorithm exists precisely to catch that, not just an outright
  * socket error (which the transport already reconnects from on its own,
  * need_restart). If watchdog-interval is enabled and no record has actually
- * been *received* (radcli2_priv_tls_last_recv(), never advanced by a send,
+ * been *received* (radcli2_priv_sess_last_recv(), never advanced by a send,
  * unlike the last-activity clock REQ-WATCHDOG-NET-002's deadline uses) for 2.5x
  * that interval, the session is presumed dead and forcibly reconnected
  * (REQ-WATCHDOG-NET-003) before the watchdog is sent on the fresh connection --
@@ -1111,23 +1123,23 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
 		return -1;
 
-	if (radcli2_priv_tls_fd(rh) == -1)
-		return -1; /* not established -- see radcli2_priv_tls_ensure_connected() */
+	if (radcli2_priv_sess_fd(rh) == -1)
+		return -1; /* not established -- see radcli2_priv_sess_ensure_connected() */
 
 	{
 		int interval = rc_conf_int_id(rh, OPT_WATCHDOG_INTERVAL);
 
 		if (interval > 0 &&
-		    (double)(time(0) - radcli2_priv_tls_last_recv(rh)) >= interval * 2.5) {
+		    (double)(time(0) - radcli2_priv_sess_last_recv(rh)) >= interval * 2.5) {
 			rc_log(LOG_WARNING, "radcli2_priv_dae_send_watchdog: no record received in "
 					    "%.1fx watchdog-interval -- presuming the peer dead "
 					    "and reconnecting", 2.5);
-			if (radcli2_priv_tls_force_reconnect(rh) < 0)
+			if (radcli2_priv_sess_force_reconnect(rh) < 0)
 				return -1;
 		}
 	}
 
-	if (radcli2_priv_tls_fd(rh) == -1)
+	if (radcli2_priv_sess_fd(rh) == -1)
 		return -1; /* the forced reconnect above left no usable session */
 
 	if (rh->so.static_secret == NULL)
@@ -1160,7 +1172,7 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 		return -1;
 	}
 
-	ret = radcli2_priv_tls_send_queued(rh, send_buffer, (size_t)total_length,
+	ret = radcli2_priv_sess_send_queued(rh, send_buffer, (size_t)total_length,
 					   RADSEC_SEND_WATCHDOG);
 	if (ret >= 0)
 		rh->watchdog_slot = slot; /* sent, or queued to go out */
@@ -1418,7 +1430,7 @@ static int send_reply(struct radcli_dae_request_st *req, uint8_t reply_code, uin
 		/* No dae-owned socket/peer address under RadSec: the reply goes
 		 * back over rh's own established TLS/DTLS session, without ever
 		 * waiting for write room (REQ-DAE-SEC-013, REQ-NET2-NET-005). */
-		if (radcli2_priv_tls_send_queued(req->dae->rh, send_buffer, (size_t)total_length,
+		if (radcli2_priv_sess_send_queued(req->dae->rh, send_buffer, (size_t)total_length,
 						 RADSEC_SEND_DAE_REPLY) == -1)
 			return -1;
 		return 0;
@@ -2077,12 +2089,12 @@ static void send_radsec_unsupported_nak(rc_handle *rh, const uint8_t *reqbuf, si
 	/* Never waits for write room, like send_reply() (REQ-NET2-NET-005);
 	 * RFC 6614 SS2.5's 406 signal is best-effort, so a full queue simply
 	 * drops it. */
-	radcli2_priv_tls_send_queued(rh, out, (size_t)total_length, RADSEC_SEND_DAE_REPLY);
+	radcli2_priv_sess_send_queued(rh, out, (size_t)total_length, RADSEC_SEND_DAE_REPLY);
 }
 
 /*- Process one RADIUS/TLS or RADIUS/DTLS record already known to carry
  * Code 40 (Disconnect-Request) or 43 (CoA-Request) -- called from lib/
- * sendserver.c's radcli2_priv_radsec_route(), whichever call read the
+ * sendserver.c's radcli2_priv_sess_route(), whichever call read the
  * record (a blocking exchange, or radcli_ctx_dispatch()). Never invokes a
  * registered radcli_dae_handler directly (that would let it run on
  * whatever thread/call stack happens to be inside rc_auth()/rc_acct() at
@@ -2177,9 +2189,9 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 	/* Unconditional and non-blocking: what is queued to send goes first,
 	 * and everything readable is routed to the request or DAE listener
 	 * it belongs to (REQ-NET2-NET-004/005, REQ-NET2-SEND-013). */
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
-		radcli2_priv_tls_flush(rh);
-		radcli2_priv_radsec_drain(rh);
+	if (RC_USES_SESSION(rh)) {
+		radcli2_priv_sess_flush(rh);
+		radcli2_priv_sess_drain(rh);
 	} else {
 		radcli2_priv_reqreg_drain(rh);
 	}
@@ -2193,7 +2205,7 @@ int radcli_ctx_dispatch(radcli_ctx *ctx)
 		 * makes, on its own schedule, driven by radcli_ctx_get_poll()'s
 		 * advisory timeout_ms (watchdog_deadline_ms(), above it in this
 		 * file). */
-		if (watchdog_deadline_ms(rh, radcli2_priv_tls_fd(rh)) == 0)
+		if (watchdog_deadline_ms(rh, radcli2_priv_sess_fd(rh)) == 0)
 			radcli2_priv_dae_send_watchdog(ctx);
 	}
 

@@ -22,8 +22,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Mixed-traffic stress test for DAE-over-RadSec (lib/tls.c's tls_recvfrom()
- * demux, lib/dae.c's radcli2_priv_dae_on_radsec_packet()/RadSec queue,
+/* Mixed-traffic stress test for DAE-over-RadSec (lib/sendserver.c's
+ * radcli2_priv_sess_route(), lib/dae.c's radcli2_priv_dae_on_radsec_packet()/RadSec queue,
  * radcli_ctx_get_poll()/radcli_ctx_dispatch()) on one TLS connection.
  *
  * One thread -- a radcli_ctx is used by one thread at a time
@@ -33,7 +33,7 @@
  * (tests/radsec-stress-server.py) interleaves unsolicited Disconnect-
  * Request/CoA-Request packets on the same connection. A DAE record can
  * therefore be read in both places it can arrive: inline inside a
- * radcli_aaa() call's own tls_recvfrom(), or by radcli_ctx_dispatch()
+ * radcli_aaa() call's own sess_recvfrom(), or by radcli_ctx_dispatch()
  * while the session is otherwise idle.
  *
  * Traceability (REQ-DAE-* IDs from doc/requirements/dae.md):

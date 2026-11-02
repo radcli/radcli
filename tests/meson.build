@@ -11,8 +11,14 @@ shell_tests = [
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
   'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
   'dae-tests.sh', 'dae-freeradius-tests.sh', 'attr-ids-tests.sh',
-  'example-config-tests.sh', 'avp2-api-symmetry-tests.sh',
+  'example-config-tests.sh', 'avp2-api-symmetry-tests.sh', 'tcp-session-tests.sh',
 ]
+
+# Client for tests/tcp-session-tests.sh and tests/radsec-framing-tests.sh
+# (peer: tests/session-framing-server.py).
+session_framing = executable('session-framing', 'session-framing.c',
+  include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+  dependencies: link_libs, install: false)
 
 if have_gnutls
   shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
@@ -149,11 +155,6 @@ if have_gnutls
   # (tests/request-tls-secret-tests.sh, peer: tests/request-tls-secret-
   # server.py), same argv/build shape as dae_radsec_watchdog above.
   request_tls_secret = executable('request-tls-secret', 'request-tls-secret.c',
-    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
-    dependencies: link_libs, install: false)
-  # TLS stream framing test (tests/radsec-framing-tests.sh, peer:
-  # tests/radsec-framing-server.py).
-  radsec_framing = executable('radsec-framing', 'radsec-framing.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
   config_unit = executable('config-unit', 'config-unit.c',

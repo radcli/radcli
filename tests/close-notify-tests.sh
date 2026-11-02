@@ -31,7 +31,7 @@
 #   radcli client <--TLS/DTLS--> close-notify-server <--UDP--> radius-server.py
 #
 # close-notify-server exits 0 if close_notify was received after the
-# exchange, 1 if not (bug: deinit_session() missing gnutls_bye()).
+# exchange, 1 if not (bug: tls_stop() missing gnutls_bye()).
 # Does not require root; uses loopback addresses only.
 
 srcdir="${srcdir:-.}"
@@ -160,14 +160,14 @@ run_close_notify_test() {
 
 run_close_notify_test tls
 if test $? -ne 0; then
-	echo "FAIL: TLS close_notify not sent (deinit_session() missing gnutls_bye())"
+	echo "FAIL: TLS close_notify not sent (tls_stop() missing gnutls_bye())"
 	exit 1
 fi
 echo "[  OK  ] TLS: close_notify sent correctly"
 
 run_close_notify_test dtls
 if test $? -ne 0; then
-	echo "FAIL: DTLS close_notify not sent (deinit_session() missing gnutls_bye())"
+	echo "FAIL: DTLS close_notify not sent (tls_stop() missing gnutls_bye())"
 	exit 1
 fi
 echo "[  OK  ] DTLS: close_notify sent correctly"
