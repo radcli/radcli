@@ -170,8 +170,8 @@ or `serv-type=tcp` fails `rc_apply_config()`.
 
 ### REQ-NET-NET-007 — A broken TCP/TLS/DTLS session reconnects transparently on the next transport call
 
-**Requirement:** When `sess_sendto()`/`sess_recvfrom()` observe a fatal backend error, the end
-of the stream, or an unrecoverable `sess_wait_or_give_up()` timeout, they MUST set
+**Requirement:** When `sess_sendto()`/`sess_recvfrom()` observe a fatal backend error or the end
+of the stream, or `sess_sendto()` an unrecoverable `sess_wait_or_give_up()` timeout, they MUST set
 `s->conn.need_restart = 1`. The next `sess_get_fd()` or `sess_sendto()` call MUST invoke
 `restart_session()`, which tears down and reinitializes the connection via `conn_open()`
 unconditionally — every call site (`sess_get_fd()`, `sess_sendto()`,
@@ -449,6 +449,27 @@ driven by `radcli_ctx_dispatch()`. [NET][ERR] negative, local — a reply whose
 Length is 4 makes the next request use a new connection rather than the one the
 error arrived on.
 **Links:** REQ-NET-ERR-002, REQ-NET-ERR-005, REQ-NET2-NET-004
+
+### REQ-NET-NET-021 — A blocking exchange's wait for its reply is bounded only by its own timeout, whatever non-RADIUS data the session receives
+
+**Requirement:** `sess_recvfrom()` MUST NOT wait: when the session holds no whole RADIUS packet
+— only part of one, or a TLS record that carries no RADIUS data at all, such as a TLS 1.3
+NewSessionTicket — it MUST return -1 with `errno` set to `EAGAIN`, leaving any partial packet
+for the next read (REQ-NET-NET-020) and the session usable. `radcli_transport_exchange()` then
+polls again against its own per-attempt deadline (REQ-NET-ERR-004), so an unanswered request
+ends in `TIMEOUT_RC` after `radius_timeout`, not in an error, and does not mark the session for
+restart.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: such a record woke the exchange's `poll()`, after which the
+read waited up to `radius_timeout` for application data, then gave up with `EIO`: an unanswered
+request failed with `ERROR_RC` and the session was needlessly reconnected.
+**Source:** lib/session.c (`sess_recvfrom()`); lib/sendserver.c
+(`radcli_transport_exchange()`'s receive loop)
+**Acceptance:** [NET] negative, local — `tests/session-timeout-tests.sh`: a blocking request to a
+TLS peer that never answers (Python's TLS 1.3 server sends session tickets after the handshake)
+ends in `RADCLI_TIMEOUT`; confirmed ending in an error against the unfixed code. The same over
+plain TCP.
+**Links:** REQ-NET-ERR-004, REQ-NET-NET-007, REQ-NET-NET-020
 
 ---
 
