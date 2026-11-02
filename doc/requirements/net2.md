@@ -856,7 +856,21 @@ must end in `RADCLI_TIMEOUT`. [SEND] positive, local, no root — its
 connection is established, 5 of them freed before the first
 `radcli_ctx_dispatch()`; the other 15 must succeed and the peer must
 receive exactly 15. Both confirmed failing against the code before this
-flag existed.
+flag existed. [NET] negative, local, no root —
+`tests/nonblock-backpressure-tests.sh`'s `hold` case, over TCP and TLS:
+the peer stops reading and both socket buffers are shrunk, so large
+requests fill the send window; every `radcli_request_perform()` and
+`radcli_ctx_dispatch()` call must return within 200 ms,
+`radcli_ctx_get_poll()` must ask for `POLLOUT` (packets are queued), and
+once the peer reads again it must receive every packet intact and in
+order, each request completing with its own reply. Its `cancel` case: the
+same requests are all freed while the window is full, and every
+Identifier is then reused by new requests that overwrite their slots'
+packets; the peer must receive an intact, contiguous prefix of the freed
+requests followed by every new one, never a freed request that had not
+started (some must not arrive), and every new request must complete with
+its own reply even though the freed packet's reply arrives under a reused
+Identifier.
 **Links:** REQ-NET2-NET-001, REQ-NET2-NET-005, REQ-NET2-SEND-012,
 REQ-NET2-SEND-013, REQ-NET2-SEND-014, REQ-NET2-SEND-016, REQ-NET-NET-022,
 REQ-NET-NET-023
