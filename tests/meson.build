@@ -13,7 +13,7 @@ shell_tests = [
   'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
   'dae-tests.sh', 'dae-freeradius-tests.sh', 'attr-ids-tests.sh',
   'example-config-tests.sh', 'avp2-api-symmetry-tests.sh', 'tcp-session-tests.sh',
-  'session-timeout-tests.sh',
+  'session-timeout-tests.sh', 'nonblock-backpressure-tests.sh',
 ]
 
 # Client for tests/tcp-session-tests.sh and tests/radsec-framing-tests.sh
@@ -24,6 +24,11 @@ session_framing = executable('session-framing', 'session-framing.c',
 # Client for tests/session-timeout-tests.sh (peer:
 # tests/session-timeout-server.py).
 session_timeout = executable('session-timeout', 'session-timeout.c',
+  include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+  dependencies: link_libs, install: false)
+# Client for tests/nonblock-backpressure-tests.sh (peer:
+# tests/nonblock-backpressure-server.py).
+nonblock_backpressure = executable('nonblock-backpressure', 'nonblock-backpressure.c',
   include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
   dependencies: link_libs, install: false)
 
