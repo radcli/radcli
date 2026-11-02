@@ -26,10 +26,6 @@
 # include <gnutls/crypto.h>
 #endif
 
-#if defined(__linux__)
-#include <linux/in6.h>
-#endif
-
 
 /* Resets fd to -1 after closing so a later unconditional cleanup (e.g. the
  * shared `cleanup:` label's `if (sockfd >= 0) SCLOSE(sockfd)`) cannot close
@@ -569,34 +565,11 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			}
 		}
 
-		if (our_sockaddr.ss_family == AF_INET6) {
-			char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
-			if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
-#if defined(__linux__)
-				int sock_opt = IPV6_PREFER_SRC_PUBLIC;
-				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
-					       &sock_opt, sizeof(sock_opt)) != 0) {
-					rc_log(LOG_ERR, "radcli_transport_exchange: setsockopt: %s",
-					       strerror(errno));
-					result = ERROR_RC;
-					SCLOSE(sockfd);
-					continue;
-				}
-#elif defined(BSD) || defined(__APPLE__)
-				int sock_opt = 0;
-				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
-					       &sock_opt, sizeof(sock_opt)) != 0) {
-					rc_log(LOG_ERR, "radcli_transport_exchange: setsockopt: %s",
-					       strerror(errno));
-					result = ERROR_RC;
-					SCLOSE(sockfd);
-					continue;
-				}
-#else
-				rc_log(LOG_INFO, "radcli_transport_exchange: Usage of non-temporary "
-				       "IPv6 address is not supported in this system");
-#endif
-			}
+		if (our_sockaddr.ss_family == AF_INET6 &&
+		    radcli2_priv_prefer_public_addr(rh, sockfd) < 0) {
+			result = ERROR_RC;
+			SCLOSE(sockfd);
+			continue;
 		}
 
 		if (rh->debug) {
@@ -1412,30 +1385,10 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 			rh->req_fd = sockfd;
 		}
 
-		if (sockfd >= 0 && our_sockaddr.ss_family == AF_INET6) {
-			char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
-			if (non_temp_addr && strcasecmp(non_temp_addr, "true") == 0) {
-#if defined(__linux__)
-				int sock_opt = IPV6_PREFER_SRC_PUBLIC;
-				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
-					       &sock_opt, sizeof(sock_opt)) != 0) {
-					rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
-					result = ERROR_RC;
-					goto fail;
-				}
-#elif defined(BSD) || defined(__APPLE__)
-				int sock_opt = 0;
-				if (setsockopt(sockfd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
-					       &sock_opt, sizeof(sock_opt)) != 0) {
-					rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
-					result = ERROR_RC;
-					goto fail;
-				}
-#else
-				rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
-				       "supported in this system", __func__);
-#endif
-			}
+		if (sockfd >= 0 && our_sockaddr.ss_family == AF_INET6 &&
+		    radcli2_priv_prefer_public_addr(rh, sockfd) < 0) {
+			result = ERROR_RC;
+			goto fail;
 		}
 	}
 

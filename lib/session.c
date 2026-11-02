@@ -38,10 +38,6 @@
 #include <poll.h>
 #include <time.h>
 
-#if defined(__linux__)
-#include <linux/in6.h>
-#endif
-
 static int restart_session(rc_session *s);
 
 /*- Return rh's session, or NULL if its transport does not use one. -*/
@@ -403,44 +399,6 @@ static void conn_close(rc_session *s, rc_sess_conn *c)
 		close(c->sockfd);
 }
 
-/*- Prefer a public over a temporary IPv6 source address when
- * use-public-addr asks for it.
- *
- * @param rh a handle to parsed configuration.
- * @param fd the socket, not yet connected.
- * @return 0 on success, -1 on failure.
- -*/
-static int prefer_public_addr(rc_handle *rh, int fd)
-{
-	char *non_temp_addr = rc_conf_str_id(rh, OPT_USE_PUBLIC_ADDR);
-
-	if (non_temp_addr == NULL || strcasecmp(non_temp_addr, "true") != 0)
-		return 0;
-#if defined(__linux__)
-	{
-		int sock_opt = IPV6_PREFER_SRC_PUBLIC;
-		if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADDR_PREFERENCES,
-			       &sock_opt, sizeof(sock_opt)) != 0) {
-			rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
-			return -1;
-		}
-	}
-#elif defined(BSD) || defined(__APPLE__)
-	{
-		int sock_opt = 0;
-		if (setsockopt(fd, IPPROTO_IPV6, IPV6_PREFER_TEMPADDR,
-			       &sock_opt, sizeof(sock_opt)) != 0) {
-			rc_log(LOG_ERR, "%s: setsockopt: %s", __func__, strerror(errno));
-			return -1;
-		}
-	}
-#else
-	rc_log(LOG_INFO, "%s: Usage of non-temporary IPv6 address is not "
-	       "supported in this system", __func__);
-#endif
-	return 0;
-}
-
 /*- Begin a connection attempt to s's server, unless one is in progress:
  * open a non-blocking socket and start connecting it, discarding what was
  * queued for the failed connection. Name resolution may block
@@ -484,7 +442,8 @@ static int attempt_begin(rc_session *s)
 			rc_log(LOG_ERR, "%s: bind: %s", __func__, strerror(errno));
 			goto fail;
 		}
-		if (our_sockaddr.ss_family == AF_INET6 && prefer_public_addr(s->rh, sockfd) < 0)
+		if (our_sockaddr.ss_family == AF_INET6 &&
+		    radcli2_priv_prefer_public_addr(s->rh, sockfd) < 0)
 			goto fail;
 	}
 
