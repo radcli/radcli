@@ -91,7 +91,7 @@ returns no matches.
 **Requirement:** No function in `lib/` MUST call `alarm()`, `setitimer()`,
 `timer_create()`, or any other global/process-wide timer facility. Any timeout
 behavior (e.g. watchdog-interval deadline tracking, request retries) MUST be
-implemented with per-call state (timestamps stored in `rh`/`tls_st`/`SEND_DATA`)
+implemented with per-call state (timestamps stored in `rh`/`rc_session`/`SEND_DATA`)
 and `select()`/`poll()`-style waits scoped to the call in progress, never a
 mechanism that could fire a signal into caller code unrelated to radcli.
 **Strength:** MUST NOT
@@ -149,7 +149,7 @@ constructed after it's called (`rc_new()`/`rc_read_config()`) — see
 `util.md`.
 
 All correctness-relevant state MUST live in a caller-owned handle
-(`rc_handle`, `SEND_DATA`, `RC_AAA_CTX`, `tls_st`), so that two `rc_handle`
+(`rc_handle`, `SEND_DATA`, `RC_AAA_CTX`, `rc_session`), so that two `rc_handle`
 instances in the same process (or the same instance used from multiple
 threads under caller-provided synchronization) do not silently interfere with
 each other.

@@ -180,10 +180,9 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 		return RADCLI_ERROR;
 	}
 
-	/* Same TLS/DTLS + request-type rule as radcli_request_new()
+	/* Same TCP/TLS/DTLS + request-type rule as radcli_request_new()
 	 * (REQ-NET2-INIT-002) / rc_select_aaa_server() (lib/buildreq.c). */
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS ||
-	    code == RADCLI_CODE_ACCESS_REQUEST) {
+	if (RC_USES_SESSION(rh) || code == RADCLI_CODE_ACCESS_REQUEST) {
 		optname = "authserver";
 		optid = OPT_AUTHSERVER;
 		type = AUTH;

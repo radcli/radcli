@@ -287,8 +287,8 @@ int validate_message_authenticator(const uint8_t *recv_buffer,
  * radcli2_priv_reqreg_drain() below can reuse the identical RFC
  * 2865/2869/Blast-RADIUS validation instead of a second copy.
  * secret/vector/type/server_name/svc_port are as radcli_transport_exchange()
- * received them; recv_buf/recv_buf_cap/recv_len/out_code are as documented
- * on radcli_transport_exchange() itself.
+ * received them, and req_code is the request's Code; recv_buf/recv_buf_cap/
+ * recv_len/out_code are as documented on radcli_transport_exchange() itself.
  *
  * Despite the above, this function does not simply trust its callers for the
  * one property that would otherwise abort() the process if violated: whether
@@ -307,7 +307,7 @@ int validate_message_authenticator(const uint8_t *recv_buffer,
  *  which the caller must have already turned away before calling in.
  -*/
 static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name,
-			unsigned short svc_port, rc_type type,
+			unsigned short svc_port, rc_type type, uint8_t req_code,
 			char secret[MAX_SECRET_LENGTH + 1], const unsigned char *vector,
 			uint8_t *recv_buf, size_t recv_buf_cap,
 			size_t *recv_len, uint8_t *out_code)
@@ -358,8 +358,8 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
 
 	/* Per draft-ietf-radext-deprecating-radius, Message-Authenticator MUST
 	 * be the first attribute in Access-Request responses (BLAST RADIUS).
-	 * Not required for Accounting-Response. Unchanged from
-	 * rc_send_server_ctx()'s own, identical check (f6f2487). */
+	 * Not required for Accounting-Response, including one to an
+	 * Accounting-Request sent as AUTH to a TCP authserver. */
 	if (type == AUTH) {
 		pkt_buf mb;
 		uint8_t mtype, mlen;
@@ -384,7 +384,8 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
 			}
 		}
 
-		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS) {
+		if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS &&
+		    req_code != PW_ACCOUNTING_REQUEST) {
 			if (length == 0 || recv_buf[AUTH_HDR_LEN] != PW_MESSAGE_AUTHENTICATOR) {
 				char *p = rc_conf_str_id(rh, OPT_REQUIRE_MESSAGE_AUTHENTICATOR);
 				if (p == NULL || (strcasecmp(p, "false") != 0 &&
@@ -484,7 +485,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 	char *server_type = (type == ACCT) ? "acct" : "auth";
 	const unsigned char *vector = send_buf + 4; /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
 	uint8_t seq_nbr = send_buf[1];
-	int is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+	int on_session = RC_USES_SESSION(rh);
 
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
@@ -648,7 +649,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 				if (remaining <= 0)
 					break;
 				/* A record GnuTLS already holds raises no POLLIN. */
-				if (!(is_radsec && radcli2_priv_tls_pending(rh))) {
+				if (!(on_session && radcli2_priv_sess_pending(rh))) {
 					pfd.fd = sockfd;
 					pfd.events = POLLIN;
 					pfd.revents = 0;
@@ -693,9 +694,9 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 					 * carries every packet type; what is not this
 					 * exchange's reply goes where it belongs
 					 * (REQ-NET2-NET-004). */
-					if (is_radsec && (recv_buf[0] == RADCLI_DISCONNECT_REQUEST ||
+					if (on_session && (recv_buf[0] == RADCLI_DISCONNECT_REQUEST ||
 							  recv_buf[0] == RADCLI_COA_REQUEST)) {
-						radcli2_priv_radsec_route(rh, recv_buf, recv_buf_cap,
+						radcli2_priv_sess_route(rh, recv_buf, recv_buf_cap,
 									  recv_length);
 						continue;
 					}
@@ -709,8 +710,8 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 						goto cleanup;
 					}
 
-					if (is_radsec && recv_auth->id != seq_nbr) {
-						radcli2_priv_radsec_route(rh, recv_buf, recv_buf_cap,
+					if (on_session && recv_auth->id != seq_nbr) {
+						radcli2_priv_sess_route(rh, recv_buf, recv_buf_cap,
 									  recv_length);
 						continue;
 					}
@@ -748,7 +749,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 	goto cleanup_nosock;
 
  got_reply:
-	result = decode_reply(rh, ctx, server_name, svc_port, type, secret, vector,
+	result = decode_reply(rh, ctx, server_name, svc_port, type, send_buf[0], secret, vector,
 			      recv_buf, recv_buf_cap, recv_len, out_code);
 
  cleanup:
@@ -874,7 +875,7 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
 
 /*- Choose the Identifier for a blocking request or watchdog
  * (REQ-NET2-SEND-010): reserved from the in-flight registry when one exists
- * on a TLS/DTLS session, shared with RADCLI_REQUEST_SENDONLY requests;
+ * on a TCP/TLS/DTLS session, shared with RADCLI_REQUEST_SENDONLY requests;
  * drawn at random otherwise.
  *
  * @param rh a handle to parsed configuration.
@@ -886,8 +887,7 @@ int radcli2_priv_reqreg_reserve(rc_handle *rh, struct radcli_async_send_st *owne
 int radcli2_priv_reqreg_pick_id(rc_handle *rh, uint8_t *out_id, int *out_slot)
 {
 	*out_slot = -1;
-	if ((rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) &&
-	    rh->reqreg != NULL) {
+	if (RC_USES_SESSION(rh) && rh->reqreg != NULL) {
 		int slot = reqreg_take_lru(rh->reqreg, NULL);
 
 		if (slot == -1)
@@ -968,7 +968,7 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
  * @param recv_buf_cap recv_buf's capacity in bytes.
  * @param recv_length the number of bytes received into recv_buf.
  * @param from the datagram's source for the UDP source check, or NULL on a
- *  RadSec session, whose peer is already authenticated.
+ *  session, whose socket is connected to the server.
  * @return 1 if the reply resolved a slot, 0 if it was discarded.
  -*/
 static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
@@ -1017,6 +1017,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 		char server_name_copy[128];
 		unsigned short svc_port_copy;
 		rc_type type_copy;
+		uint8_t req_code_copy;
 		size_t recv_len = 0;
 		uint8_t reply_code = 0;
 		int decode_result;
@@ -1027,6 +1028,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 		memcpy(server_name_copy, rslot->server_name, sizeof(server_name_copy));
 		svc_port_copy = rslot->svc_port;
 		type_copy = rslot->type;
+		req_code_copy = rslot->send_buf[0];
 
 		/* Vacate now, before decode_reply()/radcli_avp_decode()
 		 * run: RFC 5080 SS2.1.1 permits reuse as soon as a valid
@@ -1039,7 +1041,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 		rslot->free_seq = ++reg->free_seq_ctr;
 
 		decode_result = decode_reply(rh, NULL, server_name_copy, svc_port_copy,
-					     type_copy, secret_copy, vector_copy,
+					     type_copy, req_code_copy, secret_copy, vector_copy,
 					     recv_buf, recv_buf_cap, &recv_len, &reply_code);
 		if (decode_result == OK_RC || decode_result == REJECT_RC ||
 		    decode_result == CHALLENGE_RC) {
@@ -1058,9 +1060,9 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 	return 1;
 }
 
-/*- Route one record read from rh's RadSec session to what it belongs to
- * -- the single routing point for every reader of the session
- * (REQ-NET2-NET-004): a Disconnect-/CoA-Request to the DAE pipeline, a
+/*- Route one packet read from rh's session to what it belongs to -- the
+ * single routing point for every reader of the session (REQ-NET2-NET-004):
+ * on a RadSec session, a Disconnect-/CoA-Request to the DAE pipeline; a
  * reply to the in-flight registry slot it answers; anything else is
  * dropped.
  *
@@ -1070,16 +1072,19 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
  * @param len the record's length in bytes.
  * @return RADSEC_ROUTE_DAE, RADSEC_ROUTE_REPLY, or RADSEC_ROUTE_DROPPED.
  -*/
-int radcli2_priv_radsec_route(rc_handle *rh, uint8_t *buf, size_t cap, int len)
+int radcli2_priv_sess_route(rc_handle *rh, uint8_t *buf, size_t cap, int len)
 {
-	if (len >= 1 && (buf[0] == RADCLI_DISCONNECT_REQUEST || buf[0] == RADCLI_COA_REQUEST)) {
+	/* Only RadSec carries server-initiated requests back to the client
+	 * (REQ-DAE-INIT-010); over plain TCP they match nothing. */
+	if ((rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) &&
+	    len >= 1 && (buf[0] == RADCLI_DISCONNECT_REQUEST || buf[0] == RADCLI_COA_REQUEST)) {
 		radcli2_priv_dae_on_radsec_packet(rh, buf, (size_t)len);
 		return RADSEC_ROUTE_DAE;
 	}
 	if (reqreg_deliver(rh, buf, cap, len, NULL))
 		return RADSEC_ROUTE_REPLY;
-	rc_log(LOG_INFO, "%s: record with code %u matches nothing in flight on the "
-	       "RadSec session, ignored", __func__, len >= 1 ? (unsigned)buf[0] : 0U);
+	rc_log(LOG_INFO, "%s: packet with code %u matches nothing in flight on the "
+	       "session, ignored", __func__, len >= 1 ? (unsigned)buf[0] : 0U);
 	return RADSEC_ROUTE_DROPPED;
 }
 
@@ -1123,19 +1128,19 @@ void radcli2_priv_reqreg_drain(rc_handle *rh)
 	}
 }
 
-/*- Read every record already available on rh's RadSec session and route
- * each (radcli2_priv_radsec_route()), stopping after a DAE request so that
+/*- Read every packet already available on rh's session and route
+ * each (radcli2_priv_sess_route()), stopping after a DAE request so that
  * a burst of them re-arms the caller's loop one per call. Never blocks. -*/
-void radcli2_priv_radsec_drain(rc_handle *rh)
+void radcli2_priv_sess_drain(rc_handle *rh)
 {
 	for (;;) {
 		uint8_t recv_buf[RC_BUFFER_LEN];
 		int recv_length;
 
-		recv_length = radcli2_priv_tls_try_recv(rh, recv_buf, sizeof(recv_buf));
+		recv_length = radcli2_priv_sess_try_recv(rh, recv_buf, sizeof(recv_buf));
 		if (recv_length <= 0)
 			return;
-		if (radcli2_priv_radsec_route(rh, recv_buf, sizeof(recv_buf), recv_length) ==
+		if (radcli2_priv_sess_route(rh, recv_buf, sizeof(recv_buf), recv_length) ==
 		    RADSEC_ROUTE_DAE)
 			return;
 	}
@@ -1149,7 +1154,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 {
 	struct radcli_reqreg *reg;
 	const rc_sockets_override *sfuncs;
-	int is_radsec;
+	int on_session;
 	char *ns;
 	int i;
 
@@ -1157,7 +1162,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 		return;
 	reg = rh->reqreg;
 	sfuncs = &rh->so;
-	is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+	on_session = RC_USES_SESSION(rh);
 	ns = rc_conf_str_id(rh, OPT_NAMESPACE);
 
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
@@ -1187,12 +1192,12 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 			continue;
 		}
 
-		if (is_radsec) {
+		if (on_session) {
 			/* Never waits for write room: a retransmit the session
 			 * cannot take now is queued, or skipped like a lost packet
 			 * when the queue is full (REQ-NET2-NET-005); either way its
 			 * timeout runs on. */
-			radcli2_priv_tls_send_queued(rh, rslot->send_buf, (size_t)rslot->send_len,
+			radcli2_priv_sess_send_queued(rh, rslot->send_buf, (size_t)rslot->send_len,
 						     RADSEC_SEND_RETRANSMIT);
 			rslot->deadline = rc_getmtime() + rslot->timeout;
 			continue;
@@ -1233,8 +1238,8 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
  * registry, resolve server_name to its first address only (no DNS
  * fail-over, matching radcli_transport_exchange()'s own no_wait
  * simplification), send send_buf once over ctx's shared, persistent
- * request socket (UDP, opened lazily here if not already; TLS/DTLS reuses
- * the session, establishing it if needed), and arm the slot for
+ * request socket (UDP, opened lazily here if not already; TCP/TLS/DTLS
+ * reuse the session, establishing it if needed), and arm the slot for
  * radcli_ctx_dispatch() to drive to completion -- REQ-NET2-SEND-016.
  *
  * Unlike radcli_transport_exchange(), does not itself hold the configured
@@ -1281,7 +1286,7 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	char *ns = NULL;
 	int ns_def_hdl = 0;
 	int sockfd = -1;
-	int is_radsec;
+	int on_session;
 	int result;
 
 	memset(out, 0, sizeof(*out));
@@ -1290,7 +1295,7 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 		return ERROR_RC;
 	reg = rh->reqreg;
 	rslot = &reg->slots[slot];
-	is_radsec = (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS);
+	on_session = RC_USES_SESSION(rh);
 
 	if (server_name == NULL || server_name[0] == '\0')
 		return ERROR_RC;
@@ -1323,12 +1328,12 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 			((struct sockaddr_in6 *)auth_addr->ai_addr)->sin6_port = htons(svc_port);
 	}
 
-	if (is_radsec) {
+	if (on_session) {
 		/* get_fd(), not get_active_fd(): establishes the session if it
 		 * is not up yet (REQ-NET2-SEND-012, REQ-NET-NET-019). */
 		sockfd = sfuncs->get_fd(sfuncs->ptr, NULL);
 		if (sockfd < 0) {
-			rc_log(LOG_ERR, "%s: cannot establish the RadSec session", __func__);
+			rc_log(LOG_ERR, "%s: cannot connect to the server", __func__);
 			result = ERROR_RC;
 			goto fail;
 		}

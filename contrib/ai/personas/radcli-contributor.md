@@ -35,8 +35,9 @@ Application
 ```
 
 All network I/O is dispatched through a vtable (`rc_sockets_override` in `rh->so`).
-The vtable is set at config time: UDP uses `default_socket_funcs`, TCP uses
-`default_tcp_socket_funcs`, TLS/DTLS use GnuTLS wrappers in `lib/tls.c`.
+The vtable is set at config time: UDP uses `default_socket_funcs`; TCP, TLS and
+DTLS use the persistent-connection session of `lib/session.c`, whose TLS/DTLS
+backend is the GnuTLS code in `lib/tls.c`.
 
 **Ask yourself before coding:**
 - Does my change touch the RADIUS packet format? → `lib/sendserver.c`, `lib/legacy/buildreq.c`

@@ -218,11 +218,11 @@ int rc_check_tls(rc_handle *rh)
  * ever called them (confirmed by grepping every libradcli2-bound source
  * file for a real call site, not just each function's own definition),
  * so there was no reason for them to live there at all -- unlike
- * lib/tls.c's rc_tls_fd()/rc_check_tls() just above, which stay
- * genuinely private-wrapped because rc_check_tls() calls tls.c's static
- * restart_session() and touches its session-internal tls_st fields:
- * pulling it out would mean exporting more private surface (that static
- * helper plus tls_st's layout), not less. */
+ * lib/session.c's rc_tls_fd()/rc_check_tls() just above, which stay
+ * genuinely private-wrapped because rc_check_tls() calls session.c's
+ * static restart_session() and touches its rc_session fields: pulling it
+ * out would mean exporting more private surface (that static helper plus
+ * rc_session's layout), not less. */
 
 unsigned short rc_getport(int type)
 {

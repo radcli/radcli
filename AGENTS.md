@@ -150,7 +150,7 @@ Key `meson setup` options (`-Doption=value`):
 ## Source Layout
 
 ```
-lib/          — library implementation (config.c, sendserver.c, tls.c, avpair.c,
+lib/          — library implementation (config.c, sendserver.c, session.c, tls.c, avpair.c,
                 dict.c, buildreq.c, aaa_ctx.c, util.c, log.c, ip_util.c, ...)
 include/radcli/radcli.h   — public API
 include/radcli/version.h  — generated version header
@@ -211,16 +211,15 @@ Application
 - **`VALUE_PAIR`** — singly-linked list of RADIUS attributes. The `attribute` field is 64-bit: upper 32 bits = vendor ID, lower 32 bits = attribute ID. Use `VENDOR()` and `ATTRID()` macros to decompose.
 - **`SEND_DATA`** — per-request context (server, port, secret, timeout, retries, send/recv `VALUE_PAIR` lists).
 - **`RC_AAA_CTX`** — captures the secret and request authenticator vector from a completed request, enabling idempotent retries.
-- **`rc_sockets_override` (`rh->so`)** — vtable of function pointers (`get_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`). Internal-only: no public function sets or exposes it to a caller-supplied vtable; it is populated solely by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP/TCP tables or the GnuTLS wrappers in `lib/tls.c` (`REQ-NET-NET-002`).
+- **`rc_sockets_override` (`rh->so`)** — vtable of function pointers (`get_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`). Internal-only: no public function sets or exposes it to a caller-supplied vtable; it is populated solely by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP table or the TCP/TLS/DTLS session vtable in `lib/session.c` (`REQ-NET-NET-002`).
 
-### Transport abstraction (`lib/sendserver.c` + `lib/tls.c`)
+### Transport abstraction (`lib/sendserver.c` + `lib/session.c` + `lib/tls.c`)
 
 All network I/O goes through `rh->so` function pointers, set by `rc_apply_config()` (called from `rc_read_config()`):
 - UDP: `default_socket_funcs` — standard `sendto`/`recvfrom`
-- TCP: `default_tcp_socket_funcs`
-- TLS/DTLS: `tls_sendto` / `tls_recvfrom` wrappers around GnuTLS
+- TCP/TLS/DTLS: the session vtable of `lib/session.c` (`sess_sendto` / `sess_recvfrom`): one persistent connection to the single authserver carries every request, with replies framed by their Length field. Plain TCP is implemented there; `lib/tls.c` supplies the GnuTLS backend (`rc_sess_ops`).
 
-**TLS reconnection** (`lib/tls.c`): The `tls_st` struct holds a persistent GnuTLS session. When a send or receive fails, `need_restart` is set. The next `tls_sendto()` call triggers `restart_session()`, which re-establishes the connection unconditionally (no rate limit — every call site only ever calls it once a reconnect is already known to be needed).
+**Reconnection** (`lib/session.c`): The `rc_session` struct holds the persistent connection. When a send or receive fails, `need_restart` is set. The next `sess_sendto()` call triggers `restart_session()`, which re-establishes the connection unconditionally (no rate limit — every call site only ever calls it once a reconnect is already known to be needed).
 
 `rc_check_tls(rh)` — call periodically from application threads to proactively detect a dead session and reconnect. Sends an RFC 5997 Status-Server watchdog (`radcli_ctx_send_watchdog()`) once `watchdog-interval` has elapsed since the session's last activity — the same mechanism `radcli_ctx_get_poll()`/`radcli_ctx_send_watchdog()` expose directly for radcli2-API callers, not a separate TLS heartbeat. **ocserv does not call this**, which means idle session closure is only detected on the next request.
 

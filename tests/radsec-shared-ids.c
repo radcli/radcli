@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 	    radcli_ctx_apply(ctx) != 0)
 		die("context setup");
 	rh = (rc_handle *)ctx;
-	if (radcli2_priv_tls_ensure_connected(rh) != 0)
+	if (radcli2_priv_sess_ensure_connected(rh) != 0)
 		die("TLS connection");
 
 	/* All but one Identifier in flight. */

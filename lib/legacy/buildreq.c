@@ -60,8 +60,7 @@ void rc_buildreq(rc_handle const *rh, SEND_DATA * data, int code, char *server,
 static int rc_select_aaa_server(rc_handle *rh, SERVER **aaaserver,
 				rc_type *type, rc_standard_codes request_type)
 {
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS ||
-	    request_type != PW_ACCOUNTING_REQUEST) {
+	if (RC_USES_SESSION(rh) || request_type != PW_ACCOUNTING_REQUEST) {
 		*aaaserver = rc_conf_srv(rh, "authserver");
 		*type = AUTH;
 	} else {
@@ -179,8 +178,8 @@ int rc_aaa_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, uint32_t nas_port,
  *   caller must free it with rc_aaa_ctx_free().  Pass NULL if not needed.
  * @param aaaserver a non-NULL SERVER describing the target server(s).
  * @param type AUTH to use the authentication port, ACCT for the accounting
- *   port.  Under TLS/DTLS only AUTH is valid (both auth and acct share the
- *   same TLS connection to the authserver).
+ *   port.  Under TCP/TLS/DTLS only AUTH is valid (both auth and acct share
+ *   the same connection to the authserver).
  * @param nas_port the physical NAS port number to include (may be zero).
  * @param send VALUE_PAIR list of attributes to send (e.g., PW_USER_NAME).
  * @param received on success, receives the server's reply VALUE_PAIR list;
@@ -414,7 +413,7 @@ static int rc_aaa_ctx_server_async(rc_handle * rh, SERVER * aaaserver,
 /** @brief Sends an accounting request to every configured accounting server without waiting for a reply
  *
  * Selects the server list the same way rc_acct() does (acctserver, or
- * authserver under TLS/DTLS). Unlike rc_acct()/rc_aaa(), which stop at the
+ * authserver under TCP/TLS/DTLS). Unlike rc_acct()/rc_aaa(), which stop at the
  * first server that replies and fail over to the next only after a
  * timeout, this sends to *every* configured server unconditionally, since
  * there is no reply to judge success or failure by. Intended for
@@ -462,7 +461,7 @@ int rc_check(rc_handle * rh, char *host, char *secret, unsigned short port,
 
 	data.send_pairs = data.receive_pairs = NULL;
 
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS)
+	if (RC_USES_SESSION(rh))
 		type = AUTH;
 	else
 		type = ACCT;
