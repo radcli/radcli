@@ -6,8 +6,10 @@
 #
 # REQ-NET-NET-021/022, REQ-NET2-NET-001: requests left unanswered on a TCP
 # or TLS session time out, are resent only over a new connection, and never
-# make radcli_ctx_dispatch() wait. See tests/session-timeout.c. TLS cases
-# run only when the build has TLS support and openssl is available; DTLS cases only need TLS support.
+# make radcli_ctx_dispatch() wait. REQ-NET2-SEND-018: requests submitted
+# with RADCLI_REQUEST_SENDONLY_NONBLOCK never wait for the connection either. See
+# tests/session-timeout.c. TLS cases run only when the build has TLS
+# support and openssl is available; DTLS cases only need TLS support.
 
 srcdir="${srcdir:-.}"
 
@@ -78,9 +80,10 @@ function run_case {
 run_case tcp once once-blocking "COPIES=1 CONNECTIONS=1" 4
 run_case tcp once once-sendonly "COPIES=1 CONNECTIONS=1" 4
 run_case tcp drop drop-sendonly "RESENT-ON-NEW" 10
+run_case tcp answer nonblock-burst "RECEIVED=15" 10
 
 if test "${HAVE_TLS:-yes}" = yes; then
-	for cmode in blocking-mute sendfail-once; do
+	for cmode in blocking-mute nonblock-mute sendfail-once; do
 		if ! ${top_builddir}/tests/session-timeout dtls - - $cmode; then
 			echo "[ FAIL ] dtls $cmode: client reported a failure"
 			exit 1
@@ -99,7 +102,9 @@ if test "${HAVE_TLS:-yes}" = yes && command -v openssl >/dev/null 2>&1; then
 	run_case tls once once-blocking "COPIES=1 CONNECTIONS=1" 4
 	run_case tls once once-sendonly "COPIES=1 CONNECTIONS=1" 4
 	run_case tls stall stall "STALLED" 10
+	run_case tls mute nonblock-mute "STALLED" 4
+	run_case tls answer nonblock-burst "RECEIVED=15" 10
 fi
 
-echo "[  OK  ] TCP/TLS requests are resent only over a new connection, without blocking dispatch"
+echo "[  OK  ] TCP/TLS requests are resent only over a new connection, without blocking dispatch or submission"
 exit 0

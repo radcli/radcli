@@ -481,9 +481,10 @@ inside of.
 bounded, and MUST be dropped (the oldest one that has not started sending) rather
 than buffered without limit when the queue is full, so that a DAC that stops
 reading cannot cause unbounded memory growth on the NAS. The queue is the
-session's single send queue (net2.md's REQ-NET2-NET-005), shared with
-retransmits and watchdogs; a reply that GnuTLS has partly accepted is never
-dropped. Equally, `radcli_ctx_dispatch()` -- invoked by a
+session's single send queue (net2.md's REQ-NET2-NET-005), whose 8 copied
+records hold DAE replies and watchdogs; requests' packets queue by reference
+to their registry slots and take none of them. A reply that GnuTLS has
+partly accepted is never dropped. Equally, `radcli_ctx_dispatch()` -- invoked by a
 poll()-driven application only because its descriptor was reported readable --
 MUST NOT itself block waiting to send a reply that cannot go out immediately: the
 queue exists specifically so a slow-reading peer degrades to deferred replies and

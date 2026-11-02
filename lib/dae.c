@@ -1176,7 +1176,7 @@ int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx)
 	}
 
 	ret = radcli2_priv_sess_send_queued(rh, send_buffer, (size_t)total_length,
-					   RADSEC_SEND_WATCHDOG);
+					   RADSEC_SEND_WATCHDOG, -1);
 	if (ret >= 0)
 		rh->watchdog_slot = slot; /* sent, or queued to go out */
 	else
@@ -1434,7 +1434,7 @@ static int send_reply(struct radcli_dae_request_st *req, uint8_t reply_code, uin
 		 * back over rh's own established TLS/DTLS session, without ever
 		 * waiting for write room (REQ-DAE-SEC-013, REQ-NET2-NET-005). */
 		if (radcli2_priv_sess_send_queued(req->dae->rh, send_buffer, (size_t)total_length,
-						 RADSEC_SEND_DAE_REPLY) == -1)
+						 RADSEC_SEND_DAE_REPLY, -1) == -1)
 			return -1;
 		return 0;
 	}
@@ -2092,7 +2092,7 @@ static void send_radsec_unsupported_nak(rc_handle *rh, const uint8_t *reqbuf, si
 	/* Never waits for write room, like send_reply() (REQ-NET2-NET-005);
 	 * RFC 6614 SS2.5's 406 signal is best-effort, so a full queue simply
 	 * drops it. */
-	radcli2_priv_sess_send_queued(rh, out, (size_t)total_length, RADSEC_SEND_DAE_REPLY);
+	radcli2_priv_sess_send_queued(rh, out, (size_t)total_length, RADSEC_SEND_DAE_REPLY, -1);
 }
 
 /*- Process one RADIUS/TLS or RADIUS/DTLS record already known to carry

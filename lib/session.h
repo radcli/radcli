@@ -41,7 +41,7 @@
 #define SESS_AGAIN (-2) /* would block: repeat the same call once ready */
 #define SESS_ALERT (-3) /* a TLS warning alert arrived instead of data */
 
-/* REQ-NET2-NET-005: capacity of a session's send queue. */
+/* REQ-NET2-NET-005: how many records a session's send queue copies. */
 #define SESS_SENDQ_SIZE 8
 
 typedef struct rc_sess_conn {
@@ -89,9 +89,11 @@ typedef struct rc_sess_ops {
 } rc_sess_ops;
 
 struct sess_pending_send {
-	uint8_t buf[RC_MAX_PACKET_LEN];
+	const uint8_t *data; /* a copy, a registry slot's packet, or head_buf */
 	size_t len;
 	int kind; /* RADSEC_SEND_* */
+	int slot; /* the in-flight registry slot data belongs to, or -1 */
+	int copy; /* the rc_session.copies entry data is, or -1 */
 };
 
 /* Phases of a connection attempt (rc_session.phase). */
@@ -119,12 +121,18 @@ typedef struct rc_session {
 	double deadline; /* rc_getmtime() by which the attempt must complete */
 	unsigned gen; /* counts attempts; 0 is never an attempt's */
 	/* Records radcli_ctx_dispatch() could not send at once, oldest first
-	 * (REQ-NET2-NET-005). A record is queued only behind one the backend
-	 * refused, so the head is always partly accepted, which requires it to
-	 * be passed again unchanged. Discarded by every restart: the records
-	 * belong to the failed connection. */
-	struct sess_pending_send sendq[SESS_SENDQ_SIZE];
+	 * (REQ-NET2-NET-005): at most SESS_SENDQ_SIZE copies, plus one
+	 * request's packet per registry slot, which stays in the slot.
+	 * Discarded by every restart: the records belong to the failed
+	 * connection. */
+	struct sess_pending_send sendq[SESS_SENDQ_SIZE + RADCLI_CTX_MAX_INFLIGHT];
 	unsigned sendq_len;
+	unsigned head_started; /* the backend has seen sendq[0]: pass it again unchanged */
+	uint8_t copies[SESS_SENDQ_SIZE][RC_MAX_PACKET_LEN];
+	unsigned copies_used; /* bit i: copies[i] holds a queued record */
+	/* A started head whose registry slot was vacated: it must still be
+	 * finished, from data the slot no longer guarantees. */
+	uint8_t head_buf[RC_MAX_PACKET_LEN];
 } rc_session;
 
 int radcli2_priv_sess_init(rc_handle *rh, const rc_sess_ops *ops, void *backend);

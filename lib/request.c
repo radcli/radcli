@@ -346,14 +346,16 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 /** @brief Send a request, optionally waiting for the reply.
  *
  * By default (flags == RADCLI_REQUEST_NONE), sends r and waits for the
- * reply. With RADCLI_REQUEST_SENDONLY, transmits r a single time and
- * returns once the packet is handed to the network, without blocking for a
- * reply -- either as a pure fire-and-forget notification whose outcome the
+ * reply. With RADCLI_REQUEST_SENDONLY, sends r and returns once the packet
+ * is handed to the network, without blocking for a reply -- either as a pure fire-and-forget notification whose outcome the
  * caller does not act on (call radcli_request_free() without ever calling
  * radcli_ctx_dispatch(); radcli.h's rc_acct_async() is the equivalent call
  * in the legacy API), or to read the reply later via radcli_request_done(),
  * driven by the caller's own radcli_ctx_get_poll()/radcli_ctx_dispatch()
- * loop (lib/dae.c).
+ * loop (lib/dae.c), which also retransmits r. RADCLI_REQUEST_SENDONLY_NONBLOCK
+ * is the same except that it never waits for the network: what cannot go
+ * out at once, including while a TCP/TLS/DTLS session connects, is queued
+ * for radcli_ctx_dispatch() to send (REQ-NET2-SEND-018).
  *
  * May be called only once per request; construct a new radcli_request for
  * a retransmission with different content.
@@ -365,7 +367,8 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
  *  none of the server's addresses replied, or RADCLI_ERROR on failure.
  *  With RADCLI_REQUEST_SENDONLY: RADCLI_OK once the packet is handed to
  *  the network, RADCLI_ERROR on failure (e.g. name resolution or encoding
- *  failed); never RADCLI_TIMEOUT.
+ *  failed); never RADCLI_TIMEOUT. With RADCLI_REQUEST_SENDONLY_NONBLOCK: the
+ *  same, except that RADCLI_OK also covers a packet that was queued.
  */
 int radcli_request_perform(radcli_request *r, unsigned flags)
 {
@@ -399,8 +402,9 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 		}
 
 		result = radcli_transport_send_async(r->rh, slot, r->server, r->svc_port, r->secret,
-						     r->type, send_buffer, send_len,
-						     r->timeout, r->retries, &r->async);
+						     r->type, send_buffer, send_len, r->timeout, r->retries,
+						     (flags & RADCLI_REQUEST_SENDONLY_NONBLOCK) ==
+						     RADCLI_REQUEST_SENDONLY_NONBLOCK, &r->async);
 		if (result != OK_RC) {
 			radcli2_priv_reqreg_release(r->rh, slot);
 			return RADCLI_ERROR;
@@ -521,7 +525,8 @@ const char *radcli_request_server(const radcli_request *r)
  * drives it via radcli_ctx_dispatch() at all), releases r's still-reserved
  * registry slot first -- this is what makes fire-and-forget just
  * "perform() then free()", with no separate close step for the caller to
- * remember.
+ * remember. A RADCLI_REQUEST_SENDONLY_NONBLOCK packet radcli_ctx_dispatch() has not
+ * yet started sending is dropped, never sent.
  *
  * @param r a request from radcli_request_new(); NULL is accepted and ignored.
  */

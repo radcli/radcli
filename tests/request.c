@@ -303,6 +303,51 @@ int main(int argc, char **argv)
 		radcli_request_free(r);
 	}
 
+	/* --- RADCLI_REQUEST_SENDONLY_NONBLOCK (REQ-NET2-SEND-018): the request
+	 * reaches the same RADCLI_TIMEOUT through radcli_request_done(). --- */
+
+	{
+		radcli_avp_list *send_list4 = radcli_avp_list_new();
+		int rc, iterations = 0;
+
+		assert(RADCLI_REQUEST_SENDONLY_NONBLOCK & RADCLI_REQUEST_SENDONLY);
+		assert(send_list4 != NULL);
+		assert(radcli_avp_add_str(send_list4, d_user, "dave") == 0);
+
+		r = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, send_list4);
+		radcli_avp_list_free(send_list4);
+		assert(r != NULL);
+
+		if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY_NONBLOCK) != RADCLI_OK) {
+			fprintf(stderr, "error: radcli_request_perform("
+					"RADCLI_REQUEST_SENDONLY_NONBLOCK) did not return RADCLI_OK\n");
+			exit(1);
+		}
+
+		while ((rc = radcli_request_done(r)) == RADCLI_AGAIN) {
+			struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+			size_t nfds;
+			int timeout_ms;
+
+			if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0 ||
+			    ++iterations > 100) {
+				fprintf(stderr, "error: a RADCLI_REQUEST_SENDONLY_NONBLOCK request never "
+						"resolved against an unreachable server\n");
+				exit(1);
+			}
+			poll(pfds, (nfds_t)nfds, timeout_ms);
+			radcli_ctx_dispatch(ctx);
+		}
+
+		if (rc != RADCLI_TIMEOUT) {
+			fprintf(stderr, "error: a RADCLI_REQUEST_SENDONLY_NONBLOCK request against an "
+					"unreachable server returned %d, expected RADCLI_TIMEOUT\n", rc);
+			exit(1);
+		}
+
+		radcli_request_free(r);
+	}
+
 	radcli_ctx_free(ctx);
 
 	/* --- by design, with more than one authserver entry configured,
