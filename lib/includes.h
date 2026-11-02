@@ -512,5 +512,6 @@ int radcli2_priv_sess_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
 int radcli2_priv_sess_pending(rc_handle *rh);
 
 int radcli2_priv_get_srcaddr(struct sockaddr *lia, const struct sockaddr *ria);
+int radcli2_priv_prefer_public_addr(rc_handle *rh, int fd);
 
 #endif
