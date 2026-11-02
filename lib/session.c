@@ -276,10 +276,11 @@ static int sess_unlock(void *ptr)
 	return pthread_mutex_unlock(&s->lock);
 }
 
-/*- rc_sockets_override.recvfrom: read one RADIUS packet from s, waiting
- * via sess_wait_or_give_up() until it is complete. The packet may be any
- * type (RFC 6614 §2.1/§2.5, RFC 7360 §2.2); the caller routes what is not
- * its own reply.
+/*- rc_sockets_override.recvfrom: read one RADIUS packet from s without
+ * waiting; a TLS record carrying no RADIUS data (e.g. a TLS 1.3 session
+ * ticket) or part of a packet leaves the caller to poll() again. The packet
+ * may be any type (RFC 6614 §2.1/§2.5, RFC 7360 §2.2); the caller routes
+ * what is not its own reply.
  *
  * @param ptr the rc_session.
  * @param sockfd unused; part of the recvfrom calling convention.
@@ -289,7 +290,8 @@ static int sess_unlock(void *ptr)
  * @param src_addr unused; part of the recvfrom calling convention.
  * @param addrlen unused; part of the recvfrom calling convention.
  * @return the number of bytes received, or -1 on failure (errno set to
- * EINTR on a received alert, EIO otherwise).
+ * EAGAIN if no whole packet is ready yet, EINTR on a received alert, EIO
+ * otherwise).
  -*/
 static ssize_t sess_recvfrom(void *ptr, int sockfd,
 			     void *buf, size_t len,
@@ -299,15 +301,10 @@ static ssize_t sess_recvfrom(void *ptr, int sockfd,
 	rc_session *s = ptr;
 	int ret;
 
-	for (;;) {
-		ret = sess_recv_packet(s, buf, len);
-		if (ret == SESS_AGAIN) {
-			if (sess_wait_or_give_up(s, POLLIN, "receive") < 0)
-				return -1;
-			continue;
-		}
-
-		break;
+	ret = sess_recv_packet(s, buf, len);
+	if (ret == SESS_AGAIN) {
+		errno = EAGAIN;
+		return -1;
 	}
 
 	if (ret == SESS_ALERT) {

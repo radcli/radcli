@@ -678,10 +678,11 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 
 				if (recv_length <= 0) {
 					int e = errno;
-					rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: %s:%d: %s",
-					       server_name, svc_port, strerror(e));
+
 					if (recv_length == -1 && e == EAGAIN)
 						continue;
+					rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: %s:%d: %s",
+					       server_name, svc_port, strerror(e));
 					SCLOSE(sockfd);
 					result = ERROR_RC;
 					goto cleanup;
