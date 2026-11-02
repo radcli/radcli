@@ -537,6 +537,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 		unsigned discover_local_ip;
 		int retry_max = retries;
 		int this_retries = 0;
+		unsigned sent_gen = 0;
 
 		if (svc_port) {
 			if (cur_addr->ai_family == AF_INET)
@@ -616,15 +617,21 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			struct pollfd pfd;
 			double deadline;
 
-			do {
-				result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
-							(unsigned int)send_len, 0,
-							SA(cur_addr->ai_addr), cur_addr->ai_addrlen);
-			} while (result == -1 && errno == EINTR);
-			if (result == -1) {
-				result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
-				rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__, strerror(errno));
-				break; /* try the next address */
+			/* A retry waits again without resending over the stream
+			 * connection the request already went out on
+			 * (REQ-NET-NET-022). */
+			if (!radcli2_priv_sess_holds(rh, sent_gen)) {
+				do {
+					result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
+								(unsigned int)send_len, 0,
+								SA(cur_addr->ai_addr), cur_addr->ai_addrlen);
+				} while (result == -1 && errno == EINTR);
+				if (result == -1) {
+					result = errno == ENETUNREACH ? NETUNREACH_RC : ERROR_RC;
+					rc_log(LOG_ERR, "%s: socket: %s", __FUNCTION__, strerror(errno));
+					break; /* try the next address */
+				}
+				sent_gen = radcli2_priv_sess_gen(rh);
 			}
 
 			if (no_wait) {
@@ -1194,12 +1201,19 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 		}
 
 		if (on_session) {
-			/* Never waits for write room: a retransmit the session
-			 * cannot take now is queued, or skipped like a lost packet
-			 * when the queue is full (REQ-NET2-NET-005); either way its
-			 * timeout runs on. */
-			radcli2_priv_sess_send_queued(rh, rslot->send_buf, (size_t)rslot->send_len,
-						     RADSEC_SEND_RETRANSMIT);
+			/* RFC 6613 SS2.6.1: never resent over the stream connection
+			 * it already went out on; it keeps waiting there instead
+			 * (REQ-NET-NET-022). Otherwise never waits, not even to
+			 * reconnect: a retransmit the session cannot take now is
+			 * queued, or skipped like a lost packet when the queue is
+			 * full (REQ-NET2-NET-001/005); either way its timeout runs
+			 * on. */
+			if (!radcli2_priv_sess_holds(rh, rslot->conn_gen)) {
+				radcli2_priv_sess_send_queued(rh, rslot->send_buf,
+							     (size_t)rslot->send_len,
+							     RADSEC_SEND_RETRANSMIT);
+				rslot->conn_gen = radcli2_priv_sess_gen(rh);
+			}
 			rslot->deadline = rc_getmtime() + rslot->timeout;
 			continue;
 		}
@@ -1435,6 +1449,7 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 
 	memcpy(&rslot->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
 	rslot->peer_len = auth_addr->ai_addrlen;
+	rslot->conn_gen = radcli2_priv_sess_gen(rh);
 	memcpy(rslot->send_buf, send_buf, (size_t)send_len);
 	rslot->send_len = send_len;
 	memcpy(rslot->vector, send_buf + 4, AUTH_VECTOR_LEN); /* AUTH_HDR: code(1) id(1) length(2) vector(16) */

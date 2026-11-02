@@ -244,6 +244,7 @@ struct radcli_reqreg_slot {
 	int timeout; /* per-attempt, seconds */
 	int retries_left;
 	double deadline; /* rc_getmtime() value of the next retransmit/timeout */
+	unsigned conn_gen; /* radcli2_priv_sess_gen() when last sent or queued */
 };
 
 /* ctx-owned registry backing every RADCLI_REQUEST_SENDONLY exchange on this
@@ -484,6 +485,10 @@ int radcli2_priv_read_dictionary_from_buffer(rc_handle *rh, char const *buf, siz
 int radcli2_priv_load_builtin_dict(rc_handle *rh);
 
 int radcli2_priv_sess_fd(rc_handle *rh);
+int radcli2_priv_sess_poll(rc_handle *rh, short *events, int *timeout_ms);
+void radcli2_priv_sess_progress(rc_handle *rh);
+unsigned radcli2_priv_sess_gen(rc_handle *rh);
+int radcli2_priv_sess_holds(rc_handle *rh, unsigned gen);
 int radcli2_priv_tls_fd(rc_handle *rh);
 int radcli2_priv_check_tls(rc_handle *rh);
 void radcli2_priv_sess_deinit(rc_handle *rh);
@@ -499,7 +504,6 @@ int radcli2_priv_sess_ensure_connected(rc_handle *rh);
 
 int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind);
 void radcli2_priv_sess_flush(rc_handle *rh);
-int radcli2_priv_sess_send_pending(rc_handle *rh);
 void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t len);
 int radcli2_priv_sess_try_recv(rc_handle *rh, uint8_t *buf, size_t cap);
 int radcli2_priv_sess_pending(rc_handle *rh);

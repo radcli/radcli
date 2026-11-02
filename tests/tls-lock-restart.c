@@ -73,7 +73,8 @@ int main(int argc, char **argv)
 
 	if (rh->so.lock(rh->so.ptr) != 0)
 		die("taking the session lock");
-	if (radcli2_priv_sess_force_reconnect(rh) != 0)
+	if (radcli2_priv_sess_force_reconnect(rh) != 0 ||
+	    radcli2_priv_sess_ensure_connected(rh) != 0)
 		die("session restart");
 	if (rh->so.unlock(rh->so.ptr) != 0) {
 		fprintf(stderr, "error: the session lock could not be released after a "

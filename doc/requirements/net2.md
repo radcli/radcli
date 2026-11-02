@@ -225,7 +225,14 @@ or the request-registry socket (UDP, REQ-NET2-SEND-016). A UDP `ctx` with an
 active `radcli_dae` reports a second, independent descriptor for the DAE
 listener alongside it — the two are genuinely different local sockets/ports
 (dae.md's REQ-DAE-INIT-002) and cannot be merged into one without changing
-the wire protocol; two is the maximum this API ever needs.
+the wire protocol; two is the maximum this API ever needs. "On the caller's
+behalf" means waiting: a zero-timeout `poll()` that only checks a descriptor's
+state is allowed. `*timeout_ms` MUST NOT be -1 while a request or a connection
+attempt is pending. The caller MUST call `radcli_ctx_dispatch()` when
+`*timeout_ms` expires, even if no descriptor became ready, and MUST call
+`radcli_ctx_get_poll()` again afterwards: radcli owns no timer
+(REQ-GEN-SEC-003), so retransmissions, timeouts and connection attempts advance
+only from those calls.
 
 `radcli_ctx_dispatch()` reads whatever is ready — and, for the request-socket
 and watchdog-deadline cases, transmits when due (REQ-NET2-SEND-013,
@@ -241,21 +248,36 @@ that a transport sharing one descriptor between DAE and ordinary requests
 (already true for TCP/TLS/DTLS) never leaves an application holding a watcher on
 a descriptor that silently starts meaning something else.
 
-One exception: when the TCP/TLS/DTLS session has failed and
+Reconnecting a failed TCP/TLS/DTLS session is no exception: when
 `radcli_ctx_dispatch()` must send on it — a `RADCLI_REQUEST_SENDONLY`
 retransmit, or the watchdog's forced reconnect to a silent peer
-(REQ-WATCHDOG-NET-003) — it reconnects synchronously first, and blocks for
-as long as that takes: name resolution, bounded only by the system
-resolver; `connect()`, bounded only by the operating system (for TCP, its
-SYN retry timeout); and the TLS/DTLS handshake, bounded by
-`radius_timeout`.
+(REQ-WATCHDOG-NET-003) — it only begins a connection attempt
+(REQ-NET-NET-023) and queues the record for the new connection
+(REQ-NET2-NET-005). Each later `radcli_ctx_dispatch()` advances the attempt
+as far as it goes without waiting, and `radcli_ctx_get_poll()` reports the
+attempt's descriptor — `POLLOUT` while `connect()` completes, then whatever
+the TLS/DTLS handshake waits for — with a timeout no later than the
+attempt's deadline (or DTLS's next handshake retransmission). The one wait
+that remains is name resolution when an attempt begins, bounded only by
+the system resolver.
 **Strength:** MUST
-**Status:** DERIVED
-**Source:** REQ-GEN-SEC-003; lib/session.c (`restart_session()`,
-`conn_open()`); lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`);
-lib/dae.c (`radcli2_priv_dae_send_watchdog()`)
-**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request.
-**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001
+**Status:** DERIVED — fixes a bug (#147): `radcli_ctx_dispatch()` reconnected
+synchronously, blocking for the TCP connect and the TLS/DTLS handshake (up
+to `radius_timeout`, or the operating system's SYN retry timeout).
+**Source:** REQ-GEN-SEC-003; lib/session.c (`attempt_begin()`,
+`attempt_step()`, `radcli2_priv_sess_progress()`, `radcli2_priv_sess_poll()`,
+`radcli2_priv_sess_send_queued()`, `radcli2_priv_sess_force_reconnect()`);
+lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`); lib/dae.c
+(`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`,
+`radcli2_priv_dae_send_watchdog()`)
+**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request. [NET] negative, local —
+`tests/session-timeout-tests.sh`'s `stall` case: a TLS peer closes the connection on an
+unanswered `RADCLI_REQUEST_SENDONLY` request and then never completes a new handshake; no
+`radcli_ctx_dispatch()` call may take more than 200 ms while the request is retransmitted
+and times out. Confirmed failing (2s, the synchronous reconnect) against the unfixed code.
+[NET] positive, local — `tests/session-timeout.c`'s `drive()`: `*timeout_ms` is never -1 while its request is pending, on TCP and TLS.
+**Links:** REQ-GEN-SEC-003, REQ-DAE-NET-003, REQ-NET2-SEND-013, REQ-NET2-SEND-016, REQ-WATCHDOG-NET-001,
+REQ-NET-NET-023
 
 ### REQ-NET2-NET-002 — validation completes before the application sees a request
 
@@ -280,7 +302,9 @@ entry point at all).
 TLS/DTLS `ctx`'s session while none is established (never connected, or
 every connection attempt so far failed), and MUST return `0` rather than
 crash or report failure; `radcli_ctx_get_poll()` MUST report no descriptor
-for it (`*nfds == 0`). This holds even when a
+for it (`*nfds == 0`) unless a connection attempt is in progress, whose
+descriptor it reports instead and which `radcli_ctx_dispatch()` advances
+(REQ-NET2-NET-001). This holds even when a
 `RADCLI_REQUEST_SENDONLY` request has already used `ctx`'s in-flight
 registry.
 **Strength:** MUST
@@ -353,17 +377,18 @@ watchdog is skipped (likewise counting as that round's attempt,
 REQ-NET2-SEND-010); a DAE reply displaces the oldest queued DAE reply other
 than the head, or is dropped itself if there is none (dae.md's
 REQ-DAE-SEC-013). A blocking exchange may wait, as its contract
-allows: it first sends everything queued, then its own request. A session
-restart discards the queue, whose records belong to the failed session.
-Reconnecting a failed session is REQ-NET2-NET-001's separate, documented
-exception.
+allows: it first sends everything queued, then its own request. A new
+connection attempt discards the queue, whose records belong to the failed
+connection; a retransmit or watchdog sent while the attempt is in progress
+is queued for the new connection, a DAE reply fails (its request arrived on
+the failed one).
 **Strength:** MUST
 **Status:** DERIVED — fixes a bug: a retransmit (and, over the shared
 session, any send behind a deferred DAE reply) waited up to
 `radius_timeout` for write room inside `radcli_ctx_dispatch()`, and the DAE
 reply queue's overflow could drop a partly-sent record.
 **Source:** lib/session.c (`radcli2_priv_sess_send_queued()`,
-`radcli2_priv_sess_flush()`, `sess_sendto()`, `tcp_send()`, `restart_session()`); lib/dae.c
+`radcli2_priv_sess_flush()`, `sess_sendto()`, `tcp_send()`, `attempt_begin()`); lib/dae.c
 (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`, `send_reply()`,
 `radcli2_priv_dae_send_watchdog()`); lib/sendserver.c
 (`radcli2_priv_reqreg_service_timeouts()`)

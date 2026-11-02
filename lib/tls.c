@@ -48,6 +48,7 @@
 
 #include <gnutls/gnutls.h>
 #include <gnutls/dtls.h>
+#include <poll.h>
 
 #define DEFAULT_DTLS_SECRET "radius/dtls"
 #define DEFAULT_TLS_SECRET "radsec"
@@ -108,8 +109,8 @@ static int cert_verify_callback(gnutls_session_t session)
 	return 0;
 }
 
-/*- rc_sess_ops.start: set up a GnuTLS session on c's connected socket and
- * complete the (D)TLS handshake.
+/*- rc_sess_ops.start: set up a GnuTLS session on c's connected socket,
+ * for tls_handshake() to drive.
  *
  * @param s the session; s->backend holds the credentials.
  * @param c the connection being opened.
@@ -119,7 +120,9 @@ static int cert_verify_callback(gnutls_session_t session)
 static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 {
 	struct tls_creds *cr = s->backend;
-	unsigned flags = GNUTLS_CLIENT;
+	/* GNUTLS_NONBLOCK: without it the handshake waits inside GnuTLS for
+	 * its own timeouts, socket blocking or not. */
+	unsigned flags = GNUTLS_CLIENT | GNUTLS_NONBLOCK;
 	unsigned cred_set = 0;
 	char *p;
 	int ret;
@@ -188,12 +191,21 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 	rc_log(LOG_DEBUG,
 	       "%s: performing TLS/DTLS handshake with [%s]:%d",
 	       __func__, s->hostname, s->port);
+	return 0;
+}
+
+/*- rc_sess_ops.handshake: advance the (D)TLS handshake without waiting. -*/
+static int tls_handshake(rc_sess_conn *c)
+{
+	int ret;
+
 	do {
 		ret = gnutls_handshake(c->session);
-		if (ret == GNUTLS_E_LARGE_PACKET)
-			break;
-	} while (ret < 0 && gnutls_error_is_fatal(ret) == 0);
+	} while (ret < 0 && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_INTERRUPTED &&
+		 ret != GNUTLS_E_LARGE_PACKET && gnutls_error_is_fatal(ret) == 0);
 
+	if (ret == GNUTLS_E_AGAIN || ret == GNUTLS_E_INTERRUPTED)
+		return SESS_AGAIN;
 	if (ret < 0) {
 		rc_log(LOG_ERR, "%s: error in handshake: %s",
 		       __func__, gnutls_strerror(ret));
@@ -202,6 +214,48 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 
 	c->handshake_done = 1;
 	return 0;
+}
+
+/*- rc_sess_ops.handshake_wait for TLS: the direction GnuTLS last blocked
+ * in. -*/
+static int tls_handshake_wait(rc_sess_conn *c, short *events)
+{
+	*events = gnutls_record_get_direction(c->session) ? POLLOUT : POLLIN;
+	return -1;
+}
+
+/*- rc_sess_ops.handshake_wait for DTLS: also when the retransmission timer
+ * next fires, for tls_handshake() to resend a lost flight. -*/
+static int dtls_handshake_wait(rc_sess_conn *c, short *events)
+{
+	/* GnuTLS can still report "write" after a flight went out and it is
+	 * waiting for the reply (gnutls#1992), and polling a writable socket
+	 * for POLLOUT would spin, so trust it only if the socket is full. */
+	struct pollfd pfd = { c->sockfd, POLLOUT, 0 };
+
+	if (gnutls_record_get_direction(c->session) && poll(&pfd, 1, 0) == 0) {
+		*events = POLLOUT;
+		/* The timer reads 0 once expired, yet no retransmission can
+		 * reset it until this send clears. */
+		return -1;
+	}
+	*events = POLLIN;
+	return (int)gnutls_dtls_get_timeout(c->session);
+}
+
+/*- rc_sess_ops.handshake for DTLS: dtls_handshake_wait() cannot tell a send
+ * that failed on a writable socket from a stale direction, and would leave it
+ * unsent until the retransmission timer, possibly past the attempt's deadline.
+ * Retrying sends nothing if the direction was stale. -*/
+static int dtls_handshake(rc_sess_conn *c)
+{
+	struct pollfd pfd = { c->sockfd, POLLOUT, 0 };
+	int ret = tls_handshake(c);
+
+	if (ret == SESS_AGAIN && gnutls_record_get_direction(c->session) &&
+	    poll(&pfd, 1, 0) > 0)
+		ret = tls_handshake(c);
+	return ret;
 }
 
 /*- rc_sess_ops.send: one gnutls_record_send() call. -*/
@@ -285,6 +339,8 @@ static void tls_free(rc_session *s)
 
 static const rc_sess_ops tls_ops = {
 	.start = tls_start,
+	.handshake = tls_handshake,
+	.handshake_wait = tls_handshake_wait,
 	.send = tls_send,
 	.recv = tls_recv,
 	.pending = tls_pending,
@@ -295,6 +351,8 @@ static const rc_sess_ops tls_ops = {
 static const rc_sess_ops dtls_ops = {
 	.datagram = 1,
 	.start = tls_start,
+	.handshake = dtls_handshake,
+	.handshake_wait = dtls_handshake_wait,
 	.send = tls_send,
 	.recv = tls_recv,
 	.pending = tls_pending,

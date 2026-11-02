@@ -379,23 +379,30 @@ static int prefer_public_addr(rc_handle *rh, int fd)
 	return 0;
 }
 
-/*- Resolve s's server, connect to it and start the backend's protocol,
- * filling in c on success.
+/*- Begin a connection attempt to s's server, unless one is in progress:
+ * open a non-blocking socket and start connecting it, discarding what was
+ * queued for the failed connection. Name resolution may block
+ * (REQ-NET2-NET-001).
  *
  * @param s the session to connect.
- * @param c the connection to initialize; must be zeroed.
- * @param timeout radius_timeout, in seconds, for the backend's handshake.
- * @return 0 on success, -1 on failure (c is left safe to pass to
- *  conn_close()).
+ * @return 0 if an attempt is in progress, -1 if it could not start.
  -*/
-static int conn_open(rc_session *s, rc_sess_conn *c, int timeout)
+static int attempt_begin(rc_session *s)
 {
+	rc_sess_conn *c = &s->next;
 	struct sockaddr_storage our_sockaddr;
 	struct addrinfo *info;
-	int sockfd, ret, e, sock_flags;
+	int sockfd, ret, e, sock_flags, timeout;
 
+	if (s->phase != SESS_IDLE)
+		return 0;
+
+	/* The backend relies on fields it does not write being zero:
+	 * REQ-NET-NET-016 */
+	memset(c, 0, sizeof(*c));
 	c->sockfd = -1;
 	c->init = 1;
+	s->sendq_len = 0;
 
 	memcpy(&our_sockaddr, &s->our_sockaddr, sizeof(our_sockaddr));
 	if (our_sockaddr.ss_family == AF_INET)
@@ -406,29 +413,40 @@ static int conn_open(rc_session *s, rc_sess_conn *c, int timeout)
 	sockfd = socket(our_sockaddr.ss_family, s->ops->datagram ? SOCK_DGRAM : SOCK_STREAM, 0);
 	if (sockfd < 0) {
 		rc_log(LOG_ERR, "%s: cannot open socket", __func__);
-		goto cleanup;
+		goto fail;
 	}
 	c->sockfd = sockfd;
 
 	if (s->bind_local) {
 		if (bind(sockfd, SA(&our_sockaddr), SS_LEN(&our_sockaddr)) < 0) {
 			rc_log(LOG_ERR, "%s: bind: %s", __func__, strerror(errno));
-			goto cleanup;
+			goto fail;
 		}
 		if (our_sockaddr.ss_family == AF_INET6 && prefer_public_addr(s->rh, sockfd) < 0)
-			goto cleanup;
+			goto fail;
+	}
+
+	/* Every operation on the socket must see SESS_AGAIN rather than block
+	 * in the kernel with no timeout at all. */
+	sock_flags = fcntl(sockfd, F_GETFL, 0);
+	if (sock_flags == -1 ||
+	    fcntl(sockfd, F_SETFL, sock_flags | O_NONBLOCK) == -1) {
+		e = errno;
+		rc_log(LOG_CRIT, "%s: cannot set socket non-blocking: %s",
+		       __func__, strerror(e));
+		goto fail;
 	}
 
 	info = rc_getaddrinfo(s->hostname, PW_AI_AUTH);
 	if (info == NULL) {
 		rc_log(LOG_ERR, "%s: cannot resolve %s", __func__, s->hostname);
-		goto cleanup;
+		goto fail;
 	}
 
 	if (s->port == 0) {
 		rc_log(LOG_ERR, "%s: no port specified for server %s", __func__, s->hostname);
 		freeaddrinfo(info);
-		goto cleanup;
+		goto fail;
 	}
 	if (info->ai_addr->sa_family == AF_INET)
 		((struct sockaddr_in *)info->ai_addr)->sin_port = htons(s->port);
@@ -437,29 +455,87 @@ static int conn_open(rc_session *s, rc_sess_conn *c, int timeout)
 
 	/* we connect since we are talking to a single server */
 	ret = connect(sockfd, info->ai_addr, info->ai_addrlen);
+	e = errno;
 	freeaddrinfo(info);
-	if (ret == -1) {
-		e = errno;
+	if (ret == -1 && e != EINPROGRESS) {
 		rc_log(LOG_CRIT, "%s: cannot connect to %s: %s",
 		       __func__, s->hostname, strerror(e));
-		goto cleanup;
+		goto fail;
 	}
 
-	/* Non-blocking from here on, so that every later operation sees
-	 * SESS_AGAIN and takes a bounded wait (sess_wait_or_give_up(), or the
-	 * backend's own handshake timeout) instead of blocking in the kernel
-	 * with no timeout at all. */
-	sock_flags = fcntl(sockfd, F_GETFL, 0);
-	if (sock_flags == -1 ||
-	    fcntl(sockfd, F_SETFL, sock_flags | O_NONBLOCK) == -1) {
-		e = errno;
-		rc_log(LOG_CRIT, "%s: cannot set socket non-blocking: %s",
-		       __func__, strerror(e));
-		goto cleanup;
+	timeout = rc_conf_int_id(s->rh, OPT_RADIUS_TIMEOUT);
+	s->deadline = rc_getmtime() + (timeout > 0 ? timeout : 1);
+	if (++s->gen == 0)
+		s->gen = 1;
+	c->gen = s->gen;
+	s->phase = SESS_CONNECTING;
+	return 0;
+ fail:
+	conn_close(s, c);
+	return -1;
+}
+
+/*- Check, without waiting, whether s's attempt has finished connecting.
+ *
+ * @param s the session whose attempt to check.
+ * @return 1 once connected, 0 while pending, -1 if connecting failed.
+ -*/
+static int attempt_connected(rc_session *s)
+{
+	struct pollfd pfd = { s->next.sockfd, POLLOUT, 0 };
+	socklen_t len = sizeof(int);
+	int err = 0;
+
+	if (poll(&pfd, 1, 0) <= 0)
+		return 0;
+	if (getsockopt(s->next.sockfd, SOL_SOCKET, SO_ERROR, &err, &len) < 0)
+		err = errno;
+	if (err != 0) {
+		rc_log(LOG_CRIT, "%s: cannot connect to %s: %s",
+		       __func__, s->hostname, strerror(err));
+		return -1;
+	}
+	return 1;
+}
+
+/*- Advance s's connection attempt as far as it goes without waiting;
+ * once established, it replaces s->conn.
+ *
+ * @param s the session whose attempt to advance.
+ * @return 1 once established, 0 while in progress, -1 if the attempt
+ *  failed (s->conn is left unchanged) or none is in progress.
+ -*/
+static int attempt_step(rc_session *s)
+{
+	rc_sess_conn *c = &s->next;
+	int ret;
+
+	if (s->phase == SESS_IDLE)
+		return -1;
+	if (rc_getmtime() >= s->deadline) {
+		rc_log(LOG_ERR, "%s: timeout connecting to %s", __func__, s->hostname);
+		goto fail;
 	}
 
-	if (s->ops->start && s->ops->start(s, c, timeout) < 0)
-		goto cleanup;
+	if (s->phase == SESS_CONNECTING) {
+		ret = attempt_connected(s);
+		if (ret < 0)
+			goto fail;
+		if (ret == 0)
+			return 0;
+		if (s->ops->start &&
+		    s->ops->start(s, c, rc_conf_int_id(s->rh, OPT_RADIUS_TIMEOUT)) < 0)
+			goto fail;
+		s->phase = SESS_HANDSHAKING;
+	}
+
+	if (s->ops->handshake) {
+		ret = s->ops->handshake(c);
+		if (ret == SESS_AGAIN)
+			return 0;
+		if (ret < 0)
+			goto fail;
+	}
 
 	/* A fresh connection counts as activity: without this, last_msg stays
 	 * at zero until the first send/receive, which radcli_ctx_get_poll()'s
@@ -468,53 +544,166 @@ static int conn_open(rc_session *s, rc_sess_conn *c, int timeout)
 	 * (REQ-DAE-INIT-010). */
 	c->last_msg = time(0);
 	c->last_recv = c->last_msg;
-	return 0;
- cleanup:
+
+	if (c->sockfd == s->conn.sockfd)
+		s->conn.sockfd = -1;
+	conn_close(s, &s->conn);
+	memcpy(&s->conn, c, sizeof(*c));
+	c->init = 0;
+	s->conn.need_restart = 0;
+	s->phase = SESS_IDLE;
+	return 1;
+ fail:
+	rc_log(LOG_ERR, "%s: error in re-initializing the connection", __func__);
 	conn_close(s, c);
+	s->phase = SESS_IDLE;
+	s->sendq_len = 0;
 	return -1;
 }
 
-/*- Reconnect s in place, replacing its connection with a freshly
- * established one. Every call site only ever calls this when the
+/*- Report what s's connection attempt is waiting for.
+ *
+ * @param s a session with an attempt in progress.
+ * @param events set to POLLIN or POLLOUT.
+ * @return milliseconds after which to advance the attempt regardless.
+ -*/
+static int attempt_wait(rc_session *s, short *events)
+{
+	int ms = (int)((s->deadline - rc_getmtime()) * 1000) + 1;
+	int hs_ms;
+
+	if (ms < 0)
+		ms = 0;
+	*events = POLLOUT;
+	if (s->phase == SESS_HANDSHAKING && s->ops->handshake_wait) {
+		hs_ms = s->ops->handshake_wait(&s->next, events);
+		if (hs_ms >= 0 && hs_ms < ms)
+			ms = hs_ms;
+	}
+	return ms;
+}
+
+/*- Reconnect s, waiting for the attempt (continuing one already in
+ * progress) to finish. Every call site only ever calls this when the
  * connection is already known to need it (a send/recv failure already set
  * need_restart, or session init preset it before the first connection),
  * so this always reconnects unconditionally -- no rate-limiting.
  *
  * @param s the session to restart.
- * @return 0 on success, -1 if reconnecting failed (s is left unchanged).
+ * @return 0 on success, -1 if reconnecting failed (s->conn is left
+ *  unchanged).
  -*/
 static int restart_session(rc_session *s)
 {
-	/* conn_open() assumes a zeroed struct: REQ-NET-NET-016 */
-	rc_sess_conn tmpc = { 0 };
+	int ret;
 
-	if (conn_open(s, &tmpc, rc_conf_int_id(s->rh, OPT_RADIUS_TIMEOUT)) < 0) {
-		rc_log(LOG_ERR, "%s: error in re-initializing the connection", __func__);
+	if (attempt_begin(s) < 0)
 		return -1;
+
+	while ((ret = attempt_step(s)) == 0) {
+		struct pollfd pfd = { s->next.sockfd, 0, 0 };
+		int ms = attempt_wait(s, &pfd.events);
+
+		/* A timeout or EINTR only means stepping again. */
+		poll(&pfd, 1, ms);
 	}
-
-	if (tmpc.sockfd == s->conn.sockfd)
-		s->conn.sockfd = -1;
-	conn_close(s, &s->conn);
-	memcpy(&s->conn, &tmpc, sizeof(tmpc));
-	s->conn.need_restart = 0;
-	s->sendq_len = 0;
-
-	return 0;
+	return ret > 0 ? 0 : -1;
 }
 
-/*- Return the socket of rh's connection, if one is established.
+/*- Return the socket of rh's connection, if one is established and not
+ * known to have failed.
  *
  * @param rh a handle to parsed configuration.
- * @return the socket, or -1 if rh uses no session or none is established.
+ * @return the socket, or -1 if rh uses no session or none is usable.
  -*/
 int radcli2_priv_sess_fd(rc_handle *rh)
 {
 	rc_session *s = sess_of(rh);
 
-	if (s != NULL && s->conn.init != 0)
+	if (s != NULL && s->conn.init != 0 && s->conn.need_restart == 0)
 		return s->conn.sockfd;
 	return -1;
+}
+
+/*- Report what rh's session needs watched: its connection attempt, or its
+ * established connection.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param events set to the poll() events to wait for.
+ * @param timeout_ms set to the milliseconds after which to call
+ *  radcli_ctx_dispatch() regardless, or -1 for none.
+ * @return the socket to watch, or -1 if there is nothing to watch.
+ -*/
+int radcli2_priv_sess_poll(rc_handle *rh, short *events, int *timeout_ms)
+{
+	rc_session *s = sess_of(rh);
+
+	*events = 0;
+	*timeout_ms = -1;
+	if (s == NULL)
+		return -1;
+	if (s->phase != SESS_IDLE) {
+		*timeout_ms = attempt_wait(s, events);
+		return s->next.sockfd;
+	}
+	if (s->conn.init == 0 || s->conn.need_restart != 0)
+		return -1;
+
+	*events = POLLIN;
+	/* Queued records go out once the socket is writable again
+	 * (REQ-NET2-NET-005). */
+	if (s->sendq_len > 0)
+		*events |= POLLOUT;
+	/* Data the backend already holds raises no POLLIN. */
+	if (s->ops->pending && s->ops->pending(&s->conn))
+		*timeout_ms = 0;
+	return s->conn.sockfd;
+}
+
+/*- Advance rh's connection attempt, if any, without waiting
+ * (REQ-NET2-NET-001).
+ *
+ * @param rh a handle to parsed configuration.
+ -*/
+void radcli2_priv_sess_progress(rc_handle *rh)
+{
+	rc_session *s = sess_of(rh);
+
+	if (s != NULL && s->phase != SESS_IDLE)
+		attempt_step(s);
+}
+
+/*- Return the generation of rh's newest stream connection or connection
+ * attempt, to record what a request was sent on for
+ * radcli2_priv_sess_holds().
+ *
+ * @param rh a handle to parsed configuration.
+ * @return the generation, or 0 if rh's transport has no stream connection
+ *  (UDP, DTLS).
+ -*/
+unsigned radcli2_priv_sess_gen(rc_handle *rh)
+{
+	rc_session *s = sess_of(rh);
+
+	if (s == NULL || s->ops->datagram)
+		return 0;
+	return s->gen;
+}
+
+/*- Report whether a request sent on generation gen is still in flight on
+ * the same healthy stream connection, over which RFC 6613 SS2.6.1 forbids
+ * sending it again (REQ-NET-NET-022).
+ *
+ * @param rh a handle to parsed configuration.
+ * @param gen the radcli2_priv_sess_gen() value recorded when it was sent.
+ * @return nonzero if it must not be sent again.
+ -*/
+int radcli2_priv_sess_holds(rc_handle *rh, unsigned gen)
+{
+	rc_session *s = sess_of(rh);
+
+	return s != NULL && gen != 0 && s->phase == SESS_IDLE && s->conn.init != 0 &&
+	       s->conn.need_restart == 0 && s->conn.gen == gen;
 }
 
 /*- Return the socket of rh's TLS/DTLS session, if one is established --
@@ -527,9 +716,14 @@ int radcli2_priv_sess_fd(rc_handle *rh)
  -*/
 int radcli2_priv_tls_fd(rc_handle *rh)
 {
+	rc_session *s;
+
 	if (rh->so_type != RC_SOCKET_TLS && rh->so_type != RC_SOCKET_DTLS)
 		return -1;
-	return radcli2_priv_sess_fd(rh);
+	s = rh->so.ptr;
+	if (s != NULL && s->conn.init != 0)
+		return s->conn.sockfd;
+	return -1;
 }
 
 /*- Return the time of the last packet sent or received on rh's connection
@@ -568,13 +762,15 @@ time_t radcli2_priv_sess_last_recv(rc_handle *rh)
 	return 0;
 }
 
-/*- Force rh's connection to reconnect now, the same way an actual
- * send/recv error does (need_restart) -- used by lib/dae.c's
- * radcli2_priv_dae_send_watchdog() (REQ-WATCHDOG-NET-003) when the peer is
- * presumed dead from elapsed time alone.
+/*- Treat rh's connection as failed, the same way an actual send/recv
+ * error does (need_restart), and begin reconnecting without waiting --
+ * used by lib/dae.c's radcli2_priv_dae_send_watchdog()
+ * (REQ-WATCHDOG-NET-003) when the peer is presumed dead from elapsed time
+ * alone.
  *
  * @param rh a handle to parsed configuration.
- * @return 0 on success, -1 if rh uses no session or reconnecting failed.
+ * @return 0 if a connection attempt is in progress, -1 if rh uses no
+ *  session or the attempt could not start.
  -*/
 int radcli2_priv_sess_force_reconnect(rc_handle *rh)
 {
@@ -583,7 +779,7 @@ int radcli2_priv_sess_force_reconnect(rc_handle *rh)
 	if (s == NULL)
 		return -1;
 	s->conn.need_restart = 1;
-	return restart_session(s);
+	return attempt_begin(s);
 }
 
 /*- Probe an established TLS/DTLS session's liveness and reconnect if it is
@@ -675,25 +871,13 @@ void radcli2_priv_sess_flush(rc_handle *rh)
 		;
 }
 
-/*- Report whether rh's connection has queued records waiting for POLLOUT.
- *
- * @param rh a handle to parsed configuration.
- * @return nonzero if anything is queued.
- -*/
-int radcli2_priv_sess_send_pending(rc_handle *rh)
-{
-	rc_session *s = sess_of(rh);
-
-	return s != NULL && s->conn.init != 0 && s->conn.need_restart == 0 &&
-	       s->sendq_len > 0;
-}
-
-/*- Send a record on rh's connection without ever waiting for write room
- * (REQ-NET2-NET-005): sent at once when nothing is queued ahead of it,
+/*- Send a record on rh's connection without ever waiting (REQ-NET2-NET-001,
+ * REQ-NET2-NET-005): sent at once when nothing is queued ahead of it,
  * queued otherwise. With the queue full, a DAE reply displaces the oldest
  * unstarted DAE reply (REQ-DAE-SEC-013) and anything else is skipped. A
- * retransmit on a failed connection reconnects first (REQ-NET2-NET-001's
- * exception); other kinds fail instead.
+ * retransmit or watchdog on a failed connection begins reconnecting and is
+ * queued for the new connection; a DAE reply, which belongs to the failed
+ * connection, fails instead.
  *
  * @param rh a handle to parsed configuration.
  * @param buf the record.
@@ -714,15 +898,15 @@ int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, in
 		return -1;
 
 	if (s->conn.init == 0 || s->conn.need_restart != 0) {
-		if (kind != RADSEC_SEND_RETRANSMIT || restart_session(s) < 0)
+		if (kind == RADSEC_SEND_DAE_REPLY || attempt_begin(s) < 0)
+			return -1;
+	} else {
+		radcli2_priv_sess_flush(rh);
+		if (s->conn.need_restart != 0)
 			return -1;
 	}
 
-	radcli2_priv_sess_flush(rh);
-	if (s->conn.need_restart != 0)
-		return -1;
-
-	if (s->sendq_len == 0) {
+	if (s->phase == SESS_IDLE && s->sendq_len == 0) {
 		ret = s->ops->send(&s->conn, buf, len);
 		if (ret == SESS_AGAIN) {
 			sendq_append(s, buf, len, kind);
@@ -840,6 +1024,8 @@ void radcli2_priv_sess_deinit(rc_handle *rh)
 		rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
 		return;
 	}
+	if (s->phase != SESS_IDLE)
+		conn_close(s, &s->next);
 	conn_close(s, &s->conn);
 	if (ns != NULL && rc_reset_netns(&ns_def_hdl) == -1)
 		rc_log(LOG_ERR, "%s: namespace %s reset failed", __func__, ns);
