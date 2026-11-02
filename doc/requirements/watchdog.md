@@ -201,9 +201,11 @@ request-registry drain alike. Before building
 and sending, if `watchdog-interval > 0` and the elapsed time since that
 last receive is `>= 2.5 * watchdog-interval`, it MUST force the session to
 reconnect (a fresh TCP/TLS handshake, the same way an actual send/recv
-error already does — `restart_session()` carries no throttle of its own to
-bypass, `REQ-NET-NET-007`) before proceeding — the peer is presumed dead,
-not merely slow. This MUST NOT
+error already does — the connection attempt carries no throttle of its own
+to bypass, `REQ-NET-NET-007`) and send the watchdog on the new connection —
+the peer is presumed dead, not merely slow. It MUST NOT wait for the new
+connection (`REQ-NET2-NET-001`): it begins the attempt and queues the
+watchdog, which goes out once the attempt completes. This MUST NOT
 depend on any socket-level error: the specific condition this catches is a
 connection that stays open (no FIN, no reset) while the peer answers
 nothing at all, which the transport's own error-triggered reconnect never
@@ -244,7 +246,7 @@ REQ-NET-NET-007, REQ-WATCHDOG-NET-004
 **Requirement:** `rc_check_tls()` MUST only be invoked by the application, on its own schedule
 (e.g. a periodic timer) — radcli MUST NOT call `rc_check_tls()` from `rc_send_server_ctx()`,
 `rc_auth()`, or any other internal path. When called on an established session with
-`need_restart` already set, it MUST reconnect via `restart_session()`, same as
+`need_restart` already set, it MUST reconnect, waiting for the attempt, via `restart_session()`, same as
 `REQ-NET-NET-007`. Otherwise, once `watchdog-interval` (default 15s, floor 6s,
 `REQ-WATCHDOG-CFG-001`) has elapsed since the session's last activity, it MUST send an RFC 5997
 Status-Server watchdog via `lib/dae.c`'s internal `radcli2_priv_dae_send_watchdog()` — the same
