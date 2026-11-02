@@ -910,9 +910,11 @@ int radcli2_priv_reqreg_pick_id(rc_handle *rh, uint8_t *out_id, int *out_slot)
 
 /*- Unconditionally vacate slot (valid=0, armed=0, owner=NULL, secret
  * scrubbed, LRU-stamped free per REQ-NET2-SEND-016), making its Identifier
- * available for reuse. Used both to undo a reservation
- * radcli_transport_send_async() failed to arm, and by
- * radcli_transport_async_abort() for a still-active, undelivered exchange. -*/
+ * available for reuse, and take its packet off the session's send queue
+ * (REQ-NET2-NET-005). Used to undo a reservation
+ * radcli_transport_send_async() failed to arm, by
+ * radcli_transport_async_abort() for a still-active, undelivered exchange,
+ * and once a reply or timeout resolves the exchange. -*/
 void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
 {
 	struct radcli_reqreg *reg;
@@ -920,6 +922,9 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
 	if (rh == NULL || rh->reqreg == NULL || slot < 0 || slot >= RADCLI_CTX_MAX_INFLIGHT)
 		return;
 	reg = rh->reqreg;
+
+	if (RC_USES_SESSION(rh))
+		radcli2_priv_sess_unqueue(rh, slot);
 
 	reg->slots[slot].valid = 0;
 	reg->slots[slot].armed = 0;
@@ -1042,11 +1047,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 		 * run: RFC 5080 SS2.1.1 permits reuse as soon as a valid
 		 * response is received, not once the application
 		 * collects it (REQ-NET2-SEND-016). */
-		rslot->valid = 0;
-		rslot->armed = 0;
-		rslot->owner = NULL;
-		memset(rslot->secret, 0, sizeof(rslot->secret));
-		rslot->free_seq = ++reg->free_seq_ctr;
+		radcli2_priv_reqreg_release(rh, id);
 
 		decode_result = decode_reply(rh, NULL, server_name_copy, svc_port_copy,
 					     type_copy, req_code_copy, secret_copy, vector_copy,
@@ -1185,11 +1186,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 			unsigned short svc_port_copy = rslot->svc_port;
 
 			memcpy(server_name_copy, rslot->server_name, sizeof(server_name_copy));
-			rslot->valid = 0;
-			rslot->armed = 0;
-			rslot->owner = NULL;
-			memset(rslot->secret, 0, sizeof(rslot->secret));
-			rslot->free_seq = ++reg->free_seq_ctr;
+			radcli2_priv_reqreg_release(rh, i);
 
 			rc_log(LOG_ERR, "%s: no reply from RADIUS server %s:%u",
 			       __func__, server_name_copy, svc_port_copy);
@@ -1203,15 +1200,16 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 		if (on_session) {
 			/* RFC 6613 SS2.6.1: never resent over the stream connection
 			 * it already went out on; it keeps waiting there instead
-			 * (REQ-NET-NET-022). Otherwise never waits, not even to
+			 * (REQ-NET-NET-022). A packet still queued has not gone
+			 * out at all yet. Otherwise never waits, not even to
 			 * reconnect: a retransmit the session cannot take now is
-			 * queued, or skipped like a lost packet when the queue is
-			 * full (REQ-NET2-NET-001/005); either way its timeout runs
-			 * on. */
-			if (!radcli2_priv_sess_holds(rh, rslot->conn_gen)) {
+			 * queued (REQ-NET2-NET-001/005); either way its timeout
+			 * runs on. */
+			if (!radcli2_priv_sess_queued(rh, i) &&
+			    !radcli2_priv_sess_holds(rh, rslot->conn_gen)) {
 				radcli2_priv_sess_send_queued(rh, rslot->send_buf,
 							     (size_t)rslot->send_len,
-							     RADSEC_SEND_RETRANSMIT);
+							     RADSEC_SEND_RETRANSMIT, i);
 				rslot->conn_gen = radcli2_priv_sess_gen(rh);
 			}
 			rslot->deadline = rc_getmtime() + rslot->timeout;
@@ -1280,16 +1278,19 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
  * @param send_len send_buf's length in bytes; must fit RC_BUFFER_LEN.
  * @param timeout per-attempt reply wait, in seconds.
  * @param retries additional retransmit attempts after the first.
+ * @param nonblock nonzero to never wait for the network: what cannot go
+ *  out at once is queued on a session, or lost on UDP (REQ-NET2-SEND-018).
  * @param out zeroed, then filled in on success; left inactive (out->active
  *  == 0) on failure -- the caller MUST then release slot itself
  *  (radcli2_priv_reqreg_release()), since this function does not on failure
  *  (the reservation is the caller's, made before encoding).
- * @return OK_RC once the first packet is on the wire, ERROR_RC on failure.
+ * @return OK_RC once the first packet is on the wire (or, with nonblock,
+ *  queued or lost), ERROR_RC on failure.
  -*/
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
-				int timeout, int retries,
+				int timeout, int retries, unsigned nonblock,
 				struct radcli_async_send_st *out)
 {
 	struct addrinfo *auth_addr = NULL;
@@ -1343,7 +1344,9 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 			((struct sockaddr_in6 *)auth_addr->ai_addr)->sin6_port = htons(svc_port);
 	}
 
-	if (on_session) {
+	if (on_session && nonblock) {
+		/* Sending, below, begins connecting instead (REQ-NET2-SEND-018). */
+	} else if (on_session) {
 		/* get_fd(), not get_active_fd(): establishes the session if it
 		 * is not up yet (REQ-NET2-SEND-012, REQ-NET-NET-019). */
 		sockfd = sfuncs->get_fd(sfuncs->ptr, NULL);
@@ -1436,22 +1439,38 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 		}
 	}
 
-	do {
-		result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
-					(unsigned int)send_len, 0,
-					SA(auth_addr->ai_addr), auth_addr->ai_addrlen);
-	} while (result == -1 && errno == EINTR);
-	if (result == -1) {
-		rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
-		result = ERROR_RC;
-		goto fail;
-	}
-
+	/* Filled in before sending: a queued packet stays in the slot. */
 	memcpy(&rslot->peer, auth_addr->ai_addr, auth_addr->ai_addrlen);
 	rslot->peer_len = auth_addr->ai_addrlen;
-	rslot->conn_gen = radcli2_priv_sess_gen(rh);
 	memcpy(rslot->send_buf, send_buf, (size_t)send_len);
 	rslot->send_len = send_len;
+
+	if (on_session && nonblock) {
+		result = radcli2_priv_sess_send_queued(rh, rslot->send_buf, (size_t)send_len,
+						      RADSEC_SEND_REQUEST, slot);
+		if (result == -1) {
+			rc_log(LOG_ERR, "%s: cannot send to the server", __func__);
+			result = ERROR_RC;
+			goto fail;
+		}
+	} else {
+		do {
+			result = sfuncs->sendto(sfuncs->ptr, sockfd, (const char *)send_buf,
+						(unsigned int)send_len, 0,
+						SA(auth_addr->ai_addr), auth_addr->ai_addrlen);
+		} while (result == -1 && errno == EINTR);
+		/* A datagram the socket has no room for is lost; its
+		 * retransmission follows (REQ-NET2-SEND-018). */
+		if (result == -1 && nonblock && (errno == EAGAIN || errno == EWOULDBLOCK))
+			result = 0;
+		if (result == -1) {
+			rc_log(LOG_ERR, "%s: sendto: %s", __func__, strerror(errno));
+			result = ERROR_RC;
+			goto fail;
+		}
+	}
+
+	rslot->conn_gen = radcli2_priv_sess_gen(rh);
 	memcpy(rslot->vector, send_buf + 4, AUTH_VECTOR_LEN); /* AUTH_HDR: code(1) id(1) length(2) vector(16) */
 	strlcpy(rslot->secret, secret, sizeof(rslot->secret));
 	strlcpy(rslot->server_name, server_name, sizeof(rslot->server_name));

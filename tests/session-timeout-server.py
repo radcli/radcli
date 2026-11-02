@@ -14,6 +14,10 @@
 #          connection unanswered; then accepts new TCP connections but never
 #          sends a byte on them (a TLS handshake that never completes);
 #          prints STALLED after --timeout
+#   mute   accepts TCP connections but never sends a byte on them (a TLS
+#          handshake that never completes); prints STALLED after --timeout
+#   answer answers every request on the first connection until the client
+#          closes it; prints RECEIVED=n
 #
 # Prints READY once listening.
 
@@ -116,6 +120,17 @@ def serve_drop(listener, ctx, conn, args):
     recv_exact(second, 1)  # let the client read the reply
 
 
+def serve_answer(listener, ctx, conn, args):
+    received = 0
+    while True:
+        pkt = recv_packet(conn)
+        if pkt is None:
+            break
+        received += 1
+        conn.sendall(build_access_accept(pkt, args.secret))
+    print('RECEIVED=%d' % received, flush=True)
+
+
 def serve_stall(listener, ctx, conn, args):
     pkt = recv_packet(conn)
     if pkt is None:
@@ -126,6 +141,10 @@ def serve_stall(listener, ctx, conn, args):
         print('NO-REQUEST second', flush=True)
         return
     conn.close()
+    stall_accepts(listener, args)
+
+
+def stall_accepts(listener, args):
     stalled = []
     deadline = time.monotonic() + args.timeout
     while time.monotonic() < deadline:
@@ -143,7 +162,7 @@ def main():
     parser.add_argument('--plain', action='store_true', help='plain TCP, no TLS')
     parser.add_argument('--cert')
     parser.add_argument('--key')
-    parser.add_argument('--mode', choices=['once', 'drop', 'stall'], required=True)
+    parser.add_argument('--mode', choices=['once', 'drop', 'stall', 'mute', 'answer'], required=True)
     parser.add_argument('--secret', default='radsec')
     parser.add_argument('--timeout', type=float, default=15.0)
     args = parser.parse_args()
@@ -161,13 +180,18 @@ def main():
     listener.settimeout(args.timeout)
     print('READY', flush=True)
 
+    if args.mode == 'mute':
+        stall_accepts(listener, args)
+        return
+
     try:
         conn = accept_conn(listener, ctx)
     except (socket.timeout, ssl.SSLError) as e:
         print('NO-CONNECTION %s' % e, flush=True)
         return
 
-    {'once': serve_once, 'drop': serve_drop, 'stall': serve_stall}[args.mode](
+    {'once': serve_once, 'drop': serve_drop, 'stall': serve_stall,
+     'answer': serve_answer}[args.mode](
         listener, ctx, conn, args)
 
 

@@ -585,14 +585,14 @@ typedef struct radcli_request_st radcli_request;
 /** \enum radcli_request_flags Flags for radcli_request_perform(). */
 typedef enum radcli_request_flags {
 	RADCLI_REQUEST_NONE = 0,
-	/** Transmit r once and return once the packet is handed to the
-	 * network, without blocking for a reply. Two uses:
+	/** Send r and return once the packet is handed to the network,
+	 * without blocking for a reply. Two uses:
 	 *
 	 * - Fire-and-forget: call radcli_request_free() without ever calling
-	 *   radcli_ctx_dispatch(). A best-effort notification whose outcome
-	 *   the caller does not act on, e.g. an accounting stop sent during
-	 *   shutdown; radcli.h's rc_acct_async() is the equivalent call in
-	 *   the legacy API.
+	 *   radcli_ctx_dispatch(), so the packet is sent exactly once. A
+	 *   best-effort notification whose outcome the caller does not act
+	 *   on, e.g. an accounting stop sent during shutdown; radcli.h's
+	 *   rc_acct_async() is the equivalent call in the legacy API.
 	 * - Poll-driven async request/reply: read the reply later with
 	 *   radcli_request_done(), driven by the caller's own
 	 *   radcli_ctx_get_poll()/radcli_ctx_dispatch() loop, e.g. from an
@@ -603,7 +603,23 @@ typedef enum radcli_request_flags {
 	 * tried -- no DNS-level fail-over, unlike RADCLI_REQUEST_NONE -- but
 	 * retransmission to that one address, up to the configured retry
 	 * count, still happens for the poll-driven case. */
-	RADCLI_REQUEST_SENDONLY = 1 << 0
+	RADCLI_REQUEST_SENDONLY = 1 << 0,
+	/** Like RADCLI_REQUEST_SENDONLY, but never wait for the network, not
+	 * even to connect a TCP/TLS/DTLS session or for it to have room for
+	 * the packet. What cannot go out at once is queued and sent by later
+	 * radcli_ctx_dispatch() calls, so r must be driven to completion
+	 * (radcli_request_done()), honouring the timeout radcli_ctx_get_poll()
+	 * reports: a silent server wakes no descriptor. The timeout and retries
+	 * run from this call, so they can be used up while the packet is still
+	 * queued, unsent. A connection that fails before the packet is sent
+	 * counts as a lost packet, ending in RADCLI_TIMEOUT once the retries
+	 * are exhausted. radcli_request_free() before radcli_ctx_dispatch() has
+	 * sent the packet cancels it. Name resolution may still block.
+	 *
+	 * Includes RADCLI_REQUEST_SENDONLY's bit so that a library predating
+	 * this flag runs r as RADCLI_REQUEST_SENDONLY, rather than as a
+	 * blocking exchange. */
+	RADCLI_REQUEST_SENDONLY_NONBLOCK = RADCLI_REQUEST_SENDONLY | 1 << 1
 } radcli_request_flags;
 
 radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send);

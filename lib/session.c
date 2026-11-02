@@ -165,6 +165,67 @@ static int sess_recv_packet(rc_session *s, void *buf, size_t cap)
 	}
 }
 
+/*- Discard everything s has queued.
+ *
+ * @param s the session whose queue to empty.
+ -*/
+static void sendq_clear(rc_session *s)
+{
+	s->sendq_len = 0;
+	s->head_started = 0;
+	s->copies_used = 0;
+}
+
+/*- Remove entry i from s's queue, releasing its copy.
+ *
+ * @param s the session whose queue to shorten.
+ * @param i the entry's index; 0 only if the backend has not started on it
+ *  or is done with it.
+ -*/
+static void sendq_remove(rc_session *s, unsigned i)
+{
+	if (s->sendq[i].copy >= 0)
+		s->copies_used &= ~(1u << s->sendq[i].copy);
+	if (i == 0)
+		s->head_started = 0;
+	s->sendq_len--;
+	memmove(&s->sendq[i], &s->sendq[i + 1], (s->sendq_len - i) * sizeof(s->sendq[0]));
+}
+
+/*- Report whether s's queue has a free copy for one more record. -*/
+static int sendq_has_copy(rc_session *s)
+{
+	return s->copies_used != (1u << SESS_SENDQ_SIZE) - 1;
+}
+
+/*- Append a record to s's queue: by reference if it is a registry slot's
+ * packet, otherwise into a free copy, which the caller ensured exists.
+ *
+ * @param s the session whose queue to append to.
+ * @param buf the record; a slot's packet must outlive the entry.
+ * @param len buf's length in bytes, at most RC_MAX_PACKET_LEN.
+ * @param kind the record's RADSEC_SEND_* kind.
+ * @param slot the registry slot buf belongs to, or -1.
+ -*/
+static void sendq_append(rc_session *s, const void *buf, size_t len, int kind, int slot)
+{
+	struct sess_pending_send *p = &s->sendq[s->sendq_len++];
+
+	p->len = len;
+	p->kind = kind;
+	p->slot = slot;
+	p->copy = -1;
+	if (slot >= 0) {
+		p->data = buf;
+		return;
+	}
+	while (s->copies_used & (1u << ++p->copy))
+		;
+	s->copies_used |= 1u << p->copy;
+	memcpy(s->copies[p->copy], buf, len);
+	p->data = s->copies[p->copy];
+}
+
 /*- Make one non-blocking attempt to send s's oldest queued record.
  *
  * @param s the session whose queue to advance.
@@ -174,19 +235,20 @@ static int sess_recv_packet(rc_session *s, void *buf, size_t cap)
  -*/
 static int sendq_try_head(rc_session *s)
 {
-	int ret = s->ops->send(&s->conn, s->sendq[0].buf, s->sendq[0].len);
+	int ret = s->ops->send(&s->conn, s->sendq[0].data, s->sendq[0].len);
 
-	if (ret == SESS_AGAIN)
+	if (ret == SESS_AGAIN) {
+		s->head_started = 1;
 		return 0;
+	}
 	if (ret < 0) {
 		s->conn.need_restart = 1;
-		s->sendq_len = 0;
+		sendq_clear(s);
 		return -1;
 	}
 
 	s->conn.last_msg = time(0);
-	s->sendq_len--;
-	memmove(&s->sendq[0], &s->sendq[1], s->sendq_len * sizeof(s->sendq[0]));
+	sendq_remove(s, 0);
 	return 1;
 }
 
@@ -402,7 +464,7 @@ static int attempt_begin(rc_session *s)
 	memset(c, 0, sizeof(*c));
 	c->sockfd = -1;
 	c->init = 1;
-	s->sendq_len = 0;
+	sendq_clear(s);
 
 	memcpy(&our_sockaddr, &s->our_sockaddr, sizeof(our_sockaddr));
 	if (our_sockaddr.ss_family == AF_INET)
@@ -557,7 +619,7 @@ static int attempt_step(rc_session *s)
 	rc_log(LOG_ERR, "%s: error in re-initializing the connection", __func__);
 	conn_close(s, c);
 	s->phase = SESS_IDLE;
-	s->sendq_len = 0;
+	sendq_clear(s);
 	return -1;
 }
 
@@ -840,22 +902,6 @@ int radcli2_priv_sess_ensure_connected(rc_handle *rh)
 	return restart_session(s);
 }
 
-/*- Append a record to s's send queue, which must have room.
- *
- * @param s the session whose queue to append to.
- * @param buf the record.
- * @param len buf's length in bytes, at most RC_MAX_PACKET_LEN.
- * @param kind the record's RADSEC_SEND_* kind.
- -*/
-static void sendq_append(rc_session *s, const void *buf, size_t len, int kind)
-{
-	struct sess_pending_send *p = &s->sendq[s->sendq_len++];
-
-	memcpy(p->buf, buf, len);
-	p->len = len;
-	p->kind = kind;
-}
-
 /*- Send whatever rh's connection has queued that can go out without
  * waiting (REQ-NET2-NET-005).
  *
@@ -873,22 +919,25 @@ void radcli2_priv_sess_flush(rc_handle *rh)
 
 /*- Send a record on rh's connection without ever waiting (REQ-NET2-NET-001,
  * REQ-NET2-NET-005): sent at once when nothing is queued ahead of it,
- * queued otherwise. With the queue full, a DAE reply displaces the oldest
- * unstarted DAE reply (REQ-DAE-SEC-013) and anything else is skipped. A
- * retransmit or watchdog on a failed connection begins reconnecting and is
- * queued for the new connection; a DAE reply, which belongs to the failed
- * connection, fails instead.
+ * queued otherwise. A request's packet is queued by reference to its
+ * registry slot; with no copy free for anything else, a DAE reply
+ * displaces the oldest unstarted DAE reply (REQ-DAE-SEC-013) and a
+ * watchdog is skipped. Anything but a DAE reply on a failed connection
+ * begins reconnecting and is queued for the new connection; a DAE reply,
+ * which belongs to the failed connection, fails instead.
  *
  * @param rh a handle to parsed configuration.
- * @param buf the record.
+ * @param buf the record; a slot's packet must stay valid until sent or
+ *  radcli2_priv_sess_unqueue().
  * @param len buf's length in bytes.
- * @param kind RADSEC_SEND_DAE_REPLY, RADSEC_SEND_RETRANSMIT or
- *  RADSEC_SEND_WATCHDOG.
+ * @param kind RADSEC_SEND_DAE_REPLY, RADSEC_SEND_REQUEST,
+ *  RADSEC_SEND_RETRANSMIT or RADSEC_SEND_WATCHDOG.
+ * @param slot the registry slot whose packet buf is, or -1.
  * @return the number of bytes sent if it went out at once, 0 if queued,
  *  -1 on a connection error or with no connection, -2 if skipped or
- *  dropped because the queue is full.
+ *  dropped because no copy is free.
  -*/
-int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind)
+int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, int kind, int slot)
 {
 	rc_session *s = sess_of(rh);
 	unsigned i;
@@ -909,7 +958,8 @@ int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, in
 	if (s->phase == SESS_IDLE && s->sendq_len == 0) {
 		ret = s->ops->send(&s->conn, buf, len);
 		if (ret == SESS_AGAIN) {
-			sendq_append(s, buf, len, kind);
+			sendq_append(s, buf, len, kind, slot);
+			s->head_started = 1;
 			return 0;
 		}
 		if (ret < 0) {
@@ -920,14 +970,13 @@ int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, in
 		return ret;
 	}
 
-	if (s->sendq_len < SESS_SENDQ_SIZE) {
-		sendq_append(s, buf, len, kind);
+	if (slot >= 0 || sendq_has_copy(s)) {
+		sendq_append(s, buf, len, kind, slot);
 		return 0;
 	}
 
 	if (kind == RADSEC_SEND_DAE_REPLY) {
-		/* From 1: the head is partly sent and must not be dropped. */
-		for (i = 1; i < s->sendq_len; i++) {
+		for (i = s->head_started; i < s->sendq_len; i++) {
 			if (s->sendq[i].kind == RADSEC_SEND_DAE_REPLY)
 				break;
 		}
@@ -935,19 +984,66 @@ int radcli2_priv_sess_send_queued(rc_handle *rh, const void *buf, size_t len, in
 			rc_log(LOG_WARNING, "%s: send queue full (%u), dropping the "
 			       "oldest unsent dynamic-authorization reply", __func__,
 			       (unsigned)SESS_SENDQ_SIZE);
-			s->sendq_len--;
-			memmove(&s->sendq[i], &s->sendq[i + 1],
-				(s->sendq_len - i) * sizeof(s->sendq[0]));
-			sendq_append(s, buf, len, kind);
+			sendq_remove(s, i);
+			sendq_append(s, buf, len, kind, slot);
 			return 0;
 		}
 	}
 
 	rc_log(LOG_WARNING, "%s: send queue full (%u), skipping this %s", __func__,
 	       (unsigned)SESS_SENDQ_SIZE,
-	       kind == RADSEC_SEND_RETRANSMIT ? "retransmission" :
 	       kind == RADSEC_SEND_WATCHDOG ? "watchdog" : "dynamic-authorization reply");
 	return -2;
+}
+
+/*- Report whether the packet of registry slot slot is queued on rh's
+ * connection, not yet sent.
+ *
+ * @param rh a handle to parsed configuration.
+ * @param slot the in-flight registry slot.
+ * @return nonzero if it is queued.
+ -*/
+int radcli2_priv_sess_queued(rc_handle *rh, int slot)
+{
+	rc_session *s = sess_of(rh);
+	unsigned i;
+
+	if (s == NULL)
+		return 0;
+	for (i = 0; i < s->sendq_len; i++) {
+		if (s->sendq[i].slot == slot)
+			return 1;
+	}
+	return 0;
+}
+
+/*- Stop rh's queue from referencing registry slot slot, which is being
+ * vacated: its packet leaves the queue, unless the backend has started on
+ * it, which must then be finished from the session's own copy
+ * (REQ-NET2-NET-005).
+ *
+ * @param rh a handle to parsed configuration.
+ * @param slot the in-flight registry slot.
+ -*/
+void radcli2_priv_sess_unqueue(rc_handle *rh, int slot)
+{
+	rc_session *s = sess_of(rh);
+	unsigned i;
+
+	if (s == NULL)
+		return;
+	for (i = 0; i < s->sendq_len; i++) {
+		if (s->sendq[i].slot != slot)
+			continue;
+		if (i == 0 && s->head_started) {
+			memcpy(s->head_buf, s->sendq[0].data, s->sendq[0].len);
+			s->sendq[0].data = s->head_buf;
+			s->sendq[0].slot = -1;
+		} else {
+			sendq_remove(s, i);
+		}
+		return;
+	}
 }
 
 /*- Make one non-blocking attempt (never waits, unlike sess_recvfrom()) to

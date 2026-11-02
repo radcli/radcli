@@ -537,7 +537,8 @@ whichever call needed the connection, including `radcli_ctx_dispatch()` (REQ-NET
 every `radcli_ctx_dispatch()` call returns promptly. [NET] positive, local — every TLS test
 (`tests/tls-*-tests.sh`, `tests/radsec-*-tests.sh`) connects through this attempt. [NET] negative,
 local — `tests/session-timeout-tests.sh`'s DTLS cases, with a peer that never answers:
-`blocking-mute` must not spend most of its wait on the CPU. Confirmed failing against the unfixed code.
+`blocking-mute` must not spend most of its wait on the CPU, and `nonblock-mute` must end in
+`RADCLI_TIMEOUT` within 10000 loop iterations. Both confirmed failing against the unfixed code.
 [NET] negative, local — `tests/session-timeout-tests.sh`'s DTLS `sendfail-once` case: one failed
 send is retried well before the 1 s retransmission timer.
 **Links:** REQ-NET2-NET-001, REQ-NET-NET-005, REQ-NET-NET-007, REQ-NET-TEARDOWN-004

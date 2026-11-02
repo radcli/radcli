@@ -34,10 +34,19 @@
  *   stall  a TLS peer closes the connection unanswered and then never
  *       completes a new handshake; no radcli_ctx_dispatch() call may wait
  *       for it (REQ-NET2-NET-001), and the request must time out
+ *   nonblock-mute  a TLS peer never answers the handshake; neither
+ *       radcli_request_perform(RADCLI_REQUEST_SENDONLY_NONBLOCK) nor any
+ *       radcli_ctx_dispatch() call may wait for it (REQ-NET2-SEND-018),
+ *       and the request must time out
+ *   nonblock-burst  BURST requests submitted with
+ *       RADCLI_REQUEST_SENDONLY_NONBLOCK before the connection is up, FREED of them freed before the first
+ *       radcli_ctx_dispatch(); the rest must succeed, and the peer must
+ *       receive only those (REQ-NET2-SEND-018)
  *
  * The dtls transport needs no peer process: the client binds a UDP socket
  * it never reads, standing in for a server that never answers the handshake.
- * Its mode is:
+ * Its modes are nonblock-mute, whose loop must not spin on an already
+ * writable socket (REQ-NET-NET-023), and:
  *
  *   blocking-mute  radcli_request_perform(RADCLI_REQUEST_NONE) must fail
  *       without spending the wait on the CPU (REQ-NET-NET-023)
@@ -68,6 +77,10 @@
 
 static int sends_to_fail;
 static double first_send_ms;
+
+/* nonblock-burst: more requests than the session queue has copies for. */
+#define BURST 20
+#define FREED 5
 
 static void die(const char *msg) __attribute__((noreturn));
 
@@ -148,6 +161,21 @@ static int drive(radcli_ctx *ctx, radcli_request *r, double max_dispatch_ms)
 	return rc;
 }
 
+/* Performs r with RADCLI_REQUEST_SENDONLY_NONBLOCK, failing unless it returns
+ * RADCLI_OK within MAX_DISPATCH_MS. */
+static void perform_nonblock(radcli_request *r)
+{
+	double start = now_ms();
+
+	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY_NONBLOCK) != RADCLI_OK)
+		die("radcli_request_perform(RADCLI_REQUEST_SENDONLY_NONBLOCK)");
+	if (now_ms() - start > MAX_DISPATCH_MS) {
+		fprintf(stderr, "session-timeout: radcli_request_perform() took %.0f ms\n",
+			now_ms() - start);
+		exit(1);
+	}
+}
+
 /* Binds a UDP socket that is never read, returning its port in *port. */
 static int silent_udp_peer(int *port)
 {
@@ -169,6 +197,7 @@ static int silent_udp_peer(int *port)
 
 int main(int argc, char **argv)
 {
+	radcli_request *burst[BURST];
 	radcli_ctx *ctx;
 	radcli_request *r;
 	char authserver[64];
@@ -259,6 +288,32 @@ int main(int argc, char **argv)
 			die("radcli_request_perform(RADCLI_REQUEST_SENDONLY)");
 		if (drive(ctx, r, MAX_DISPATCH_MS) == RADCLI_OK)
 			die("a request whose server never answered succeeded");
+	} else if (strcmp(mode, "nonblock-mute") == 0) {
+		r = new_request(ctx);
+		perform_nonblock(r);
+		if (drive(ctx, r, MAX_DISPATCH_MS) != RADCLI_TIMEOUT)
+			die("a request whose server never completed the handshake did not time out");
+	} else if (strcmp(mode, "nonblock-burst") == 0) {
+		int i;
+
+		for (i = 0; i < BURST; i++) {
+			burst[i] = new_request(ctx);
+			perform_nonblock(burst[i]);
+		}
+		/* Spread over the queue, not only its tail. */
+		for (i = 0; i < FREED; i++) {
+			radcli_request_free(burst[i * (BURST / FREED)]);
+			burst[i * (BURST / FREED)] = NULL;
+		}
+		for (i = 0; i < BURST; i++) {
+			if (burst[i] == NULL)
+				continue;
+			rc = drive(ctx, burst[i], MAX_DISPATCH_MS);
+			if (rc != RADCLI_OK || radcli_request_code(burst[i]) != RADCLI_CODE_ACCESS_ACCEPT)
+				die("a queued request did not succeed");
+			radcli_request_free(burst[i]);
+		}
+		r = NULL;
 	} else if (strcmp(mode, "sendfail-once") == 0) {
 		double start = now_ms();
 
