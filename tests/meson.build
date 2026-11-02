@@ -3,6 +3,7 @@ tests_incdirs = [config_inc, include_dirs, include_directories('../src', '../lib
 test_env = environment()
 test_env.set('top_builddir', meson.project_build_root())
 test_env.set('srcdir', meson.current_source_dir())
+test_env.set('HAVE_TLS', have_gnutls ? 'yes' : 'no')
 
 shell_tests = [
   'basic-tests.sh', 'ipv6-tests.sh', 'failover-tests.sh', 'acct-async-tests.sh',
@@ -12,11 +13,17 @@ shell_tests = [
   'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
   'dae-tests.sh', 'dae-freeradius-tests.sh', 'attr-ids-tests.sh',
   'example-config-tests.sh', 'avp2-api-symmetry-tests.sh', 'tcp-session-tests.sh',
+  'session-timeout-tests.sh',
 ]
 
 # Client for tests/tcp-session-tests.sh and tests/radsec-framing-tests.sh
 # (peer: tests/session-framing-server.py).
 session_framing = executable('session-framing', 'session-framing.c',
+  include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+  dependencies: link_libs, install: false)
+# Client for tests/session-timeout-tests.sh (peer:
+# tests/session-timeout-server.py).
+session_timeout = executable('session-timeout', 'session-timeout.c',
   include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
   dependencies: link_libs, install: false)
 
