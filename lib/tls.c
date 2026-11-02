@@ -123,7 +123,6 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 	/* GNUTLS_NONBLOCK: without it the handshake waits inside GnuTLS for
 	 * its own timeouts, socket blocking or not. */
 	unsigned flags = GNUTLS_CLIENT | GNUTLS_NONBLOCK;
-	unsigned cred_set = 0;
 	char *p;
 	int ret;
 
@@ -155,8 +154,7 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 		s->skip_hostname_check = 1;
 	}
 
-	if (cr && cr->psk_cred) {
-		cred_set = 1;
+	if (cr->psk_cred) {
 		gnutls_credentials_set(c->session,
 				       GNUTLS_CRD_PSK, cr->psk_cred);
 
@@ -167,8 +165,7 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 			       __func__, gnutls_strerror(ret));
 			return -1;
 		}
-	} else if (cr) {
-		cred_set = 1;
+	} else {
 		if (cr->x509_cred) {
 			gnutls_credentials_set(c->session,
 					       GNUTLS_CRD_CERTIFICATE,
@@ -180,13 +177,6 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 
 	gnutls_server_name_set(c->session, GNUTLS_NAME_DNS,
 			       s->hostname, strlen(s->hostname));
-
-	if (cred_set == 0) {
-		rc_log(LOG_CRIT,
-		       "%s: neither tls-ca-file or a PSK key are configured",
-		       __func__);
-		return -1;
-	}
 
 	rc_log(LOG_DEBUG,
 	       "%s: performing TLS/DTLS handshake with [%s]:%d",
