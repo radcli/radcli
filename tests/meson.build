@@ -215,3 +215,18 @@ foreach t : shell_tests
   test(t, find_program(t), env: test_env, timeout: 300,
        workdir: meson.current_source_dir())
 endforeach
+
+if gnutls_dep.found()
+  # Link the send fault fixture into the client so sanitizer runs need no
+  # LD_PRELOAD ordering or external runtime-path configuration.
+  dtls_direction_probe = executable('dtls-direction-probe',
+    ['dtls-direction-probe.c', 'dtls-inject-send.c'],
+    include_directories: tests_incdirs, link_with: libradcli2_shared,
+    dependencies: meson.get_compiler('c').find_library('dl', required: false),
+    export_dynamic: true)
+  dtls_direction_peer = executable('dtls-direction-peer', 'dtls-direction-peer.c',
+    include_directories: tests_incdirs, dependencies: gnutls_dep)
+  test('dtls-direction', find_program('python3'),
+    args: [files('dtls-direction-tests.py'), dtls_direction_probe.full_path(),
+           dtls_direction_peer.full_path()], timeout: 30)
+endif
