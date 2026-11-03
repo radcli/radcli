@@ -516,7 +516,10 @@ and the handshake and not extended by any step; past it, the attempt fails. Unti
 established, the session's current connection stays in place (REQ-NET-TEARDOWN-004), and records
 queued for the attempt go out once it is (REQ-NET2-NET-005). Blocking callers
 (`restart_session()`) drive the same attempt, polling for what `attempt_wait()` reports; only
-name resolution, when the attempt begins, may block.
+name resolution, when the attempt begins, may block. A pending DTLS handshake MUST NOT
+continuously report write readiness after a successful flight transmission while
+waiting for a response or retransmission timer. A genuinely blocked send MUST
+still report write readiness so the same handshake can resume.
 **Strength:** MUST
 **Status:** DERIVED — fixes a bug (#147): `connect()` and the handshake ran to completion inside
 whichever call needed the connection, including `radcli_ctx_dispatch()` (REQ-NET2-NET-001).
@@ -526,7 +529,9 @@ whichever call needed the connection, including `radcli_ctx_dispatch()` (REQ-NET
 **Acceptance:** [NET] negative, local — `tests/session-timeout-tests.sh`'s `stall` case
 (REQ-NET2-NET-001's acceptance): a TLS handshake that never completes fails at its deadline while
 every `radcli_ctx_dispatch()` call returns promptly. [NET] positive, local — every TLS test
-(`tests/tls-*-tests.sh`, `tests/radsec-*-tests.sh`) connects through this attempt.
+(`tests/tls-*-tests.sh`, `tests/radsec-*-tests.sh`) connects through this attempt. `tests/dtls-direction-tests.py` additionally
+checks a silent DTLS peer without CPU spin, successful Access-Accept, a dropped
+initial flight, injected send EAGAIN/EINTR, and cancellation during handshake.
 **Links:** REQ-NET2-NET-001, REQ-NET-NET-005, REQ-NET-NET-007, REQ-NET-TEARDOWN-004
 
 ---
