@@ -56,6 +56,9 @@ typedef struct rc_sess_conn {
 	unsigned gen; /* the session's attempt that opened this connection */
 #ifdef HAVE_GNUTLS
 	gnutls_session_t session;
+	/* Heap-owned DTLS send state moves with the connection at promotion;
+	 * callbacks must not point into the copied rc_sess_conn itself. */
+	struct dtls_push_state *dtls_io;
 	unsigned handshake_done; /* guards gnutls_bye(), invalid before a handshake */
 #endif
 } rc_sess_conn;

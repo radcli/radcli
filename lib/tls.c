@@ -53,6 +53,30 @@
 #define DEFAULT_DTLS_SECRET "radius/dtls"
 #define DEFAULT_TLS_SECRET "radsec"
 
+/* Per-connection DTLS send state, released after gnutls_deinit(). The receive
+ * transport retains the socket fd; only the push callback uses this object. */
+struct dtls_push_state {
+	int fd;
+	unsigned blocked;
+};
+
+/*- Record actual DTLS send backpressure instead of a stale GnuTLS direction.
+ * @param ptr the connection's heap-owned send state.
+ * @param data the datagram supplied by GnuTLS.
+ * @param len the datagram length.
+ * @return send()'s result with errno preserved for GnuTLS.
+ -*/
+static ssize_t dtls_push(gnutls_transport_ptr_t ptr, const void *data, size_t len)
+{
+	struct dtls_push_state *io = ptr;
+	ssize_t ret = send(io->fd, data, len, 0);
+
+	/* Keep write readiness only while this datagram still needs sending;
+	 * a successfully transmitted flight must wait for input or its timer. */
+	io->blocked = ret < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR);
+	return ret;
+}
+
 /* The credentials rc_init_tls() loaded; the session's rc_session.backend. */
 struct tls_creds {
 	gnutls_psk_client_credentials_t psk_cred;
@@ -147,6 +171,18 @@ static int tls_start(rc_session *s, rc_sess_conn *c, int timeout)
 	}
 
 	gnutls_transport_set_int(c->session, c->sockfd);
+	/* GnuTLS 3.8.10/3.8.12 can retain write direction after a DTLS flight
+	 * was sent. Observe send results without changing receive callbacks,
+	 * TLS behavior, or requiring an application-side workaround. */
+	if (s->ops->datagram) {
+		c->dtls_io = calloc(1, sizeof(*c->dtls_io));
+		if (c->dtls_io == NULL)
+			return -1;
+		c->dtls_io->fd = c->sockfd;
+		gnutls_transport_set_ptr2(c->session,
+			(gnutls_transport_ptr_t)(intptr_t)c->sockfd, c->dtls_io);
+		gnutls_transport_set_push_function(c->session, dtls_push);
+	}
 	gnutls_session_set_ptr(c->session, s);
 
 	p = rc_conf_str_id(s->rh, OPT_TLS_VERIFY_HOSTNAME);
@@ -190,6 +226,10 @@ static int tls_handshake(rc_sess_conn *c)
 	int ret;
 
 	do {
+		/* A previous interrupted write must not leak into a later step
+		 * which only waits for input. The push hook sets this on failure. */
+		if (c->dtls_io)
+			c->dtls_io->blocked = 0;
 		ret = gnutls_handshake(c->session);
 	} while (ret < 0 && ret != GNUTLS_E_AGAIN && ret != GNUTLS_E_INTERRUPTED &&
 		 ret != GNUTLS_E_LARGE_PACKET && gnutls_error_is_fatal(ret) == 0);
@@ -218,7 +258,9 @@ static int tls_handshake_wait(rc_sess_conn *c, short *events)
  * next fires, for tls_handshake() to resend a lost flight. -*/
 static int dtls_handshake_wait(rc_sess_conn *c, short *events)
 {
-	*events = gnutls_record_get_direction(c->session) ? POLLOUT : POLLIN;
+	/* A send that actually blocked requires POLLOUT; otherwise the peer
+	 * response or retransmission timer must wake the pending handshake. */
+	*events = c->dtls_io->blocked ? POLLOUT : POLLIN;
 	return (int)gnutls_dtls_get_timeout(c->session);
 }
 
@@ -280,6 +322,10 @@ static void tls_stop(rc_sess_conn *c)
 	}
 	gnutls_deinit(c->session);
 	c->session = NULL;
+	/* Deinit must finish before its transport callback storage is freed,
+	 * including cancellation or failure before handshake completion. */
+	free(c->dtls_io);
+	c->dtls_io = NULL;
 }
 
 /*- Free cr and the credentials it holds. -*/
