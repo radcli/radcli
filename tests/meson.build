@@ -15,7 +15,7 @@ shell_tests = [
 ]
 
 if have_gnutls
-  shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'close-notify-tests.sh']
+  shell_tests += ['tls-tests.sh', 'tls-verify-hostname-tests.sh', 'tls-msg-auth-tests.sh', 'tls-idle-restart-tests.sh', 'tls-connect-timeout-tests.sh', 'close-notify-tests.sh']
   shell_tests += ['avp-codec-freeradius-tests.sh', 'request-freeradius-tests.sh']
   shell_tests += ['request-poll-multi-tests.sh', 'request-async-validation-tests.sh',
                   'request-reply-code-tests.sh', 'request-stray-reply-tests.sh']
