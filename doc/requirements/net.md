@@ -385,6 +385,25 @@ the connection, then calls `radcli_ctx_dispatch()` and
 code, passing after.
 **Links:** REQ-NET-NET-005, REQ-NET2-NET-003, REQ-NET2-SEND-012
 
+### REQ-NET-NET-020 — TLS/DTLS session establishment MUST be bounded by `radius_timeout`, including the TCP connect
+
+**Requirement:** `init_session()` MUST put the session socket in non-blocking mode before
+`connect()`, and MUST wait for the connection to complete for at most `radius_timeout` seconds
+(retrying `poll()` on `EINTR` against the same deadline), then fail the session with `ETIMEDOUT`.
+A blocking `connect()` MUST NOT be used: against a server that silently drops the SYN (host down
+behind a firewall, no route), it only fails after the kernel's SYN retries
+(`net.ipv4.tcp_syn_retries`, ~127 s with the Linux default of 6), regardless of `radius_timeout`.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: `init_session()` called a blocking `connect()` and only switched
+the socket to non-blocking mode for the handshake, so `rc_auth()`/`radcli_aaa()` over RadSec to an
+unreachable server blocked for ~2 minutes with `radius_timeout=3`.
+**Source:** lib/tls.c (`connect_with_timeout()`, `init_session()`)
+**Acceptance:** [NET] negative, local — `tests/tls-connect-timeout-tests.sh` points a TLS client
+with `radius_timeout 2`/`radius_retries 0` at an address the server namespace silently drops, and
+requires the request to fail within 10 s; confirmed failing (~127 s) against the unfixed code,
+passing after.
+**Links:** REQ-NET-NET-005, REQ-NET-NET-007, REQ-NET-NET-009
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling

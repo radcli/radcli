@@ -427,6 +427,65 @@ static void deinit_session(tls_int_st *ses)
  * @return 0 on success, negative on failure (ses is left safe to pass to
  * deinit_session()).
  -*/
+/*- Connect a non-blocking socket, bounded by timeout seconds.
+ *
+ * A blocking connect(2) to a server that silently drops the SYN (host down
+ * behind a firewall, no route) only fails after the kernel's SYN retries
+ * (net.ipv4.tcp_syn_retries, ~127 s by default), far beyond radius_timeout.
+ * The socket must already be O_NONBLOCK; poll() is retried on EINTR against
+ * the same deadline.
+ *
+ * @param sockfd a non-blocking socket.
+ * @param addr the peer address.
+ * @param addrlen addr's length.
+ * @param timeout the limit in seconds; values <= 0 mean 1 second.
+ * @return 0 on success, -1 with errno set on failure (ETIMEDOUT on timeout).
+ -*/
+static int connect_with_timeout(int sockfd, const struct sockaddr *addr,
+				socklen_t addrlen, int timeout)
+{
+	double deadline;
+	int err = 0;
+	socklen_t errlen = sizeof(err);
+
+	if (connect(sockfd, addr, addrlen) == 0)
+		return 0;
+	if (errno != EINPROGRESS)
+		return -1;
+
+	if (timeout <= 0)
+		timeout = 1;
+	deadline = rc_getmtime() + timeout;
+
+	for (;;) {
+		struct pollfd pfd = { sockfd, POLLOUT, 0 };
+		int left_ms = (int)((deadline - rc_getmtime()) * 1000);
+		int ret;
+
+		if (left_ms <= 0) {
+			errno = ETIMEDOUT;
+			return -1;
+		}
+		ret = poll(&pfd, 1, left_ms);
+		if (ret > 0)
+			break;
+		if (ret == 0) {
+			errno = ETIMEDOUT;
+			return -1;
+		}
+		if (errno != EINTR)
+			return -1;
+	}
+
+	if (getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &err, &errlen) == -1)
+		return -1;
+	if (err != 0) {
+		errno = err;
+		return -1;
+	}
+	return 0;
+}
+
 static int init_session(rc_handle *rh, tls_int_st *ses,
 			const char *hostname, unsigned port,
 			struct sockaddr_storage *our_sockaddr,
@@ -553,30 +612,33 @@ static int init_session(rc_handle *rh, tls_int_st *ses,
 		goto cleanup;
 	}
 
+	/* Switch to non-blocking mode before connecting, so that the TCP
+	 * connect is bounded by radius_timeout (connect_with_timeout()) and
+	 * both gnutls_handshake() (bounded above via
+	 * gnutls_handshake_set_timeout()/gnutls_dtls_set_timeouts()) and the
+	 * post-handshake record I/O in tls_sendto()/tls_recvfrom() can
+	 * actually observe GNUTLS_E_AGAIN and take the bounded
+	 * poll()-and-retry path in tls_wait_or_give_up(), instead of blocking
+	 * in the kernel with no timeout at all. */
+	sock_flags = fcntl(sockfd, F_GETFL, 0);
+	if (sock_flags == -1 ||
+	    fcntl(sockfd, F_SETFL, sock_flags | O_NONBLOCK) == -1) {
+		e = errno;
+		ret = -1;
+		freeaddrinfo(info);
+		rc_log(LOG_CRIT, "%s: cannot set socket non-blocking: %s",
+		       __func__, strerror(e));
+		goto cleanup;
+	}
+
 	/* we connect since we are talking to a single server */
-	ret = connect(sockfd, info->ai_addr, info->ai_addrlen);
+	ret = connect_with_timeout(sockfd, info->ai_addr, info->ai_addrlen, timeout);
 	freeaddrinfo(info);
 	if (ret == -1) {
 		e = errno;
 		ret = -1;
 		rc_log(LOG_CRIT, "%s: cannot connect to %s: %s",
 		       __func__, hostname, strerror(e));
-		goto cleanup;
-	}
-
-	/* Switch to non-blocking mode before the handshake, so that both
-	 * gnutls_handshake() (bounded above via gnutls_handshake_set_timeout()/
-	 * gnutls_dtls_set_timeouts()) and the post-handshake record I/O in
-	 * tls_sendto()/tls_recvfrom() can actually observe GNUTLS_E_AGAIN and
-	 * take the bounded poll()-and-retry path in tls_wait_or_give_up(),
-	 * instead of blocking in the kernel with no timeout at all. */
-	sock_flags = fcntl(sockfd, F_GETFL, 0);
-	if (sock_flags == -1 ||
-	    fcntl(sockfd, F_SETFL, sock_flags | O_NONBLOCK) == -1) {
-		e = errno;
-		ret = -1;
-		rc_log(LOG_CRIT, "%s: cannot set socket non-blocking: %s",
-		       __func__, strerror(e));
 		goto cleanup;
 	}
 
