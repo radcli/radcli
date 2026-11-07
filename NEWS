@@ -1,3 +1,26 @@
+* Version 2.0.2 (unreleased)
+- Added RADCLI_REQUEST_SENDONLY_NONBLOCK, which submits a request without
+  waiting for the network, so that an application built around an event
+  loop is not stalled by a TCP connect, a TLS/DTLS handshake or a congested
+  session. What cannot be sent at once is queued and sent by
+  radcli_ctx_dispatch(). Name resolution may still block.
+- radcli_ctx_dispatch() no longer blocks while reconnecting a TCP, TLS or
+  DTLS session.
+- RADIUS/TCP now carries every request, accounting included, over one
+  persistent connection, as TLS and DTLS do. This also makes
+  RADCLI_REQUEST_SENDONLY usable over TCP, where it previously failed.
+- A request is now retransmitted over TCP or TLS only on a new connection,
+  never on the one it was already sent on (RFC 6613).
+- Packets received over TLS are now delimited by their Length field, rather
+  than assuming one RADIUS packet per TLS record (RFC 6614).
+- Fixed a blocking request failing with an error instead of timing out, when
+  a TLS record without RADIUS data (e.g. a TLS 1.3 session ticket) arrived.
+- Reconnecting a TCP, TLS or DTLS session now always uses the configured
+  network namespace.
+- radcli_request_perform() now returns RADCLI_ERROR for undefined flags,
+  rather than ignoring them.
+
+
 * Version 2.0.1 (released 2026-10-10)
 - Fixed several issues in the TLS/DTLS transport and in the handling of
   asynchronous requests and replies, including dropped salt-encrypted
