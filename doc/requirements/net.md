@@ -271,10 +271,12 @@ immediately; `rc_tls_fd()` returns -1.
 
 ### REQ-NET-NET-015 — Namespace switching around socket creation is scoped to the call, not left ambient
 
-**Requirement:** When the `namespace` config option is set, `rc_send_server_ctx()` and
-`rc_init_tls()`/`radcli2_priv_sess_deinit()` MUST call `rc_set_netns()` before creating/tearing down sockets
+**Requirement:** When the `namespace` config option is set, `rc_send_server_ctx()`,
+`attempt_begin()` and `rc_init_tls()`/`radcli2_priv_sess_deinit()` MUST call `rc_set_netns()` before creating/tearing down sockets
 and `rc_reset_netns()` before returning on every exit path (success and error), restoring the
-caller's original network namespace. This is a Linux-specific `setns(CLONE_NEWNET)` call, which
+caller's original network namespace. Every TCP/TLS/DTLS connection attempt MUST open its socket in
+the configured namespace, whichever call began it: a reconnect begun by `radcli_ctx_dispatch()` or
+`rc_check_tls()` runs outside any request's own namespace switch. This is a Linux-specific `setns(CLONE_NEWNET)` call, which
 changes the *calling thread's* namespace for the duration; it is bounded by explicit set/reset
 pairs rather than persisting as ambient state — compliant with `REQ-GEN-SEC-004`'s `chdir()`-style
 ambient-state prohibition because it is symmetric (paired set/reset with no early-return that
@@ -283,14 +285,16 @@ examples (`chdir`, `setenv`) are not. Added in PR #29 (merged 2018-03-08) for Ma
 deployments where the RADIUS server is reachable only from a non-default network namespace; opt-in
 via the `namespace` config option, with no effect when unset. C has no scope-guard/RAII mechanism
 to enforce set/reset symmetry structurally, so this remains a code-review obligation for any future
-change to these three functions' exit paths, not a compiler-enforced invariant.
+change to these functions' exit paths, not a compiler-enforced invariant.
 **Strength:** MUST (symmetric set/reset on every exit path)
 **Status:** DERIVED
 **Source:** lib/sendserver.c:460-466,941-947; lib/tls.c (`rc_init_tls`);
-lib/session.c (`radcli2_priv_sess_deinit`); lib/util.c:174-253 (`rc_set_netns`/`rc_reset_netns`);
+lib/session.c (`attempt_begin`, `radcli2_priv_sess_deinit`); lib/util.c:174-253 (`rc_set_netns`/`rc_reset_netns`);
 tests/namespace-tests.sh (existing root-requiring test coverage, wired into `tests/meson.build`)
-**Acceptance:** [NET][SEC] `tests/namespace-tests.sh` (root, CI-only per `REQ-GEN-TEST-002`) plus
-code-review — every new early-return added to `rc_send_server_ctx()`, `rc_init_tls()`, or
+**Acceptance:** [NET][SEC] `tests/namespace-tests.sh` and `tests/namespace-reconnect-tests.sh` (a
+request resent from `radcli_ctx_dispatch()` over a new TCP connection must reach a server only that
+namespace can reach; both root, CI-only per `REQ-GEN-TEST-002`) plus
+code-review — every new early-return added to `rc_send_server_ctx()`, `attempt_begin()`, `rc_init_tls()`, or
 `radcli2_priv_sess_deinit()` between a `rc_set_netns()` call and function exit must be verified to still
 reach the matching `rc_reset_netns()`.
 **Links:** REQ-GEN-SEC-004

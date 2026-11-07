@@ -80,6 +80,7 @@ function run_case {
 run_case tcp once once-blocking "COPIES=1 CONNECTIONS=1" 4
 run_case tcp once once-sendonly "COPIES=1 CONNECTIONS=1" 4
 run_case tcp drop drop-sendonly "RESENT-ON-NEW" 10
+run_case tcp drop drop-nonblock "RESENT-ON-NEW" 10
 run_case tcp answer nonblock-burst "RECEIVED=15" 10
 
 if test "${HAVE_TLS:-yes}" = yes; then

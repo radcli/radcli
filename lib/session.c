@@ -399,23 +399,17 @@ static void conn_close(rc_session *s, rc_sess_conn *c)
 		close(c->sockfd);
 }
 
-/*- Begin a connection attempt to s's server, unless one is in progress:
- * open a non-blocking socket and start connecting it, discarding what was
- * queued for the failed connection. Name resolution may block
- * (REQ-NET2-NET-001).
+/*- Open and start connecting the socket of a new connection attempt.
  *
- * @param s the session to connect.
- * @return 0 if an attempt is in progress, -1 if it could not start.
+ * @param s the session to connect, with no attempt in progress.
+ * @return 0 if the attempt is in progress, -1 if it could not start.
  -*/
-static int attempt_begin(rc_session *s)
+static int attempt_open(rc_session *s)
 {
 	rc_sess_conn *c = &s->next;
 	struct sockaddr_storage our_sockaddr;
 	struct addrinfo *info;
 	int sockfd, ret, e, sock_flags, timeout;
-
-	if (s->phase != SESS_IDLE)
-		return 0;
 
 	/* The backend relies on fields it does not write being zero:
 	 * REQ-NET-NET-016 */
@@ -494,6 +488,36 @@ static int attempt_begin(rc_session *s)
  fail:
 	conn_close(s, c);
 	return -1;
+}
+
+/*- Begin a connection attempt to s's server, unless one is in progress:
+ * open a non-blocking socket and start connecting it, discarding what was
+ * queued for the failed connection. Name resolution may block
+ * (REQ-NET2-NET-001).
+ *
+ * @param s the session to connect.
+ * @return 0 if an attempt is in progress, -1 if it could not start.
+ -*/
+static int attempt_begin(rc_session *s)
+{
+	char *ns;
+	int ns_def_hdl = 0;
+	int ret;
+
+	if (s->phase != SESS_IDLE)
+		return 0;
+
+	/* A socket stays in the namespace it was opened in, and a reconnect
+	 * can begin outside any request's own switch (REQ-NET-NET-015). */
+	ns = rc_conf_str_id(s->rh, OPT_NAMESPACE);
+	if (ns != NULL && rc_set_netns(ns, &ns_def_hdl) == -1) {
+		rc_log(LOG_ERR, "%s: namespace %s set failed", __func__, ns);
+		return -1;
+	}
+	ret = attempt_open(s);
+	if (ns != NULL && rc_reset_netns(&ns_def_hdl) == -1)
+		rc_log(LOG_ERR, "%s: namespace %s reset failed", __func__, ns);
+	return ret;
 }
 
 /*- Check, without waiting, whether s's attempt has finished connecting.
