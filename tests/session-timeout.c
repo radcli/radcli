@@ -23,14 +23,17 @@
  *
  * Requests left unanswered on a TCP/TLS session, against
  * tests/session-timeout-server.py, with radius_timeout 1 (2 in stall)
- * and radius_retries 1:
+ * and radius_retries 1. SESSION_TIMEOUT_ADDRESS (tcp only) and
+ * SESSION_TIMEOUT_NAMESPACE, if set, override the server address and set
+ * the namespace option, for tests/namespace-reconnect-tests.sh:
  *
  *   once-blocking, once-sendonly  the peer never answers and keeps the
  *       connection open; the request must end in RADCLI_TIMEOUT, whatever
  *       non-RADIUS TLS records arrive meanwhile (REQ-NET-NET-021), sent
  *       only once (REQ-NET-NET-022, RFC 6613 SS2.6.1)
- *   drop-sendonly  the peer closes the connection unanswered; the request
- *       must be resent over a new connection and succeed (REQ-NET-NET-022)
+ *   drop-sendonly, drop-nonblock  the peer closes the connection unanswered;
+ *       the request must be resent over a new connection and succeed
+ *       (REQ-NET-NET-022)
  *   stall  a TLS peer closes the connection unanswered and then never
  *       completes a new handshake; no radcli_ctx_dispatch() call may wait
  *       for it (REQ-NET2-NET-001), and the request must time out
@@ -202,6 +205,8 @@ int main(int argc, char **argv)
 	radcli_request *r;
 	char authserver[64];
 	const char *mode;
+	const char *address = getenv("SESSION_TIMEOUT_ADDRESS");
+	const char *netns = getenv("SESSION_TIMEOUT_NAMESPACE");
 	int tls, dtls, stall, rc;
 	int silent_fd = -1;
 
@@ -234,10 +239,13 @@ int main(int argc, char **argv)
 		    radcli_ctx_set_opt_str(ctx, RADCLI_OPT_TLS_CA_FILE, argv[3]) != 0)
 			die("TLS option setup failed");
 	} else {
-		snprintf(authserver, sizeof(authserver), "127.0.0.1:%s:%s", argv[2], argv[3]);
+		snprintf(authserver, sizeof(authserver), "%s:%s:%s",
+			 address ? address : "127.0.0.1", argv[2], argv[3]);
 		if (radcli_ctx_set_opt_str(ctx, RADCLI_OPT_SERV_TYPE, "tcp") != 0)
 			die("TCP option setup failed");
 	}
+	if (netns != NULL && radcli_ctx_set_opt_str(ctx, RADCLI_OPT_NAMESPACE, netns) != 0)
+		die("namespace option setup failed");
 	if (radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER, authserver) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, stall ? 2 : 1) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, 1) != 0 ||
@@ -275,6 +283,12 @@ int main(int argc, char **argv)
 		r = new_request(ctx);
 		if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK)
 			die("radcli_request_perform(RADCLI_REQUEST_SENDONLY)");
+		rc = drive(ctx, r, 0);
+		if (rc != RADCLI_OK || radcli_request_code(r) != RADCLI_CODE_ACCESS_ACCEPT)
+			die("the request resent over a new connection did not succeed");
+	} else if (strcmp(mode, "drop-nonblock") == 0) {
+		r = new_request(ctx);
+		perform_nonblock(r);
 		rc = drive(ctx, r, 0);
 		if (rc != RADCLI_OK || radcli_request_code(r) != RADCLI_CODE_ACCESS_ACCEPT)
 			die("the request resent over a new connection did not succeed");

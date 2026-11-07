@@ -8,7 +8,7 @@ test_env.set('HAVE_TLS', have_gnutls ? 'yes' : 'no')
 shell_tests = [
   'basic-tests.sh', 'ipv6-tests.sh', 'failover-tests.sh', 'acct-async-tests.sh',
   'tcp-tests.sh', 'eap-tests.sh', 'no-server-file-tests.sh', 'reject-tests.sh',
-  'skip-unknown-vsa.sh', 'namespace-tests.sh', 'radembedded-tests.sh',
+  'skip-unknown-vsa.sh', 'namespace-tests.sh', 'namespace-reconnect-tests.sh', 'radembedded-tests.sh',
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
   'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
   'dae-tests.sh', 'dae-freeradius-tests.sh', 'attr-ids-tests.sh',
