@@ -304,7 +304,9 @@ int main(int argc, char **argv)
 	}
 
 	/* --- RADCLI_REQUEST_SENDONLY_NONBLOCK (REQ-NET2-SEND-018): the request
-	 * reaches the same RADCLI_TIMEOUT through radcli_request_done(). --- */
+	 * reaches the same RADCLI_TIMEOUT through radcli_request_done(). Flags
+	 * that are not defined are rejected first, leaving r unperformed
+	 * (REQ-NET2-SEND-019). --- */
 
 	{
 		radcli_avp_list *send_list4 = radcli_avp_list_new();
@@ -318,6 +320,11 @@ int main(int argc, char **argv)
 		radcli_avp_list_free(send_list4);
 		assert(r != NULL);
 
+		if (radcli_request_perform(r, 1u << 1) != RADCLI_ERROR ||
+		    radcli_request_perform(r, 1u << 5) != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_perform() accepted undefined flags\n");
+			exit(1);
+		}
 		if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY_NONBLOCK) != RADCLI_OK) {
 			fprintf(stderr, "error: radcli_request_perform("
 					"RADCLI_REQUEST_SENDONLY_NONBLOCK) did not return RADCLI_OK\n");

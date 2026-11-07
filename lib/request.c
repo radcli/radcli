@@ -368,7 +368,8 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
  *  With RADCLI_REQUEST_SENDONLY: RADCLI_OK once the packet is handed to
  *  the network, RADCLI_ERROR on failure (e.g. name resolution or encoding
  *  failed); never RADCLI_TIMEOUT. With RADCLI_REQUEST_SENDONLY_NONBLOCK: the
- *  same, except that RADCLI_OK also covers a packet that was queued.
+ *  same, except that RADCLI_OK also covers a packet that was queued. Any
+ *  other flags: RADCLI_ERROR, leaving r unperformed.
  */
 int radcli_request_perform(radcli_request *r, unsigned flags)
 {
@@ -380,6 +381,11 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 
 	if (r == NULL || r->performed)
 		return RADCLI_ERROR;
+	if (flags != RADCLI_REQUEST_NONE && flags != RADCLI_REQUEST_SENDONLY &&
+	    flags != RADCLI_REQUEST_SENDONLY_NONBLOCK) {
+		rc_log(LOG_ERR, "invalid flags 0x%x", flags); /* REQ-NET2-SEND-019 */
+		return RADCLI_ERROR;
+	}
 	r->performed = 1;
 
 	if (flags & RADCLI_REQUEST_SENDONLY) {

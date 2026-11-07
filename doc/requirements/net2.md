@@ -887,6 +887,23 @@ Identifier.
 REQ-NET2-SEND-013, REQ-NET2-SEND-014, REQ-NET2-SEND-016, REQ-NET-NET-022,
 REQ-NET-NET-023
 
+### REQ-NET2-SEND-019 — radcli_request_perform() rejects flags it does not define
+
+**Requirement:** `radcli_request_perform(r, flags)` with `flags` other than
+`RADCLI_REQUEST_NONE`, `RADCLI_REQUEST_SENDONLY` or
+`RADCLI_REQUEST_SENDONLY_NONBLOCK` MUST log an error and return
+`RADCLI_ERROR`, leaving `r` unperformed, so that a flag this library does
+not know fails instead of running as a different kind of request.
+**Strength:** MUST
+**Status:** DERIVED
+**Source:** lib/request.c (`radcli_request_perform()`)
+**Acceptance:** [SEND] negative, unit, local — `tests/request.c`: bit 1 alone
+and an undefined bit each return `RADCLI_ERROR`, after which
+`RADCLI_REQUEST_SENDONLY_NONBLOCK` on the same `r` returns `RADCLI_OK`.
+Confirmed failing (`RADCLI_TIMEOUT`, a blocking exchange) against the code
+before this check existed.
+**Links:** REQ-NET2-SEND-012, REQ-NET2-SEND-018
+
 ---
 
 ## RECV — reply handling and accessors
