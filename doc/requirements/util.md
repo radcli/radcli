@@ -500,7 +500,7 @@ when written)
 | `DEBUG` macro | util.h | n/a (macro) | REQ-UTIL-ERR-004 |
 | `rc_log` macro | util.h | n/a (macro) | REQ-UTIL-ERR-002, REQ-UTIL-ERR-004 |
 | `rc_str2tm` | util.c/util.h | no | REQ-UTIL-DATA-012 |
-| `rc_getmtime` | util.c/util.h | no | [UNDOCUMENTED] — see below |
+| `rc_getmtime_ms` | util.c/util.h | no | [UNDOCUMENTED] — see below |
 | `rc_mksid` | lib/legacy/compat.c | **yes** (radcli.map.in:69) | see below |
 | `rc_set_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
 | `rc_reset_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
@@ -541,11 +541,14 @@ when written)
   (`lib/radcli.map.in:61`, `lib/log.c:54-59`) with no dedicated requirement
   above — a thin `openlog(3)` wrapper (no-op under `_MSC_VER`). Low risk,
   flagged for the same reason as `rc_getport`.
-- **`rc_getmtime()`**: internal-only (not in map.in), single-purpose
-  monotonic-time wrapper (`lib/util.c:69-86`) used for interval/timeout
-  arithmetic elsewhere in `lib/`. No dedicated requirement was written
-  because its only essential behavior — "returns a monotonically
-  non-decreasing double, or -1 on failure" — is fully captured by its
+- **`rc_getmtime_ms()`**: internal-only (in map.in's `RADCLI2_PRIVATE`
+  node only), single-purpose monotonic-time wrapper (`lib/util.c`) used for
+  interval/timeout arithmetic in the radcli2 library, in integer
+  milliseconds (`int64_t`). The legacy library's Acct-Delay-Time code keeps
+  a `double`-seconds `rc_getmtime()` built on it, private to
+  `lib/legacy/buildreq.c`. No dedicated requirement was written because its
+  only essential behavior — "returns monotonically non-decreasing
+  milliseconds, or -1 on failure" — is fully captured by its
   `clock_gettime(CLOCK_MONOTONIC, ...)`/`gettimeofday()` fallback structure
   and has no bounds/security implications; flagged here rather than silently
   omitted so Phase 5 coverage is explicit. `[UNDOCUMENTED]`.

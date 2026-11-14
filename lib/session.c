@@ -91,13 +91,13 @@ static int sess_get_active_fd(void *ptr)
  -*/
 static int sess_wait_or_give_up(rc_session *s, short events, const char *what)
 {
-	double start_time = rc_getmtime();
+	int64_t start_ms = rc_getmtime_ms();
 	int timeout = rc_conf_int_id(s->rh, OPT_RADIUS_TIMEOUT);
 
 	if (timeout <= 0)
 		timeout = 1;
 
-	for (; timeout > 0; timeout -= (int)(rc_getmtime() - start_time)) {
+	for (; timeout > 0; timeout -= (int)((rc_getmtime_ms() - start_ms) / 1000)) {
 		struct pollfd pfd = { s->conn.sockfd, events, 0 };
 		int ret = poll(&pfd, 1, timeout * 1000);
 
@@ -479,7 +479,7 @@ static int attempt_open(rc_session *s)
 	}
 
 	timeout = rc_conf_int_id(s->rh, OPT_RADIUS_TIMEOUT);
-	s->deadline = rc_getmtime() + (timeout > 0 ? timeout : 1);
+	s->deadline_ms = rc_getmtime_ms() + rc_timeout_sec_to_ms((timeout > 0) ? timeout : 1);
 	if (++s->gen == 0)
 		s->gen = 1;
 	c->gen = s->gen;
@@ -557,7 +557,7 @@ static int attempt_step(rc_session *s)
 
 	if (s->phase == SESS_IDLE)
 		return -1;
-	if (rc_getmtime() >= s->deadline) {
+	if (rc_getmtime_ms() >= s->deadline_ms) {
 		rc_log(LOG_ERR, "%s: timeout connecting to %s", __func__, s->hostname);
 		goto fail;
 	}
@@ -614,11 +614,9 @@ static int attempt_step(rc_session *s)
  -*/
 static int attempt_wait(rc_session *s, short *events)
 {
-	int ms = (int)((s->deadline - rc_getmtime()) * 1000) + 1;
+	int ms = rc_ms_until(s->deadline_ms);
 	int hs_ms;
 
-	if (ms < 0)
-		ms = 0;
 	*events = POLLOUT;
 	if (s->phase == SESS_HANDSHAKING && s->ops->handshake_wait) {
 		hs_ms = s->ops->handshake_wait(&s->next, events);

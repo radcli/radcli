@@ -243,7 +243,7 @@ struct radcli_reqreg_slot {
 	rc_type type;
 	int timeout_ms; /* per-attempt */
 	int retries_left;
-	double deadline; /* rc_getmtime() value of the next retransmit/timeout */
+	int64_t deadline_ms; /* rc_getmtime_ms() of the next retransmit/timeout */
 	unsigned conn_gen; /* radcli2_priv_sess_gen() when last sent or queued */
 };
 

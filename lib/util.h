@@ -9,6 +9,8 @@
 # define UTIL_H
 
 #include <string.h>
+#include <stdint.h>
+#include <limits.h>
 
 /* Asserts must never be compiled out in security-sensitive parsing code. */
 #undef NDEBUG
@@ -85,7 +87,18 @@ size_t rc_strlcpy(char *dst, char const *src, size_t siz);
 
 struct addrinfo *rc_getaddrinfo (char const *host, unsigned flags);
 void rc_own_bind_addr(rc_handle *rh, struct sockaddr_storage *lia);
-double rc_getmtime(void);
+int64_t rc_getmtime_ms(void);
+
+/*- Milliseconds from now until deadline_ms, as a poll() timeout: 0 if it
+ * has passed, capped at INT_MAX. -*/
+static inline int rc_ms_until(int64_t deadline_ms)
+{
+	int64_t remaining = deadline_ms - rc_getmtime_ms();
+
+	if (remaining <= 0)
+		return 0;
+	return (remaining > INT_MAX) ? INT_MAX : (int)remaining;
+}
 int rc_str2tm (char const *valstr, struct tm *tm);
 int rc_set_netns(const char *net_namespace, int *prev_ns_handle);
 int rc_reset_netns(int *prev_ns_handle);

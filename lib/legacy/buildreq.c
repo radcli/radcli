@@ -13,6 +13,16 @@
 #include "rc-random.h"
 #include "options.h"
 
+/*- Returns the current monotonic time in seconds, for Acct-Delay-Time.
+ *
+ * @return seconds since an arbitrary fixed point, or a negative value on
+ *  failure.
+ -*/
+static double rc_getmtime(void)
+{
+	return rc_getmtime_ms() / 1000.0;
+}
+
 /**
  * @defgroup radcli-api Main API
  * @brief Main API Functions
