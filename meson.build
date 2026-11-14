@@ -138,11 +138,16 @@ if abidiff.found()
 endif
 
 if abidw.found()
+  # Keep the dumps to the public headers' types and free of build-machine
+  # paths, so they differ only when the ABI does.
+  abidw_args = ['--headers-dir', meson.current_source_dir() / 'include/radcli',
+                '--drop-private-types', '--drop-undefined-syms',
+                '--no-corpus-path', '--no-comp-dir-path']
   run_target('abi-dump',
-    command: [abidw, libradcli_shared.full_path(), '--out-file', abi_dump],
+    command: [abidw, abidw_args, libradcli_shared.full_path(), '--out-file', abi_dump],
     depends: libradcli_shared)
   run_target('abi-dump2',
-    command: [abidw, libradcli2_shared.full_path(), '--out-file', abi2_dump],
+    command: [abidw, abidw_args, libradcli2_shared.full_path(), '--out-file', abi2_dump],
     depends: libradcli2_shared)
 endif
 

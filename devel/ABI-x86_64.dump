@@ -1,4 +1,4 @@
-<abi-corpus version='2.4' path='/home/nmav/projects/radcli/build/lib/libradcli.so.10.2.0' architecture='elf-amd-x86_64' soname='libradcli.so.10'>
+<abi-corpus version='3.0' architecture='elf-amd-x86_64' soname='libradcli.so.10' tracking-non-reachable-types='yes'>
   <elf-needed>
     <dependency name='libradcli2.so.1'/>
     <dependency name='libc.so.6'/>
@@ -69,842 +69,60 @@
     <elf-symbol name='rc_test_config' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_tls_fd' version='RADCLI_10' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
   </elf-function-symbols>
-  <undefined-elf-function-symbols>
-    <elf-symbol name='__assert_fail' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='__ctype_b_loc' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='__cxa_finalize' type='func-type' binding='weak-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='abort' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='add_msg_auth_attr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='atoi' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='calloc' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='free' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='freeaddrinfo' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='getpid' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='getservbyname' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='gmtime_r' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='htonl' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='htons' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='inet_ntoa' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='inet_ntop' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='inet_pton' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='localtime_r' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='malloc' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='memcpy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='memset' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='mktime' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='ntohl' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='ntohs' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='openlog' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_add_config' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_apply_config' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_check_tls' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_conf_int' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_conf_srv' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_conf_str' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_config_free' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_config_init' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_destroy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_dict_free' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_find_server_addr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_get_srcaddr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_new' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_read_config' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_read_dictionary' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_read_dictionary_from_buffer' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_test_config' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli2_priv_tls_fd' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_add_bytes' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_def' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_encode' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_get_bytes' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_iter_next' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_list_free' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_list_iter' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_avp_list_new' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_attr_add' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_attr_by_id' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_attr_by_name' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_attr_to_legacy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_flags_by_id' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_lookup_num' version='RADCLI2_1' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_value_add' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_value_by_attr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_value_by_name' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_value_to_legacy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_vendor_add' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_vendor_by_name' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_vendor_by_pec' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_dict_vendor_to_legacy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='radcli_transport_exchange' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_conf_int_id' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_get_random_byte' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_get_random_bytes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_getaddrinfo' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_getmtime' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_md5_calc' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_own_bind_addr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='rc_str2tm' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='snprintf' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strchr' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strftime' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strlcpy' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='strlen' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='syslog' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='time' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='uname' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='no'/>
-  </undefined-elf-function-symbols>
-  <undefined-elf-variable-symbols>
-    <elf-symbol name='_ITM_deregisterTMCloneTable' type='no-type' binding='weak-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='_ITM_registerTMCloneTable' type='no-type' binding='weak-binding' visibility='default-visibility' is-defined='no'/>
-    <elf-symbol name='__gmon_start__' type='no-type' binding='weak-binding' visibility='default-visibility' is-defined='no'/>
-  </undefined-elf-variable-symbols>
-  <abi-instr address-size='64' path='../lib/legacy/aaa_ctx.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <function-decl name='rc_aaa_ctx_get_secret' mangled-name='rc_aaa_ctx_get_secret' filepath='../lib/legacy/aaa_ctx.c' line='41' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_get_secret@@RADCLI_10' hash='611e8f70b044ca28'>
-      <parameter type-id='type-id-1' name='ctx' filepath='../lib/legacy/aaa_ctx.c' line='41' column='1'/>
-      <return type-id='type-id-2'/>
-    </function-decl>
-    <function-decl name='rc_aaa_ctx_get_vector' mangled-name='rc_aaa_ctx_get_vector' filepath='../lib/legacy/aaa_ctx.c' line='52' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_get_vector@@RADCLI_10' hash='b62f346783d8d97a'>
-      <parameter type-id='type-id-1' name='ctx' filepath='../lib/legacy/aaa_ctx.c' line='52' column='1'/>
-      <return type-id='type-id-3'/>
-    </function-decl>
-    <function-decl name='rc_aaa_ctx_free' mangled-name='rc_aaa_ctx_free' filepath='../lib/legacy/aaa_ctx.c' line='62' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_free@@RADCLI_10' hash='b62f346783d8d97a'>
-      <parameter type-id='type-id-1' name='ctx' filepath='../lib/legacy/aaa_ctx.c' line='62' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='free' filepath='/usr/include/stdlib.h' line='691' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='free' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-3'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='memset' filepath='/usr/include/string.h' line='65' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='memset' hash='b6a97d07f8261bc0'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-6'/>
-      <return type-id='type-id-3'/>
-    </function-decl>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/avp-legacy-bridge.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <class-decl name='radcli_avp_iter' is-struct='yes' naming-typedef-id='type-id-7' visibility='default' size-in-bits='128' filepath='../include/radcli/radcli2.h' line='388' column='1' hash='6524d976f7e59f78' id='type-id-8'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='list' type-id='type-id-9' visibility='default' filepath='../include/radcli/radcli2.h' line='389' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='cur' type-id='type-id-10' visibility='default' filepath='../include/radcli/radcli2.h' line='390' column='1'/>
-      </data-member>
-    </class-decl>
-    <typedef-decl name='radcli_avp_iter' type-id='type-id-8' size-in-bits='128' filepath='../include/radcli/radcli2.h' line='391' column='1' id='type-id-7'/>
-    <typedef-decl name='radcli_ctx' type-id='type-id-11' size-in-bits='3392' filepath='../include/radcli/radcli2.h' line='79' column='1' id='type-id-12'/>
-    <qualified-type-def type-id='type-id-12' const='yes' hash='670742ef920c5ce0' id='type-id-13'/>
-    <pointer-type-def type-id='type-id-13' size-in-bits='64' hash='b43fd877608881c5' id='type-id-14'/>
-    <pointer-type-def type-id='type-id-7' size-in-bits='64' hash='7f19e5309c5188b6' id='type-id-15'/>
-    <pointer-type-def type-id='type-id-3' size-in-bits='64' hash='473a9667a2856e32' id='type-id-16'/>
-    <qualified-type-def type-id='type-id-17' const='yes' id='type-id-18'/>
-    <pointer-type-def type-id='type-id-18' size-in-bits='64' id='type-id-19'/>
-    <qualified-type-def type-id='type-id-20' const='yes' id='type-id-21'/>
-    <pointer-type-def type-id='type-id-21' size-in-bits='64' id='type-id-10'/>
-    <qualified-type-def type-id='type-id-22' const='yes' id='type-id-23'/>
-    <pointer-type-def type-id='type-id-23' size-in-bits='64' id='type-id-9'/>
-    <pointer-type-def type-id='type-id-22' size-in-bits='64' id='type-id-24'/>
-    <class-decl name='radcli_attr_def_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-25'/>
-    <class-decl name='radcli_avp_list_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-26'/>
-    <class-decl name='radcli_avp_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-27'/>
-    <typedef-decl name='radcli_attr_def' type-id='type-id-25' filepath='../include/radcli/radcli2.h' line='252' column='1' id='type-id-17'/>
-    <function-decl name='radcli_dict_lookup_num' filepath='../include/radcli/radcli2.h' line='258' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup_num@@RADCLI2_1' hash='731694b8016ddb89'>
-      <parameter type-id='type-id-14'/>
-      <parameter type-id='type-id-28'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-19'/>
-    </function-decl>
-    <typedef-decl name='radcli_avp' type-id='type-id-27' filepath='../include/radcli/radcli2.h' line='286' column='1' id='type-id-20'/>
-    <typedef-decl name='radcli_avp_list' type-id='type-id-26' filepath='../include/radcli/radcli2.h' line='294' column='1' id='type-id-22'/>
-    <function-decl name='radcli_avp_list_new' filepath='../include/radcli/radcli2.h' line='296' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_new@@RADCLI2_1' hash='7f32ffea222edbe7'>
-      <return type-id='type-id-24'/>
-    </function-decl>
-    <function-decl name='radcli_avp_list_free' filepath='../include/radcli/radcli2.h' line='298' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_free@@RADCLI2_1' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-24'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='radcli_avp_add_bytes' filepath='../include/radcli/radcli2.h' line='300' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_bytes@@RADCLI2_1' hash='b6a97d07f8261bc0'>
-      <parameter type-id='type-id-24'/>
-      <parameter type-id='type-id-19'/>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli_avp_list_iter' filepath='../include/radcli/radcli2.h' line='393' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_iter@@RADCLI2_1' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-9'/>
-      <return type-id='type-id-7'/>
-    </function-decl>
-    <function-decl name='radcli_avp_iter_next' filepath='../include/radcli/radcli2.h' line='395' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_iter_next@@RADCLI2_1' hash='3f1aa412b360b52c'>
-      <parameter type-id='type-id-15'/>
-      <return type-id='type-id-10'/>
-    </function-decl>
-    <function-decl name='radcli_avp_def' filepath='../include/radcli/radcli2.h' line='397' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_def@@RADCLI2_1' hash='7f32ffea222edbe7'>
-      <parameter type-id='type-id-10'/>
-      <return type-id='type-id-19'/>
-    </function-decl>
-    <function-decl name='radcli_avp_get_bytes' filepath='../include/radcli/radcli2.h' line='407' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_bytes@@RADCLI2_1' hash='c7e20f5356529bd0'>
-      <parameter type-id='type-id-10'/>
-      <parameter type-id='type-id-16'/>
-      <parameter type-id='type-id-30'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='calloc' filepath='/usr/include/stdlib.h' line='679' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='calloc' hash='91495cdf6321a116'>
-      <parameter type-id='type-id-6'/>
-      <parameter type-id='type-id-6'/>
-      <return type-id='type-id-3'/>
-    </function-decl>
-    <function-decl name='memcpy' filepath='/usr/include/string.h' line='47' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='memcpy' hash='e0055d99adb0e173'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-6'/>
-      <return type-id='type-id-3'/>
-    </function-decl>
-    <function-decl name='strlcpy' filepath='/usr/include/string.h' line='538' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strlcpy' hash='7c851ed6ca3879f9'>
-      <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-32'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-29'/>
-    </function-decl>
-    <function-decl name='syslog' filepath='/usr/include/sys/syslog.h' line='190' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='syslog' hash='e9ea91a7eab8302c'>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-2'/>
-      <parameter is-variadic='yes'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/avpair.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <class-decl name='UT_hash_bucket' is-struct='yes' visibility='default' size-in-bits='128' filepath='../lib/uthash/uthash.h' line='1069' column='1' hash='4b85a2b70bf3bf7b' id='type-id-33'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='hh_head' type-id='type-id-34' visibility='default' filepath='../lib/uthash/uthash.h' line='1070' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='count' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1071' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='expand_mult' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1085' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='UT_hash_handle' is-struct='yes' visibility='default' size-in-bits='448' filepath='../lib/uthash/uthash.h' line='1126' column='1' hash='d22ac5ed4aa29aa2' id='type-id-36'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='tbl' type-id='type-id-37' visibility='default' filepath='../lib/uthash/uthash.h' line='1127' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='prev' type-id='type-id-3' visibility='default' filepath='../lib/uthash/uthash.h' line='1128' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='next' type-id='type-id-3' visibility='default' filepath='../lib/uthash/uthash.h' line='1129' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='hh_prev' type-id='type-id-34' visibility='default' filepath='../lib/uthash/uthash.h' line='1130' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='hh_next' type-id='type-id-34' visibility='default' filepath='../lib/uthash/uthash.h' line='1131' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='key' type-id='type-id-3' visibility='default' filepath='../lib/uthash/uthash.h' line='1132' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='keylen' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1133' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='416'>
-        <var-decl name='hashv' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1134' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='UT_hash_table' is-struct='yes' visibility='default' size-in-bits='512' filepath='../lib/uthash/uthash.h' line='1093' column='1' hash='18f041cc84c2f382' id='type-id-38'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='buckets' type-id='type-id-39' visibility='default' filepath='../lib/uthash/uthash.h' line='1094' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='num_buckets' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1095' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='log2_num_buckets' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1095' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='num_items' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1096' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='tail' type-id='type-id-34' visibility='default' filepath='../lib/uthash/uthash.h' line='1097' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='hho' type-id='type-id-40' visibility='default' filepath='../lib/uthash/uthash.h' line='1098' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='ideal_chain_maxlen' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1102' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='352'>
-        <var-decl name='nonideal_items' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1107' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='ineff_expands' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1115' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='416'>
-        <var-decl name='noexpand' type-id='type-id-35' visibility='default' filepath='../lib/uthash/uthash.h' line='1115' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='448'>
-        <var-decl name='signature' type-id='type-id-28' visibility='default' filepath='../lib/uthash/uthash.h' line='1117' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='dict_attr' is-struct='yes' visibility='default' size-in-bits='768' filepath='../include/radcli/radcli.h' line='199' column='1' hash='e01c5fd639f87215' id='type-id-41'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../include/radcli/radcli.h' line='201' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='value' type-id='type-id-43' visibility='default' filepath='../include/radcli/radcli.h' line='202' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='640'>
-        <var-decl name='type' type-id='type-id-44' visibility='default' filepath='../include/radcli/radcli.h' line='203' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='next' type-id='type-id-45' visibility='default' filepath='../include/radcli/radcli.h' line='204' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='dict_value' is-struct='yes' visibility='default' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='210' column='1' hash='74a2158e844e121a' id='type-id-46'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrname' type-id='type-id-42' visibility='default' filepath='../include/radcli/radcli.h' line='212' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../include/radcli/radcli.h' line='213' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1056'>
-        <var-decl name='value' type-id='type-id-28' visibility='default' filepath='../include/radcli/radcli.h' line='214' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='next' type-id='type-id-47' visibility='default' filepath='../include/radcli/radcli.h' line='215' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='dict_vendor' is-struct='yes' visibility='default' size-in-bits='640' filepath='../include/radcli/radcli.h' line='221' column='1' hash='7d643bf1c351ebed' id='type-id-48'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='vendorname' type-id='type-id-42' visibility='default' filepath='../include/radcli/radcli.h' line='223' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='544'>
-        <var-decl name='vendorpec' type-id='type-id-28' visibility='default' filepath='../include/radcli/radcli.h' line='224' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='next' type-id='type-id-49' visibility='default' filepath='../include/radcli/radcli.h' line='225' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='in6_addr' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/netinet/in.h' line='223' column='1' hash='8b501153bb93cbb0' id='type-id-50'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='__in6_u' type-id='type-id-51' visibility='default' filepath='/usr/include/netinet/in.h' line='230' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='in_addr' is-struct='yes' visibility='default' size-in-bits='32' filepath='/usr/include/netinet/in.h' line='31' column='1' hash='8335790ae1212c07' id='type-id-52'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='s_addr' type-id='type-id-53' visibility='default' filepath='/usr/include/netinet/in.h' line='33' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict' is-struct='yes' visibility='default' size-in-bits='576' filepath='../lib/dict2.h' line='189' column='1' hash='eba49f31d4a2c94e' id='type-id-54'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrs_by_name' type-id='type-id-55' visibility='default' filepath='../lib/dict2.h' line='190' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='attrs_by_id' type-id='type-id-55' visibility='default' filepath='../lib/dict2.h' line='191' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='values_by_name' type-id='type-id-56' visibility='default' filepath='../lib/dict2.h' line='192' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='values_by_attr' type-id='type-id-56' visibility='default' filepath='../lib/dict2.h' line='193' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='values_by_attr_name' type-id='type-id-56' visibility='default' filepath='../lib/dict2.h' line='194' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='vendors_by_name' type-id='type-id-57' visibility='default' filepath='../lib/dict2.h' line='195' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='vendors_by_pec' type-id='type-id-57' visibility='default' filepath='../lib/dict2.h' line='196' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='448'>
-        <var-decl name='flags_by_attr_id' type-id='type-id-58' visibility='default' filepath='../lib/dict2.h' line='197' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='512'>
-        <var-decl name='gigawords_by_attr_id' type-id='type-id-59' visibility='default' filepath='../lib/dict2.h' line='198' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_attr' is-struct='yes' visibility='default' size-in-bits='2176' filepath='../lib/dict2.h' line='96' column='1' hash='c2e00716852cfa51' id='type-id-60'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='97' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='98' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='value' type-id='type-id-43' visibility='default' filepath='../lib/dict2.h' line='99' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1152'>
-        <var-decl name='type' type-id='type-id-44' visibility='default' filepath='../lib/dict2.h' line='100' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1216'>
-        <var-decl name='legacy' type-id='type-id-61' visibility='default' filepath='../lib/dict2.h' line='101' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1280'>
-        <var-decl name='hh_name' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='103' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1728'>
-        <var-decl name='hh_id' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='104' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_flags' is-struct='yes' visibility='default' size-in-bits='576' filepath='../lib/dict2.h' line='123' column='1' hash='79ffae59bd34b475' id='type-id-63'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attr_id' type-id='type-id-43' visibility='default' filepath='../lib/dict2.h' line='124' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='encrypt_type' type-id='type-id-5' visibility='default' filepath='../lib/dict2.h' line='125' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='has_tag' type-id='type-id-5' visibility='default' filepath='../lib/dict2.h' line='126' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='hh' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='127' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_gigawords' is-struct='yes' visibility='default' size-in-bits='576' filepath='../lib/dict2.h' line='130' column='1' hash='521b59dfdf5b051b' id='type-id-64'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attr_id' type-id='type-id-43' visibility='default' filepath='../lib/dict2.h' line='131' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='gigawords_attrid' type-id='type-id-43' visibility='default' filepath='../lib/dict2.h' line='132' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='hh' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='134' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_value' is-struct='yes' visibility='default' size-in-bits='4672' filepath='../lib/dict2.h' line='160' column='1' hash='4a13b430ed368fa5' id='type-id-65'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrname' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='161' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='162' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1040'>
-        <var-decl name='name_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='163' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1568'>
-        <var-decl name='attr_key' type-id='type-id-66' visibility='default' filepath='../lib/dict2.h' line='164' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2144'>
-        <var-decl name='attr_name_key' type-id='type-id-67' visibility='default' filepath='../lib/dict2.h' line='165' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3200'>
-        <var-decl name='value' type-id='type-id-28' visibility='default' filepath='../lib/dict2.h' line='166' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3264'>
-        <var-decl name='legacy' type-id='type-id-68' visibility='default' filepath='../lib/dict2.h' line='167' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3328'>
-        <var-decl name='hh_name' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='168' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3776'>
-        <var-decl name='hh_attr' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='169' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='4224'>
-        <var-decl name='hh_attr_name' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='170' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_value_key' is-struct='yes' visibility='default' size-in-bits='576' filepath='../lib/dict2.h' line='142' column='1' hash='bc2843c6bbe6b12d' id='type-id-66'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrname_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='143' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='544'>
-        <var-decl name='value' type-id='type-id-28' visibility='default' filepath='../lib/dict2.h' line='144' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_value_name_key' is-struct='yes' visibility='default' size-in-bits='1040' filepath='../lib/dict2.h' line='155' column='1' hash='163ce8a416fc900b' id='type-id-67'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='attrname_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='156' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='157' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dict_vendor' is-struct='yes' visibility='default' size-in-bits='2048' filepath='../lib/dict2.h' line='173' column='1' hash='8727eb5cf6e3e24d' id='type-id-69'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='174' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='name_key' type-id='type-id-42' visibility='default' filepath='../lib/dict2.h' line='175' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1056'>
-        <var-decl name='pec' type-id='type-id-28' visibility='default' filepath='../lib/dict2.h' line='176' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='legacy' type-id='type-id-70' visibility='default' filepath='../lib/dict2.h' line='180' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1152'>
-        <var-decl name='hh_name' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='181' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1600'>
-        <var-decl name='hh_pec' type-id='type-id-62' visibility='default' filepath='../lib/dict2.h' line='182' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='tm' is-struct='yes' visibility='default' size-in-bits='448' filepath='/usr/include/bits/types/struct_tm.h' line='7' column='1' hash='831fa813c3806379' id='type-id-71'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='tm_sec' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='9' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='tm_min' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='10' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='tm_hour' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='11' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='tm_mday' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='12' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='tm_mon' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='13' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='160'>
-        <var-decl name='tm_year' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='14' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='tm_wday' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='15' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='224'>
-        <var-decl name='tm_yday' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='16' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='tm_isdst' type-id='type-id-5' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='17' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='tm_gmtoff' type-id='type-id-72' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='20' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='tm_zone' type-id='type-id-2' visibility='default' filepath='/usr/include/bits/types/struct_tm.h' line='21' column='1'/>
-      </data-member>
-    </class-decl>
-    <typedef-decl name='DICT_ATTR' type-id='type-id-41' size-in-bits='768' filepath='../include/radcli/radcli.h' line='205' column='1' id='type-id-73'/>
-    <typedef-decl name='DICT_VALUE' type-id='type-id-46' size-in-bits='1152' filepath='../include/radcli/radcli.h' line='216' column='1' id='type-id-74'/>
-    <typedef-decl name='DICT_VENDOR' type-id='type-id-48' size-in-bits='640' filepath='../include/radcli/radcli.h' line='226' column='1' id='type-id-75'/>
-    <typedef-decl name='UT_hash_bucket' type-id='type-id-33' size-in-bits='128' filepath='../lib/uthash/uthash.h' line='1087' column='1' id='type-id-76'/>
-    <typedef-decl name='UT_hash_handle' type-id='type-id-36' size-in-bits='448' filepath='../lib/uthash/uthash.h' line='1135' column='1' id='type-id-62'/>
-    <typedef-decl name='__time_t' type-id='type-id-72' size-in-bits='64' filepath='/usr/include/bits/types.h' line='160' column='1' hash='b119fe0931d2ee10' id='type-id-77'/>
-    <typedef-decl name='in_addr_t' type-id='type-id-28' size-in-bits='32' filepath='/usr/include/netinet/in.h' line='30' column='1' hash='e66b43f97c38e87a' id='type-id-53'/>
-    <typedef-decl name='ptrdiff_t' type-id='type-id-72' size-in-bits='64' filepath='/usr/lib/gcc/x86_64-redhat-linux/16/include/stddef.h' line='160' column='1' hash='b119fe0931d2ee10' id='type-id-40'/>
-    <typedef-decl name='time_t' type-id='type-id-77' size-in-bits='64' filepath='/usr/include/bits/types/time_t.h' line='10' column='1' hash='b119fe0931d2ee10' id='type-id-78'/>
-    <array-type-def dimensions='1' type-id='type-id-28' size-in-bits='128' hash='54581fe115faa565' id='type-id-79'>
-      <subrange length='4' lower-bound='0' upper-bound='3' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='cee611f4a73e486c' id='type-id-80'/>
+  <abi-types>
+    <subrange length='14' lower-bound='0' upper-bound='13' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='73cf96c2d1f03103' id='type-id-2'/>
+    <subrange length='16' lower-bound='0' upper-bound='15' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6c35b1e999eba398' id='type-id-3'/>
+    <subrange length='254' lower-bound='0' upper-bound='253' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='2294eea025b5f76b' id='type-id-4'/>
+    <subrange length='32' lower-bound='0' upper-bound='31' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='99f823ef025a9d75' id='type-id-5'/>
+    <subrange length='4' lower-bound='0' upper-bound='3' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='cee611f4a73e486c' id='type-id-6'/>
+    <subrange length='65' lower-bound='0' upper-bound='64' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='ba3b86918ae00425' id='type-id-7'/>
+    <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-8'/>
+    <pointer-type-def type-id='type-id-9' size-in-bits='64' hash='c613350394277445' id='type-id-10'/>
+    <pointer-type-def type-id='type-id-11' size-in-bits='64' hash='3a3e7c6becf4272e' id='type-id-12'/>
+    <pointer-type-def type-id='type-id-13' size-in-bits='64' hash='58c43f30e4819714' id='type-id-14'/>
+    <pointer-type-def type-id='type-id-15' size-in-bits='64' hash='dd5655c69c497a69' id='type-id-16'/>
+    <pointer-type-def type-id='type-id-16' size-in-bits='64' hash='a05dbc7dcbcf4ca1' id='type-id-17'/>
+    <pointer-type-def type-id='type-id-18' size-in-bits='64' hash='cce82b01f0d6138b' id='type-id-19'/>
+    <pointer-type-def type-id='type-id-20' size-in-bits='64' hash='aa9522dabed2ba60' id='type-id-21'/>
+    <pointer-type-def type-id='type-id-22' size-in-bits='64' hash='ae5f628370e80683' id='type-id-23'/>
+    <pointer-type-def type-id='type-id-23' size-in-bits='64' hash='77d2f664cff3377d' id='type-id-24'/>
+    <pointer-type-def type-id='type-id-25' size-in-bits='64' hash='84d08b30f0d5d527' id='type-id-26'/>
+    <pointer-type-def type-id='type-id-26' size-in-bits='64' hash='8f86dfa2652d8990' id='type-id-27'/>
+    <type-decl name='char' size-in-bits='8' hash='65b2d157027b431a' id='type-id-28'/>
+    <pointer-type-def type-id='type-id-28' size-in-bits='64' hash='cdcd419d6a95ce45' id='type-id-29'/>
+    <pointer-type-def type-id='type-id-29' size-in-bits='64' hash='65078e72b2c34f86' id='type-id-30'/>
+    <array-type-def dimensions='1' type-id='type-id-29' size-in-bits='512' hash='7de0f67acd057f60' id='type-id-31'>
+      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-8'/>
     </array-type-def>
-    <union-decl name='__anonymous_union__' visibility='default' size-in-bits='128' is-anonymous='yes' filepath='/usr/include/netinet/in.h' line='225' column='1' hash='eec64f0682bee6e8' id='type-id-51'>
-      <data-member access='public'>
-        <var-decl name='__u6_addr8' type-id='type-id-81' visibility='default' filepath='/usr/include/netinet/in.h' line='227' column='1'/>
-      </data-member>
-      <data-member access='public'>
-        <var-decl name='__u6_addr16' type-id='type-id-82' visibility='default' filepath='/usr/include/netinet/in.h' line='228' column='1'/>
-      </data-member>
-      <data-member access='public'>
-        <var-decl name='__u6_addr32' type-id='type-id-79' visibility='default' filepath='/usr/include/netinet/in.h' line='229' column='1'/>
-      </data-member>
-    </union-decl>
-    <pointer-type-def type-id='type-id-73' size-in-bits='64' hash='f937b3f2df1df0ab' id='type-id-61'/>
-    <pointer-type-def type-id='type-id-74' size-in-bits='64' hash='006c1b23d864bf91' id='type-id-68'/>
-    <pointer-type-def type-id='type-id-75' size-in-bits='64' hash='3721edb903ec4d1a' id='type-id-70'/>
-    <pointer-type-def type-id='type-id-76' size-in-bits='64' hash='dda13d8c4ecb98aa' id='type-id-39'/>
-    <pointer-type-def type-id='type-id-36' size-in-bits='64' hash='dca0ad292e24cfe4' id='type-id-34'/>
-    <pointer-type-def type-id='type-id-38' size-in-bits='64' hash='a74240ea6ece05f9' id='type-id-37'/>
-    <qualified-type-def type-id='type-id-83' restrict='yes' hash='566dfacc48804f50' id='type-id-31'/>
-    <pointer-type-def type-id='type-id-83' size-in-bits='64' hash='a93039fe023ed77b' id='type-id-84'/>
-    <qualified-type-def type-id='type-id-2' restrict='yes' hash='b7d5472019e79b5f' id='type-id-32'/>
-    <qualified-type-def type-id='type-id-78' const='yes' hash='3d3ed5b21cd59821' id='type-id-85'/>
-    <pointer-type-def type-id='type-id-85' size-in-bits='64' hash='5933014f14812f40' id='type-id-86'/>
-    <qualified-type-def type-id='type-id-86' restrict='yes' hash='ba279bf62b26c900' id='type-id-87'/>
-    <qualified-type-def type-id='type-id-71' const='yes' hash='6d30d2c0485b21b8' id='type-id-88'/>
-    <pointer-type-def type-id='type-id-88' size-in-bits='64' hash='934b82f269d593b3' id='type-id-89'/>
-    <qualified-type-def type-id='type-id-90' const='yes' hash='645f4d0d44563fc6' id='type-id-91'/>
-    <pointer-type-def type-id='type-id-91' size-in-bits='64' hash='61acb54cba0b002f' id='type-id-92'/>
-    <qualified-type-def type-id='type-id-93' const='yes' hash='8f60dd2f0b8834b6' id='type-id-94'/>
-    <pointer-type-def type-id='type-id-94' size-in-bits='64' hash='7da4750c0c4a7ea5' id='type-id-95'/>
-    <pointer-type-def type-id='type-id-95' size-in-bits='64' hash='fd89690d624a6590' id='type-id-96'/>
-    <pointer-type-def type-id='type-id-41' size-in-bits='64' hash='df0c765c2905a570' id='type-id-45'/>
-    <pointer-type-def type-id='type-id-46' size-in-bits='64' hash='6e5d55c41a828f01' id='type-id-47'/>
-    <pointer-type-def type-id='type-id-48' size-in-bits='64' hash='e73daab1bbc90a01' id='type-id-49'/>
-    <pointer-type-def type-id='type-id-50' size-in-bits='64' hash='c753a701e662d03e' id='type-id-97'/>
-    <pointer-type-def type-id='type-id-60' size-in-bits='64' hash='8fd0ae6f355ea215' id='type-id-55'/>
-    <pointer-type-def type-id='type-id-63' size-in-bits='64' hash='ce4d4ac31e138e7a' id='type-id-58'/>
-    <pointer-type-def type-id='type-id-64' size-in-bits='64' hash='1aea837e16299bdb' id='type-id-59'/>
-    <pointer-type-def type-id='type-id-65' size-in-bits='64' hash='65bd36c272aa06d7' id='type-id-56'/>
-    <pointer-type-def type-id='type-id-69' size-in-bits='64' hash='f1819dd953bcf555' id='type-id-57'/>
-    <pointer-type-def type-id='type-id-78' size-in-bits='64' hash='784a05f2083b5c30' id='type-id-98'/>
-    <pointer-type-def type-id='type-id-71' size-in-bits='64' hash='0450557ac0931bcf' id='type-id-99'/>
-    <qualified-type-def type-id='type-id-99' restrict='yes' hash='757fb5c6c05e30f5' id='type-id-100'/>
-    <pointer-type-def type-id='type-id-28' size-in-bits='64' hash='a285db8f38e4ea02' id='type-id-101'/>
-    <pointer-type-def type-id='type-id-35' size-in-bits='64' hash='232fa04f890c2a5a' id='type-id-102'/>
-    <pointer-type-def type-id='type-id-103' size-in-bits='64' id='type-id-104'/>
-    <class-decl name='_option' is-struct='yes' visibility='default' size-in-bits='640' filepath='../lib/options.h' line='19' column='1' hash='6d4447ec3a3c7677' id='type-id-105'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-106' visibility='default' filepath='../lib/options.h' line='20' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='512'>
-        <var-decl name='type' type-id='type-id-5' visibility='default' filepath='../lib/options.h' line='21' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='544'>
-        <var-decl name='status' type-id='type-id-5' visibility='default' filepath='../lib/options.h' line='21' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='val' type-id='type-id-3' visibility='default' filepath='../lib/options.h' line='22' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='radcli_dae_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-103'/>
-    <qualified-type-def type-id='type-id-3' restrict='yes' id='type-id-107'/>
-    <qualified-type-def type-id='type-id-3' restrict='yes' id='type-id-108'/>
-    <function-decl name='radcli_dict_attr_by_name' filepath='../lib/dict2.h' line='239' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_name' hash='49c350945d0378e8'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-55'/>
-    </function-decl>
-    <function-decl name='radcli_dict_attr_by_id' filepath='../lib/dict2.h' line='240' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_id' hash='e86d1b054543cb90'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-43'/>
-      <return type-id='type-id-55'/>
-    </function-decl>
-    <function-decl name='radcli_dict_value_by_name' filepath='../lib/dict2.h' line='241' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_name' hash='1cebe069b10b2a40'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-56'/>
-    </function-decl>
-    <function-decl name='radcli_dict_value_by_attr' filepath='../lib/dict2.h' line='242' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_attr' hash='6c0203b8cdcc2ef4'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-56'/>
-    </function-decl>
-    <function-decl name='radcli_dict_vendor_by_pec' filepath='../lib/dict2.h' line='245' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_pec' hash='e2f81e8250e4089a'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-57'/>
-    </function-decl>
-    <function-decl name='rc_avpair_add' mangled-name='rc_avpair_add' filepath='../lib/legacy/avpair.c' line='47' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_add@@RADCLI_10' hash='4b2fb45e411e3758'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <parameter type-id='type-id-110' name='list' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <parameter type-id='type-id-28' name='attrid' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <parameter type-id='type-id-3' name='pval' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <parameter type-id='type-id-5' name='len' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/avpair.c' line='47' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_remove' mangled-name='rc_avpair_remove' filepath='../lib/legacy/avpair.c' line='70' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_remove@@RADCLI_10' hash='f77a116040d8e031'>
-      <parameter type-id='type-id-110' name='list' filepath='../lib/legacy/avpair.c' line='70' column='1'/>
-      <parameter type-id='type-id-28' name='attrid' filepath='../lib/legacy/avpair.c' line='70' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/avpair.c' line='70' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_avpair_next' mangled-name='rc_avpair_next' filepath='../lib/legacy/avpair.c' line='113' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_next@@RADCLI_10' hash='452119daab2eac4c'>
-      <parameter type-id='type-id-111' name='p' filepath='../lib/legacy/avpair.c' line='482' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_assign' mangled-name='rc_avpair_assign' filepath='../lib/legacy/avpair.c' line='136' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_assign@@RADCLI_10' hash='cdddf26064be7c2c'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='136' column='1'/>
-      <parameter type-id='type-id-3' name='pval' filepath='../lib/legacy/avpair.c' line='136' column='1'/>
-      <parameter type-id='type-id-5' name='len' filepath='../lib/legacy/avpair.c' line='136' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_new' mangled-name='rc_avpair_new' filepath='../lib/legacy/avpair.c' line='197' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_new@@RADCLI_10' hash='8af373fe509c254c'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='197' column='1'/>
-      <parameter type-id='type-id-28' name='attrid' filepath='../lib/legacy/avpair.c' line='197' column='1'/>
-      <parameter type-id='type-id-3' name='pval' filepath='../lib/legacy/avpair.c' line='197' column='1'/>
-      <parameter type-id='type-id-5' name='len' filepath='../lib/legacy/avpair.c' line='197' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/avpair.c' line='197' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_gen' mangled-name='rc_avpair_gen' filepath='../lib/legacy/avpair.c' line='444' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_gen@@RADCLI_10' hash='c0e6773efd3c36c7'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='444' column='1'/>
-      <parameter type-id='type-id-111' name='pair' filepath='../lib/legacy/avpair.c' line='444' column='1'/>
-      <parameter type-id='type-id-92' name='ptr' filepath='../lib/legacy/avpair.c' line='445' column='1'/>
-      <parameter type-id='type-id-5' name='length' filepath='../lib/legacy/avpair.c' line='445' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/avpair.c' line='446' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_get' mangled-name='rc_avpair_get' filepath='../lib/legacy/avpair.c' line='465' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get@@RADCLI_10' hash='a300cfa616e69187'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='465' column='1'/>
-      <parameter type-id='type-id-28' name='attrid' filepath='../lib/legacy/avpair.c' line='465' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/avpair.c' line='465' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_copy' mangled-name='rc_avpair_copy' filepath='../lib/legacy/avpair.c' line='482' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_copy@@RADCLI_10' hash='452119daab2eac4c'>
-      <parameter type-id='type-id-111' name='p' filepath='../lib/legacy/avpair.c' line='482' column='1'/>
-      <return type-id='type-id-111'/>
-    </function-decl>
-    <function-decl name='rc_avpair_insert' mangled-name='rc_avpair_insert' filepath='../lib/legacy/avpair.c' line='517' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_insert@@RADCLI_10' hash='ff43e876a395514d'>
-      <parameter type-id='type-id-110' name='a' filepath='../lib/legacy/avpair.c' line='517' column='1'/>
-      <parameter type-id='type-id-111' name='p' filepath='../lib/legacy/avpair.c' line='517' column='1'/>
-      <parameter type-id='type-id-111' name='b' filepath='../lib/legacy/avpair.c' line='517' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_avpair_free' mangled-name='rc_avpair_free' filepath='../lib/legacy/avpair.c' line='569' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_free@@RADCLI_10' hash='a635386af7ae3ebb'>
-      <parameter type-id='type-id-111'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_avpair_parse' mangled-name='rc_avpair_parse' filepath='../lib/legacy/avpair.c' line='631' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_parse@@RADCLI_10' hash='ccd37a0db60dc099'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='631' column='1'/>
-      <parameter type-id='type-id-2' name='buffer' filepath='../lib/legacy/avpair.c' line='631' column='1'/>
-      <parameter type-id='type-id-110' name='first_pair' filepath='../lib/legacy/avpair.c' line='631' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_tostr' mangled-name='rc_avpair_tostr' filepath='../lib/legacy/avpair.c' line='838' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_tostr@@RADCLI_10' hash='3a5c83085c92e6d9'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <parameter type-id='type-id-111' name='pair' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <parameter type-id='type-id-83' name='name' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <parameter type-id='type-id-5' name='ln' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <parameter type-id='type-id-83' name='value' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <parameter type-id='type-id-5' name='lv' filepath='../lib/legacy/avpair.c' line='838' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_log' mangled-name='rc_avpair_log' filepath='../lib/legacy/avpair.c' line='954' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_log@@RADCLI_10' hash='e5a2f82561993978'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/avpair.c' line='954' column='1'/>
-      <parameter type-id='type-id-111' name='pair' filepath='../lib/legacy/avpair.c' line='954' column='1'/>
-      <parameter type-id='type-id-83' name='buf' filepath='../lib/legacy/avpair.c' line='954' column='1'/>
-      <parameter type-id='type-id-29' name='buf_len' filepath='../lib/legacy/avpair.c' line='954' column='1'/>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='rc_avpair_get_uint32' mangled-name='rc_avpair_get_uint32' filepath='../lib/legacy/avpair.c' line='986' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_uint32@@RADCLI_10' hash='3af697f6f27bbe92'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='986' column='1'/>
-      <parameter type-id='type-id-101' name='res' filepath='../lib/legacy/avpair.c' line='986' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_get_in6' mangled-name='rc_avpair_get_in6' filepath='../lib/legacy/avpair.c' line='1007' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_in6@@RADCLI_10' hash='b48e148031b30d19'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='1007' column='1'/>
-      <parameter type-id='type-id-97' name='res' filepath='../lib/legacy/avpair.c' line='1007' column='1'/>
-      <parameter type-id='type-id-102' name='prefix' filepath='../lib/legacy/avpair.c' line='1007' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_get_raw' mangled-name='rc_avpair_get_raw' filepath='../lib/legacy/avpair.c' line='1039' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_raw@@RADCLI_10' hash='f28c95ee7b0e5443'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='1039' column='1'/>
-      <parameter type-id='type-id-84' name='res' filepath='../lib/legacy/avpair.c' line='1039' column='1'/>
-      <parameter type-id='type-id-102' name='res_size' filepath='../lib/legacy/avpair.c' line='1039' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_avpair_get_attr' mangled-name='rc_avpair_get_attr' filepath='../lib/legacy/avpair.c' line='1059' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_attr@@RADCLI_10' hash='81652d0d54e9c92a'>
-      <parameter type-id='type-id-111' name='vp' filepath='../lib/legacy/avpair.c' line='1059' column='1'/>
-      <parameter type-id='type-id-102' name='type' filepath='../lib/legacy/avpair.c' line='1059' column='1'/>
-      <parameter type-id='type-id-102' name='id' filepath='../lib/legacy/avpair.c' line='1059' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_str2tm' filepath='../lib/util.h' line='89' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_str2tm' hash='fe8742396826440e'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-99'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='inet_ntoa' filepath='/usr/include/arpa/inet.h' line='53' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='inet_ntoa' hash='02a096d257a5e00d'>
-      <parameter type-id='type-id-52'/>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='inet_pton' filepath='/usr/include/arpa/inet.h' line='58' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='inet_pton' hash='9cd49665f4987e01'>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-32'/>
-      <parameter type-id='type-id-108'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='inet_ntop' filepath='/usr/include/arpa/inet.h' line='64' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='inet_ntop' hash='298a733b96c4469e'>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-107'/>
-      <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-112'/>
-      <return type-id='type-id-2'/>
-    </function-decl>
-    <function-decl name='__assert_fail' filepath='/usr/include/assert.h' line='95' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__assert_fail' hash='f20e7a25b596c040'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-35'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='__ctype_b_loc' filepath='/usr/include/ctype.h' line='79' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__ctype_b_loc' hash='2d54aef0745cb1f9'>
-      <return type-id='type-id-96'/>
-    </function-decl>
-    <function-decl name='ntohl' filepath='/usr/include/netinet/in.h' line='401' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='ntohl' hash='0389e499374a3f97'>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-28'/>
-    </function-decl>
-    <function-decl name='htonl' filepath='/usr/include/netinet/in.h' line='404' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='htonl' hash='0389e499374a3f97'>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-28'/>
-    </function-decl>
-    <function-decl name='snprintf' filepath='/usr/include/stdio.h' line='392' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='snprintf' hash='9e970561a213ee08'>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-6'/>
-      <parameter type-id='type-id-2'/>
-      <parameter is-variadic='yes'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='atoi' filepath='/usr/include/stdlib.h' line='109' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='atoi' hash='e9ea91a7eab8302c'>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='malloc' filepath='/usr/include/stdlib.h' line='676' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='malloc' hash='e0055d99adb0e173'>
-      <parameter type-id='type-id-6'/>
-      <return type-id='type-id-3'/>
-    </function-decl>
-    <function-decl name='abort' filepath='/usr/include/stdlib.h' line='752' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='abort' hash='7f32ffea222edbe7'>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='strchr' filepath='/usr/include/string.h' line='261' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strchr' hash='1b0d39e45ce45198'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='strlen' filepath='/usr/include/string.h' line='439' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strlen' hash='ed7b6a29124427dd'>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-29'/>
-    </function-decl>
-    <function-decl name='time' filepath='/usr/include/time.h' line='85' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='time' hash='dfbf0d86b5e56f45'>
-      <parameter type-id='type-id-98'/>
-      <return type-id='type-id-78'/>
-    </function-decl>
-    <function-decl name='mktime' filepath='/usr/include/time.h' line='91' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='mktime' hash='93e83c388da365bd'>
-      <parameter type-id='type-id-99'/>
-      <return type-id='type-id-78'/>
-    </function-decl>
-    <function-decl name='strftime' filepath='/usr/include/time.h' line='108' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='strftime' hash='9dcd2db97e14a6fc'>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-6'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-89'/>
-      <return type-id='type-id-29'/>
-    </function-decl>
-    <function-decl name='gmtime_r' filepath='/usr/include/time.h' line='163' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='gmtime_r' hash='738b12e2e9661338'>
-      <parameter type-id='type-id-87'/>
-      <parameter type-id='type-id-100'/>
-      <return type-id='type-id-99'/>
-    </function-decl>
-    <function-decl name='localtime_r' filepath='/usr/include/time.h' line='168' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='localtime_r' hash='738b12e2e9661338'>
-      <parameter type-id='type-id-87'/>
-      <parameter type-id='type-id-100'/>
-      <return type-id='type-id-99'/>
-    </function-decl>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/buildreq.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <type-decl name='char' size-in-bits='8' hash='65b2d157027b431a' id='type-id-113'/>
-    <array-type-def dimensions='1' type-id='type-id-83' size-in-bits='512' hash='17725a40cdadf2ea' id='type-id-114'>
-      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-115'/>
+    <array-type-def dimensions='1' type-id='type-id-28' size-in-bits='112' hash='2d704a4bfa9a56eb' id='type-id-32'>
+      <subrange length='14' lower-bound='0' upper-bound='13' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='73cf96c2d1f03103' id='type-id-2'/>
     </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='944' hash='e78758ef10066232' id='type-id-116'>
-      <subrange length='118' lower-bound='0' upper-bound='117' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6f97e773a1e88e39' id='type-id-117'/>
+    <array-type-def dimensions='1' type-id='type-id-28' size-in-bits='2032' hash='201345085df04a26' id='type-id-33'>
+      <subrange length='254' lower-bound='0' upper-bound='253' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='2294eea025b5f76b' id='type-id-4'/>
     </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='112' hash='32c03ac42667596f' id='type-id-118'>
-      <subrange length='14' lower-bound='0' upper-bound='13' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='73cf96c2d1f03103' id='type-id-119'/>
+    <array-type-def dimensions='1' type-id='type-id-28' size-in-bits='256' hash='3ce37cfc7ae896f9' id='type-id-34'>
+      <subrange length='32' lower-bound='0' upper-bound='31' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='99f823ef025a9d75' id='type-id-5'/>
     </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='2032' hash='be3620d24f2d7549' id='type-id-120'>
-      <subrange length='254' lower-bound='0' upper-bound='253' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='2294eea025b5f76b' id='type-id-121'/>
+    <array-type-def dimensions='1' type-id='type-id-28' size-in-bits='520' hash='496306305b6fcc02' id='type-id-35'>
+      <subrange length='65' lower-bound='0' upper-bound='64' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='ba3b86918ae00425' id='type-id-7'/>
     </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='2056' hash='85a15a68e9db1393' id='type-id-122'>
-      <subrange length='257' lower-bound='0' upper-bound='256' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='28db190caf697622' id='type-id-123'/>
+    <qualified-type-def type-id='type-id-28' const='yes' hash='45ae2830e476ce98' id='type-id-36'/>
+    <pointer-type-def type-id='type-id-36' size-in-bits='64' hash='83a5509e2ae27d75' id='type-id-37'/>
+    <qualified-type-def type-id='type-id-38' const='yes' hash='a8c47dd70ce2fcd1' id='type-id-39'/>
+    <pointer-type-def type-id='type-id-39' size-in-bits='64' hash='1ae5274acc1f59ac' id='type-id-40'/>
+    <qualified-type-def type-id='type-id-41' const='yes' hash='99771a6228c61115' id='type-id-42'/>
+    <pointer-type-def type-id='type-id-42' size-in-bits='64' hash='84f0f65a18231bff' id='type-id-43'/>
+    <qualified-type-def type-id='type-id-44' const='yes' hash='1341ea448978b3ff' id='type-id-45'/>
+    <pointer-type-def type-id='type-id-45' size-in-bits='64' hash='945d60bbed1a29fa' id='type-id-46'/>
+    <pointer-type-def type-id='type-id-47' size-in-bits='64' hash='f3408a85c12ea578' id='type-id-48'/>
+    <pointer-type-def type-id='type-id-49' size-in-bits='64' hash='2feffea8c2264ab4' id='type-id-50'/>
+    <pointer-type-def type-id='type-id-51' size-in-bits='64' hash='ab21fc76ce00e885' id='type-id-52'/>
+    <type-decl name='double' size-in-bits='64' hash='e9e9b320886d9aa6' id='type-id-53'/>
+    <array-type-def dimensions='1' type-id='type-id-53' size-in-bits='512' hash='d1b343cf26ce6ea2' id='type-id-54'>
+      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-8'/>
     </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='256' hash='3e9fefcb964ef6b4' id='type-id-124'>
-      <subrange length='32' lower-bound='0' upper-bound='31' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='99f823ef025a9d75' id='type-id-125'/>
-    </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='512' hash='ea93b43678875247' id='type-id-106'>
-      <subrange length='64' lower-bound='0' upper-bound='63' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6066f2053fe47763' id='type-id-126'/>
-    </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-113' size-in-bits='520' hash='5b11e0ff30e6fbfa' id='type-id-42'>
-      <subrange length='65' lower-bound='0' upper-bound='64' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='ba3b86918ae00425' id='type-id-127'/>
-    </array-type-def>
-    <type-decl name='double' size-in-bits='64' hash='e9e9b320886d9aa6' id='type-id-128'/>
-    <array-type-def dimensions='1' type-id='type-id-128' size-in-bits='512' hash='f8859bc464d8cd16' id='type-id-129'>
-      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-115'/>
-    </array-type-def>
-    <enum-decl name='rc_attr_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='127' column='1' hash='d5b96d74a4f35e62' id='type-id-130'>
-      <underlying-type type-id='type-id-131'/>
+    <enum-decl name='rc_attr_type' size-in-bits='32' alignment-in-bits='32' hash='52361c4a38f55115' id='type-id-55'>
+      <underlying-type type-id='type-id-56'/>
       <enumerator name='PW_TYPE_STRING' value='0'/>
       <enumerator name='PW_TYPE_INTEGER' value='1'/>
       <enumerator name='PW_TYPE_IPADDR' value='2'/>
@@ -913,43 +131,15 @@
       <enumerator name='PW_TYPE_IPV6PREFIX' value='5'/>
       <enumerator name='PW_TYPE_MAX' value='6'/>
     </enum-decl>
-    <enum-decl name='rc_option_id' naming-typedef-id='type-id-132' size-in-bits='32' alignment-in-bits='32' filepath='../lib/options.h' line='58' column='1' hash='f3785d2d7f078cad' id='type-id-133'>
-      <underlying-type type-id='type-id-131'/>
-      <enumerator name='OPT_CONFIG_FILE' value='0'/>
-      <enumerator name='OPT_SERV_TYPE' value='1'/>
-      <enumerator name='OPT_SERV_AUTH_TYPE' value='2'/>
-      <enumerator name='OPT_NAMESPACE' value='3'/>
-      <enumerator name='OPT_USE_PUBLIC_ADDR' value='4'/>
-      <enumerator name='OPT_TLS_VERIFY_HOSTNAME' value='5'/>
-      <enumerator name='OPT_REQUIRE_MESSAGE_AUTHENTICATOR' value='6'/>
-      <enumerator name='OPT_TLS_CA_FILE' value='7'/>
-      <enumerator name='OPT_TLS_CERT_FILE' value='8'/>
-      <enumerator name='OPT_TLS_KEY_FILE' value='9'/>
-      <enumerator name='OPT_TLS_PSK_IDENTITY' value='10'/>
-      <enumerator name='OPT_TLS_PSK_KEY' value='11'/>
-      <enumerator name='OPT_WATCHDOG_INTERVAL' value='12'/>
-      <enumerator name='OPT_NAS_IDENTIFIER' value='13'/>
-      <enumerator name='OPT_NAS_IP' value='14'/>
-      <enumerator name='OPT_AUTHSERVER' value='15'/>
-      <enumerator name='OPT_ACCTSERVER' value='16'/>
-      <enumerator name='OPT_SERVERS' value='17'/>
-      <enumerator name='OPT_SECRET' value='18'/>
-      <enumerator name='OPT_DICTIONARY' value='19'/>
-      <enumerator name='OPT_DEFAULT_REALM' value='20'/>
-      <enumerator name='OPT_RADIUS_TIMEOUT' value='21'/>
-      <enumerator name='OPT_RADIUS_RETRIES' value='22'/>
-      <enumerator name='OPT_BINDADDR' value='23'/>
-      <enumerator name='OPT_CLIENTDEBUG' value='24'/>
-      <enumerator name='OPT_DAE_ACCEPT' value='25'/>
-      <enumerator name='OPT_DAE_LISTEN' value='26'/>
-      <enumerator name='OPT_DAE_SECRET' value='27'/>
-      <enumerator name='OPT_DAE_SERVER' value='28'/>
-      <enumerator name='OPT_DAE_MAX_CLOCK_SKEW' value='29'/>
-      <enumerator name='OPT_DAE_REQUIRE_MESSAGE_AUTHENTICATOR' value='30'/>
-      <enumerator name='OPT_COUNT' value='31'/>
+    <enum-decl name='rc_socket_type' size-in-bits='32' alignment-in-bits='32' hash='8674143099da437f' id='type-id-57'>
+      <underlying-type type-id='type-id-56'/>
+      <enumerator name='RC_SOCKET_UDP' value='0'/>
+      <enumerator name='RC_SOCKET_TLS' value='1'/>
+      <enumerator name='RC_SOCKET_DTLS' value='2'/>
+      <enumerator name='RC_SOCKET_TCP' value='3'/>
     </enum-decl>
-    <enum-decl name='rc_standard_codes' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='139' column='1' hash='e41dfe5328868d85' id='type-id-134'>
-      <underlying-type type-id='type-id-131'/>
+    <enum-decl name='rc_standard_codes' size-in-bits='32' alignment-in-bits='32' hash='67e7ab15655b5d1e' id='type-id-58'>
+      <underlying-type type-id='type-id-56'/>
       <enumerator name='PW_ACCESS_REQUEST' value='1'/>
       <enumerator name='PW_ACCESS_ACCEPT' value='2'/>
       <enumerator name='PW_ACCESS_REJECT' value='3'/>
@@ -964,879 +154,635 @@
       <enumerator name='PW_STATUS_SERVER' value='12'/>
       <enumerator name='PW_STATUS_CLIENT' value='13'/>
     </enum-decl>
-    <enum-decl name='rc_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='81' column='1' hash='27d67a40aa4b9efa' id='type-id-135'>
-      <underlying-type type-id='type-id-131'/>
+    <enum-decl name='rc_type' size-in-bits='32' alignment-in-bits='32' hash='953c3e8831ac0215' id='type-id-59'>
+      <underlying-type type-id='type-id-56'/>
       <enumerator name='AUTH' value='0'/>
       <enumerator name='ACCT' value='1'/>
     </enum-decl>
-    <type-decl name='int' size-in-bits='32' hash='09d17c08f594edc7' id='type-id-5'/>
-    <type-decl name='long int' size-in-bits='64' hash='b119fe0931d2ee10#2' id='type-id-72'/>
-    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' size-in-bits='2184' filepath='../lib/includes.h' line='247' column='1' hash='68ea9703fcbff041' id='type-id-136'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='secret' type-id='type-id-122' visibility='default' filepath='../lib/includes.h' line='249' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2056'>
-        <var-decl name='request_vector' type-id='type-id-81' visibility='default' filepath='../lib/includes.h' line='250' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='rc_conf' is-struct='yes' visibility='default' size-in-bits='3392' filepath='../lib/includes.h' line='197' column='1' hash='786f8c09e67f05ac' id='type-id-11'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='config_options' type-id='type-id-137' visibility='default' filepath='../lib/includes.h' line='199' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='nas_addr' type-id='type-id-138' visibility='default' filepath='../lib/includes.h' line='200' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1088'>
-        <var-decl name='nas_addr_set' type-id='type-id-35' visibility='default' filepath='../lib/includes.h' line='201' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1152'>
-        <var-decl name='own_bind_addr' type-id='type-id-138' visibility='default' filepath='../lib/includes.h' line='203' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2176'>
-        <var-decl name='own_bind_addr_set' type-id='type-id-35' visibility='default' filepath='../lib/includes.h' line='204' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2240'>
-        <var-decl name='first_dict_read' type-id='type-id-83' visibility='default' filepath='../lib/includes.h' line='211' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2304'>
-        <var-decl name='dict' type-id='type-id-139' visibility='default' filepath='../lib/includes.h' line='212' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2368'>
-        <var-decl name='so' type-id='type-id-140' visibility='default' filepath='../lib/includes.h' line='214' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2944'>
-        <var-decl name='so_type' type-id='type-id-35' visibility='default' filepath='../lib/includes.h' line='215' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3008'>
-        <var-decl name='active_dae' type-id='type-id-141' visibility='default' filepath='../lib/includes.h' line='224' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3072'>
-        <var-decl name='in_dispatch' type-id='type-id-35' visibility='default' filepath='../lib/includes.h' line='225' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3136'>
-        <var-decl name='tls_psk_identity' type-id='type-id-83' visibility='default' filepath='../lib/includes.h' line='235' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3200'>
-        <var-decl name='tls_psk_key' type-id='type-id-3' visibility='default' filepath='../lib/includes.h' line='236' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3264'>
-        <var-decl name='tls_psk_key_len' type-id='type-id-29' visibility='default' filepath='../lib/includes.h' line='237' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='3328'>
-        <var-decl name='debug' type-id='type-id-35' visibility='default' filepath='../lib/includes.h' line='243' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='rc_sockets_override' is-struct='yes' visibility='default' size-in-bits='576' filepath='../lib/includes.h' line='169' column='1' hash='ef4426f46565aa5d' id='type-id-142'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ptr' type-id='type-id-3' visibility='default' filepath='../lib/includes.h' line='170' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='static_secret' type-id='type-id-2' visibility='default' filepath='../lib/includes.h' line='171' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='get_fd' type-id='type-id-143' visibility='default' filepath='../lib/includes.h' line='172' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='get_active_fd' type-id='type-id-144' visibility='default' filepath='../lib/includes.h' line='176' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='close_fd' type-id='type-id-145' visibility='default' filepath='../lib/includes.h' line='177' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='sendto' type-id='type-id-146' visibility='default' filepath='../lib/includes.h' line='178' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='recvfrom' type-id='type-id-147' visibility='default' filepath='../lib/includes.h' line='180' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='448'>
-        <var-decl name='lock' type-id='type-id-144' visibility='default' filepath='../lib/includes.h' line='182' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='512'>
-        <var-decl name='unlock' type-id='type-id-144' visibility='default' filepath='../lib/includes.h' line='183' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='rc_value_pair' is-struct='yes' visibility='default' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='254' column='1' hash='20c4c7a71c281e48' id='type-id-148'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='name' type-id='type-id-42' visibility='default' filepath='../include/radcli/radcli.h' line='256' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='attribute' type-id='type-id-43' visibility='default' filepath='../include/radcli/radcli.h' line='257' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='640'>
-        <var-decl name='type' type-id='type-id-44' visibility='default' filepath='../include/radcli/radcli.h' line='258' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='672'>
-        <var-decl name='lvalue' type-id='type-id-28' visibility='default' filepath='../include/radcli/radcli.h' line='259' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='strvalue' type-id='type-id-120' visibility='default' filepath='../include/radcli/radcli.h' line='260' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2752'>
-        <var-decl name='next' type-id='type-id-149' visibility='default' filepath='../include/radcli/radcli.h' line='261' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2816'>
-        <var-decl name='pad' type-id='type-id-124' visibility='default' filepath='../include/radcli/radcli.h' line='262' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='send_data' is-struct='yes' visibility='default' size-in-bits='448' filepath='../include/radcli/radcli.h' line='270' column='1' hash='ed01b9ce36055e2c' id='type-id-150'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='code' type-id='type-id-151' visibility='default' filepath='../include/radcli/radcli.h' line='272' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='8'>
-        <var-decl name='seq_nbr' type-id='type-id-151' visibility='default' filepath='../include/radcli/radcli.h' line='273' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='server' type-id='type-id-83' visibility='default' filepath='../include/radcli/radcli.h' line='274' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='svc_port' type-id='type-id-5' visibility='default' filepath='../include/radcli/radcli.h' line='275' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='secret' type-id='type-id-83' visibility='default' filepath='../include/radcli/radcli.h' line='276' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='timeout' type-id='type-id-5' visibility='default' filepath='../include/radcli/radcli.h' line='277' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='288'>
-        <var-decl name='retries' type-id='type-id-5' visibility='default' filepath='../include/radcli/radcli.h' line='278' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='send_pairs' type-id='type-id-111' visibility='default' filepath='../include/radcli/radcli.h' line='279' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='384'>
-        <var-decl name='receive_pairs' type-id='type-id-111' visibility='default' filepath='../include/radcli/radcli.h' line='280' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='102' column='1' hash='a17cce6752d91333' id='type-id-152'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='max' type-id='type-id-5' visibility='default' filepath='../include/radcli/radcli.h' line='103' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='name' type-id='type-id-114' visibility='default' filepath='../include/radcli/radcli.h' line='104' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='port' type-id='type-id-82' visibility='default' filepath='../include/radcli/radcli.h' line='105' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='704'>
-        <var-decl name='secret' type-id='type-id-114' visibility='default' filepath='../include/radcli/radcli.h' line='106' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='1216'>
-        <var-decl name='deadtime_ends' type-id='type-id-129' visibility='default' filepath='../include/radcli/radcli.h' line='107' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='sockaddr' is-struct='yes' visibility='default' size-in-bits='128' filepath='/usr/include/bits/socket.h' line='184' column='1' hash='17b889f8dd08e00f' id='type-id-153'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='sa_family' type-id='type-id-154' visibility='default' filepath='/usr/include/bits/socket.h' line='186' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='16'>
-        <var-decl name='sa_data' type-id='type-id-118' visibility='default' filepath='/usr/include/bits/socket.h' line='187' column='1'/>
-      </data-member>
-    </class-decl>
-    <class-decl name='sockaddr_storage' is-struct='yes' visibility='default' size-in-bits='1024' filepath='/usr/include/bits/socket.h' line='197' column='1' hash='3ad3c646386e818d' id='type-id-138'>
-      <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ss_family' type-id='type-id-154' visibility='default' filepath='/usr/include/bits/socket.h' line='199' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='16'>
-        <var-decl name='__ss_padding' type-id='type-id-116' visibility='default' filepath='/usr/include/bits/socket.h' line='200' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='960'>
-        <var-decl name='__ss_align' type-id='type-id-6' visibility='default' filepath='/usr/include/bits/socket.h' line='201' column='1'/>
-      </data-member>
-    </class-decl>
-    <typedef-decl name='RC_AAA_CTX' type-id='type-id-136' size-in-bits='2184' filepath='../include/radcli/radcli.h' line='295' column='1' id='type-id-155'/>
-    <typedef-decl name='SEND_DATA' type-id='type-id-150' size-in-bits='448' filepath='../include/radcli/radcli.h' line='281' column='1' id='type-id-156'/>
-    <typedef-decl name='SERVER' type-id='type-id-152' size-in-bits='1728' filepath='../include/radcli/radcli.h' line='108' column='1' id='type-id-157'/>
-    <typedef-decl name='VALUE_PAIR' type-id='type-id-148' size-in-bits='3072' filepath='../include/radcli/radcli.h' line='263' column='1' id='type-id-158'/>
-    <typedef-decl name='__socklen_t' type-id='type-id-35' size-in-bits='32' filepath='/usr/include/bits/types.h' line='210' column='1' hash='e66b43f97c38e87a' id='type-id-159'/>
-    <typedef-decl name='__ssize_t' type-id='type-id-72' size-in-bits='64' filepath='/usr/include/bits/types.h' line='194' column='1' hash='b119fe0931d2ee10' id='type-id-160'/>
-    <typedef-decl name='__uint16_t' type-id='type-id-93' size-in-bits='16' filepath='/usr/include/bits/types.h' line='40' column='1' hash='d7723bb93a30b11d' id='type-id-161'/>
-    <typedef-decl name='__uint32_t' type-id='type-id-35' size-in-bits='32' filepath='/usr/include/bits/types.h' line='42' column='1' hash='e66b43f97c38e87a' id='type-id-162'/>
-    <typedef-decl name='__uint64_t' type-id='type-id-6' size-in-bits='64' filepath='/usr/include/bits/types.h' line='45' column='1' hash='8fdc5eea2983a729' id='type-id-163'/>
-    <typedef-decl name='__uint8_t' type-id='type-id-90' size-in-bits='8' filepath='/usr/include/bits/types.h' line='38' column='1' hash='6ebac62b3366db68' id='type-id-164'/>
-    <typedef-decl name='rc_attr_type' type-id='type-id-130' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='135' column='1' hash='d5b96d74a4f35e62' id='type-id-44'/>
-    <typedef-decl name='rc_handle' type-id='type-id-11' size-in-bits='3392' filepath='../include/radcli/radcli.h' line='96' column='1' id='type-id-165'/>
-    <typedef-decl name='rc_option_id' type-id='type-id-133' size-in-bits='32' alignment-in-bits='32' filepath='../lib/options.h' line='63' column='1' hash='f3785d2d7f078cad' id='type-id-132'/>
-    <typedef-decl name='rc_sockets_override' type-id='type-id-142' size-in-bits='576' filepath='../lib/includes.h' line='184' column='1' id='type-id-140'/>
-    <typedef-decl name='rc_standard_codes' type-id='type-id-134' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='153' column='1' hash='e41dfe5328868d85' id='type-id-166'/>
-    <typedef-decl name='rc_type' type-id='type-id-135' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='84' column='1' hash='27d67a40aa4b9efa' id='type-id-167'/>
-    <typedef-decl name='sa_family_t' type-id='type-id-93' size-in-bits='16' filepath='/usr/include/bits/sockaddr.h' line='28' column='1' hash='d7723bb93a30b11d' id='type-id-154'/>
-    <typedef-decl name='size_t' type-id='type-id-6' size-in-bits='64' filepath='/usr/lib/gcc/x86_64-redhat-linux/16/include/stddef.h' line='229' column='1' hash='8fdc5eea2983a729' id='type-id-29'/>
-    <typedef-decl name='socklen_t' type-id='type-id-159' size-in-bits='32' filepath='/usr/include/bits/socket.h' line='33' column='1' hash='e66b43f97c38e87a' id='type-id-112'/>
-    <typedef-decl name='ssize_t' type-id='type-id-160' size-in-bits='64' filepath='/usr/include/sys/types.h' line='108' column='1' hash='b119fe0931d2ee10' id='type-id-168'/>
-    <typedef-decl name='uint16_t' type-id='type-id-161' size-in-bits='16' filepath='/usr/include/bits/stdint-uintn.h' line='25' column='1' hash='d7723bb93a30b11d' id='type-id-169'/>
-    <typedef-decl name='uint32_t' type-id='type-id-162' size-in-bits='32' filepath='/usr/include/bits/stdint-uintn.h' line='26' column='1' hash='e66b43f97c38e87a' id='type-id-28'/>
-    <typedef-decl name='uint64_t' type-id='type-id-163' size-in-bits='64' filepath='/usr/include/bits/stdint-uintn.h' line='27' column='1' hash='8fdc5eea2983a729' id='type-id-43'/>
-    <typedef-decl name='uint8_t' type-id='type-id-164' size-in-bits='8' filepath='/usr/include/bits/stdint-uintn.h' line='24' column='1' hash='6ebac62b3366db68' id='type-id-151'/>
-    <array-type-def dimensions='1' type-id='type-id-169' size-in-bits='128' hash='d0221bf58f875ebc' id='type-id-82'>
-      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-115'/>
-    </array-type-def>
-    <array-type-def dimensions='1' type-id='type-id-151' size-in-bits='128' hash='d62d8a2ca2ec1fdd' id='type-id-81'>
-      <subrange length='16' lower-bound='0' upper-bound='15' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='6c35b1e999eba398' id='type-id-170'/>
-    </array-type-def>
-    <type-decl name='unnamed-enum-underlying-type-32' size-in-bits='32' alignment-in-bits='32' is-anonymous='yes' hash='5181a58e665b3619' id='type-id-131'/>
-    <type-decl name='unsigned char' size-in-bits='8' hash='6ebac62b3366db68' id='type-id-90'/>
-    <type-decl name='unsigned int' size-in-bits='32' hash='e66b43f97c38e87a' id='type-id-35'/>
-    <type-decl name='unsigned long int' size-in-bits='64' hash='8fdc5eea2983a729#2' id='type-id-6'/>
-    <type-decl name='unsigned short int' size-in-bits='16' hash='d7723bb93a30b11d#3' id='type-id-93'/>
-    <pointer-type-def type-id='type-id-155' size-in-bits='64' hash='ce055b25bf0be5cf' id='type-id-1'/>
-    <pointer-type-def type-id='type-id-1' size-in-bits='64' hash='d7d9bbd7d3134ae1' id='type-id-171'/>
-    <pointer-type-def type-id='type-id-156' size-in-bits='64' hash='739355674780da1e' id='type-id-172'/>
-    <pointer-type-def type-id='type-id-157' size-in-bits='64' hash='2e744b4b1d09a8f2' id='type-id-173'/>
-    <pointer-type-def type-id='type-id-158' size-in-bits='64' hash='eed61a66dba9a1e6' id='type-id-111'/>
-    <pointer-type-def type-id='type-id-111' size-in-bits='64' hash='ef8f0265d7072f6c' id='type-id-110'/>
-    <pointer-type-def type-id='type-id-105' size-in-bits='64' hash='75a04f33739ae2c8' id='type-id-137'/>
-    <pointer-type-def type-id='type-id-113' size-in-bits='64' hash='e533f42d1dd4942c' id='type-id-83'/>
-    <qualified-type-def type-id='type-id-113' const='yes' hash='3e50fd33f9bb78d9' id='type-id-174'/>
-    <pointer-type-def type-id='type-id-174' size-in-bits='64' hash='c44743f354f6a443' id='type-id-2'/>
-    <qualified-type-def type-id='type-id-165' const='yes' hash='f9911dc61484502a' id='type-id-175'/>
-    <pointer-type-def type-id='type-id-175' size-in-bits='64' hash='f9f34204ccccad26' id='type-id-109'/>
-    <qualified-type-def type-id='type-id-153' const='yes' hash='2d422cca3ed5844e' id='type-id-176'/>
-    <pointer-type-def type-id='type-id-176' size-in-bits='64' hash='ef2a95c645ed5947' id='type-id-177'/>
-    <pointer-type-def type-id='type-id-178' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-144'/>
-    <pointer-type-def type-id='type-id-179' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-143'/>
-    <pointer-type-def type-id='type-id-54' size-in-bits='64' hash='ecb359c0ff108503' id='type-id-139'/>
-    <pointer-type-def type-id='type-id-165' size-in-bits='64' hash='8e4c24db84c22673' id='type-id-180'/>
-    <pointer-type-def type-id='type-id-148' size-in-bits='64' hash='3b470972e064f0e8' id='type-id-149'/>
-    <pointer-type-def type-id='type-id-153' size-in-bits='64' hash='b051efca9beefff0' id='type-id-181'/>
-    <pointer-type-def type-id='type-id-112' size-in-bits='64' hash='3e6cb5670d087c61' id='type-id-182'/>
-    <pointer-type-def type-id='type-id-183' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-146'/>
-    <pointer-type-def type-id='type-id-184' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-147'/>
-    <pointer-type-def type-id='type-id-185' size-in-bits='64' hash='fd7a63c0c6c822c4' id='type-id-145'/>
-    <pointer-type-def type-id='type-id-186' size-in-bits='64' id='type-id-141'/>
-    <class-decl name='radcli_dae_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-186'/>
-    <function-decl name='rc_buildreq' mangled-name='rc_buildreq' filepath='../lib/legacy/buildreq.c' line='38' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_buildreq@@RADCLI_10' hash='71ba2c4075e10e80'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/buildreq.c' line='38' column='1'/>
-      <parameter type-id='type-id-172' name='data' filepath='../lib/legacy/buildreq.c' line='38' column='1'/>
-      <parameter type-id='type-id-5' name='code' filepath='../lib/legacy/buildreq.c' line='38' column='1'/>
-      <parameter type-id='type-id-83' name='server' filepath='../lib/legacy/buildreq.c' line='38' column='1'/>
-      <parameter type-id='type-id-93' name='port' filepath='../lib/legacy/buildreq.c' line='39' column='1'/>
-      <parameter type-id='type-id-83' name='secret' filepath='../lib/legacy/buildreq.c' line='39' column='1'/>
-      <parameter type-id='type-id-5' name='timeout' filepath='../lib/legacy/buildreq.c' line='39' column='1'/>
-      <parameter type-id='type-id-5' name='retries' filepath='../lib/legacy/buildreq.c' line='39' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_aaa_ctx' mangled-name='rc_aaa_ctx' filepath='../lib/legacy/buildreq.c' line='156' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx@@RADCLI_10' hash='1340f48c31fa6120'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='156' column='1'/>
-      <parameter type-id='type-id-171' name='ctx' filepath='../lib/legacy/buildreq.c' line='156' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='156' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='157' column='1'/>
-      <parameter type-id='type-id-110' name='received' filepath='../lib/legacy/buildreq.c' line='157' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='157' column='1'/>
-      <parameter type-id='type-id-5' name='add_nas_port' filepath='../lib/legacy/buildreq.c' line='158' column='1'/>
-      <parameter type-id='type-id-166' name='request_type' filepath='../lib/legacy/buildreq.c' line='158' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_aaa_ctx_server' mangled-name='rc_aaa_ctx_server' filepath='../lib/legacy/buildreq.c' line='195' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_server@@RADCLI_10' hash='263fed8cea076c4f'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='195' column='1'/>
-      <parameter type-id='type-id-171' name='ctx' filepath='../lib/legacy/buildreq.c' line='195' column='1'/>
-      <parameter type-id='type-id-173' name='aaaserver' filepath='../lib/legacy/buildreq.c' line='195' column='1'/>
-      <parameter type-id='type-id-167' name='type' filepath='../lib/legacy/buildreq.c' line='196' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='197' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='198' column='1'/>
-      <parameter type-id='type-id-110' name='received' filepath='../lib/legacy/buildreq.c' line='198' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='199' column='1'/>
-      <parameter type-id='type-id-5' name='add_nas_port' filepath='../lib/legacy/buildreq.c' line='199' column='1'/>
-      <parameter type-id='type-id-166' name='request_type' filepath='../lib/legacy/buildreq.c' line='200' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_aaa' mangled-name='rc_aaa' filepath='../lib/legacy/buildreq.c' line='273' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa@@RADCLI_10' hash='0bd54b12dc7fab85'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='273' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='273' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='273' column='1'/>
-      <parameter type-id='type-id-110' name='received' filepath='../lib/legacy/buildreq.c' line='274' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='274' column='1'/>
-      <parameter type-id='type-id-5' name='add_nas_port' filepath='../lib/legacy/buildreq.c' line='274' column='1'/>
-      <parameter type-id='type-id-166' name='request_type' filepath='../lib/legacy/buildreq.c' line='275' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_auth' mangled-name='rc_auth' filepath='../lib/legacy/buildreq.c' line='293' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth@@RADCLI_10' hash='b653c9a88b550ab8'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='293' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='293' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='293' column='1'/>
-      <parameter type-id='type-id-110' name='received' filepath='../lib/legacy/buildreq.c' line='294' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='294' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_auth_proxy' mangled-name='rc_auth_proxy' filepath='../lib/legacy/buildreq.c' line='315' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth_proxy@@RADCLI_10' hash='fa41cd0d1cfcedb5'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='315' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='315' column='1'/>
-      <parameter type-id='type-id-110' name='received' filepath='../lib/legacy/buildreq.c' line='315' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='316' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_acct' mangled-name='rc_acct' filepath='../lib/legacy/buildreq.c' line='332' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct@@RADCLI_10' hash='43c292fd0273b7a9'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_acct_proxy' mangled-name='rc_acct_proxy' filepath='../lib/legacy/buildreq.c' line='345' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_proxy@@RADCLI_10' hash='512e428547b00817'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='345' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='345' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_acct_async' mangled-name='rc_acct_async' filepath='../lib/legacy/buildreq.c' line='432' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_async@@RADCLI_10' hash='43c292fd0273b7a9'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <parameter type-id='type-id-28' name='nas_port' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <parameter type-id='type-id-111' name='send' filepath='../lib/legacy/buildreq.c' line='432' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_check' mangled-name='rc_check' filepath='../lib/legacy/buildreq.c' line='453' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check@@RADCLI_10' hash='b1df0502a05212bb'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/buildreq.c' line='453' column='1'/>
-      <parameter type-id='type-id-83' name='host' filepath='../lib/legacy/buildreq.c' line='453' column='1'/>
-      <parameter type-id='type-id-83' name='secret' filepath='../lib/legacy/buildreq.c' line='453' column='1'/>
-      <parameter type-id='type-id-93' name='port' filepath='../lib/legacy/buildreq.c' line='453' column='1'/>
-      <parameter type-id='type-id-83' name='msg' filepath='../lib/legacy/buildreq.c' line='454' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_conf_int_id' filepath='../lib/options.h' line='76' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int_id' hash='bc8acf74ff2c732b'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-132'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_get_random_byte' filepath='../lib/rc-random.h' line='34' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_byte' hash='b8d5bf705e488ff2'>
-      <return type-id='type-id-90'/>
-    </function-decl>
-    <function-decl name='rc_getmtime' filepath='../lib/util.h' line='88' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getmtime' hash='14e245f4052d89de'>
-      <return type-id='type-id-128'/>
-    </function-decl>
-    <type-decl name='variadic parameter type' id='type-id-187'/>
-    <type-decl name='void' id='type-id-4'/>
-    <pointer-type-def type-id='type-id-4' id='type-id-3'/>
-    <function-type size-in-bits='64' hash='388da3fa973fde78' id='type-id-178'>
-      <parameter type-id='type-id-3'/>
-      <return type-id='type-id-5'/>
+    <function-type size-in-bits='64' hash='3bf703b6eab8c07b' id='type-id-60'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-10'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ab9ab7e640e35e69' id='type-id-179'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-181'/>
-      <return type-id='type-id-5'/>
+    <function-type size-in-bits='64' hash='17cb0aa43f08f558' id='type-id-61'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-62'/>
+      <return type-id='type-id-10'/>
     </function-type>
-    <function-type size-in-bits='64' hash='73f2469f9f45339a' id='type-id-183'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-3'/>
+    <function-type size-in-bits='64' hash='4f301925f63b1377' id='type-id-63'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-10'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='70ee702544be9d21' id='type-id-67'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-12'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='9e1dc219fb26d4fb' id='type-id-68'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-12'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2f20cda7f9c32dca' id='type-id-69'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-12'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='05a1e63ab57f1af5' id='type-id-70'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-14'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='6edc0549e96e7d1c' id='type-id-71'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-14'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='456a48667f3efe70' id='type-id-72'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-14'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='36deb70d639cf1cb' id='type-id-73'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-21'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='18fe8dcb8576248a' id='type-id-74'>
+      <parameter type-id='type-id-23'/>
+      <return type-id='type-id-23'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='f2e579184135566e' id='type-id-75'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-23'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2940a85dd1b39509' id='type-id-76'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-77'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-23'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='d197d0f381eb7cb1' id='type-id-78'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-23'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='01926bcc8db9dedb' id='type-id-79'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-77'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-23'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='6ac307fe679078ff' id='type-id-80'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-23'/>
       <parameter type-id='type-id-29'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-177'/>
-      <parameter type-id='type-id-112'/>
-      <return type-id='type-id-168'/>
+      <parameter type-id='type-id-81'/>
+      <return type-id='type-id-29'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e8518666fa663741' id='type-id-184'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-3'/>
+    <function-type size-in-bits='64' hash='73e42949b8b9361a' id='type-id-82'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-29'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='870c79368bafaa31' id='type-id-83'>
+      <return type-id='type-id-29'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2acdf63241ba4779' id='type-id-84'>
+      <parameter type-id='type-id-16'/>
+      <return type-id='type-id-37'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='c02e45656297c7bd' id='type-id-85'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-30'/>
+      <parameter type-id='type-id-86'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='c50a9d20ab884052' id='type-id-87'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-88'/>
+      <parameter type-id='type-id-86'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='cad319f317ed8488' id='type-id-89'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-90'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='640b6cecc9c09203' id='type-id-91'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-77'/>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='b54c07ad58e7ed1f' id='type-id-92'>
       <parameter type-id='type-id-29'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-181'/>
-      <parameter type-id='type-id-182'/>
-      <return type-id='type-id-168'/>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-66'/>
     </function-type>
-    <function-type size-in-bits='64' hash='388da3fa973fde78' id='type-id-185'>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-4'/>
+    <function-type size-in-bits='64' hash='d1855918d050ef6b' id='type-id-93'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-66'/>
     </function-type>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/compat.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <enum-decl name='rc_socket_type' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='112' column='1' hash='3abaa96b612ae129' id='type-id-188'>
-      <underlying-type type-id='type-id-131'/>
-      <enumerator name='RC_SOCKET_UDP' value='0'/>
-      <enumerator name='RC_SOCKET_TLS' value='1'/>
-      <enumerator name='RC_SOCKET_DTLS' value='2'/>
-      <enumerator name='RC_SOCKET_TCP' value='3'/>
-    </enum-decl>
-    <class-decl name='addrinfo' is-struct='yes' visibility='default' size-in-bits='384' filepath='/usr/include/netdb.h' line='565' column='1' hash='48abe09dffa0d298' id='type-id-189'>
+    <function-type size-in-bits='64' hash='d1189f3fce937d77' id='type-id-94'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='8d6dffb9250ce02a' id='type-id-95'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-24'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='cbe3ffcebc6f5792' id='type-id-96'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-27'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-97'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='f77335ccd85436ba' id='type-id-98'>
+      <parameter type-id='type-id-64'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='3d4d804aa38b931d' id='type-id-99'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-17'/>
+      <parameter type-id='type-id-21'/>
+      <parameter type-id='type-id-97'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-100'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='496d2cb97fe3724e' id='type-id-101'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-17'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-100'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='0980358804c1e6a3' id='type-id-102'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-19'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-97'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='86edc50042929bc7' id='type-id-103'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-23'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='9029bc7663142622' id='type-id-104'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-29'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='aecc872b6e439103' id='type-id-105'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-106'/>
+      <parameter type-id='type-id-29'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='b1db5f36e08ce3e5' id='type-id-107'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='533dd66f23695b55' id='type-id-108'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2151a91ad0d71abd' id='type-id-109'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-37'/>
+      <parameter type-id='type-id-81'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='34ac0fc3244e89e7' id='type-id-110'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-23'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='68cef2cd8bf65443' id='type-id-111'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-29'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='d6b80d3b1e184bea' id='type-id-112'>
+      <parameter type-id='type-id-64'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-100'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2723fcc964d4207d' id='type-id-113'>
+      <parameter type-id='type-id-114'/>
+      <parameter type-id='type-id-43'/>
+      <return type-id='type-id-66'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='8fcbe1f90d350a91' id='type-id-115'>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-64'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='d4d78b7ecfda3075' id='type-id-116'>
+      <parameter type-id='type-id-64'/>
+      <return type-id='type-id-64'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='aff543a8b3ef79b0' id='type-id-117'>
+      <return type-id='type-id-64'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='eef645c8cf6078ba' id='type-id-118'>
+      <parameter type-id='type-id-64'/>
+      <return type-id='type-id-119'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='82d2e663729d3f33' id='type-id-120'>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-106'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='66695bded30a1860' id='type-id-121'>
+      <parameter type-id='type-id-16'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='38ad3051a456bae9' id='type-id-123'>
+      <parameter type-id='type-id-23'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='3a952a66ad1f3e99' id='type-id-124'>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-23'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='c1822680216cccb9' id='type-id-125'>
+      <parameter type-id='type-id-24'/>
+      <parameter type-id='type-id-65'/>
+      <parameter type-id='type-id-65'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='4bae86247adf95ea' id='type-id-126'>
+      <parameter type-id='type-id-23'/>
+      <parameter type-id='type-id-86'/>
+      <parameter type-id='type-id-86'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='8433db402e635883' id='type-id-127'>
+      <parameter type-id='type-id-37'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='0dc0c70666087a33' id='type-id-128'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-19'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-106'/>
+      <parameter type-id='type-id-29'/>
+      <parameter type-id='type-id-66'/>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='eeb299809c67f44d' id='type-id-129'>
+      <parameter type-id='type-id-66'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='cd2f4de09d9b7497' id='type-id-130'>
+      <parameter type-id='type-id-64'/>
+      <return type-id='type-id-122'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='c49610f3f5e71244' id='type-id-131'>
+      <parameter type-id='type-id-16'/>
+      <return type-id='type-id-77'/>
+    </function-type>
+    <pointer-type-def type-id='type-id-132' size-in-bits='64' hash='86cf07ee5d87d15c' id='type-id-88'/>
+    <type-decl name='int' size-in-bits='32' hash='09d17c08f594edc7' id='type-id-66'/>
+    <pointer-type-def type-id='type-id-38' size-in-bits='64' hash='22be0110b0ba06d1' id='type-id-64'/>
+    <pointer-type-def type-id='type-id-133' size-in-bits='64' hash='fe5edefe7ad53af0' id='type-id-134'/>
+    <pointer-type-def type-id='type-id-41' size-in-bits='64' hash='68f5a5315f4a101f' id='type-id-114'/>
+    <class-decl name='addrinfo' is-struct='yes' visibility='default' size-in-bits='384' hash='4a22c554e757bf90' id='type-id-25'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ai_flags' type-id='type-id-5' visibility='default' filepath='/usr/include/netdb.h' line='567' column='1'/>
+        <var-decl name='ai_flags' type-id='type-id-66' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='ai_family' type-id='type-id-5' visibility='default' filepath='/usr/include/netdb.h' line='568' column='1'/>
+        <var-decl name='ai_family' type-id='type-id-66' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='ai_socktype' type-id='type-id-5' visibility='default' filepath='/usr/include/netdb.h' line='569' column='1'/>
+        <var-decl name='ai_socktype' type-id='type-id-66' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='ai_protocol' type-id='type-id-5' visibility='default' filepath='/usr/include/netdb.h' line='570' column='1'/>
+        <var-decl name='ai_protocol' type-id='type-id-66' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='ai_addrlen' type-id='type-id-112' visibility='default' filepath='/usr/include/netdb.h' line='571' column='1'/>
+        <var-decl name='ai_addrlen' type-id='type-id-135' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='ai_addr' type-id='type-id-181' visibility='default' filepath='/usr/include/netdb.h' line='572' column='1'/>
+        <var-decl name='ai_addr' type-id='type-id-114' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='ai_canonname' type-id='type-id-83' visibility='default' filepath='/usr/include/netdb.h' line='573' column='1'/>
+        <var-decl name='ai_canonname' type-id='type-id-29' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='ai_next' type-id='type-id-190' visibility='default' filepath='/usr/include/netdb.h' line='574' column='1'/>
+        <var-decl name='ai_next' type-id='type-id-26' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='servent' is-struct='yes' visibility='default' size-in-bits='256' filepath='/usr/include/netdb.h' line='255' column='1' hash='61648539907639d9' id='type-id-191'>
+    <class-decl name='dict_attr' is-struct='yes' visibility='default' size-in-bits='768' hash='1053304f1077b289' id='type-id-47'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='s_name' type-id='type-id-83' visibility='default' filepath='/usr/include/netdb.h' line='257' column='1'/>
+        <var-decl name='name' type-id='type-id-35' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='s_aliases' type-id='type-id-84' visibility='default' filepath='/usr/include/netdb.h' line='258' column='1'/>
+      <data-member access='public' layout-offset-in-bits='576'>
+        <var-decl name='value' type-id='type-id-62' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='s_port' type-id='type-id-5' visibility='default' filepath='/usr/include/netdb.h' line='259' column='1'/>
+      <data-member access='public' layout-offset-in-bits='640'>
+        <var-decl name='type' type-id='type-id-136' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='s_proto' type-id='type-id-83' visibility='default' filepath='/usr/include/netdb.h' line='260' column='1'/>
+      <data-member access='public' layout-offset-in-bits='704'>
+        <var-decl name='next' type-id='type-id-48' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='utsname' is-struct='yes' visibility='default' size-in-bits='3120' filepath='/usr/include/sys/utsname.h' line='48' column='1' hash='9f1102b5a8c5187c' id='type-id-192'>
+    <class-decl name='dict_value' is-struct='yes' visibility='default' size-in-bits='1152' hash='8a3e93db6f6b1242' id='type-id-49'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='sysname' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='51' column='1'/>
+        <var-decl name='attrname' type-id='type-id-35' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='520'>
-        <var-decl name='nodename' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='54' column='1'/>
+        <var-decl name='name' type-id='type-id-35' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='1040'>
-        <var-decl name='release' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='57' column='1'/>
+      <data-member access='public' layout-offset-in-bits='1056'>
+        <var-decl name='value' type-id='type-id-65' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='1560'>
-        <var-decl name='version' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='59' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2080'>
-        <var-decl name='machine' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='62' column='1'/>
-      </data-member>
-      <data-member access='public' layout-offset-in-bits='2600'>
-        <var-decl name='__domainname' type-id='type-id-42' visibility='default' filepath='/usr/include/sys/utsname.h' line='69' column='1'/>
+      <data-member access='public' layout-offset-in-bits='1088'>
+        <var-decl name='next' type-id='type-id-50' visibility='default'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='__pid_t' type-id='type-id-5' size-in-bits='32' filepath='/usr/include/bits/types.h' line='154' column='1' hash='09d17c08f594edc7' id='type-id-193'/>
-    <typedef-decl name='rc_socket_type' type-id='type-id-188' size-in-bits='32' alignment-in-bits='32' filepath='../include/radcli/radcli.h' line='117' column='1' hash='3abaa96b612ae129' id='type-id-194'/>
-    <pointer-type-def type-id='type-id-189' size-in-bits='64' hash='2f1471831b7872fc' id='type-id-190'/>
-    <pointer-type-def type-id='type-id-190' size-in-bits='64' hash='ee3d8418c48dfc48' id='type-id-195'/>
-    <pointer-type-def type-id='type-id-191' size-in-bits='64' hash='cd7c54cc1a101652' id='type-id-196'/>
-    <pointer-type-def type-id='type-id-192' size-in-bits='64' hash='907e6270359c7eb6' id='type-id-197'/>
-    <pointer-type-def type-id='type-id-198' size-in-bits='64' id='type-id-199'/>
-    <class-decl name='radcli_dae_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-198'/>
-    <function-decl name='radcli2_priv_config_init' filepath='../lib/includes.h' line='486' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_init' hash='301447e85753c583'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_new' filepath='../lib/includes.h' line='487' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_new' hash='353ae88bca3393cc'>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_destroy' filepath='../lib/includes.h' line='488' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_destroy' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_add_config' filepath='../lib/includes.h' line='489' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_add_config' hash='9555b6198352d410'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_apply_config' filepath='../lib/includes.h' line='491' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_apply_config' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_read_config' filepath='../lib/includes.h' line='492' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_config' hash='f1bd4031c3a977ce'>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_conf_str' filepath='../lib/includes.h' line='493' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_str' hash='a94c9d9623790d39'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_conf_int' filepath='../lib/includes.h' line='494' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_int' hash='845fad0857430073'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_conf_srv' filepath='../lib/includes.h' line='495' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_srv' hash='7df27bda08c28023'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-173'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_test_config' filepath='../lib/includes.h' line='496' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_test_config' hash='b8839c8a7cbb371f'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_find_server_addr' filepath='../lib/includes.h' line='497' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_find_server_addr' hash='dd34e91f9b33388b'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-195'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-167'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_config_free' filepath='../lib/includes.h' line='499' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_free' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_dict_free' filepath='../lib/includes.h' line='501' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_dict_free' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_read_dictionary' filepath='../lib/includes.h' line='502' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary' hash='b8839c8a7cbb371f'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_read_dictionary_from_buffer' filepath='../lib/includes.h' line='503' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary_from_buffer' hash='3d29dfbe20b2165a'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_tls_fd' filepath='../lib/includes.h' line='506' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_tls_fd' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_check_tls' filepath='../lib/includes.h' line='507' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_check_tls' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli2_priv_get_srcaddr' filepath='../lib/includes.h' line='608' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_get_srcaddr' hash='c9310d0363e1e118'>
-      <parameter type-id='type-id-181'/>
-      <parameter type-id='type-id-177'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_add_config' mangled-name='rc_add_config' filepath='../lib/legacy/compat.c' line='56' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_add_config@@RADCLI_10' hash='9555b6198352d410'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_config_init' mangled-name='rc_config_init' filepath='../lib/legacy/compat.c' line='62' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_init@@RADCLI_10' hash='301447e85753c583'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='rc_read_config' mangled-name='rc_read_config' filepath='../lib/legacy/compat.c' line='124' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_config@@RADCLI_10' hash='f1bd4031c3a977ce'>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='rc_conf_str' mangled-name='rc_conf_str' filepath='../lib/legacy/compat.c' line='134' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_str@@RADCLI_10' hash='a94c9d9623790d39'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='rc_conf_int' mangled-name='rc_conf_int' filepath='../lib/legacy/compat.c' line='139' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int@@RADCLI_10' hash='845fad0857430073'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_conf_srv' mangled-name='rc_conf_srv' filepath='../lib/legacy/compat.c' line='144' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_srv@@RADCLI_10' hash='7df27bda08c28023'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-173'/>
-    </function-decl>
-    <function-decl name='rc_test_config' mangled-name='rc_test_config' filepath='../lib/legacy/compat.c' line='149' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_test_config@@RADCLI_10' hash='b8839c8a7cbb371f'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_apply_config' mangled-name='rc_apply_config' filepath='../lib/legacy/compat.c' line='154' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_apply_config@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_find_server_addr' mangled-name='rc_find_server_addr' filepath='../lib/legacy/compat.c' line='159' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_find_server_addr@@RADCLI_10' hash='dd34e91f9b33388b'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-195'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-167'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_config_free' mangled-name='rc_config_free' filepath='../lib/legacy/compat.c' line='165' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_free@@RADCLI_10' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_new' mangled-name='rc_new' filepath='../lib/legacy/compat.c' line='170' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_new@@RADCLI_10' hash='353ae88bca3393cc'>
-      <return type-id='type-id-180'/>
-    </function-decl>
-    <function-decl name='rc_destroy' mangled-name='rc_destroy' filepath='../lib/legacy/compat.c' line='180' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_destroy@@RADCLI_10' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_get_socket_type' mangled-name='rc_get_socket_type' filepath='../lib/legacy/compat.c' line='185' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_socket_type@@RADCLI_10' hash='6854e817773e3e1d'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/compat.c' line='185' column='1'/>
-      <return type-id='type-id-194'/>
-    </function-decl>
-    <function-decl name='rc_read_dictionary' mangled-name='rc_read_dictionary' filepath='../lib/legacy/compat.c' line='190' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_dictionary@@RADCLI_10' hash='b8839c8a7cbb371f'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_read_dictionary_from_buffer' mangled-name='rc_read_dictionary_from_buffer' filepath='../lib/legacy/compat.c' line='195' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_dictionary_from_buffer@@RADCLI_10' hash='3d29dfbe20b2165a'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_dict_free' mangled-name='rc_dict_free' filepath='../lib/legacy/compat.c' line='200' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_free@@RADCLI_10' hash='353ae88bca3393cc'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_tls_fd' mangled-name='rc_tls_fd' filepath='../lib/legacy/compat.c' line='205' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_tls_fd@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_check_tls' mangled-name='rc_check_tls' filepath='../lib/legacy/compat.c' line='210' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check_tls@@RADCLI_10' hash='b6704dc70a55ac3c'>
-      <parameter type-id='type-id-180'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_getport' mangled-name='rc_getport' filepath='../lib/legacy/compat.c' line='227' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getport@@RADCLI_10' hash='5ad99fba7754b0cc'>
-      <parameter type-id='type-id-5' name='type' filepath='../lib/legacy/compat.c' line='227' column='1'/>
-      <return type-id='type-id-93'/>
-    </function-decl>
-    <function-decl name='rc_own_hostname' mangled-name='rc_own_hostname' filepath='../lib/legacy/compat.c' line='238' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_own_hostname@@RADCLI_10' hash='8487c9d489875495'>
-      <parameter type-id='type-id-83' name='hostname' filepath='../lib/legacy/compat.c' line='238' column='1'/>
-      <parameter type-id='type-id-5' name='len' filepath='../lib/legacy/compat.c' line='238' column='1'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_get_srcaddr' mangled-name='rc_get_srcaddr' filepath='../lib/legacy/compat.c' line='267' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_srcaddr@@RADCLI_10' hash='c9310d0363e1e118'>
-      <parameter type-id='type-id-181'/>
-      <parameter type-id='type-id-177'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_setdebug' mangled-name='rc_setdebug' filepath='../lib/legacy/compat.c' line='272' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_setdebug@@RADCLI_10' hash='388da3fa973fde78'>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_openlog' mangled-name='rc_openlog' filepath='../lib/legacy/compat.c' line='277' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_openlog@@RADCLI_10' hash='53885bde0aa65efe'>
-      <parameter type-id='type-id-2' name='ident' filepath='../lib/legacy/compat.c' line='277' column='1'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_mksid' mangled-name='rc_mksid' filepath='../lib/legacy/compat.c' line='293' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_mksid@@RADCLI_10' hash='02a096d257a5e00d'>
-      <return type-id='type-id-83'/>
-    </function-decl>
-    <function-decl name='getservbyname' filepath='/usr/include/netdb.h' line='288' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='getservbyname' hash='778416737a95e66b'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-196'/>
-    </function-decl>
-    <function-decl name='ntohs' filepath='/usr/include/netinet/in.h' line='402' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='ntohs' hash='9ea67f88b8c03e07'>
-      <parameter type-id='type-id-169'/>
-      <return type-id='type-id-169'/>
-    </function-decl>
-    <function-decl name='openlog' filepath='/usr/include/sys/syslog.h' line='181' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='openlog' hash='9e3d92cc5a49119c'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='uname' filepath='/usr/include/sys/utsname.h' line='81' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='uname' hash='5024d1665fd35374'>
-      <parameter type-id='type-id-197'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='getpid' filepath='/usr/include/unistd.h' line='650' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='getpid' hash='388da3fa973fde78'>
-      <return type-id='type-id-193'/>
-    </function-decl>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/dict.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <function-decl name='radcli_dict_attr_add' filepath='../lib/dict2.h' line='231' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_add' hash='01f1c5e9c168386d'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-28'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-55'/>
-    </function-decl>
-    <function-decl name='radcli_dict_value_add' filepath='../lib/dict2.h' line='233' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_add' hash='4d4d48d06fb76a4c'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-56'/>
-    </function-decl>
-    <function-decl name='radcli_dict_vendor_add' filepath='../lib/dict2.h' line='235' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_add' hash='f75885da5f8bb21c'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-28'/>
-      <return type-id='type-id-57'/>
-    </function-decl>
-    <function-decl name='radcli_dict_vendor_by_name' filepath='../lib/dict2.h' line='244' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_name' hash='3ebcd730f4cc86e5'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-2'/>
-      <return type-id='type-id-57'/>
-    </function-decl>
-    <function-decl name='radcli_dict_attr_to_legacy' filepath='../lib/dict2.h' line='264' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_to_legacy' hash='2de30be441bc7262'>
-      <parameter type-id='type-id-55'/>
-      <return type-id='type-id-61'/>
-    </function-decl>
-    <function-decl name='radcli_dict_value_to_legacy' filepath='../lib/dict2.h' line='265' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_to_legacy' hash='14047ed192fb7754'>
-      <parameter type-id='type-id-56'/>
-      <return type-id='type-id-68'/>
-    </function-decl>
-    <function-decl name='radcli_dict_vendor_to_legacy' filepath='../lib/dict2.h' line='266' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_to_legacy' hash='ffd26da36fd36041'>
-      <parameter type-id='type-id-57'/>
-      <return type-id='type-id-70'/>
-    </function-decl>
-    <function-decl name='rc_dict_addattr' mangled-name='rc_dict_addattr' filepath='../lib/legacy/dict.c' line='59' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addattr@@RADCLI_10' hash='aebba32c43b3c554'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/dict.c' line='59' column='1'/>
-      <parameter type-id='type-id-2' name='namestr' filepath='../lib/legacy/dict.c' line='59' column='1'/>
-      <parameter type-id='type-id-28' name='value' filepath='../lib/legacy/dict.c' line='59' column='1'/>
-      <parameter type-id='type-id-5' name='type' filepath='../lib/legacy/dict.c' line='59' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/dict.c' line='59' column='1'/>
-      <return type-id='type-id-61'/>
-    </function-decl>
-    <function-decl name='rc_dict_addval' mangled-name='rc_dict_addval' filepath='../lib/legacy/dict.c' line='78' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addval@@RADCLI_10' hash='521342721a7fc551'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/dict.c' line='78' column='1'/>
-      <parameter type-id='type-id-2' name='attrstr' filepath='../lib/legacy/dict.c' line='78' column='1'/>
-      <parameter type-id='type-id-2' name='namestr' filepath='../lib/legacy/dict.c' line='78' column='1'/>
-      <parameter type-id='type-id-28' name='value' filepath='../lib/legacy/dict.c' line='78' column='1'/>
-      <return type-id='type-id-68'/>
-    </function-decl>
-    <function-decl name='rc_dict_addvend' mangled-name='rc_dict_addvend' filepath='../lib/legacy/dict.c' line='96' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addvend@@RADCLI_10' hash='35cda895f5678ce2'>
-      <parameter type-id='type-id-180' name='rh' filepath='../lib/legacy/dict.c' line='96' column='1'/>
-      <parameter type-id='type-id-2' name='namestr' filepath='../lib/legacy/dict.c' line='96' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/dict.c' line='96' column='1'/>
-      <return type-id='type-id-70'/>
-    </function-decl>
-    <function-decl name='rc_dict_getattr' mangled-name='rc_dict_getattr' filepath='../lib/legacy/dict.c' line='107' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getattr@@RADCLI_10' hash='8597781c488a1d56'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='107' column='1'/>
-      <parameter type-id='type-id-43' name='attribute' filepath='../lib/legacy/dict.c' line='107' column='1'/>
-      <return type-id='type-id-61'/>
-    </function-decl>
-    <function-decl name='rc_dict_findattr' mangled-name='rc_dict_findattr' filepath='../lib/legacy/dict.c' line='119' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findattr@@RADCLI_10' hash='57c8a59c35034650'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='119' column='1'/>
-      <parameter type-id='type-id-2' name='attrname' filepath='../lib/legacy/dict.c' line='119' column='1'/>
-      <return type-id='type-id-61'/>
-    </function-decl>
-    <function-decl name='rc_dict_findval' mangled-name='rc_dict_findval' filepath='../lib/legacy/dict.c' line='130' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findval@@RADCLI_10' hash='0da89537b4c7ba8a'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='130' column='1'/>
-      <parameter type-id='type-id-2' name='valname' filepath='../lib/legacy/dict.c' line='130' column='1'/>
-      <return type-id='type-id-68'/>
-    </function-decl>
-    <function-decl name='rc_dict_findvend' mangled-name='rc_dict_findvend' filepath='../lib/legacy/dict.c' line='141' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findvend@@RADCLI_10' hash='da715b95e822879d'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='141' column='1'/>
-      <parameter type-id='type-id-2' name='vendorname' filepath='../lib/legacy/dict.c' line='141' column='1'/>
-      <return type-id='type-id-70'/>
-    </function-decl>
-    <function-decl name='rc_dict_getvend' mangled-name='rc_dict_getvend' filepath='../lib/legacy/dict.c' line='152' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getvend@@RADCLI_10' hash='7c03a7373dd4876a'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='152' column='1'/>
-      <parameter type-id='type-id-28' name='vendorspec' filepath='../lib/legacy/dict.c' line='152' column='1'/>
-      <return type-id='type-id-70'/>
-    </function-decl>
-    <function-decl name='rc_dict_getval' mangled-name='rc_dict_getval' filepath='../lib/legacy/dict.c' line='164' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getval@@RADCLI_10' hash='eafd1b239038fd3a'>
-      <parameter type-id='type-id-109' name='rh' filepath='../lib/legacy/dict.c' line='164' column='1'/>
-      <parameter type-id='type-id-28' name='value' filepath='../lib/legacy/dict.c' line='164' column='1'/>
-      <parameter type-id='type-id-2' name='attrname' filepath='../lib/legacy/dict.c' line='164' column='1'/>
-      <return type-id='type-id-68'/>
-    </function-decl>
-  </abi-instr>
-  <abi-instr address-size='64' path='../lib/legacy/send.c' comp-dir-path='/home/nmav/projects/radcli/build' language='LANG_C99'>
-    <class-decl name='pw_auth_hdr' is-struct='yes' visibility='default' size-in-bits='176' filepath='../lib/includes.h' line='156' column='1' hash='24e8f4c95f8380e9' id='type-id-200'>
+    <class-decl name='dict_vendor' is-struct='yes' visibility='default' size-in-bits='640' hash='d1509713e0092e2f' id='type-id-51'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='code' type-id='type-id-151' visibility='default' filepath='../lib/includes.h' line='158' column='1'/>
+        <var-decl name='vendorname' type-id='type-id-35' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='544'>
+        <var-decl name='vendorpec' type-id='type-id-65' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='576'>
+        <var-decl name='next' type-id='type-id-52' visibility='default'/>
+      </data-member>
+    </class-decl>
+    <class-decl name='in6_addr' is-struct='yes' visibility='default' size-in-bits='128' hash='9b78f5c2eb3b43d4' id='type-id-132'>
+      <data-member access='public' layout-offset-in-bits='0'>
+        <var-decl name='__in6_u' type-id='type-id-137' visibility='default'/>
+      </data-member>
+    </class-decl>
+    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='a87c84a6d03d54eb' id='type-id-138'/>
+    <class-decl name='rc_conf' is-struct='yes' visibility='default' is-declaration-only='yes' hash='3bd567b1f3cd8b3f' id='type-id-139'/>
+    <class-decl name='rc_value_pair' is-struct='yes' visibility='default' size-in-bits='3072' hash='9ec3c8975866ce4d' id='type-id-133'>
+      <data-member access='public' layout-offset-in-bits='0'>
+        <var-decl name='name' type-id='type-id-35' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='576'>
+        <var-decl name='attribute' type-id='type-id-62' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='640'>
+        <var-decl name='type' type-id='type-id-136' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='672'>
+        <var-decl name='lvalue' type-id='type-id-65' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='704'>
+        <var-decl name='strvalue' type-id='type-id-33' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='2752'>
+        <var-decl name='next' type-id='type-id-134' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='2816'>
+        <var-decl name='pad' type-id='type-id-34' visibility='default'/>
+      </data-member>
+    </class-decl>
+    <class-decl name='send_data' is-struct='yes' visibility='default' size-in-bits='448' hash='d6e081c69fae3f4e' id='type-id-140'>
+      <data-member access='public' layout-offset-in-bits='0'>
+        <var-decl name='code' type-id='type-id-141' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='8'>
-        <var-decl name='id' type-id='type-id-151' visibility='default' filepath='../lib/includes.h' line='159' column='1'/>
+        <var-decl name='seq_nbr' type-id='type-id-141' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='16'>
-        <var-decl name='length' type-id='type-id-169' visibility='default' filepath='../lib/includes.h' line='160' column='1'/>
+      <data-member access='public' layout-offset-in-bits='64'>
+        <var-decl name='server' type-id='type-id-29' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='vector' type-id='type-id-81' visibility='default' filepath='../lib/includes.h' line='161' column='1'/>
+      <data-member access='public' layout-offset-in-bits='128'>
+        <var-decl name='svc_port' type-id='type-id-66' visibility='default'/>
       </data-member>
-      <data-member access='public' layout-offset-in-bits='160'>
-        <var-decl name='data' type-id='type-id-201' visibility='default' filepath='../lib/includes.h' line='162' column='1'/>
+      <data-member access='public' layout-offset-in-bits='192'>
+        <var-decl name='secret' type-id='type-id-29' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='256'>
+        <var-decl name='timeout' type-id='type-id-66' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='288'>
+        <var-decl name='retries' type-id='type-id-66' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='320'>
+        <var-decl name='send_pairs' type-id='type-id-23' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='384'>
+        <var-decl name='receive_pairs' type-id='type-id-23' visibility='default'/>
       </data-member>
     </class-decl>
-    <typedef-decl name='AUTH_HDR' type-id='type-id-200' size-in-bits='176' filepath='../lib/includes.h' line='167' column='1' id='type-id-202'/>
-    <array-type-def dimensions='1' type-id='type-id-151' size-in-bits='16' hash='92399eb84731c3e2' id='type-id-201'>
-      <subrange length='2' lower-bound='0' upper-bound='1' type-id='type-id-6' size-in-bits='64' is-anonymous='yes' hash='95f31efc53154467' id='type-id-203'/>
+    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' hash='cc30e6144ce4604e' id='type-id-142'>
+      <data-member access='public' layout-offset-in-bits='0'>
+        <var-decl name='max' type-id='type-id-66' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='64'>
+        <var-decl name='name' type-id='type-id-31' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='576'>
+        <var-decl name='port' type-id='type-id-143' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='704'>
+        <var-decl name='secret' type-id='type-id-31' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='1216'>
+        <var-decl name='deadtime_ends' type-id='type-id-54' visibility='default'/>
+      </data-member>
+    </class-decl>
+    <class-decl name='sockaddr' is-struct='yes' visibility='default' size-in-bits='128' hash='719a570e64be517a' id='type-id-41'>
+      <data-member access='public' layout-offset-in-bits='0'>
+        <var-decl name='sa_family' type-id='type-id-144' visibility='default'/>
+      </data-member>
+      <data-member access='public' layout-offset-in-bits='16'>
+        <var-decl name='sa_data' type-id='type-id-32' visibility='default'/>
+      </data-member>
+    </class-decl>
+    <typedef-decl name='DICT_ATTR' type-id='type-id-47' size-in-bits='768' hash='e81879c97b5b1648' id='type-id-9'/>
+    <typedef-decl name='DICT_VALUE' type-id='type-id-49' size-in-bits='1152' hash='c057eb3dd977259c' id='type-id-11'/>
+    <typedef-decl name='DICT_VENDOR' type-id='type-id-51' size-in-bits='640' hash='b3c818b6f8877582' id='type-id-13'/>
+    <typedef-decl name='RC_AAA_CTX' type-id='type-id-138' hash='a87c84a6d03d54eb' id='type-id-15'/>
+    <typedef-decl name='SEND_DATA' type-id='type-id-140' size-in-bits='448' hash='b1b841bd9fe57258' id='type-id-18'/>
+    <typedef-decl name='SERVER' type-id='type-id-142' size-in-bits='1728' hash='863791e4c2451d73' id='type-id-20'/>
+    <typedef-decl name='VALUE_PAIR' type-id='type-id-133' size-in-bits='3072' hash='5cabdb92d63e1edb' id='type-id-22'/>
+    <typedef-decl name='__socklen_t' type-id='type-id-145' size-in-bits='32' hash='01b265816e53dd71' id='type-id-146'/>
+    <typedef-decl name='__uint16_t' type-id='type-id-106' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-147'/>
+    <typedef-decl name='__uint32_t' type-id='type-id-145' size-in-bits='32' hash='01b265816e53dd71' id='type-id-148'/>
+    <typedef-decl name='__uint64_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-149'/>
+    <typedef-decl name='__uint8_t' type-id='type-id-44' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-150'/>
+    <typedef-decl name='rc_attr_type' type-id='type-id-55' size-in-bits='32' alignment-in-bits='32' hash='0d2fbbc27d377e47' id='type-id-136'/>
+    <typedef-decl name='rc_handle' type-id='type-id-139' hash='3bd567b1f3cd8b3f' id='type-id-38'/>
+    <typedef-decl name='rc_socket_type' type-id='type-id-57' size-in-bits='32' alignment-in-bits='32' hash='67578c1ccefd2cfa' id='type-id-119'/>
+    <typedef-decl name='rc_standard_codes' type-id='type-id-58' size-in-bits='32' alignment-in-bits='32' hash='83f9135c0de68993' id='type-id-100'/>
+    <typedef-decl name='rc_type' type-id='type-id-59' size-in-bits='32' alignment-in-bits='32' hash='bee98eb5551fc942' id='type-id-97'/>
+    <typedef-decl name='sa_family_t' type-id='type-id-106' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-144'/>
+    <typedef-decl name='size_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-81'/>
+    <typedef-decl name='socklen_t' type-id='type-id-146' size-in-bits='32' hash='01b265816e53dd71' id='type-id-135'/>
+    <typedef-decl name='uint16_t' type-id='type-id-147' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-151'/>
+    <typedef-decl name='uint32_t' type-id='type-id-148' size-in-bits='32' hash='01b265816e53dd71' id='type-id-65'/>
+    <typedef-decl name='uint64_t' type-id='type-id-149' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-62'/>
+    <typedef-decl name='uint8_t' type-id='type-id-150' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-141'/>
+    <array-type-def dimensions='1' type-id='type-id-151' size-in-bits='128' hash='876e7726a843c12a' id='type-id-143'>
+      <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-8'/>
     </array-type-def>
-    <pointer-type-def type-id='type-id-202' size-in-bits='64' hash='a2739eac3d4b209b' id='type-id-204'/>
-    <qualified-type-def type-id='type-id-151' const='yes' hash='5a6582fbecdbfc78' id='type-id-205'/>
-    <pointer-type-def type-id='type-id-205' size-in-bits='64' hash='d2a42ec7d4838233' id='type-id-206'/>
-    <pointer-type-def type-id='type-id-29' size-in-bits='64' hash='54c1e9f81ec7a1db' id='type-id-30'/>
-    <pointer-type-def type-id='type-id-138' size-in-bits='64' hash='a6f2e682574a5947' id='type-id-207'/>
-    <pointer-type-def type-id='type-id-151' size-in-bits='64' hash='24d8cca8965ce13e' id='type-id-208'/>
-    <pointer-type-def type-id='type-id-90' size-in-bits='64' hash='f0221758ecf0c0cb' id='type-id-209'/>
-    <qualified-type-def type-id='type-id-210' const='yes' id='type-id-211'/>
-    <pointer-type-def type-id='type-id-211' size-in-bits='64' id='type-id-212'/>
-    <pointer-type-def type-id='type-id-210' size-in-bits='64' id='type-id-213'/>
-    <pointer-type-def type-id='type-id-213' size-in-bits='64' id='type-id-214'/>
-    <class-decl name='radcli_avp_list_st' is-struct='yes' visibility='default' is-declaration-only='yes' id='type-id-215'/>
-    <typedef-decl name='radcli_avp_list' type-id='type-id-215' filepath='../include/radcli/radcli2.h' line='294' column='1' id='type-id-210'/>
-    <function-decl name='radcli_avp_encode' filepath='../lib/avp.h' line='39' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_encode' hash='5cb61d9cd3c9eeba'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-212'/>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-206'/>
-      <parameter type-id='type-id-208'/>
-      <parameter type-id='type-id-29'/>
-      <parameter type-id='type-id-30'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli_dict_flags_by_id' filepath='../lib/dict2.h' line='251' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_flags_by_id' hash='a389154e287e7fa3'>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-43'/>
-      <return type-id='type-id-58'/>
-    </function-decl>
-    <function-decl name='add_msg_auth_attr' filepath='../lib/includes.h' line='304' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='add_msg_auth_attr' hash='7cad69d1bd5deea0'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-204'/>
-      <parameter type-id='type-id-5'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='radcli_transport_exchange' filepath='../lib/includes.h' line='336' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_transport_exchange' hash='f4fa891c30751f45'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-171'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-167'/>
-      <parameter type-id='type-id-206'/>
-      <parameter type-id='type-id-5'/>
-      <parameter type-id='type-id-208'/>
-      <parameter type-id='type-id-29'/>
-      <parameter type-id='type-id-30'/>
-      <parameter type-id='type-id-208'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_send_server' mangled-name='rc_send_server' filepath='../lib/legacy/send.c' line='239' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_send_server@@RADCLI_10' hash='659156f6be7b3111'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-172'/>
-      <parameter type-id='type-id-83'/>
-      <parameter type-id='type-id-167'/>
-      <return type-id='type-id-5'/>
-    </function-decl>
-    <function-decl name='rc_md5_calc' filepath='../lib/rc-md5.h' line='26' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_md5_calc' hash='bfd27ca64402328a'>
-      <parameter type-id='type-id-209'/>
-      <parameter type-id='type-id-92'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_get_random_bytes' filepath='../lib/rc-random.h' line='31' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_bytes' hash='e0055d99adb0e173'>
-      <parameter type-id='type-id-3'/>
-      <parameter type-id='type-id-29'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='rc_getaddrinfo' filepath='../lib/util.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getaddrinfo' hash='1f67418f7447267b'>
-      <parameter type-id='type-id-2'/>
-      <parameter type-id='type-id-35'/>
-      <return type-id='type-id-190'/>
-    </function-decl>
-    <function-decl name='rc_own_bind_addr' filepath='../lib/util.h' line='87' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_own_bind_addr' hash='8b9778ee9497b64b'>
-      <parameter type-id='type-id-180'/>
-      <parameter type-id='type-id-207'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='freeaddrinfo' filepath='/usr/include/netdb.h' line='666' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='freeaddrinfo' hash='45195f0dcc39c25a'>
-      <parameter type-id='type-id-190'/>
-      <return type-id='type-id-4'/>
-    </function-decl>
-    <function-decl name='htons' filepath='/usr/include/netinet/in.h' line='406' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='htons' hash='9ea67f88b8c03e07'>
-      <parameter type-id='type-id-169'/>
-      <return type-id='type-id-169'/>
-    </function-decl>
+    <pointer-type-def type-id='type-id-65' size-in-bits='64' hash='e0052ce3dc4c319c' id='type-id-90'/>
+    <array-type-def dimensions='1' type-id='type-id-65' size-in-bits='128' hash='7862ab2a4a69ef93' id='type-id-152'>
+      <subrange length='4' lower-bound='0' upper-bound='3' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='cee611f4a73e486c' id='type-id-6'/>
+    </array-type-def>
+    <array-type-def dimensions='1' type-id='type-id-141' size-in-bits='128' hash='cc6c216b700057da' id='type-id-153'>
+      <subrange length='16' lower-bound='0' upper-bound='15' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6c35b1e999eba398' id='type-id-3'/>
+    </array-type-def>
+    <union-decl name='__anonymous_union__' visibility='default' size-in-bits='128' is-anonymous='yes' hash='6275f1e34dba21fc' id='type-id-137'>
+      <data-member access='public'>
+        <var-decl name='__u6_addr8' type-id='type-id-153' visibility='default'/>
+      </data-member>
+      <data-member access='public'>
+        <var-decl name='__u6_addr16' type-id='type-id-143' visibility='default'/>
+      </data-member>
+      <data-member access='public'>
+        <var-decl name='__u6_addr32' type-id='type-id-152' visibility='default'/>
+      </data-member>
+    </union-decl>
+    <type-decl name='unnamed-enum-underlying-type-32' size-in-bits='32' alignment-in-bits='32' is-anonymous='yes' hash='c6ed5e1365fd2b09' id='type-id-56'/>
+    <type-decl name='unsigned char' size-in-bits='8' hash='6ebac62b3366db68' id='type-id-44'/>
+    <type-decl name='unsigned int' size-in-bits='32' hash='e66b43f97c38e87a' id='type-id-145'/>
+    <pointer-type-def type-id='type-id-145' size-in-bits='64' hash='bf1f3a522fae2fbf' id='type-id-86'/>
+    <type-decl name='unsigned long int' size-in-bits='64' hash='da551c1631705dfe' id='type-id-1'/>
+    <type-decl name='unsigned short int' size-in-bits='16' hash='e3133321c12b1361' id='type-id-106'/>
+    <type-decl name='void' hash='8dcbc64750c3d4e3' id='type-id-122'/>
+    <pointer-type-def type-id='type-id-122' hash='19e246ce75ee6a42' id='type-id-77'/>
+  </abi-types>
+  <abi-instr address-size='64' path='../lib/legacy/aaa_ctx.c' language='LANG_C99'>
+      <function-decl name='rc_aaa_ctx_get_secret' type-id='type-id-84' mangled-name='rc_aaa_ctx_get_secret' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_get_secret@@RADCLI_10'/>
+      <function-decl name='rc_aaa_ctx_free' type-id='type-id-121' mangled-name='rc_aaa_ctx_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_free@@RADCLI_10'/>
+      <function-decl name='rc_aaa_ctx_get_vector' type-id='type-id-131' mangled-name='rc_aaa_ctx_get_vector' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_get_vector@@RADCLI_10'/>
+  </abi-instr>
+  <abi-instr address-size='64' path='../lib/legacy/avpair.c' language='LANG_C99'>
+      <function-decl name='rc_avpair_add' type-id='type-id-76' mangled-name='rc_avpair_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_add@@RADCLI_10'/>
+      <function-decl name='rc_avpair_copy' type-id='type-id-74' mangled-name='rc_avpair_copy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_copy@@RADCLI_10'/>
+      <function-decl name='rc_avpair_gen' type-id='type-id-78' mangled-name='rc_avpair_gen' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_gen@@RADCLI_10'/>
+      <function-decl name='rc_avpair_get' type-id='type-id-75' mangled-name='rc_avpair_get' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get@@RADCLI_10'/>
+      <function-decl name='rc_avpair_new' type-id='type-id-79' mangled-name='rc_avpair_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_new@@RADCLI_10'/>
+      <function-decl name='rc_avpair_next' type-id='type-id-74' mangled-name='rc_avpair_next' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_next@@RADCLI_10'/>
+      <function-decl name='rc_avpair_log' type-id='type-id-80' mangled-name='rc_avpair_log' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_log@@RADCLI_10'/>
+      <function-decl name='rc_avpair_assign' type-id='type-id-91' mangled-name='rc_avpair_assign' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_assign@@RADCLI_10'/>
+      <function-decl name='rc_avpair_get_in6' type-id='type-id-87' mangled-name='rc_avpair_get_in6' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_in6@@RADCLI_10'/>
+      <function-decl name='rc_avpair_get_raw' type-id='type-id-85' mangled-name='rc_avpair_get_raw' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_raw@@RADCLI_10'/>
+      <function-decl name='rc_avpair_get_uint32' type-id='type-id-89' mangled-name='rc_avpair_get_uint32' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_uint32@@RADCLI_10'/>
+      <function-decl name='rc_avpair_parse' type-id='type-id-95' mangled-name='rc_avpair_parse' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_parse@@RADCLI_10'/>
+      <function-decl name='rc_avpair_tostr' type-id='type-id-93' mangled-name='rc_avpair_tostr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_tostr@@RADCLI_10'/>
+      <function-decl name='rc_avpair_free' type-id='type-id-123' mangled-name='rc_avpair_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_free@@RADCLI_10'/>
+      <function-decl name='rc_avpair_get_attr' type-id='type-id-126' mangled-name='rc_avpair_get_attr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_get_attr@@RADCLI_10'/>
+      <function-decl name='rc_avpair_insert' type-id='type-id-124' mangled-name='rc_avpair_insert' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_insert@@RADCLI_10'/>
+      <function-decl name='rc_avpair_remove' type-id='type-id-125' mangled-name='rc_avpair_remove' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_avpair_remove@@RADCLI_10'/>
+  </abi-instr>
+  <abi-instr address-size='64' path='../lib/legacy/buildreq.c' language='LANG_C99'>
+      <function-decl name='rc_aaa' type-id='type-id-112' mangled-name='rc_aaa' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa@@RADCLI_10'/>
+      <function-decl name='rc_aaa_ctx' type-id='type-id-101' mangled-name='rc_aaa_ctx' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx@@RADCLI_10'/>
+      <function-decl name='rc_aaa_ctx_server' type-id='type-id-99' mangled-name='rc_aaa_ctx_server' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_aaa_ctx_server@@RADCLI_10'/>
+      <function-decl name='rc_acct' type-id='type-id-110' mangled-name='rc_acct' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct@@RADCLI_10'/>
+      <function-decl name='rc_acct_async' type-id='type-id-110' mangled-name='rc_acct_async' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_async@@RADCLI_10'/>
+      <function-decl name='rc_acct_proxy' type-id='type-id-103' mangled-name='rc_acct_proxy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_acct_proxy@@RADCLI_10'/>
+      <function-decl name='rc_auth' type-id='type-id-111' mangled-name='rc_auth' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth@@RADCLI_10'/>
+      <function-decl name='rc_auth_proxy' type-id='type-id-104' mangled-name='rc_auth_proxy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_auth_proxy@@RADCLI_10'/>
+      <function-decl name='rc_check' type-id='type-id-105' mangled-name='rc_check' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check@@RADCLI_10'/>
+      <function-decl name='rc_buildreq' type-id='type-id-128' mangled-name='rc_buildreq' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_buildreq@@RADCLI_10'/>
+  </abi-instr>
+  <abi-instr address-size='64' path='../lib/legacy/compat.c' language='LANG_C99'>
+      <function-decl name='rc_conf_srv' type-id='type-id-73' mangled-name='rc_conf_srv' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_srv@@RADCLI_10'/>
+      <function-decl name='rc_conf_str' type-id='type-id-82' mangled-name='rc_conf_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_str@@RADCLI_10'/>
+      <function-decl name='rc_mksid' type-id='type-id-83' mangled-name='rc_mksid' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_mksid@@RADCLI_10'/>
+      <function-decl name='rc_add_config' type-id='type-id-108' mangled-name='rc_add_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_add_config@@RADCLI_10'/>
+      <function-decl name='rc_apply_config' type-id='type-id-98' mangled-name='rc_apply_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_apply_config@@RADCLI_10'/>
+      <function-decl name='rc_check_tls' type-id='type-id-98' mangled-name='rc_check_tls' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_check_tls@@RADCLI_10'/>
+      <function-decl name='rc_conf_int' type-id='type-id-94' mangled-name='rc_conf_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int@@RADCLI_10'/>
+      <function-decl name='rc_find_server_addr' type-id='type-id-96' mangled-name='rc_find_server_addr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_find_server_addr@@RADCLI_10'/>
+      <function-decl name='rc_get_srcaddr' type-id='type-id-113' mangled-name='rc_get_srcaddr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_srcaddr@@RADCLI_10'/>
+      <function-decl name='rc_own_hostname' type-id='type-id-92' mangled-name='rc_own_hostname' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_own_hostname@@RADCLI_10'/>
+      <function-decl name='rc_read_dictionary' type-id='type-id-107' mangled-name='rc_read_dictionary' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_dictionary@@RADCLI_10'/>
+      <function-decl name='rc_read_dictionary_from_buffer' type-id='type-id-109' mangled-name='rc_read_dictionary_from_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_dictionary_from_buffer@@RADCLI_10'/>
+      <function-decl name='rc_test_config' type-id='type-id-107' mangled-name='rc_test_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_test_config@@RADCLI_10'/>
+      <function-decl name='rc_tls_fd' type-id='type-id-98' mangled-name='rc_tls_fd' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_tls_fd@@RADCLI_10'/>
+      <function-decl name='rc_config_init' type-id='type-id-116' mangled-name='rc_config_init' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_init@@RADCLI_10'/>
+      <function-decl name='rc_new' type-id='type-id-117' mangled-name='rc_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_new@@RADCLI_10'/>
+      <function-decl name='rc_read_config' type-id='type-id-115' mangled-name='rc_read_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_read_config@@RADCLI_10'/>
+      <function-decl name='rc_get_socket_type' type-id='type-id-118' mangled-name='rc_get_socket_type' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_socket_type@@RADCLI_10'/>
+      <function-decl name='rc_getport' type-id='type-id-120' mangled-name='rc_getport' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getport@@RADCLI_10'/>
+      <function-decl name='rc_config_free' type-id='type-id-130' mangled-name='rc_config_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_config_free@@RADCLI_10'/>
+      <function-decl name='rc_destroy' type-id='type-id-130' mangled-name='rc_destroy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_destroy@@RADCLI_10'/>
+      <function-decl name='rc_dict_free' type-id='type-id-130' mangled-name='rc_dict_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_free@@RADCLI_10'/>
+      <function-decl name='rc_openlog' type-id='type-id-127' mangled-name='rc_openlog' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_openlog@@RADCLI_10'/>
+      <function-decl name='rc_setdebug' type-id='type-id-129' mangled-name='rc_setdebug' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_setdebug@@RADCLI_10'/>
+  </abi-instr>
+  <abi-instr address-size='64' path='../lib/legacy/dict.c' language='LANG_C99'>
+      <function-decl name='rc_dict_addattr' type-id='type-id-63' mangled-name='rc_dict_addattr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addattr@@RADCLI_10'/>
+      <function-decl name='rc_dict_findattr' type-id='type-id-60' mangled-name='rc_dict_findattr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findattr@@RADCLI_10'/>
+      <function-decl name='rc_dict_getattr' type-id='type-id-61' mangled-name='rc_dict_getattr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getattr@@RADCLI_10'/>
+      <function-decl name='rc_dict_addval' type-id='type-id-69' mangled-name='rc_dict_addval' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addval@@RADCLI_10'/>
+      <function-decl name='rc_dict_findval' type-id='type-id-67' mangled-name='rc_dict_findval' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findval@@RADCLI_10'/>
+      <function-decl name='rc_dict_getval' type-id='type-id-68' mangled-name='rc_dict_getval' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getval@@RADCLI_10'/>
+      <function-decl name='rc_dict_addvend' type-id='type-id-72' mangled-name='rc_dict_addvend' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_addvend@@RADCLI_10'/>
+      <function-decl name='rc_dict_findvend' type-id='type-id-70' mangled-name='rc_dict_findvend' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_findvend@@RADCLI_10'/>
+      <function-decl name='rc_dict_getvend' type-id='type-id-71' mangled-name='rc_dict_getvend' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_dict_getvend@@RADCLI_10'/>
+  </abi-instr>
+  <abi-instr address-size='64' path='../lib/legacy/send.c' language='LANG_C99'>
+      <function-decl name='rc_send_server' type-id='type-id-102' mangled-name='rc_send_server' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_send_server@@RADCLI_10'/>
   </abi-instr>
 </abi-corpus>
