@@ -110,11 +110,11 @@ jobs:
               uses: actions/cache@v6
               with:
                   path: /var/cache/apt/archives/*.deb
-                  key: apt-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-abigail-tools-python3-meson-ninja-build-v2
+                  key: apt-gcc-freeradius-freeradius-utils-libgnutls28-dev-nettle-dev-python3-meson-ninja-build-v2
             - name: Install dependencies
               run: |
                   sudo apt-get update -qq
-                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev abigail-tools python3 meson ninja-build
+                  sudo apt-get install -qq gcc freeradius freeradius-utils libgnutls28-dev nettle-dev python3 meson ninja-build
             - name: Compile
               run: |
                   meson setup build -Dtls=enabled -Dc_args="-O2 -g -Wall -Wno-cpp -Werror"
@@ -122,10 +122,6 @@ jobs:
             - name: Test
               run: |
                   sudo meson test -C build
-            - name: ABI check
-              run: |
-                  ninja -C build abi-check
-                  ninja -C build abi-check2
             - name: Compare exported symbols
               run: |
                   ninja -C build compare-exported
@@ -138,6 +134,27 @@ jobs:
                   path: build/meson-logs/testlog.txt
                   if-no-files-found: ignore
                   retention-days: 5
+
+    # The reference dumps in devel/ are written by libabigail 3.x, whose
+    # format Ubuntu 24.04's libabigail 2.4 cannot read.
+    abi:
+        runs-on: ubuntu-24.04
+        container: fedora:44
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v5
+            - name: Install dependencies
+              run: |
+                  dnf install -y gcc meson ninja-build gnutls-devel nettle-devel libabigail
+            - name: Compile
+              run: |
+                  meson setup build -Dtls=enabled -Ddocs=disabled -Dc_args="-O2 -g"
+                  ninja -C build
+            - name: ABI check
+              run: |
+                  abidw --version
+                  ninja -C build abi-check
+                  ninja -C build abi-check2
 
     # meson dist requires -Ddocs=enabled (see doc/meson.build,
     # meson-scripts/dist-man-pages.sh): the API man pages are regenerated
