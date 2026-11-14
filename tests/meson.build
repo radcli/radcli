@@ -68,6 +68,9 @@ if have_gnutls
   request = executable('request', 'request.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
+  request_set_timeout = executable('request-set-timeout', 'request-set-timeout.c',
+    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+    dependencies: link_libs, install: false)
   aaa2_unit = executable('aaa2', 'aaa2.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
@@ -206,7 +209,7 @@ if have_gnutls
     link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
 
-  foreach t : [avpair, dict, dict_legacy, avp, request, aaa2_unit, dict_add, auth_userpass_len, dae, dae_codec, pack, avp_codec, avp_legacy, config_unit, ctx_unit]
+  foreach t : [avpair, dict, dict_legacy, avp, request, request_set_timeout, aaa2_unit, dict_add, auth_userpass_len, dae, dae_codec, pack, avp_codec, avp_legacy, config_unit, ctx_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

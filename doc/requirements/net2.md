@@ -160,7 +160,8 @@ succeeds; a full `radcli_request_perform()` round trip is covered by
 **Requirement:** `radcli_request_new()` MUST capture `"radius_timeout"` and
 `"radius_retries"` (`rc_conf_int()`) into the request at construction time;
 `radcli_request_perform()` MUST use those captured values, not re-read
-configuration.
+configuration. `radcli_request_set_timeout()` (REQ-NET2-INIT-009) is the only
+way to replace them, and only for that request.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/request.c (`radcli_request_new()` captures,
@@ -169,6 +170,7 @@ configuration.
 `"radius_timeout"` in the handle's configuration, and confirm (by code
 inspection / a mock transport) that the original value is what
 `radcli_transport_exchange()` receives.
+**Links:** REQ-NET2-INIT-009
 
 ### REQ-NET2-INIT-007 — radcli_request_free is a matched release; NULL is a valid no-op
 
@@ -204,6 +206,42 @@ instead, so `tests/dae.c`/`tests/dae-codec.c` needed only to add a valid
 context) rather than a dummy `authserver`.
 **Links:** REQ-CONFIG2-CFG-004, REQ-NET2-INIT-004, REQ-NET2-INIT-006,
 REQ-CONFIG-CFG-010
+
+### REQ-NET2-INIT-009 — radcli_request_set_timeout overrides one request's timeout and retries before it is performed
+
+**Requirement:** `radcli_request_set_timeout(r, timeout_ms, retries)` MUST
+replace the `radius_timeout`/`radius_retries` values `r` captured at
+construction (REQ-NET2-INIT-006) with `timeout_ms` (milliseconds to wait for
+a reply per attempt) and `retries` (retransmissions after the first send),
+and return 0. They then govern `r` in every `radcli_request_perform()` mode
+exactly as the configured values would: `r` resolves to `RADCLI_TIMEOUT`
+once `retries + 1` attempts of `timeout_ms` milliseconds each have gone
+unanswered, counted from `radcli_request_perform()` (for
+`RADCLI_REQUEST_SENDONLY_NONBLOCK`, including time the packet spends
+queued, REQ-NET2-SEND-018). The call MUST NOT change the context's
+configuration or any other request, and MUST NOT affect the deadline for
+establishing the context's shared TCP/TLS/DTLS connection, which remains
+`radius_timeout`. It MUST return -1 and leave `r` unchanged if `r` is NULL,
+if `r` has already been passed to `radcli_request_perform()`, if
+`timeout_ms <= 0`, or if `retries < 0` — the same bounds
+`radcli_ctx_apply()` enforces on the configured values
+(REQ-CONFIG2-CFG-004).
+**Strength:** MUST
+**Status:** DERIVED — added for ocserv's shutdown, which must send its final
+Accounting-Stops without retransmission and within a fixed deadline
+independent of `radius_timeout`/`radius_retries`, over the context's existing
+connection (ocserv#648).
+**Source:** lib/request.c (`radcli_request_set_timeout()`),
+include/radcli/radcli2.h, lib/radcli2.map.in
+**Acceptance:** [INIT] unit, local — `tests/request-set-timeout.c`, against
+a local UDP socket that never replies, with the context configured for
+`radius_timeout 1`, `radius_retries 2`: a `RADCLI_REQUEST_SENDONLY_NONBLOCK`
+request set to `(1500, 0)` reaches `RADCLI_TIMEOUT` after about 1.5 seconds
+with exactly one datagram sent; a blocking request set to `(500, 0)` sends one
+datagram and times out after about 0.5 seconds; a request on the same context without the call still sends
+three. NULL, an already-performed request, `timeout_ms` 0 or negative, and
+`retries` negative each return -1.
+**Links:** REQ-NET2-INIT-006, REQ-NET2-SEND-018, REQ-CONFIG2-CFG-004
 
 ---
 

@@ -453,7 +453,7 @@ int rc_send_server_ctx(rc_handle * rh, RC_AAA_CTX ** ctx, SEND_DATA * data,
 	result = radcli_transport_exchange(rh, ctx, server_name,
 					   (unsigned short)data->svc_port,
 					   secret, mgmt_secret,
-					   data->timeout, data->retries, no_wait, type,
+					   rc_timeout_sec_to_ms(data->timeout), data->retries, no_wait, type,
 					   send_buffer, total_length,
 					   recv_buffer, sizeof(recv_buffer), &recv_len, NULL);
 

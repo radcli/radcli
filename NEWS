@@ -19,6 +19,9 @@
   network namespace.
 - radcli_request_perform() now returns RADCLI_ERROR for undefined flags,
   rather than ignoring them.
+- Added radcli_request_set_timeout(), which overrides the timeout and retry
+  count of a single request, e.g. to send a final accounting stop once
+  within a fixed deadline, without changing the context or its connection.
 
 
 * Version 2.0.1 (released 2026-10-10)

@@ -445,7 +445,7 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
  *  server list and resolve server_name directly (the CoA/Disconnect reply
  *  path, whose peer is the DAC that sent the request, not a configured
  *  RADIUS server).
- * @param timeout per-attempt reply wait, in seconds.
+ * @param timeout_ms per-attempt reply wait, in milliseconds.
  * @param retries additional retransmit attempts after the first, per
  *  address.
  * @param no_wait nonzero to send once and return without waiting for a
@@ -467,7 +467,7 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
 int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      char *server_name, unsigned short svc_port,
 			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
-			      int timeout, int retries, int no_wait, rc_type type,
+			      int timeout_ms, int retries, int no_wait, rc_type type,
 			      const uint8_t *send_buf, int send_len,
 			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
 			      uint8_t *out_code)
@@ -580,8 +580,8 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			getnameinfo(cur_addr->ai_addr, cur_addr->ai_addrlen, NULL, 0,
 				    addr_txt, sizeof(addr_txt), NI_NUMERICHOST);
 			DEBUG(rh, LOG_ERR,
-			      "DEBUG: radcli_transport_exchange: timeout=%d retries=%d local %s : 0, "
-			      "remote %s : %u\n", timeout, retry_max, our_addr_txt, addr_txt, svc_port);
+			      "DEBUG: radcli_transport_exchange: timeout=%dms retries=%d local %s : 0, "
+			      "remote %s : %u\n", timeout_ms, retry_max, our_addr_txt, addr_txt, svc_port);
 		}
 
 		for (;;) {
@@ -622,7 +622,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			/* Wait out this attempt's whole timeout for our own reply:
 			 * a reply that is not ours only continues the wait, it does
 			 * not end the attempt (REQ-NET-NET-010). */
-			deadline = rc_getmtime() + timeout;
+			deadline = rc_getmtime() + (timeout_ms / 1000.0);
 			for (;;) {
 				double remaining = deadline - rc_getmtime();
 
@@ -1185,7 +1185,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 							     RADSEC_SEND_RETRANSMIT, i);
 				rslot->conn_gen = radcli2_priv_sess_gen(rh);
 			}
-			rslot->deadline = rc_getmtime() + rslot->timeout;
+			rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
 			continue;
 		}
 
@@ -1215,7 +1215,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 				continue; /* leave deadline as-is; retried again next call */
 			}
 
-			rslot->deadline = rc_getmtime() + rslot->timeout;
+			rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
 		}
 	}
 }
@@ -1249,7 +1249,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
  * @param type AUTH or ACCT.
  * @param send_buf the complete, pre-built, pre-encoded packet to send.
  * @param send_len send_buf's length in bytes; must fit RC_BUFFER_LEN.
- * @param timeout per-attempt reply wait, in seconds.
+ * @param timeout_ms per-attempt reply wait, in milliseconds.
  * @param retries additional retransmit attempts after the first.
  * @param nonblock nonzero to never wait for the network: what cannot go
  *  out at once is queued on a session, or lost on UDP (REQ-NET2-SEND-018).
@@ -1263,7 +1263,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
-				int timeout, int retries, unsigned nonblock,
+				int timeout_ms, int retries, unsigned nonblock,
 				struct radcli_async_send_st *out)
 {
 	struct addrinfo *auth_addr = NULL;
@@ -1429,9 +1429,9 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	strlcpy(rslot->server_name, server_name, sizeof(rslot->server_name));
 	rslot->svc_port = svc_port;
 	rslot->type = type;
-	rslot->timeout = timeout > 0 ? timeout : 1;
+	rslot->timeout_ms = (timeout_ms > 0) ? timeout_ms : 1000;
 	rslot->retries_left = retries;
-	rslot->deadline = rc_getmtime() + rslot->timeout;
+	rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
 	rslot->armed = 1;
 
 	out->rh = rh;
