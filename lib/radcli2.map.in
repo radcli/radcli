@@ -74,6 +74,7 @@ RADCLI2_@LIBMAJOR2@
 	radcli_avp_add_gigawords64_by_num;
 	radcli_avp_get_gigawords64_by_num;
 	radcli_request_new;
+	radcli_request_set_timeout;
 	radcli_request_perform;
 	radcli_request_done;
 	radcli_request_code;

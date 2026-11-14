@@ -241,7 +241,7 @@ struct radcli_reqreg_slot {
 	char server_name[128]; /* for log messages only */
 	unsigned short svc_port;
 	rc_type type;
-	int timeout; /* per-attempt, seconds */
+	int timeout_ms; /* per-attempt */
 	int retries_left;
 	double deadline; /* rc_getmtime() value of the next retransmit/timeout */
 	unsigned conn_gen; /* radcli2_priv_sess_gen() when last sent or queued */
@@ -363,7 +363,7 @@ int validate_message_authenticator(const uint8_t *recv_buffer, size_t length,
 int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			      char *server_name, unsigned short svc_port,
 			      char secret[MAX_SECRET_LENGTH + 1], int mgmt_secret,
-			      int timeout, int retries, int no_wait, rc_type type,
+			      int timeout_ms, int retries, int no_wait, rc_type type,
 			      const uint8_t *send_buf, int send_len,
 			      uint8_t *recv_buf, size_t recv_buf_cap, size_t *recv_len,
 			      uint8_t *out_code);
@@ -413,7 +413,7 @@ struct radcli_async_send_st {
 int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsigned short svc_port,
 				char secret[MAX_SECRET_LENGTH + 1], rc_type type,
 				const uint8_t *send_buf, int send_len,
-				int timeout, int retries, unsigned nonblock,
+				int timeout_ms, int retries, unsigned nonblock,
 				struct radcli_async_send_st *out);
 
 void radcli_transport_async_abort(struct radcli_async_send_st *st);
@@ -447,9 +447,16 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh);
 /* No longer public (radcli2.h). */
 int radcli2_priv_dae_send_watchdog(radcli_ctx *ctx);
 
+/*- Converts a configured radius_timeout (seconds) to the milliseconds the
+ * transport takes, capped rather than overflowing int. -*/
+static inline int rc_timeout_sec_to_ms(int sec)
+{
+	return (sec > (INT_MAX / 1000)) ? INT_MAX : (sec * 1000);
+}
+
 int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 		       char *server, uint16_t svc_port, char secret[MAX_SECRET_LENGTH + 1],
-		       int timeout, int retries, int no_wait, rc_type type,
+		       int timeout_ms, int retries, int no_wait, rc_type type,
 		       uint8_t *recv_buffer, size_t recv_buffer_cap, size_t *recv_len,
 		       unsigned char vector_out[AUTH_VECTOR_LEN], uint8_t *out_reply_code);
 

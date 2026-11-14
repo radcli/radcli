@@ -58,7 +58,7 @@ struct radcli_request_st {
 	char server[AUTH_ID_LEN + 1];
 	uint16_t svc_port;
 	char secret[MAX_SECRET_LENGTH + 1];
-	int timeout;
+	int timeout_ms;
 	int retries;
 	rc_type type;
 
@@ -179,7 +179,7 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	if (servers->secret[0] != NULL)
 		strlcpy(r->secret, servers->secret[0], sizeof(r->secret));
 
-	r->timeout = rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT);
+	r->timeout_ms = rc_timeout_sec_to_ms(rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT));
 	r->retries = rc_conf_int_id(rh, OPT_RADIUS_RETRIES);
 
 	r->rh = rh;
@@ -187,6 +187,32 @@ radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radc
 	r->send = send_copy;
 
 	return r;
+}
+
+/** @brief Override the timeout and retry count of one request.
+ *
+ * Replaces, for r only, the "radius_timeout" and "radius_retries" values
+ * radcli_request_new() read from the context; the context and its other
+ * requests are unaffected. They apply to every radcli_request_perform()
+ * mode as the configured values would, counted from that call. Establishing
+ * the context's shared TCP/TLS/DTLS connection still uses the configured
+ * "radius_timeout".
+ *
+ * @param r a request from radcli_request_new(), not yet performed.
+ * @param timeout_ms milliseconds to wait for a reply per attempt; must be
+ *  > 0.
+ * @param retries retransmissions after the first send; must be >= 0.
+ * @return 0 on success, -1 if r is NULL or already performed, or a value
+ *  is out of range.
+ */
+int radcli_request_set_timeout(radcli_request *r, int timeout_ms, int retries)
+{
+	if (r == NULL || r->performed || timeout_ms <= 0 || retries < 0)
+		return -1;
+
+	r->timeout_ms = timeout_ms;
+	r->retries = retries;
+	return 0;
 }
 
 /*- Builds a wire packet for (code, send) into send_buffer (capacity
@@ -298,7 +324,7 @@ int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *se
  * @param server the server to resolve and contact.
  * @param svc_port overrides the resolved port when non-zero.
  * @param secret the shared secret.
- * @param timeout per-attempt reply wait, in seconds.
+ * @param timeout_ms per-attempt reply wait, in milliseconds.
  * @param retries additional retransmit attempts after the first.
  * @param no_wait nonzero to send once and return without waiting for a
  *  reply.
@@ -316,7 +342,7 @@ int radcli_encode_request(rc_handle *rh, uint8_t code, const radcli_avp_list *se
  -*/
 int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 		       char *server, uint16_t svc_port, char secret[MAX_SECRET_LENGTH + 1],
-		       int timeout, int retries, int no_wait, rc_type type,
+		       int timeout_ms, int retries, int no_wait, rc_type type,
 		       uint8_t *recv_buffer, size_t recv_buffer_cap, size_t *recv_len,
 		       unsigned char vector_out[AUTH_VECTOR_LEN], uint8_t *out_reply_code)
 {
@@ -336,7 +362,7 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
 	}
 
 	result = radcli_transport_exchange(rh, NULL, server, svc_port,
-					   secret, 0, timeout, retries, no_wait, type,
+					   secret, 0, timeout_ms, retries, no_wait, type,
 					   send_buffer, total_length,
 					   recv_buffer, recv_buffer_cap, recv_len, out_reply_code);
 	radcli2_priv_reqreg_release(rh, slot);
@@ -408,7 +434,7 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 		}
 
 		result = radcli_transport_send_async(r->rh, slot, r->server, r->svc_port, r->secret,
-						     r->type, send_buffer, send_len, r->timeout, r->retries,
+						     r->type, send_buffer, send_len, r->timeout_ms, r->retries,
 						     (flags & RADCLI_REQUEST_SENDONLY_NONBLOCK) ==
 						     RADCLI_REQUEST_SENDONLY_NONBLOCK, &r->async);
 		if (result != OK_RC) {
@@ -419,7 +445,7 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 	}
 
 	result = radcli_do_exchange(r->rh, r->code, r->send, r->server, r->svc_port, r->secret,
-				    r->timeout, r->retries, 0, r->type,
+				    r->timeout_ms, r->retries, 0, r->type,
 				    recv_buffer, sizeof(recv_buffer), &recv_len, vector, &reply_code);
 
 	/* reply_code is set even for a reply that is then rejected; only a

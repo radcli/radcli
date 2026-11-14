@@ -168,7 +168,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 	SERVER *servers;
 	const radcli_attr_def *d_adt;
 	double start_time;
-	int timeout, retries;
+	int timeout_ms, retries;
 	int servernum, result = ERROR_RC;
 
 	if (rh == NULL || send == NULL)
@@ -198,7 +198,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 		return RADCLI_ERROR;
 	}
 
-	timeout = rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT);
+	timeout_ms = rc_timeout_sec_to_ms(rc_conf_int_id(rh, OPT_RADIUS_TIMEOUT));
 	retries = rc_conf_int_id(rh, OPT_RADIUS_RETRIES);
 
 	d_adt = radcli_dict_lookup_num(ctx, PW_ACCT_DELAY_TIME, 0);
@@ -244,7 +244,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 
 		result = radcli_do_exchange(rh, (uint8_t)code, attempt, server,
 					    servers->port[servernum], secret,
-					    timeout, retries, 0, type,
+					    timeout_ms, retries, 0, type,
 					    recv_buffer, sizeof(recv_buffer), &recv_len,
 					    vector, &reply_code);
 

@@ -624,6 +624,8 @@ typedef enum radcli_request_flags {
 
 radcli_request *radcli_request_new(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send);
 
+int radcli_request_set_timeout(radcli_request *r, int timeout_ms, int retries);
+
 int radcli_request_perform(radcli_request *r, unsigned flags);
 
 /* Poll-driven async progress for a request sent with RADCLI_REQUEST_SENDONLY:
