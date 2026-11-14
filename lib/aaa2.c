@@ -66,13 +66,13 @@
  * RADCLI_CODE_ACCOUNTING_REQUEST.
  * @param d_adt the Acct-Delay-Time attribute definition, or NULL if the
  * dictionary doesn't define it.
- * @param start_time the elapsed-time origin, in seconds, used to compute
- * Acct-Delay-Time.
+ * @param start_ms the elapsed-time origin, in rc_getmtime_ms() milliseconds,
+ * used to compute Acct-Delay-Time.
  * @return a newly allocated radcli_avp_list, or NULL on allocation failure.
  -*/
 static radcli_avp_list *build_attempt(const radcli_avp_list *send,
 				      radcli_code code,
-				      const radcli_attr_def *d_adt, double start_time)
+				      const radcli_attr_def *d_adt, int64_t start_ms)
 {
 	radcli_avp_list *attempt;
 	radcli_avp_iter it;
@@ -98,7 +98,7 @@ static radcli_avp_list *build_attempt(const radcli_avp_list *send,
 	}
 
 	if (code == RADCLI_CODE_ACCOUNTING_REQUEST && d_adt != NULL) {
-		uint32_t dtime = (uint32_t)(rc_getmtime() - start_time);
+		uint32_t dtime = (uint32_t)((rc_getmtime_ms() - start_ms) / 1000);
 
 		if (radcli_avp_add_uint32(attempt, d_adt, dtime) != 0) {
 			radcli_avp_list_free(attempt);
@@ -167,7 +167,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 	rc_type type;
 	SERVER *servers;
 	const radcli_attr_def *d_adt;
-	double start_time;
+	int64_t start_ms;
 	int timeout_ms, retries;
 	int servernum, result = ERROR_RC;
 
@@ -210,7 +210,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 	 * Acct-Delay-Time in send is folded in the same way
 	 * rc_fill_acct_pairs() folds one found already on the VALUE_PAIR
 	 * list: as an initial offset, not a value copied onto the wire as-is. */
-	start_time = rc_getmtime();
+	start_ms = rc_getmtime_ms();
 	if (code == RADCLI_CODE_ACCOUNTING_REQUEST && d_adt != NULL) {
 		const radcli_avp *existing = radcli_avp_get(send, d_adt, 0);
 
@@ -218,7 +218,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 			uint32_t v;
 
 			if (radcli_avp_get_uint32(existing, &v) == 0)
-				start_time -= v;
+				start_ms -= ((int64_t)v * 1000);
 		}
 	}
 
@@ -234,7 +234,7 @@ int radcli_aaa(radcli_ctx *ctx, radcli_code code, const radcli_avp_list *send,
 		radcli_avp_list *decoded = NULL;
 		int decode_ret = 0;
 
-		attempt = build_attempt(send, code, d_adt, start_time);
+		attempt = build_attempt(send, code, d_adt, start_ms);
 		if (attempt == NULL)
 			return RADCLI_ERROR;
 

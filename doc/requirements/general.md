@@ -742,7 +742,7 @@ review finding; the fix is `radcli_dict_lookup_num()` with that constant.
 `include/radcli/radcli.h` or `include/radcli/radcli2.h`** — the documented
 API surface — not merely listed in `lib/radcli.map`/`radcli2.map`. The map
 files additionally export a number of cross-translation-unit-only symbols
-(e.g. `radcli2_priv_*`, `rc_getmtime`, `rc_str2tm`, `rc_strlcpy`,
+(e.g. `radcli2_priv_*`, `rc_getmtime_ms`, `rc_str2tm`, `rc_strlcpy`,
 `rc_md5_calc`, `rc_getaddrinfo`, `rc_own_bind_addr`, `rc_get_random_byte`/
 `_bytes`) that are declared only in internal headers and are not part of the
 public API; these are documented per REQ-GEN-STYLE-006, not this

@@ -65,27 +65,26 @@ int rc_str2tm (char const *valstr, struct tm *tm)
 	return 0;
 }
 
-/*- Returns the current monotonic time as a double
+/*- Returns the current monotonic time in milliseconds.
  *
- * @return Get monotonic time seconds since some fixed start) expressed as
- * 	double-precision floating point number.
+ * @return milliseconds since an arbitrary fixed point, or -1 on failure.
  -*/
-double rc_getmtime(void)
+int64_t rc_getmtime_ms(void)
 {
 #ifdef HAVE_CLOCK_GETTIME
-    struct timespec timespec;
+	struct timespec timespec;
 
-    if (clock_gettime(CLOCK_MONOTONIC, &timespec) != 0)
-        return -1;
+	if (clock_gettime(CLOCK_MONOTONIC, &timespec) != 0)
+		return -1;
 
-    return timespec.tv_sec + ((double)timespec.tv_nsec) / 1000000000.0;
+	return ((int64_t)timespec.tv_sec * 1000) + (timespec.tv_nsec / 1000000);
 #else
-    struct timeval timev;
+	struct timeval timev;
 
-    if (gettimeofday(&timev, NULL) == -1)
-        return -1;
+	if (gettimeofday(&timev, NULL) == -1)
+		return -1;
 
-    return timev.tv_sec + ((double)timev.tv_usec) / 1000000.0;
+	return ((int64_t)timev.tv_sec * 1000) + (timev.tv_usec / 1000);
 #endif
 }
 

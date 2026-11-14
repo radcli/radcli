@@ -118,7 +118,7 @@ typedef struct rc_session {
 	 * for restart, until the attempt succeeds (REQ-NET-TEARDOWN-004). */
 	rc_sess_conn next;
 	unsigned phase;
-	double deadline; /* rc_getmtime() by which the attempt must complete */
+	int64_t deadline_ms; /* rc_getmtime_ms() by which the attempt must complete */
 	unsigned gen; /* counts attempts; 0 is never an attempt's */
 	/* Records radcli_ctx_dispatch() could not send at once, oldest first
 	 * (REQ-NET2-NET-005): at most SESS_SENDQ_SIZE copies, plus one

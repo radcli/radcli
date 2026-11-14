@@ -588,7 +588,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			socklen_t salen;
 			int recv_length;
 			struct pollfd pfd;
-			double deadline;
+			int64_t deadline_ms;
 
 			/* A retry waits again without resending over the stream
 			 * connection the request already went out on
@@ -622,11 +622,11 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 			/* Wait out this attempt's whole timeout for our own reply:
 			 * a reply that is not ours only continues the wait, it does
 			 * not end the attempt (REQ-NET-NET-010). */
-			deadline = rc_getmtime() + (timeout_ms / 1000.0);
+			deadline_ms = rc_getmtime_ms() + timeout_ms;
 			for (;;) {
-				double remaining = deadline - rc_getmtime();
+				int remaining_ms = rc_ms_until(deadline_ms);
 
-				if (remaining <= 0)
+				if (remaining_ms == 0)
 					break;
 				/* A record GnuTLS already holds raises no POLLIN. */
 				if (!(on_session && radcli2_priv_sess_pending(rh))) {
@@ -634,7 +634,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 					pfd.events = POLLIN;
 					pfd.revents = 0;
 					do {
-						result = poll(&pfd, 1, (int)(remaining * 1000) + 1);
+						result = poll(&pfd, 1, remaining_ms);
 					} while (result == -1 && errno == EINTR);
 
 					if (result == -1) {
@@ -915,7 +915,7 @@ void radcli2_priv_reqreg_release(rc_handle *rh, int slot)
 int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 {
 	struct radcli_reqreg *reg;
-	double earliest = 0;
+	int64_t earliest_ms = 0;
 	int have_one = 0;
 	int i;
 
@@ -926,8 +926,8 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
 		if (!reg->slots[i].valid || !reg->slots[i].armed)
 			continue;
-		if (!have_one || reg->slots[i].deadline < earliest) {
-			earliest = reg->slots[i].deadline;
+		if (!have_one || reg->slots[i].deadline_ms < earliest_ms) {
+			earliest_ms = reg->slots[i].deadline_ms;
 			have_one = 1;
 		}
 	}
@@ -935,13 +935,7 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 	if (!have_one)
 		return -1;
 
-	{
-		double remaining = earliest - rc_getmtime();
-
-		if (remaining <= 0)
-			return 0;
-		return (int)(remaining * 1000) + 1;
-	}
+	return rc_ms_until(earliest_ms);
 }
 
 /*- Hand one received reply to the in-flight registry slot it answers,
@@ -1150,7 +1144,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 	for (i = 0; i < RADCLI_CTX_MAX_INFLIGHT; i++) {
 		struct radcli_reqreg_slot *rslot = &reg->slots[i];
 
-		if (!rslot->valid || !rslot->armed || rc_getmtime() < rslot->deadline)
+		if (!rslot->valid || !rslot->armed || rc_getmtime_ms() < rslot->deadline_ms)
 			continue;
 
 		if (rslot->retries_left-- <= 0) {
@@ -1185,7 +1179,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 							     RADSEC_SEND_RETRANSMIT, i);
 				rslot->conn_gen = radcli2_priv_sess_gen(rh);
 			}
-			rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
+			rslot->deadline_ms = rc_getmtime_ms() + rslot->timeout_ms;
 			continue;
 		}
 
@@ -1215,7 +1209,7 @@ void radcli2_priv_reqreg_service_timeouts(rc_handle *rh)
 				continue; /* leave deadline as-is; retried again next call */
 			}
 
-			rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
+			rslot->deadline_ms = rc_getmtime_ms() + rslot->timeout_ms;
 		}
 	}
 }
@@ -1431,7 +1425,7 @@ int radcli_transport_send_async(rc_handle *rh, int slot, char *server_name, unsi
 	rslot->type = type;
 	rslot->timeout_ms = (timeout_ms > 0) ? timeout_ms : 1000;
 	rslot->retries_left = retries;
-	rslot->deadline = rc_getmtime() + (rslot->timeout_ms / 1000.0);
+	rslot->deadline_ms = rc_getmtime_ms() + rslot->timeout_ms;
 	rslot->armed = 1;
 
 	out->rh = rh;

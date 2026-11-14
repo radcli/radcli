@@ -14,7 +14,7 @@ sources:
   - lib/tls.c
   - lib/tls.h
   - lib/config.c (default_socket_funcs, rc_apply_config, rc_get_socket_type)
-  - lib/util.c (rc_set_netns, rc_reset_netns, rc_memcmp, rc_getmtime)
+  - lib/util.c (rc_set_netns, rc_reset_netns, rc_memcmp, rc_getmtime_ms)
   - include/radcli/radcli.h (rc_send_server, rc_send_server_ctx, SEND_DATA, rc_socket_type, rc_send_status, rc_tls_fd, rc_check_tls, rc_get_socket_type)
   - include/includes.h (rc_sockets_override, struct rc_conf's so/so_type fields)
   - lib/radcli.map.in
@@ -218,11 +218,11 @@ ID is received (`rc_check_reply()` returns anything other than `BADRESPID_RC`) o
 `retries` exceeds `data->retries`, at which point it MUST return `TIMEOUT_RC`. On a TCP or TLS
 session, a repetition only waits again, without sending, while the connection the request went
 out on is still up (REQ-NET-NET-022). The remaining
-timeout budget within a single attempt MUST be computed from `rc_getmtime()` (monotonic clock
+timeout budget within a single attempt MUST be computed from `rc_getmtime_ms()` (monotonic clock
 when available), decremented across `EINTR`-interrupted `poll()` calls, not restarted.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:682-793; lib/util.c:69-85 (`rc_getmtime`)
+**Source:** lib/sendserver.c:682-793; lib/util.c (`rc_getmtime_ms`)
 **Acceptance:** [NET] unit, local — a UDP server that never replies causes exactly
 `data->retries + 1` transmissions before `TIMEOUT_RC`; interrupting the process with a
 caller-installed non-fatal signal during `poll()` does not extend the wait past `data->timeout`.

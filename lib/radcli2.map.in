@@ -142,7 +142,7 @@ RADCLI2_PRIVATE
 	radcli2_priv_tls_fd;
 	rc_get_random_byte;
 	rc_get_random_bytes;
-	rc_getmtime;
+	rc_getmtime_ms;
 	rc_conf_int_id;
 	rc_str2tm;
 	rc_strlcpy;
