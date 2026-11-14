@@ -1010,6 +1010,24 @@ its header declaration's parameter names. `ninja -C build` with
 `-Ddocs=enabled` produces no "Can't find param name" warnings.
 **Links:** REQ-GEN-STYLE-005
 
+### REQ-GEN-STYLE-014 — Expressions combining different operators MUST parenthesize their sub-expressions
+
+**Requirement:** In added or modified C code, an operand built with a
+different binary or ternary operator than the one applied to it MUST be
+parenthesized, so evaluation order is readable without recalling C's
+precedence rules: `(sec > (INT_MAX / 1000)) ? INT_MAX : (sec * 1000)`.
+Exempt: chains of the same operator or of only `+`/`-`; comparisons and `!`
+as operands of `&&`/`||` (but `&&` and `||` are not mixed unparenthesized);
+and the right-hand side of an assignment as a whole. Untouched code MUST NOT
+be reformatted solely for this rule.
+**Strength:** MUST; MUST NOT (reformatting untouched code)
+**Status:** DERIVED
+**Source:** maintainer request 2026-11-14
+**Acceptance:** [STYLE] code-review — an added or modified expression
+violating the rule, or a hunk only adding such parentheses to untouched
+code, is a review finding.
+**Links:** REQ-GEN-STYLE-003
+
 ---
 
 ## TEST — test quality requirements
