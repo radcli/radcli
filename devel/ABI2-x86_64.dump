@@ -129,7 +129,7 @@
     <elf-symbol name='rc_get_random_byte' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_get_random_bytes' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_getaddrinfo' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
-    <elf-symbol name='rc_getmtime' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+    <elf-symbol name='rc_getmtime_ms' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_md5_calc' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_own_bind_addr' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
     <elf-symbol name='rc_str2tm' version='RADCLI2_PRIVATE' is-default-version='yes' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
@@ -372,667 +372,667 @@
       <parameter type-id='type-id-52'/>
       <return type-id='type-id-43'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e032523a342fca9d' id='type-id-107'>
-      <return type-id='type-id-71'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='8a9cf351738d1456' id='type-id-108'>
+    <function-type size-in-bits='64' hash='8a9cf351738d1456' id='type-id-107'>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-108'/>
       <parameter type-id='type-id-43'/>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e26fb04c9cb3e691' id='type-id-111'>
+    <function-type size-in-bits='64' hash='e26fb04c9cb3e691' id='type-id-110'>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-108'/>
       <parameter type-id='type-id-43'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='c840f2fff8bb35df' id='type-id-112'>
+    <function-type size-in-bits='64' hash='c840f2fff8bb35df' id='type-id-111'>
       <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-113'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-112'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='6c9a92da467d0098' id='type-id-114'>
+    <function-type size-in-bits='64' hash='6c9a92da467d0098' id='type-id-113'>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='7a99187af6cc7444' id='type-id-115'>
+    <function-type size-in-bits='64' hash='7a99187af6cc7444' id='type-id-114'>
       <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-115'/>
       <parameter type-id='type-id-116'/>
-      <parameter type-id='type-id-117'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='501fffcf440bc1a1' id='type-id-118'>
+    <function-type size-in-bits='64' hash='501fffcf440bc1a1' id='type-id-117'>
       <parameter type-id='type-id-40'/>
-      <parameter type-id='type-id-119'/>
-      <parameter type-id='type-id-117'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='ef6c936e7953feda' id='type-id-120'>
-      <parameter type-id='type-id-40'/>
-      <parameter type-id='type-id-121'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='2fdc8f8db1b706a3' id='type-id-122'>
-      <parameter type-id='type-id-40'/>
-      <parameter type-id='type-id-123'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='354cf93d30d88d88' id='type-id-124'>
-      <parameter type-id='type-id-40'/>
-      <parameter type-id='type-id-125'/>
-      <parameter type-id='type-id-126'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='ca547c49bbc69faa' id='type-id-127'>
-      <parameter type-id='type-id-43'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='3840ecdae4a572fb' id='type-id-128'>
-      <parameter type-id='type-id-43'/>
-      <parameter type-id='type-id-46'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-118'/>
       <parameter type-id='type-id-116'/>
-      <parameter type-id='type-id-117'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='226df34c532268e5' id='type-id-129'>
-      <parameter type-id='type-id-43'/>
-      <parameter type-id='type-id-46'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-119'/>
-      <parameter type-id='type-id-117'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='ef6c936e7953feda' id='type-id-119'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-120'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d8e8c59aac5f7e88' id='type-id-130'>
-      <parameter type-id='type-id-43'/>
-      <parameter type-id='type-id-46'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-121'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='2fdc8f8db1b706a3' id='type-id-121'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-122'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='bb7bccc68c7fa5ee' id='type-id-131'>
-      <parameter type-id='type-id-43'/>
-      <parameter type-id='type-id-46'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-123'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='ba3deadfb2918a97' id='type-id-132'>
-      <parameter type-id='type-id-43'/>
-      <parameter type-id='type-id-46'/>
-      <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-93'/>
+    <function-type size-in-bits='64' hash='354cf93d30d88d88' id='type-id-123'>
+      <parameter type-id='type-id-40'/>
+      <parameter type-id='type-id-124'/>
       <parameter type-id='type-id-125'/>
-      <parameter type-id='type-id-126'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='a1cfc086bfcfc413' id='type-id-133'>
+    <function-type size-in-bits='64' hash='ca547c49bbc69faa' id='type-id-126'>
+      <parameter type-id='type-id-43'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='3840ecdae4a572fb' id='type-id-127'>
+      <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-115'/>
+      <parameter type-id='type-id-116'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='226df34c532268e5' id='type-id-128'>
+      <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-118'/>
+      <parameter type-id='type-id-116'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='d8e8c59aac5f7e88' id='type-id-129'>
+      <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-120'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='bb7bccc68c7fa5ee' id='type-id-130'>
+      <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-122'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='ba3deadfb2918a97' id='type-id-131'>
+      <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-46'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-93'/>
+      <parameter type-id='type-id-124'/>
+      <parameter type-id='type-id-125'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='a1cfc086bfcfc413' id='type-id-132'>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-121'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-120'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='867db4af1f57ad01' id='type-id-134'>
+    <function-type size-in-bits='64' hash='867db4af1f57ad01' id='type-id-133'>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-43'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-123'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-122'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='30cb86c0c4c5969d' id='type-id-135'>
+    <function-type size-in-bits='64' hash='30cb86c0c4c5969d' id='type-id-134'>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-43'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-123'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-122'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='143aa9075a770289' id='type-id-136'>
+    <function-type size-in-bits='64' hash='143aa9075a770289' id='type-id-135'>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-95'/>
-      <parameter type-id='type-id-137'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-136'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='65a6075e3219ba4b' id='type-id-138'>
+    <function-type size-in-bits='64' hash='65a6075e3219ba4b' id='type-id-137'>
       <parameter type-id='type-id-49'/>
-      <parameter type-id='type-id-139'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-138'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='4ce5aec1948e0ce8' id='type-id-140'>
+    <function-type size-in-bits='64' hash='4ce5aec1948e0ce8' id='type-id-139'>
       <parameter type-id='type-id-49'/>
-      <parameter type-id='type-id-121'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-120'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d1189f3fce937d77' id='type-id-141'>
+    <function-type size-in-bits='64' hash='d1189f3fce937d77' id='type-id-140'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='cbe3ffcebc6f5792' id='type-id-142'>
+    <function-type size-in-bits='64' hash='cbe3ffcebc6f5792' id='type-id-141'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-23'/>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-143'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-142'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ac8538d1c0efb6dd' id='type-id-144'>
+    <function-type size-in-bits='64' hash='ac8538d1c0efb6dd' id='type-id-143'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-43'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-61'/>
-      <parameter type-id='type-id-145'/>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-126'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-144'/>
+      <parameter type-id='type-id-108'/>
+      <parameter type-id='type-id-125'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='5796207c41a21d6a' id='type-id-146'>
+    <function-type size-in-bits='64' hash='5796207c41a21d6a' id='type-id-145'>
       <parameter type-id='type-id-55'/>
-      <parameter type-id='type-id-147'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-146'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e5bc0b822f239055' id='type-id-148'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='e5bc0b822f239055' id='type-id-147'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e5c22c02002da33a' id='type-id-150'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='e5c22c02002da33a' id='type-id-149'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-34'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='341374ea49a535fe' id='type-id-151'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='341374ea49a535fe' id='type-id-150'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-152'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-151'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b9a775c166fc1308' id='type-id-153'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='b9a775c166fc1308' id='type-id-152'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-152'/>
+      <parameter type-id='type-id-151'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b4a6083f3bcc0050' id='type-id-154'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='b4a6083f3bcc0050' id='type-id-153'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
       <parameter type-id='type-id-93'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='298a05d26ebd4e07' id='type-id-155'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='298a05d26ebd4e07' id='type-id-154'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-156'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-155'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='cbf98bb64735db2f' id='type-id-157'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='cbf98bb64735db2f' id='type-id-156'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='a9e4404962bb4d66' id='type-id-159'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='a9e4404962bb4d66' id='type-id-158'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='12e867a98e2fa0f9' id='type-id-160'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='12e867a98e2fa0f9' id='type-id-159'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='3422f64d00b62bea' id='type-id-161'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='3422f64d00b62bea' id='type-id-160'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-34'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b45ec5d1fe9f3585' id='type-id-162'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='b45ec5d1fe9f3585' id='type-id-161'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-152'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-151'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='8f062b0d5a73d85f' id='type-id-163'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='8f062b0d5a73d85f' id='type-id-162'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-152'/>
+      <parameter type-id='type-id-151'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='c4812461ef3fa49f' id='type-id-164'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='c4812461ef3fa49f' id='type-id-163'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='73e38717ff94e122' id='type-id-165'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='73e38717ff94e122' id='type-id-164'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-156'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-155'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ae2a2c0e97e4e232' id='type-id-166'>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='ae2a2c0e97e4e232' id='type-id-165'>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-46'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='32ccda9993c2058e' id='type-id-167'>
-      <parameter type-id='type-id-168'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='32ccda9993c2058e' id='type-id-166'>
+      <parameter type-id='type-id-167'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='bf68fb9a4a744ae0' id='type-id-169'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='bf68fb9a4a744ae0' id='type-id-168'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='5f77a0ece6814aa6' id='type-id-170'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='5f77a0ece6814aa6' id='type-id-169'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='3f1f0ded8757cc94' id='type-id-171'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='3f1f0ded8757cc94' id='type-id-170'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-171'/>
+      <parameter type-id='type-id-108'/>
+      <parameter type-id='type-id-125'/>
       <parameter type-id='type-id-172'/>
-      <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-126'/>
-      <parameter type-id='type-id-173'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='1f3d48d5664b0133' id='type-id-174'>
-      <parameter type-id='type-id-168'/>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='1f3d48d5664b0133' id='type-id-173'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-37'/>
-      <parameter type-id='type-id-156'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-155'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='af27edaedd085dff' id='type-id-175'>
-      <parameter type-id='type-id-168'/>
-      <parameter type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='af27edaedd085dff' id='type-id-174'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-148'/>
       <parameter type-id='type-id-93'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-156'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-155'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b7c8b26fe90a751f' id='type-id-176'>
-      <parameter type-id='type-id-168'/>
-      <parameter type-id='type-id-177'/>
+    <function-type size-in-bits='64' hash='b7c8b26fe90a751f' id='type-id-175'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-176'/>
       <parameter type-id='type-id-43'/>
+      <parameter type-id='type-id-177'/>
       <parameter type-id='type-id-178'/>
-      <parameter type-id='type-id-179'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='97959da96e1bb40a' id='type-id-180'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='97959da96e1bb40a' id='type-id-179'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-95'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='a94e414d9d65661c' id='type-id-181'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='a94e414d9d65661c' id='type-id-180'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-95'/>
-      <parameter type-id='type-id-182'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-181'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='9d3e7c15a568d475' id='type-id-183'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='9d3e7c15a568d475' id='type-id-182'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-88'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='a21b0b768ea90a05' id='type-id-184'>
-      <parameter type-id='type-id-168'/>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-109'/>
+    <function-type size-in-bits='64' hash='a21b0b768ea90a05' id='type-id-183'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-108'/>
       <parameter type-id='type-id-61'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='f00570d22a23a33c' id='type-id-185'>
-      <parameter type-id='type-id-186'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='f00570d22a23a33c' id='type-id-184'>
+      <parameter type-id='type-id-185'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='4ae138fac504fc73' id='type-id-187'>
-      <parameter type-id='type-id-186'/>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-109'/>
+    <function-type size-in-bits='64' hash='4ae138fac504fc73' id='type-id-186'>
+      <parameter type-id='type-id-185'/>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-108'/>
       <parameter type-id='type-id-58'/>
+      <parameter type-id='type-id-187'/>
       <parameter type-id='type-id-188'/>
-      <parameter type-id='type-id-189'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='71fad11acda0eed5' id='type-id-190'>
-      <parameter type-id='type-id-191'/>
-      <parameter type-id='type-id-110'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='71fad11acda0eed5' id='type-id-189'>
+      <parameter type-id='type-id-190'/>
+      <parameter type-id='type-id-109'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='225f24b454a1bfbf' id='type-id-192'>
-      <parameter type-id='type-id-191'/>
-      <parameter type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='225f24b454a1bfbf' id='type-id-191'>
+      <parameter type-id='type-id-190'/>
+      <parameter type-id='type-id-109'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-126'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-125'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='1d750e02e098aad1' id='type-id-193'>
-      <parameter type-id='type-id-191'/>
+    <function-type size-in-bits='64' hash='1d750e02e098aad1' id='type-id-192'>
+      <parameter type-id='type-id-190'/>
       <parameter type-id='type-id-93'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d0f52ddfe15b36bb' id='type-id-194'>
-      <parameter type-id='type-id-195'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='d0f52ddfe15b36bb' id='type-id-193'>
+      <parameter type-id='type-id-194'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='4cf0a7246fd7aaa5' id='type-id-196'>
-      <parameter type-id='type-id-195'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-110'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='4cf0a7246fd7aaa5' id='type-id-195'>
+      <parameter type-id='type-id-194'/>
+      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-109'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='355ecc693e084224' id='type-id-197'>
-      <parameter type-id='type-id-195'/>
+    <function-type size-in-bits='64' hash='355ecc693e084224' id='type-id-196'>
+      <parameter type-id='type-id-194'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='f77335ccd85436ba' id='type-id-198'>
-      <parameter type-id='type-id-199'/>
-      <return type-id='type-id-110'/>
+    <function-type size-in-bits='64' hash='f77335ccd85436ba' id='type-id-197'>
+      <parameter type-id='type-id-198'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='8e9b66b1442115df' id='type-id-200'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='8e9b66b1442115df' id='type-id-199'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-18'/>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-201'/>
+      <parameter type-id='type-id-200'/>
       <parameter type-id='type-id-25'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-143'/>
-      <parameter type-id='type-id-61'/>
-      <parameter type-id='type-id-110'/>
-      <parameter type-id='type-id-145'/>
       <parameter type-id='type-id-109'/>
-      <parameter type-id='type-id-126'/>
-      <parameter type-id='type-id-145'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-142'/>
+      <parameter type-id='type-id-61'/>
+      <parameter type-id='type-id-109'/>
+      <parameter type-id='type-id-144'/>
+      <parameter type-id='type-id-108'/>
+      <parameter type-id='type-id-125'/>
+      <parameter type-id='type-id-144'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e1608acd669e89df' id='type-id-202'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='e1608acd669e89df' id='type-id-201'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-25'/>
       <parameter type-id='type-id-9'/>
-      <parameter type-id='type-id-110'/>
-      <return type-id='type-id-110'/>
+      <parameter type-id='type-id-109'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b1db5f36e08ce3e5' id='type-id-203'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='b1db5f36e08ce3e5' id='type-id-202'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-31'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='533dd66f23695b55' id='type-id-204'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='533dd66f23695b55' id='type-id-203'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-110'/>
-      <return type-id='type-id-110'/>
-    </function-type>
-    <function-type size-in-bits='64' hash='2151a91ad0d71abd' id='type-id-205'>
-      <parameter type-id='type-id-199'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-109'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='2723fcc964d4207d' id='type-id-206'>
-      <parameter type-id='type-id-207'/>
+    <function-type size-in-bits='64' hash='2151a91ad0d71abd' id='type-id-204'>
+      <parameter type-id='type-id-198'/>
+      <parameter type-id='type-id-31'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-109'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='2723fcc964d4207d' id='type-id-205'>
+      <parameter type-id='type-id-206'/>
       <parameter type-id='type-id-58'/>
-      <return type-id='type-id-110'/>
+      <return type-id='type-id-109'/>
     </function-type>
-    <function-type size-in-bits='64' hash='cabf223a37e565ba' id='type-id-208'>
+    <function-type size-in-bits='64' hash='6c3e4e5f4f13e23d' id='type-id-207'>
+      <return type-id='type-id-208'/>
+    </function-type>
+    <function-type size-in-bits='64' hash='cabf223a37e565ba' id='type-id-209'>
       <parameter type-id='type-id-37'/>
-      <return type-id='type-id-209'/>
+      <return type-id='type-id-210'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ebd9ed93701faeab' id='type-id-210'>
+    <function-type size-in-bits='64' hash='ebd9ed93701faeab' id='type-id-211'>
       <parameter type-id='type-id-43'/>
-      <return type-id='type-id-211'/>
+      <return type-id='type-id-212'/>
     </function-type>
-    <function-type size-in-bits='64' hash='e76d4d1360788a25' id='type-id-212'>
-      <return type-id='type-id-149'/>
+    <function-type size-in-bits='64' hash='e76d4d1360788a25' id='type-id-213'>
+      <return type-id='type-id-148'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ffbd35923cd9935a' id='type-id-213'>
+    <function-type size-in-bits='64' hash='ffbd35923cd9935a' id='type-id-214'>
       <parameter type-id='type-id-49'/>
-      <return type-id='type-id-177'/>
+      <return type-id='type-id-176'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d85c2033a39929e8' id='type-id-214'>
+    <function-type size-in-bits='64' hash='d85c2033a39929e8' id='type-id-215'>
       <parameter type-id='type-id-52'/>
-      <return type-id='type-id-177'/>
+      <return type-id='type-id-176'/>
     </function-type>
-    <function-type size-in-bits='64' hash='3abe7241246a77ff' id='type-id-215'>
+    <function-type size-in-bits='64' hash='3abe7241246a77ff' id='type-id-216'>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-168'/>
+      <return type-id='type-id-167'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ed169f3d662d00f7' id='type-id-216'>
+    <function-type size-in-bits='64' hash='ed169f3d662d00f7' id='type-id-217'>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-168'/>
+      <return type-id='type-id-167'/>
     </function-type>
-    <function-type size-in-bits='64' hash='00f2c5868efe8d5e' id='type-id-217'>
-      <parameter type-id='type-id-168'/>
+    <function-type size-in-bits='64' hash='00f2c5868efe8d5e' id='type-id-218'>
+      <parameter type-id='type-id-167'/>
       <parameter type-id='type-id-88'/>
-      <return type-id='type-id-186'/>
+      <return type-id='type-id-185'/>
     </function-type>
-    <function-type size-in-bits='64' hash='eae07ed131f948d4' id='type-id-218'>
+    <function-type size-in-bits='64' hash='eae07ed131f948d4' id='type-id-219'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
       <return type-id='type-id-81'/>
     </function-type>
-    <function-type size-in-bits='64' hash='3672fef32f16adb3' id='type-id-219'>
+    <function-type size-in-bits='64' hash='3672fef32f16adb3' id='type-id-220'>
       <parameter type-id='type-id-55'/>
-      <parameter type-id='type-id-156'/>
+      <parameter type-id='type-id-155'/>
       <return type-id='type-id-81'/>
     </function-type>
-    <function-type size-in-bits='64' hash='beccf6a8df897bbe' id='type-id-220'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='beccf6a8df897bbe' id='type-id-221'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-93'/>
-      <parameter type-id='type-id-110'/>
+      <parameter type-id='type-id-109'/>
       <parameter type-id='type-id-93'/>
       <return type-id='type-id-81'/>
     </function-type>
-    <function-type size-in-bits='64' hash='dc7a0dd674722c99' id='type-id-221'>
+    <function-type size-in-bits='64' hash='dc7a0dd674722c99' id='type-id-222'>
       <parameter type-id='type-id-55'/>
-      <parameter type-id='type-id-156'/>
-      <return type-id='type-id-222'/>
+      <parameter type-id='type-id-155'/>
+      <return type-id='type-id-223'/>
     </function-type>
-    <function-type size-in-bits='64' hash='94bd3bfeffed9c5b' id='type-id-223'>
+    <function-type size-in-bits='64' hash='94bd3bfeffed9c5b' id='type-id-224'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
       <return type-id='type-id-83'/>
     </function-type>
-    <function-type size-in-bits='64' hash='b6931e2557ae9143' id='type-id-224'>
+    <function-type size-in-bits='64' hash='b6931e2557ae9143' id='type-id-225'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-93'/>
       <return type-id='type-id-83'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d5a01e460804a49c' id='type-id-225'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='d5a01e460804a49c' id='type-id-226'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-93'/>
       <return type-id='type-id-83'/>
     </function-type>
-    <function-type size-in-bits='64' hash='1f1711dedc4b6897' id='type-id-226'>
+    <function-type size-in-bits='64' hash='1f1711dedc4b6897' id='type-id-227'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-31'/>
       <return type-id='type-id-85'/>
     </function-type>
-    <function-type size-in-bits='64' hash='c880cf6667a2642a' id='type-id-227'>
+    <function-type size-in-bits='64' hash='c880cf6667a2642a' id='type-id-228'>
       <parameter type-id='type-id-55'/>
       <parameter type-id='type-id-93'/>
       <return type-id='type-id-85'/>
     </function-type>
-    <function-type size-in-bits='64' hash='df77b33f13701258' id='type-id-228'>
-      <parameter type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='df77b33f13701258' id='type-id-229'>
+      <parameter type-id='type-id-198'/>
       <parameter type-id='type-id-31'/>
       <parameter type-id='type-id-93'/>
       <return type-id='type-id-85'/>
     </function-type>
-    <function-type size-in-bits='64' hash='798aa2851109eb69' id='type-id-229'>
-      <parameter type-id='type-id-168'/>
-      <parameter type-id='type-id-177'/>
+    <function-type size-in-bits='64' hash='798aa2851109eb69' id='type-id-230'>
+      <parameter type-id='type-id-167'/>
+      <parameter type-id='type-id-176'/>
       <parameter type-id='type-id-43'/>
-      <return type-id='type-id-195'/>
+      <return type-id='type-id-194'/>
     </function-type>
-    <function-type size-in-bits='64' hash='f50d43e3c2b9777b' id='type-id-230'>
+    <function-type size-in-bits='64' hash='f50d43e3c2b9777b' id='type-id-231'>
       <parameter type-id='type-id-31'/>
-      <parameter type-id='type-id-110'/>
-      <return type-id='type-id-199'/>
+      <parameter type-id='type-id-109'/>
+      <return type-id='type-id-198'/>
     </function-type>
-    <function-type size-in-bits='64' hash='d4d78b7ecfda3075' id='type-id-231'>
-      <parameter type-id='type-id-199'/>
-      <return type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='d4d78b7ecfda3075' id='type-id-232'>
+      <parameter type-id='type-id-198'/>
+      <return type-id='type-id-198'/>
     </function-type>
-    <function-type size-in-bits='64' hash='aff543a8b3ef79b0' id='type-id-232'>
-      <return type-id='type-id-199'/>
+    <function-type size-in-bits='64' hash='aff543a8b3ef79b0' id='type-id-233'>
+      <return type-id='type-id-198'/>
     </function-type>
-    <function-type size-in-bits='64' hash='1221355f4c325ccc' id='type-id-233'>
+    <function-type size-in-bits='64' hash='1221355f4c325ccc' id='type-id-234'>
       <return type-id='type-id-62'/>
     </function-type>
-    <function-type size-in-bits='64' hash='30f07ba608e94a37' id='type-id-234'>
-      <parameter type-id='type-id-149'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='30f07ba608e94a37' id='type-id-235'>
+      <parameter type-id='type-id-148'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='5e9b1581022d82a9' id='type-id-236'>
-      <parameter type-id='type-id-168'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='5e9b1581022d82a9' id='type-id-237'>
+      <parameter type-id='type-id-167'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='7930b18c352ab96f' id='type-id-237'>
-      <parameter type-id='type-id-186'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='7930b18c352ab96f' id='type-id-238'>
+      <parameter type-id='type-id-185'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='83b75d83a5d3d83c' id='type-id-238'>
-      <parameter type-id='type-id-186'/>
-      <parameter type-id='type-id-239'/>
-      <parameter type-id='type-id-158'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='83b75d83a5d3d83c' id='type-id-239'>
+      <parameter type-id='type-id-185'/>
+      <parameter type-id='type-id-240'/>
+      <parameter type-id='type-id-157'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='2f7d2e5fb2d075b9' id='type-id-240'>
-      <parameter type-id='type-id-191'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='2f7d2e5fb2d075b9' id='type-id-241'>
+      <parameter type-id='type-id-190'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='fc7f467598c6fb0b' id='type-id-241'>
-      <parameter type-id='type-id-191'/>
-      <parameter type-id='type-id-158'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='fc7f467598c6fb0b' id='type-id-242'>
+      <parameter type-id='type-id-190'/>
+      <parameter type-id='type-id-157'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ca4d7674a8ec8ce4' id='type-id-242'>
-      <parameter type-id='type-id-195'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='ca4d7674a8ec8ce4' id='type-id-243'>
+      <parameter type-id='type-id-194'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='cd2f4de09d9b7497' id='type-id-243'>
-      <parameter type-id='type-id-199'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='cd2f4de09d9b7497' id='type-id-244'>
+      <parameter type-id='type-id-198'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='f60bb82fe16d8e4e' id='type-id-244'>
-      <parameter type-id='type-id-199'/>
-      <parameter type-id='type-id-139'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='f60bb82fe16d8e4e' id='type-id-245'>
+      <parameter type-id='type-id-198'/>
+      <parameter type-id='type-id-138'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='ab48a13807bd9c97' id='type-id-245'>
-      <parameter type-id='type-id-246'/>
+    <function-type size-in-bits='64' hash='ab48a13807bd9c97' id='type-id-246'>
+      <parameter type-id='type-id-247'/>
       <parameter type-id='type-id-64'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-235'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <function-type size-in-bits='64' hash='877fc8ab888df2bd' id='type-id-247'>
-      <parameter type-id='type-id-158'/>
-      <parameter type-id='type-id-109'/>
-      <return type-id='type-id-235'/>
+    <function-type size-in-bits='64' hash='877fc8ab888df2bd' id='type-id-248'>
+      <parameter type-id='type-id-157'/>
+      <parameter type-id='type-id-108'/>
+      <return type-id='type-id-236'/>
     </function-type>
-    <pointer-type-def type-id='type-id-32' size-in-bits='64' hash='86cf07ee5d87d15c' id='type-id-116'/>
-    <pointer-type-def type-id='type-id-152' size-in-bits='64' hash='773c39da0c2e2da2' id='type-id-119'/>
-    <type-decl name='int' size-in-bits='32' hash='09d17c08f594edc7' id='type-id-110'/>
-    <pointer-type-def type-id='type-id-110' size-in-bits='64' hash='d546a866961a5bb9' id='type-id-173'/>
-    <type-decl name='long int' size-in-bits='64' hash='8aa1e1a2ab2c2d3e' id='type-id-182'/>
-    <pointer-type-def type-id='type-id-182' size-in-bits='64' hash='d546a866961a5bb9#1' id='type-id-137'/>
-    <pointer-type-def type-id='type-id-248' size-in-bits='64' hash='a9c3373bec84fc66' id='type-id-172'/>
-    <pointer-type-def type-id='type-id-211' size-in-bits='64' hash='737fcce64faf2d32' id='type-id-104'/>
-    <pointer-type-def type-id='type-id-41' size-in-bits='64' hash='192529a1ee32a3af' id='type-id-149'/>
-    <pointer-type-def type-id='type-id-149' size-in-bits='64' hash='f9677bc800c253b4' id='type-id-179'/>
-    <pointer-type-def type-id='type-id-177' size-in-bits='64' hash='8b5362d60dede227' id='type-id-178'/>
-    <pointer-type-def type-id='type-id-44' size-in-bits='64' hash='144e0911c87a8c6f' id='type-id-168'/>
-    <pointer-type-def type-id='type-id-249' size-in-bits='64' hash='b09f9f135d85f6ef' id='type-id-186'/>
-    <pointer-type-def type-id='type-id-47' size-in-bits='64' hash='2ca4c98b09bbe79f' id='type-id-191'/>
-    <pointer-type-def type-id='type-id-191' size-in-bits='64' hash='d1cc5b4c745d6bf6' id='type-id-189'/>
-    <pointer-type-def type-id='type-id-250' size-in-bits='64' hash='d3fe8fd8dd4f212c' id='type-id-81'/>
-    <pointer-type-def type-id='type-id-251' size-in-bits='64' hash='33cef2bed431ccbc' id='type-id-222'/>
-    <pointer-type-def type-id='type-id-252' size-in-bits='64' hash='461293c520fb4022' id='type-id-83'/>
-    <pointer-type-def type-id='type-id-253' size-in-bits='64' hash='0d897602ef78f505' id='type-id-85'/>
-    <pointer-type-def type-id='type-id-50' size-in-bits='64' hash='2f732c27826ec15c' id='type-id-195'/>
-    <pointer-type-def type-id='type-id-53' size-in-bits='64' hash='22be0110b0ba06d1' id='type-id-199'/>
-    <type-decl name='short int' size-in-bits='16' hash='2e5e87528799cdbb' id='type-id-254'/>
-    <pointer-type-def type-id='type-id-109' size-in-bits='64' hash='fce61c10660e5f2d' id='type-id-126'/>
-    <pointer-type-def type-id='type-id-56' size-in-bits='64' hash='68f5a5315f4a101f' id='type-id-207'/>
-    <pointer-type-def type-id='type-id-255' size-in-bits='64' hash='8a84f406f581a1ed' id='type-id-139'/>
+    <pointer-type-def type-id='type-id-32' size-in-bits='64' hash='86cf07ee5d87d15c' id='type-id-115'/>
+    <pointer-type-def type-id='type-id-151' size-in-bits='64' hash='773c39da0c2e2da2' id='type-id-118'/>
+    <type-decl name='int' size-in-bits='32' hash='09d17c08f594edc7' id='type-id-109'/>
+    <pointer-type-def type-id='type-id-109' size-in-bits='64' hash='d546a866961a5bb9' id='type-id-172'/>
+    <type-decl name='long int' size-in-bits='64' hash='8aa1e1a2ab2c2d3e' id='type-id-181'/>
+    <pointer-type-def type-id='type-id-181' size-in-bits='64' hash='d546a866961a5bb9#1' id='type-id-136'/>
+    <pointer-type-def type-id='type-id-249' size-in-bits='64' hash='a9c3373bec84fc66' id='type-id-171'/>
+    <pointer-type-def type-id='type-id-212' size-in-bits='64' hash='737fcce64faf2d32' id='type-id-104'/>
+    <pointer-type-def type-id='type-id-41' size-in-bits='64' hash='192529a1ee32a3af' id='type-id-148'/>
+    <pointer-type-def type-id='type-id-148' size-in-bits='64' hash='f9677bc800c253b4' id='type-id-178'/>
+    <pointer-type-def type-id='type-id-176' size-in-bits='64' hash='8b5362d60dede227' id='type-id-177'/>
+    <pointer-type-def type-id='type-id-44' size-in-bits='64' hash='144e0911c87a8c6f' id='type-id-167'/>
+    <pointer-type-def type-id='type-id-250' size-in-bits='64' hash='b09f9f135d85f6ef' id='type-id-185'/>
+    <pointer-type-def type-id='type-id-47' size-in-bits='64' hash='2ca4c98b09bbe79f' id='type-id-190'/>
+    <pointer-type-def type-id='type-id-190' size-in-bits='64' hash='d1cc5b4c745d6bf6' id='type-id-188'/>
+    <pointer-type-def type-id='type-id-251' size-in-bits='64' hash='d3fe8fd8dd4f212c' id='type-id-81'/>
+    <pointer-type-def type-id='type-id-252' size-in-bits='64' hash='33cef2bed431ccbc' id='type-id-223'/>
+    <pointer-type-def type-id='type-id-253' size-in-bits='64' hash='461293c520fb4022' id='type-id-83'/>
+    <pointer-type-def type-id='type-id-254' size-in-bits='64' hash='0d897602ef78f505' id='type-id-85'/>
+    <pointer-type-def type-id='type-id-50' size-in-bits='64' hash='2f732c27826ec15c' id='type-id-194'/>
+    <pointer-type-def type-id='type-id-53' size-in-bits='64' hash='22be0110b0ba06d1' id='type-id-198'/>
+    <type-decl name='short int' size-in-bits='16' hash='2e5e87528799cdbb' id='type-id-255'/>
+    <pointer-type-def type-id='type-id-108' size-in-bits='64' hash='fce61c10660e5f2d' id='type-id-125'/>
+    <pointer-type-def type-id='type-id-56' size-in-bits='64' hash='68f5a5315f4a101f' id='type-id-206'/>
+    <pointer-type-def type-id='type-id-256' size-in-bits='64' hash='8a84f406f581a1ed' id='type-id-138'/>
     <class-decl name='addrinfo' is-struct='yes' visibility='default' size-in-bits='384' hash='4a22c554e757bf90' id='type-id-21'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ai_flags' type-id='type-id-110' visibility='default'/>
+        <var-decl name='ai_flags' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='ai_family' type-id='type-id-110' visibility='default'/>
+        <var-decl name='ai_family' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='ai_socktype' type-id='type-id-110' visibility='default'/>
+        <var-decl name='ai_socktype' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='ai_protocol' type-id='type-id-110' visibility='default'/>
+        <var-decl name='ai_protocol' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='ai_addrlen' type-id='type-id-188' visibility='default'/>
+        <var-decl name='ai_addrlen' type-id='type-id-187' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='ai_addr' type-id='type-id-207' visibility='default'/>
+        <var-decl name='ai_addr' type-id='type-id-206' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='256'>
         <var-decl name='ai_canonname' type-id='type-id-25' visibility='default'/>
@@ -1046,10 +1046,10 @@
         <var-decl name='name' type-id='type-id-29' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='value' type-id='type-id-156' visibility='default'/>
+        <var-decl name='value' type-id='type-id-155' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='640'>
-        <var-decl name='type' type-id='type-id-256' visibility='default'/>
+        <var-decl name='type' type-id='type-id-257' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='704'>
         <var-decl name='next' type-id='type-id-66' visibility='default'/>
@@ -1082,47 +1082,47 @@
     </class-decl>
     <class-decl name='in6_addr' is-struct='yes' visibility='default' size-in-bits='128' hash='9b78f5c2eb3b43d4' id='type-id-32'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='__in6_u' type-id='type-id-257' visibility='default'/>
+        <var-decl name='__in6_u' type-id='type-id-258' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='in_addr' is-struct='yes' visibility='default' size-in-bits='32' hash='8775977849537926' id='type-id-152'>
+    <class-decl name='in_addr' is-struct='yes' visibility='default' size-in-bits='32' hash='8775977849537926' id='type-id-151'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='s_addr' type-id='type-id-258' visibility='default'/>
+        <var-decl name='s_addr' type-id='type-id-259' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='pollfd' is-struct='yes' visibility='default' size-in-bits='64' hash='d8394d3565fdca9d' id='type-id-248'>
+    <class-decl name='pollfd' is-struct='yes' visibility='default' size-in-bits='64' hash='d8394d3565fdca9d' id='type-id-249'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='fd' type-id='type-id-110' visibility='default'/>
+        <var-decl name='fd' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='events' type-id='type-id-254' visibility='default'/>
+        <var-decl name='events' type-id='type-id-255' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='48'>
-        <var-decl name='revents' type-id='type-id-254' visibility='default'/>
+        <var-decl name='revents' type-id='type-id-255' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='pw_auth_hdr' is-struct='yes' visibility='default' is-declaration-only='yes' hash='6dce8612e721f03d' id='type-id-259'/>
-    <class-decl name='radcli_attr_def_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='232214e3258d91e4' id='type-id-260'/>
-    <class-decl name='radcli_avp_list_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='144d88166b65cd38' id='type-id-261'/>
-    <class-decl name='radcli_avp_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='1c3f2d0d148b89a4' id='type-id-262'/>
-    <class-decl name='radcli_dae_request_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='e274daa4b072b2f2' id='type-id-263'/>
-    <class-decl name='radcli_dae_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='906cf9ac976aa4f9' id='type-id-264'/>
-    <class-decl name='radcli_dict_attr' is-struct='yes' visibility='default' is-declaration-only='yes' hash='7fb7c3e4422171ab' id='type-id-250'/>
-    <class-decl name='radcli_dict_flags' is-struct='yes' visibility='default' is-declaration-only='yes' hash='b9b069f14a6632b2' id='type-id-251'/>
-    <class-decl name='radcli_dict_value' is-struct='yes' visibility='default' is-declaration-only='yes' hash='e8193cc1dbfc1245' id='type-id-252'/>
-    <class-decl name='radcli_dict_vendor' is-struct='yes' visibility='default' is-declaration-only='yes' hash='f61efee4b65d8253' id='type-id-253'/>
-    <class-decl name='radcli_request_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='cb03d6a870ab2286' id='type-id-265'/>
-    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='a87c84a6d03d54eb' id='type-id-266'/>
-    <class-decl name='rc_conf' is-struct='yes' visibility='default' is-declaration-only='yes' hash='3bd567b1f3cd8b3f' id='type-id-267'/>
-    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' hash='cc30e6144ce4604e' id='type-id-268'>
+    <class-decl name='pw_auth_hdr' is-struct='yes' visibility='default' is-declaration-only='yes' hash='6dce8612e721f03d' id='type-id-260'/>
+    <class-decl name='radcli_attr_def_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='232214e3258d91e4' id='type-id-261'/>
+    <class-decl name='radcli_avp_list_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='144d88166b65cd38' id='type-id-262'/>
+    <class-decl name='radcli_avp_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='1c3f2d0d148b89a4' id='type-id-263'/>
+    <class-decl name='radcli_dae_request_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='e274daa4b072b2f2' id='type-id-264'/>
+    <class-decl name='radcli_dae_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='906cf9ac976aa4f9' id='type-id-265'/>
+    <class-decl name='radcli_dict_attr' is-struct='yes' visibility='default' is-declaration-only='yes' hash='7fb7c3e4422171ab' id='type-id-251'/>
+    <class-decl name='radcli_dict_flags' is-struct='yes' visibility='default' is-declaration-only='yes' hash='b9b069f14a6632b2' id='type-id-252'/>
+    <class-decl name='radcli_dict_value' is-struct='yes' visibility='default' is-declaration-only='yes' hash='e8193cc1dbfc1245' id='type-id-253'/>
+    <class-decl name='radcli_dict_vendor' is-struct='yes' visibility='default' is-declaration-only='yes' hash='f61efee4b65d8253' id='type-id-254'/>
+    <class-decl name='radcli_request_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='cb03d6a870ab2286' id='type-id-266'/>
+    <class-decl name='rc_aaa_ctx_st' is-struct='yes' visibility='default' is-declaration-only='yes' hash='a87c84a6d03d54eb' id='type-id-267'/>
+    <class-decl name='rc_conf' is-struct='yes' visibility='default' is-declaration-only='yes' hash='3bd567b1f3cd8b3f' id='type-id-268'/>
+    <class-decl name='server' is-struct='yes' visibility='default' size-in-bits='1728' hash='cc30e6144ce4604e' id='type-id-269'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='max' type-id='type-id-110' visibility='default'/>
+        <var-decl name='max' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
         <var-decl name='name' type-id='type-id-26' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='576'>
-        <var-decl name='port' type-id='type-id-269' visibility='default'/>
+        <var-decl name='port' type-id='type-id-270' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='704'>
         <var-decl name='secret' type-id='type-id-26' visibility='default'/>
@@ -1133,15 +1133,15 @@
     </class-decl>
     <class-decl name='sockaddr' is-struct='yes' visibility='default' size-in-bits='128' hash='719a570e64be517a' id='type-id-56'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='sa_family' type-id='type-id-270' visibility='default'/>
+        <var-decl name='sa_family' type-id='type-id-271' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='16'>
         <var-decl name='sa_data' type-id='type-id-28' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='sockaddr_storage' is-struct='yes' visibility='default' size-in-bits='1024' hash='609d0de1f507def0' id='type-id-255'>
+    <class-decl name='sockaddr_storage' is-struct='yes' visibility='default' size-in-bits='1024' hash='609d0de1f507def0' id='type-id-256'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='ss_family' type-id='type-id-270' visibility='default'/>
+        <var-decl name='ss_family' type-id='type-id-271' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='16'>
         <var-decl name='__ss_padding' type-id='type-id-27' visibility='default'/>
@@ -1150,42 +1150,42 @@
         <var-decl name='__ss_align' type-id='type-id-1' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='tm' is-struct='yes' visibility='default' size-in-bits='448' hash='7a49764cee86f718' id='type-id-271'>
+    <class-decl name='tm' is-struct='yes' visibility='default' size-in-bits='448' hash='7a49764cee86f718' id='type-id-272'>
       <data-member access='public' layout-offset-in-bits='0'>
-        <var-decl name='tm_sec' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_sec' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='32'>
-        <var-decl name='tm_min' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_min' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='64'>
-        <var-decl name='tm_hour' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_hour' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='96'>
-        <var-decl name='tm_mday' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_mday' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='128'>
-        <var-decl name='tm_mon' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_mon' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='160'>
-        <var-decl name='tm_year' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_year' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='192'>
-        <var-decl name='tm_wday' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_wday' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='224'>
-        <var-decl name='tm_yday' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_yday' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='256'>
-        <var-decl name='tm_isdst' type-id='type-id-110' visibility='default'/>
+        <var-decl name='tm_isdst' type-id='type-id-109' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='320'>
-        <var-decl name='tm_gmtoff' type-id='type-id-182' visibility='default'/>
+        <var-decl name='tm_gmtoff' type-id='type-id-181' visibility='default'/>
       </data-member>
       <data-member access='public' layout-offset-in-bits='384'>
         <var-decl name='tm_zone' type-id='type-id-31' visibility='default'/>
       </data-member>
     </class-decl>
-    <class-decl name='__anonymous_struct__' is-struct='yes' visibility='default' size-in-bits='128' is-anonymous='yes' hash='c8b4683e2a13cc5a' id='type-id-272'>
+    <class-decl name='__anonymous_struct__' is-struct='yes' visibility='default' size-in-bits='128' is-anonymous='yes' hash='c8b4683e2a13cc5a' id='type-id-273'>
       <data-member access='public' layout-offset-in-bits='0'>
         <var-decl name='list' type-id='type-id-43' visibility='default'/>
       </data-member>
@@ -1193,79 +1193,81 @@
         <var-decl name='cur' type-id='type-id-40' visibility='default'/>
       </data-member>
     </class-decl>
-    <pointer-type-def type-id='type-id-271' size-in-bits='64' hash='f9ab6282501c316b' id='type-id-113'/>
-    <typedef-decl name='AUTH_HDR' type-id='type-id-259' hash='6dce8612e721f03d' id='type-id-8'/>
+    <pointer-type-def type-id='type-id-272' size-in-bits='64' hash='f9ab6282501c316b' id='type-id-112'/>
+    <typedef-decl name='AUTH_HDR' type-id='type-id-260' hash='6dce8612e721f03d' id='type-id-8'/>
     <typedef-decl name='DICT_ATTR' type-id='type-id-65' size-in-bits='768' hash='e81879c97b5b1648' id='type-id-10'/>
     <typedef-decl name='DICT_VALUE' type-id='type-id-67' size-in-bits='1152' hash='c057eb3dd977259c' id='type-id-12'/>
     <typedef-decl name='DICT_VENDOR' type-id='type-id-69' size-in-bits='640' hash='b3c818b6f8877582' id='type-id-14'/>
-    <typedef-decl name='RC_AAA_CTX' type-id='type-id-266' hash='a87c84a6d03d54eb' id='type-id-16'/>
-    <typedef-decl name='SERVER' type-id='type-id-268' size-in-bits='1728' hash='863791e4c2451d73' id='type-id-19'/>
-    <typedef-decl name='__socklen_t' type-id='type-id-88' size-in-bits='32' hash='01b265816e53dd71' id='type-id-273'/>
-    <typedef-decl name='__uint16_t' type-id='type-id-201' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-274'/>
-    <typedef-decl name='__uint32_t' type-id='type-id-88' size-in-bits='32' hash='01b265816e53dd71' id='type-id-275'/>
-    <typedef-decl name='__uint64_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-276'/>
-    <typedef-decl name='__uint8_t' type-id='type-id-62' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-277'/>
-    <typedef-decl name='in_addr_t' type-id='type-id-93' size-in-bits='32' hash='01b265816e53dd71' id='type-id-258'/>
-    <typedef-decl name='radcli_attr_def' type-id='type-id-260' hash='232214e3258d91e4' id='type-id-35'/>
-    <typedef-decl name='radcli_attr_type' type-id='type-id-73' size-in-bits='32' alignment-in-bits='32' hash='f55fe087836d52e6' id='type-id-209'/>
-    <typedef-decl name='radcli_avp' type-id='type-id-262' hash='1c3f2d0d148b89a4' id='type-id-38'/>
-    <typedef-decl name='radcli_avp_iter' type-id='type-id-272' size-in-bits='128' hash='46a9f019fc4b7590' id='type-id-211'/>
-    <typedef-decl name='radcli_avp_list' type-id='type-id-261' hash='144d88166b65cd38' id='type-id-41'/>
-    <typedef-decl name='radcli_code' type-id='type-id-75' size-in-bits='32' alignment-in-bits='32' hash='b99b1ecd3e768af3' id='type-id-177'/>
-    <typedef-decl name='radcli_ctx' type-id='type-id-267' hash='3bd567b1f3cd8b3f' id='type-id-44'/>
-    <typedef-decl name='radcli_dae' type-id='type-id-264' hash='906cf9ac976aa4f9' id='type-id-249'/>
-    <typedef-decl name='radcli_dae_handler' type-id='type-id-278' size-in-bits='64' hash='bf4c77a60853e053' id='type-id-239'/>
-    <typedef-decl name='radcli_dae_request' type-id='type-id-263' hash='e274daa4b072b2f2' id='type-id-47'/>
+    <typedef-decl name='RC_AAA_CTX' type-id='type-id-267' hash='a87c84a6d03d54eb' id='type-id-16'/>
+    <typedef-decl name='SERVER' type-id='type-id-269' size-in-bits='1728' hash='863791e4c2451d73' id='type-id-19'/>
+    <typedef-decl name='__int64_t' type-id='type-id-181' size-in-bits='64' hash='567f7af3a2d00f27' id='type-id-274'/>
+    <typedef-decl name='__socklen_t' type-id='type-id-88' size-in-bits='32' hash='01b265816e53dd71' id='type-id-275'/>
+    <typedef-decl name='__uint16_t' type-id='type-id-200' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-276'/>
+    <typedef-decl name='__uint32_t' type-id='type-id-88' size-in-bits='32' hash='01b265816e53dd71' id='type-id-277'/>
+    <typedef-decl name='__uint64_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-278'/>
+    <typedef-decl name='__uint8_t' type-id='type-id-62' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-279'/>
+    <typedef-decl name='in_addr_t' type-id='type-id-93' size-in-bits='32' hash='01b265816e53dd71' id='type-id-259'/>
+    <typedef-decl name='int64_t' type-id='type-id-274' size-in-bits='64' hash='567f7af3a2d00f27' id='type-id-208'/>
+    <typedef-decl name='radcli_attr_def' type-id='type-id-261' hash='232214e3258d91e4' id='type-id-35'/>
+    <typedef-decl name='radcli_attr_type' type-id='type-id-73' size-in-bits='32' alignment-in-bits='32' hash='f55fe087836d52e6' id='type-id-210'/>
+    <typedef-decl name='radcli_avp' type-id='type-id-263' hash='1c3f2d0d148b89a4' id='type-id-38'/>
+    <typedef-decl name='radcli_avp_iter' type-id='type-id-273' size-in-bits='128' hash='46a9f019fc4b7590' id='type-id-212'/>
+    <typedef-decl name='radcli_avp_list' type-id='type-id-262' hash='144d88166b65cd38' id='type-id-41'/>
+    <typedef-decl name='radcli_code' type-id='type-id-75' size-in-bits='32' alignment-in-bits='32' hash='b99b1ecd3e768af3' id='type-id-176'/>
+    <typedef-decl name='radcli_ctx' type-id='type-id-268' hash='3bd567b1f3cd8b3f' id='type-id-44'/>
+    <typedef-decl name='radcli_dae' type-id='type-id-265' hash='906cf9ac976aa4f9' id='type-id-250'/>
+    <typedef-decl name='radcli_dae_handler' type-id='type-id-280' size-in-bits='64' hash='bf4c77a60853e053' id='type-id-240'/>
+    <typedef-decl name='radcli_dae_request' type-id='type-id-264' hash='e274daa4b072b2f2' id='type-id-47'/>
     <typedef-decl name='radcli_opt_id' type-id='type-id-76' size-in-bits='32' alignment-in-bits='32' hash='aef4e1ec953d07a1' id='type-id-95'/>
-    <typedef-decl name='radcli_request' type-id='type-id-265' hash='cb03d6a870ab2286' id='type-id-50'/>
-    <typedef-decl name='rc_attr_type' type-id='type-id-77' size-in-bits='32' alignment-in-bits='32' hash='0d2fbbc27d377e47' id='type-id-256'/>
-    <typedef-decl name='rc_handle' type-id='type-id-267' hash='3bd567b1f3cd8b3f' id='type-id-53'/>
-    <typedef-decl name='rc_option_id' type-id='type-id-79' size-in-bits='32' alignment-in-bits='32' hash='facc5efb92e7360b' id='type-id-147'/>
-    <typedef-decl name='rc_type' type-id='type-id-78' size-in-bits='32' alignment-in-bits='32' hash='bee98eb5551fc942' id='type-id-143'/>
-    <typedef-decl name='sa_family_t' type-id='type-id-201' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-270'/>
-    <typedef-decl name='size_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-109'/>
-    <typedef-decl name='socklen_t' type-id='type-id-273' size-in-bits='32' hash='01b265816e53dd71' id='type-id-188'/>
-    <typedef-decl name='uint16_t' type-id='type-id-274' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-279'/>
-    <typedef-decl name='uint32_t' type-id='type-id-275' size-in-bits='32' hash='01b265816e53dd71' id='type-id-93'/>
-    <typedef-decl name='uint64_t' type-id='type-id-276' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-156'/>
-    <typedef-decl name='uint8_t' type-id='type-id-277' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-59'/>
-    <array-type-def dimensions='1' type-id='type-id-279' size-in-bits='128' hash='876e7726a843c12a' id='type-id-269'>
+    <typedef-decl name='radcli_request' type-id='type-id-266' hash='cb03d6a870ab2286' id='type-id-50'/>
+    <typedef-decl name='rc_attr_type' type-id='type-id-77' size-in-bits='32' alignment-in-bits='32' hash='0d2fbbc27d377e47' id='type-id-257'/>
+    <typedef-decl name='rc_handle' type-id='type-id-268' hash='3bd567b1f3cd8b3f' id='type-id-53'/>
+    <typedef-decl name='rc_option_id' type-id='type-id-79' size-in-bits='32' alignment-in-bits='32' hash='facc5efb92e7360b' id='type-id-146'/>
+    <typedef-decl name='rc_type' type-id='type-id-78' size-in-bits='32' alignment-in-bits='32' hash='bee98eb5551fc942' id='type-id-142'/>
+    <typedef-decl name='sa_family_t' type-id='type-id-200' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-271'/>
+    <typedef-decl name='size_t' type-id='type-id-1' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-108'/>
+    <typedef-decl name='socklen_t' type-id='type-id-275' size-in-bits='32' hash='01b265816e53dd71' id='type-id-187'/>
+    <typedef-decl name='uint16_t' type-id='type-id-276' size-in-bits='16' hash='012767b19cd3b7f4' id='type-id-281'/>
+    <typedef-decl name='uint32_t' type-id='type-id-277' size-in-bits='32' hash='01b265816e53dd71' id='type-id-93'/>
+    <typedef-decl name='uint64_t' type-id='type-id-278' size-in-bits='64' hash='8b230c0ebd12548b' id='type-id-155'/>
+    <typedef-decl name='uint8_t' type-id='type-id-279' size-in-bits='8' hash='7948234ee9eb1041' id='type-id-59'/>
+    <array-type-def dimensions='1' type-id='type-id-281' size-in-bits='128' hash='876e7726a843c12a' id='type-id-270'>
       <subrange length='8' lower-bound='0' upper-bound='7' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6e87a8ff484907ad' id='type-id-7'/>
     </array-type-def>
-    <pointer-type-def type-id='type-id-93' size-in-bits='64' hash='e0052ce3dc4c319c' id='type-id-121'/>
-    <array-type-def dimensions='1' type-id='type-id-93' size-in-bits='128' hash='7862ab2a4a69ef93' id='type-id-280'>
+    <pointer-type-def type-id='type-id-93' size-in-bits='64' hash='e0052ce3dc4c319c' id='type-id-120'/>
+    <array-type-def dimensions='1' type-id='type-id-93' size-in-bits='128' hash='7862ab2a4a69ef93' id='type-id-282'>
       <subrange length='4' lower-bound='0' upper-bound='3' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='cee611f4a73e486c' id='type-id-5'/>
     </array-type-def>
-    <pointer-type-def type-id='type-id-156' size-in-bits='64' hash='b7047e26270e9fce' id='type-id-123'/>
-    <pointer-type-def type-id='type-id-59' size-in-bits='64' hash='23767c3e41bf1927' id='type-id-145'/>
-    <array-type-def dimensions='1' type-id='type-id-59' size-in-bits='128' hash='cc6c216b700057da' id='type-id-281'>
+    <pointer-type-def type-id='type-id-155' size-in-bits='64' hash='b7047e26270e9fce' id='type-id-122'/>
+    <pointer-type-def type-id='type-id-59' size-in-bits='64' hash='23767c3e41bf1927' id='type-id-144'/>
+    <array-type-def dimensions='1' type-id='type-id-59' size-in-bits='128' hash='cc6c216b700057da' id='type-id-283'>
       <subrange length='16' lower-bound='0' upper-bound='15' type-id='type-id-1' size-in-bits='64' is-anonymous='yes' hash='6c35b1e999eba398' id='type-id-4'/>
     </array-type-def>
-    <union-decl name='__anonymous_union__' visibility='default' size-in-bits='128' is-anonymous='yes' hash='6275f1e34dba21fc' id='type-id-257'>
+    <union-decl name='__anonymous_union__' visibility='default' size-in-bits='128' is-anonymous='yes' hash='6275f1e34dba21fc' id='type-id-258'>
       <data-member access='public'>
-        <var-decl name='__u6_addr8' type-id='type-id-281' visibility='default'/>
+        <var-decl name='__u6_addr8' type-id='type-id-283' visibility='default'/>
       </data-member>
       <data-member access='public'>
-        <var-decl name='__u6_addr16' type-id='type-id-269' visibility='default'/>
+        <var-decl name='__u6_addr16' type-id='type-id-270' visibility='default'/>
       </data-member>
       <data-member access='public'>
-        <var-decl name='__u6_addr32' type-id='type-id-280' visibility='default'/>
+        <var-decl name='__u6_addr32' type-id='type-id-282' visibility='default'/>
       </data-member>
     </union-decl>
     <type-decl name='unnamed-enum-underlying-type-32' size-in-bits='32' alignment-in-bits='32' is-anonymous='yes' hash='c6ed5e1365fd2b09' id='type-id-74'/>
     <type-decl name='unsigned char' size-in-bits='8' hash='6ebac62b3366db68' id='type-id-62'/>
-    <pointer-type-def type-id='type-id-62' size-in-bits='64' hash='daf9679977094cab' id='type-id-246'/>
+    <pointer-type-def type-id='type-id-62' size-in-bits='64' hash='daf9679977094cab' id='type-id-247'/>
     <type-decl name='unsigned int' size-in-bits='32' hash='e66b43f97c38e87a' id='type-id-88'/>
-    <pointer-type-def type-id='type-id-88' size-in-bits='64' hash='bf1f3a522fae2fbf' id='type-id-117'/>
+    <pointer-type-def type-id='type-id-88' size-in-bits='64' hash='bf1f3a522fae2fbf' id='type-id-116'/>
     <type-decl name='unsigned long int' size-in-bits='64' hash='da551c1631705dfe' id='type-id-1'/>
-    <type-decl name='unsigned short int' size-in-bits='16' hash='e3133321c12b1361' id='type-id-201'/>
-    <type-decl name='void' hash='8dcbc64750c3d4e3' id='type-id-235'/>
-    <pointer-type-def type-id='type-id-241' size-in-bits='64' hash='6730f77b71891430' id='type-id-278'/>
-    <pointer-type-def type-id='type-id-235' hash='19e246ce75ee6a42' id='type-id-158'/>
-    <pointer-type-def type-id='type-id-158' size-in-bits='64' hash='19174d54b48463ce' id='type-id-125'/>
+    <type-decl name='unsigned short int' size-in-bits='16' hash='e3133321c12b1361' id='type-id-200'/>
+    <type-decl name='void' hash='8dcbc64750c3d4e3' id='type-id-236'/>
+    <pointer-type-def type-id='type-id-242' size-in-bits='64' hash='6730f77b71891430' id='type-id-280'/>
+    <pointer-type-def type-id='type-id-236' hash='19e246ce75ee6a42' id='type-id-157'/>
+    <pointer-type-def type-id='type-id-157' size-in-bits='64' hash='19174d54b48463ce' id='type-id-124'/>
   </abi-types>
   <abi-instr address-size='64' path='../lib/aaa2.c' language='LANG_C99'>
-      <function-decl name='radcli_aaa' type-id='type-id-176' mangled-name='radcli_aaa' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_aaa@@RADCLI2_1'/>
+      <function-decl name='radcli_aaa' type-id='type-id-175' mangled-name='radcli_aaa' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_aaa@@RADCLI2_1'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/avp.c' language='LANG_C99'>
       <function-decl name='radcli_avp_get_cstr' type-id='type-id-91' mangled-name='radcli_avp_get_cstr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_cstr@@RADCLI2_1'/>
@@ -1274,97 +1276,97 @@
       <function-decl name='radcli_avp_get' type-id='type-id-101' mangled-name='radcli_avp_get' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get@@RADCLI2_1'/>
       <function-decl name='radcli_avp_get_by_num' type-id='type-id-102' mangled-name='radcli_avp_get_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_by_num@@RADCLI2_1'/>
       <function-decl name='radcli_avp_iter_next' type-id='type-id-103' mangled-name='radcli_avp_iter_next' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_iter_next@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_bytes' type-id='type-id-157' mangled-name='radcli_avp_add_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_bytes@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_bytes_by_num' type-id='type-id-166' mangled-name='radcli_avp_add_bytes_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_bytes_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_gigawords64' type-id='type-id-174' mangled-name='radcli_avp_add_gigawords64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_gigawords64@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_gigawords64_by_num' type-id='type-id-175' mangled-name='radcli_avp_add_gigawords64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_gigawords64_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip4' type-id='type-id-151' mangled-name='radcli_avp_add_ip4' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip4_by_num' type-id='type-id-162' mangled-name='radcli_avp_add_ip4_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip4prefix' type-id='type-id-153' mangled-name='radcli_avp_add_ip4prefix' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4prefix@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip4prefix_by_num' type-id='type-id-163' mangled-name='radcli_avp_add_ip4prefix_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4prefix_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip6' type-id='type-id-150' mangled-name='radcli_avp_add_ip6' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip6@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_ip6_by_num' type-id='type-id-161' mangled-name='radcli_avp_add_ip6_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip6_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_str' type-id='type-id-148' mangled-name='radcli_avp_add_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_str@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_str_by_num' type-id='type-id-160' mangled-name='radcli_avp_add_str_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_str_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_uint32' type-id='type-id-154' mangled-name='radcli_avp_add_uint32' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint32@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_uint32_by_num' type-id='type-id-164' mangled-name='radcli_avp_add_uint32_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint32_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_uint64' type-id='type-id-155' mangled-name='radcli_avp_add_uint64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint64@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_uint64_by_num' type-id='type-id-165' mangled-name='radcli_avp_add_uint64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint64_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_add_username' type-id='type-id-159' mangled-name='radcli_avp_add_username' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_username@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_concat_str' type-id='type-id-108' mangled-name='radcli_avp_concat_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_concat_str@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_concat_str_by_num' type-id='type-id-111' mangled-name='radcli_avp_concat_str_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_concat_str_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_encode' type-id='type-id-144' mangled-name='radcli_avp_encode' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_encode@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_avp_get_bytes' type-id='type-id-124' mangled-name='radcli_avp_get_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_bytes@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_bytes_by_num' type-id='type-id-132' mangled-name='radcli_avp_get_bytes_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_bytes_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_gigawords64' type-id='type-id-134' mangled-name='radcli_avp_get_gigawords64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_gigawords64@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_gigawords64_by_num' type-id='type-id-135' mangled-name='radcli_avp_get_gigawords64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_gigawords64_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_ip4prefix' type-id='type-id-118' mangled-name='radcli_avp_get_ip4prefix' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip4prefix@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_ip4prefix_by_num' type-id='type-id-129' mangled-name='radcli_avp_get_ip4prefix_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip4prefix_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_ip6' type-id='type-id-115' mangled-name='radcli_avp_get_ip6' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip6@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_ip6_by_num' type-id='type-id-128' mangled-name='radcli_avp_get_ip6_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip6_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_uint32' type-id='type-id-120' mangled-name='radcli_avp_get_uint32' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint32@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_uint32_by_num' type-id='type-id-130' mangled-name='radcli_avp_get_uint32_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint32_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_uint64' type-id='type-id-122' mangled-name='radcli_avp_get_uint64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint64@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_get_uint64_by_num' type-id='type-id-131' mangled-name='radcli_avp_get_uint64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint64_by_num@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_list_error' type-id='type-id-127' mangled-name='radcli_avp_list_error' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_error@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_list_iter' type-id='type-id-210' mangled-name='radcli_avp_list_iter' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_iter@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_list_new' type-id='type-id-212' mangled-name='radcli_avp_list_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_new@@RADCLI2_1'/>
-      <function-decl name='radcli_avp_list_free' type-id='type-id-234' mangled-name='radcli_avp_list_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_free@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_bytes' type-id='type-id-156' mangled-name='radcli_avp_add_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_bytes@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_bytes_by_num' type-id='type-id-165' mangled-name='radcli_avp_add_bytes_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_bytes_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_gigawords64' type-id='type-id-173' mangled-name='radcli_avp_add_gigawords64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_gigawords64@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_gigawords64_by_num' type-id='type-id-174' mangled-name='radcli_avp_add_gigawords64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_gigawords64_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip4' type-id='type-id-150' mangled-name='radcli_avp_add_ip4' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip4_by_num' type-id='type-id-161' mangled-name='radcli_avp_add_ip4_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip4prefix' type-id='type-id-152' mangled-name='radcli_avp_add_ip4prefix' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4prefix@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip4prefix_by_num' type-id='type-id-162' mangled-name='radcli_avp_add_ip4prefix_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip4prefix_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip6' type-id='type-id-149' mangled-name='radcli_avp_add_ip6' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip6@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_ip6_by_num' type-id='type-id-160' mangled-name='radcli_avp_add_ip6_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_ip6_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_str' type-id='type-id-147' mangled-name='radcli_avp_add_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_str@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_str_by_num' type-id='type-id-159' mangled-name='radcli_avp_add_str_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_str_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_uint32' type-id='type-id-153' mangled-name='radcli_avp_add_uint32' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint32@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_uint32_by_num' type-id='type-id-163' mangled-name='radcli_avp_add_uint32_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint32_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_uint64' type-id='type-id-154' mangled-name='radcli_avp_add_uint64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint64@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_uint64_by_num' type-id='type-id-164' mangled-name='radcli_avp_add_uint64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_uint64_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_add_username' type-id='type-id-158' mangled-name='radcli_avp_add_username' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_add_username@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_concat_str' type-id='type-id-107' mangled-name='radcli_avp_concat_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_concat_str@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_concat_str_by_num' type-id='type-id-110' mangled-name='radcli_avp_concat_str_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_concat_str_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_encode' type-id='type-id-143' mangled-name='radcli_avp_encode' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_encode@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_avp_get_bytes' type-id='type-id-123' mangled-name='radcli_avp_get_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_bytes@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_bytes_by_num' type-id='type-id-131' mangled-name='radcli_avp_get_bytes_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_bytes_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_gigawords64' type-id='type-id-133' mangled-name='radcli_avp_get_gigawords64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_gigawords64@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_gigawords64_by_num' type-id='type-id-134' mangled-name='radcli_avp_get_gigawords64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_gigawords64_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_ip4prefix' type-id='type-id-117' mangled-name='radcli_avp_get_ip4prefix' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip4prefix@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_ip4prefix_by_num' type-id='type-id-128' mangled-name='radcli_avp_get_ip4prefix_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip4prefix_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_ip6' type-id='type-id-114' mangled-name='radcli_avp_get_ip6' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip6@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_ip6_by_num' type-id='type-id-127' mangled-name='radcli_avp_get_ip6_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_ip6_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_uint32' type-id='type-id-119' mangled-name='radcli_avp_get_uint32' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint32@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_uint32_by_num' type-id='type-id-129' mangled-name='radcli_avp_get_uint32_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint32_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_uint64' type-id='type-id-121' mangled-name='radcli_avp_get_uint64' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint64@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_get_uint64_by_num' type-id='type-id-130' mangled-name='radcli_avp_get_uint64_by_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_get_uint64_by_num@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_list_error' type-id='type-id-126' mangled-name='radcli_avp_list_error' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_error@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_list_iter' type-id='type-id-211' mangled-name='radcli_avp_list_iter' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_iter@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_list_new' type-id='type-id-213' mangled-name='radcli_avp_list_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_new@@RADCLI2_1'/>
+      <function-decl name='radcli_avp_list_free' type-id='type-id-235' mangled-name='radcli_avp_list_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_avp_list_free@@RADCLI2_1'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/config.c' language='LANG_C99'>
       <function-decl name='radcli2_priv_conf_srv' type-id='type-id-86' mangled-name='radcli2_priv_conf_srv' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_srv@@RADCLI2_PRIVATE'/>
       <function-decl name='radcli2_priv_conf_str' type-id='type-id-89' mangled-name='radcli2_priv_conf_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_str@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_add_config' type-id='type-id-204' mangled-name='radcli2_priv_add_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_add_config@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_apply_config' type-id='type-id-198' mangled-name='radcli2_priv_apply_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_apply_config@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_conf_int' type-id='type-id-141' mangled-name='radcli2_priv_conf_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_int@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_find_server_addr' type-id='type-id-142' mangled-name='radcli2_priv_find_server_addr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_find_server_addr@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_test_config' type-id='type-id-203' mangled-name='radcli2_priv_test_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_test_config@@RADCLI2_PRIVATE'/>
-      <function-decl name='rc_conf_int_id' type-id='type-id-146' mangled-name='rc_conf_int_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int_id@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_config_init' type-id='type-id-231' mangled-name='radcli2_priv_config_init' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_init@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_new' type-id='type-id-232' mangled-name='radcli2_priv_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_new@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_read_config' type-id='type-id-230' mangled-name='radcli2_priv_read_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_config@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_config_free' type-id='type-id-243' mangled-name='radcli2_priv_config_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_free@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_destroy' type-id='type-id-243' mangled-name='radcli2_priv_destroy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_destroy@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_add_config' type-id='type-id-203' mangled-name='radcli2_priv_add_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_add_config@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_apply_config' type-id='type-id-197' mangled-name='radcli2_priv_apply_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_apply_config@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_conf_int' type-id='type-id-140' mangled-name='radcli2_priv_conf_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_conf_int@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_find_server_addr' type-id='type-id-141' mangled-name='radcli2_priv_find_server_addr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_find_server_addr@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_test_config' type-id='type-id-202' mangled-name='radcli2_priv_test_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_test_config@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_conf_int_id' type-id='type-id-145' mangled-name='rc_conf_int_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_conf_int_id@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_config_init' type-id='type-id-232' mangled-name='radcli2_priv_config_init' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_init@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_new' type-id='type-id-233' mangled-name='radcli2_priv_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_new@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_read_config' type-id='type-id-231' mangled-name='radcli2_priv_read_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_config@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_config_free' type-id='type-id-244' mangled-name='radcli2_priv_config_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_config_free@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_destroy' type-id='type-id-244' mangled-name='radcli2_priv_destroy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_destroy@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/config2.c' language='LANG_C99'>
       <function-decl name='radcli_ctx_get_opt_str' type-id='type-id-94' mangled-name='radcli_ctx_get_opt_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_get_opt_str@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_apply' type-id='type-id-167' mangled-name='radcli_ctx_apply' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_apply@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_get_opt_int' type-id='type-id-136' mangled-name='radcli_ctx_get_opt_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_get_opt_int@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_read_dictionary' type-id='type-id-169' mangled-name='radcli_ctx_read_dictionary' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_dictionary@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_read_dictionary_from_buffer' type-id='type-id-170' mangled-name='radcli_ctx_read_dictionary_from_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_dictionary_from_buffer@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_set_opt_int' type-id='type-id-181' mangled-name='radcli_ctx_set_opt_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_opt_int@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_set_opt_str' type-id='type-id-180' mangled-name='radcli_ctx_set_opt_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_opt_str@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_set_secret' type-id='type-id-183' mangled-name='radcli_ctx_set_secret' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_secret@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_set_tls_psk' type-id='type-id-184' mangled-name='radcli_ctx_set_tls_psk' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_tls_psk@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_new' type-id='type-id-216' mangled-name='radcli_ctx_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_new@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_read_config' type-id='type-id-215' mangled-name='radcli_ctx_read_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_config@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_free' type-id='type-id-236' mangled-name='radcli_ctx_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_free@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_apply' type-id='type-id-166' mangled-name='radcli_ctx_apply' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_apply@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_get_opt_int' type-id='type-id-135' mangled-name='radcli_ctx_get_opt_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_get_opt_int@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_read_dictionary' type-id='type-id-168' mangled-name='radcli_ctx_read_dictionary' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_dictionary@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_read_dictionary_from_buffer' type-id='type-id-169' mangled-name='radcli_ctx_read_dictionary_from_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_dictionary_from_buffer@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_set_opt_int' type-id='type-id-180' mangled-name='radcli_ctx_set_opt_int' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_opt_int@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_set_opt_str' type-id='type-id-179' mangled-name='radcli_ctx_set_opt_str' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_opt_str@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_set_secret' type-id='type-id-182' mangled-name='radcli_ctx_set_secret' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_secret@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_set_tls_psk' type-id='type-id-183' mangled-name='radcli_ctx_set_tls_psk' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_set_tls_psk@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_new' type-id='type-id-217' mangled-name='radcli_ctx_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_new@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_read_config' type-id='type-id-216' mangled-name='radcli_ctx_read_config' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_read_config@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_free' type-id='type-id-237' mangled-name='radcli_ctx_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_free@@RADCLI2_1'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/dae.c' language='LANG_C99'>
       <function-decl name='radcli_dae_req_session_id' type-id='type-id-96' mangled-name='radcli_dae_req_session_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_session_id@@RADCLI2_1'/>
       <function-decl name='radcli_dae_req_user_name' type-id='type-id-96' mangled-name='radcli_dae_req_user_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_user_name@@RADCLI2_1'/>
       <function-decl name='radcli_dae_req_attrs' type-id='type-id-105' mangled-name='radcli_dae_req_attrs' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_attrs@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_dispatch' type-id='type-id-167' mangled-name='radcli_ctx_dispatch' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_dispatch@@RADCLI2_1'/>
-      <function-decl name='radcli_ctx_get_poll' type-id='type-id-171' mangled-name='radcli_ctx_get_poll' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_get_poll@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_process' type-id='type-id-187' mangled-name='radcli_dae_process' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_process@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_reply' type-id='type-id-190' mangled-name='radcli_dae_reply' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_reply_error' type-id='type-id-193' mangled-name='radcli_dae_reply_error' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply_error@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_reply_to_buffer' type-id='type-id-192' mangled-name='radcli_dae_reply_to_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply_to_buffer@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_req_framed_ip' type-id='type-id-138' mangled-name='radcli_dae_req_framed_ip' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_framed_ip@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_req_nas_port' type-id='type-id-140' mangled-name='radcli_dae_req_nas_port' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_nas_port@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_start' type-id='type-id-185' mangled-name='radcli_dae_start' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_start@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_req_code' type-id='type-id-213' mangled-name='radcli_dae_req_code' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_code@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_new' type-id='type-id-217' mangled-name='radcli_dae_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_new@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_free' type-id='type-id-237' mangled-name='radcli_dae_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_free@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_request_free' type-id='type-id-240' mangled-name='radcli_dae_request_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_request_free@@RADCLI2_1'/>
-      <function-decl name='radcli_dae_set_handler' type-id='type-id-238' mangled-name='radcli_dae_set_handler' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_set_handler@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_dispatch' type-id='type-id-166' mangled-name='radcli_ctx_dispatch' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_dispatch@@RADCLI2_1'/>
+      <function-decl name='radcli_ctx_get_poll' type-id='type-id-170' mangled-name='radcli_ctx_get_poll' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_ctx_get_poll@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_process' type-id='type-id-186' mangled-name='radcli_dae_process' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_process@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_reply' type-id='type-id-189' mangled-name='radcli_dae_reply' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_reply_error' type-id='type-id-192' mangled-name='radcli_dae_reply_error' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply_error@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_reply_to_buffer' type-id='type-id-191' mangled-name='radcli_dae_reply_to_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_reply_to_buffer@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_req_framed_ip' type-id='type-id-137' mangled-name='radcli_dae_req_framed_ip' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_framed_ip@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_req_nas_port' type-id='type-id-139' mangled-name='radcli_dae_req_nas_port' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_nas_port@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_start' type-id='type-id-184' mangled-name='radcli_dae_start' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_start@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_req_code' type-id='type-id-214' mangled-name='radcli_dae_req_code' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_req_code@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_new' type-id='type-id-218' mangled-name='radcli_dae_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_new@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_free' type-id='type-id-238' mangled-name='radcli_dae_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_free@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_request_free' type-id='type-id-241' mangled-name='radcli_dae_request_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_request_free@@RADCLI2_1'/>
+      <function-decl name='radcli_dae_set_handler' type-id='type-id-239' mangled-name='radcli_dae_set_handler' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dae_set_handler@@RADCLI2_1'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/dict2-parse.c' language='LANG_C99'>
-      <function-decl name='radcli2_priv_read_dictionary' type-id='type-id-203' mangled-name='radcli2_priv_read_dictionary' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_read_dictionary_from_buffer' type-id='type-id-205' mangled-name='radcli2_priv_read_dictionary_from_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary_from_buffer@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_attr_add' type-id='type-id-220' mangled-name='radcli_dict_attr_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_add@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_value_add' type-id='type-id-225' mangled-name='radcli_dict_value_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_add@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_vendor_add' type-id='type-id-228' mangled-name='radcli_dict_vendor_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_add@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_read_dictionary' type-id='type-id-202' mangled-name='radcli2_priv_read_dictionary' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_read_dictionary_from_buffer' type-id='type-id-204' mangled-name='radcli2_priv_read_dictionary_from_buffer' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_read_dictionary_from_buffer@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_attr_add' type-id='type-id-221' mangled-name='radcli_dict_attr_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_add@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_value_add' type-id='type-id-226' mangled-name='radcli_dict_value_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_add@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_vendor_add' type-id='type-id-229' mangled-name='radcli_dict_vendor_add' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_add@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/dict2.c' language='LANG_C99'>
       <function-decl name='radcli_dict_attr_to_legacy' type-id='type-id-80' mangled-name='radcli_dict_attr_to_legacy' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_to_legacy@@RADCLI2_PRIVATE'/>
@@ -1374,50 +1376,50 @@
       <function-decl name='radcli_dict_lookup' type-id='type-id-99' mangled-name='radcli_dict_lookup' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup@@RADCLI2_1'/>
       <function-decl name='radcli_dict_lookup_num' type-id='type-id-100' mangled-name='radcli_dict_lookup_num' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup_num@@RADCLI2_1'/>
       <function-decl name='radcli_dict_lookup_oid' type-id='type-id-99' mangled-name='radcli_dict_lookup_oid' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup_oid@@RADCLI2_1'/>
-      <function-decl name='radcli_attr_def_oid' type-id='type-id-114' mangled-name='radcli_attr_def_oid' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_attr_def_oid@@RADCLI2_1'/>
-      <function-decl name='radcli_dict_lookup_value' type-id='type-id-133' mangled-name='radcli_dict_lookup_value' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup_value@@RADCLI2_1'/>
-      <function-decl name='radcli_attr_def_type' type-id='type-id-208' mangled-name='radcli_attr_def_type' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_attr_def_type@@RADCLI2_1'/>
-      <function-decl name='radcli_dict_attr_by_id' type-id='type-id-219' mangled-name='radcli_dict_attr_by_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_id@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_attr_by_name' type-id='type-id-218' mangled-name='radcli_dict_attr_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_name@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_flags_by_id' type-id='type-id-221' mangled-name='radcli_dict_flags_by_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_flags_by_id@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_value_by_attr' type-id='type-id-224' mangled-name='radcli_dict_value_by_attr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_attr@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_value_by_name' type-id='type-id-223' mangled-name='radcli_dict_value_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_name@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_vendor_by_name' type-id='type-id-226' mangled-name='radcli_dict_vendor_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_name@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_dict_vendor_by_pec' type-id='type-id-227' mangled-name='radcli_dict_vendor_by_pec' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_pec@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_dict_free' type-id='type-id-243' mangled-name='radcli2_priv_dict_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_dict_free@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_attr_def_oid' type-id='type-id-113' mangled-name='radcli_attr_def_oid' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_attr_def_oid@@RADCLI2_1'/>
+      <function-decl name='radcli_dict_lookup_value' type-id='type-id-132' mangled-name='radcli_dict_lookup_value' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_lookup_value@@RADCLI2_1'/>
+      <function-decl name='radcli_attr_def_type' type-id='type-id-209' mangled-name='radcli_attr_def_type' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_attr_def_type@@RADCLI2_1'/>
+      <function-decl name='radcli_dict_attr_by_id' type-id='type-id-220' mangled-name='radcli_dict_attr_by_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_id@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_attr_by_name' type-id='type-id-219' mangled-name='radcli_dict_attr_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_attr_by_name@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_flags_by_id' type-id='type-id-222' mangled-name='radcli_dict_flags_by_id' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_flags_by_id@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_value_by_attr' type-id='type-id-225' mangled-name='radcli_dict_value_by_attr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_attr@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_value_by_name' type-id='type-id-224' mangled-name='radcli_dict_value_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_value_by_name@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_vendor_by_name' type-id='type-id-227' mangled-name='radcli_dict_vendor_by_name' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_name@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_dict_vendor_by_pec' type-id='type-id-228' mangled-name='radcli_dict_vendor_by_pec' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_dict_vendor_by_pec@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_dict_free' type-id='type-id-244' mangled-name='radcli2_priv_dict_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_dict_free@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/ip_util.c' language='LANG_C99'>
       <function-decl name='rc_getaddrinfo' type-id='type-id-87' mangled-name='rc_getaddrinfo' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getaddrinfo@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_get_srcaddr' type-id='type-id-206' mangled-name='radcli2_priv_get_srcaddr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_get_srcaddr@@RADCLI2_PRIVATE'/>
-      <function-decl name='rc_own_bind_addr' type-id='type-id-244' mangled-name='rc_own_bind_addr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_own_bind_addr@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_get_srcaddr' type-id='type-id-205' mangled-name='radcli2_priv_get_srcaddr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_get_srcaddr@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_own_bind_addr' type-id='type-id-245' mangled-name='rc_own_bind_addr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_own_bind_addr@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/rc-crypto.c' language='LANG_C99'>
-      <function-decl name='rc_md5_calc' type-id='type-id-245' mangled-name='rc_md5_calc' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_md5_calc@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_md5_calc' type-id='type-id-246' mangled-name='rc_md5_calc' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_md5_calc@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/rc-random.c' language='LANG_C99'>
-      <function-decl name='rc_get_random_byte' type-id='type-id-233' mangled-name='rc_get_random_byte' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_byte@@RADCLI2_PRIVATE'/>
-      <function-decl name='rc_get_random_bytes' type-id='type-id-247' mangled-name='rc_get_random_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_bytes@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_get_random_byte' type-id='type-id-234' mangled-name='rc_get_random_byte' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_byte@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_get_random_bytes' type-id='type-id-248' mangled-name='rc_get_random_bytes' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_get_random_bytes@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/request.c' language='LANG_C99'>
       <function-decl name='radcli_request_server' type-id='type-id-97' mangled-name='radcli_request_server' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_server@@RADCLI2_1'/>
       <function-decl name='radcli_request_attrs' type-id='type-id-106' mangled-name='radcli_request_attrs' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_attrs@@RADCLI2_1'/>
-      <function-decl name='radcli_request_done' type-id='type-id-194' mangled-name='radcli_request_done' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_done@@RADCLI2_1'/>
-      <function-decl name='radcli_request_perform' type-id='type-id-197' mangled-name='radcli_request_perform' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_perform@@RADCLI2_1'/>
-      <function-decl name='radcli_request_set_timeout' type-id='type-id-196' mangled-name='radcli_request_set_timeout' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_set_timeout@@RADCLI2_1'/>
-      <function-decl name='radcli_request_code' type-id='type-id-214' mangled-name='radcli_request_code' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_code@@RADCLI2_1'/>
-      <function-decl name='radcli_request_new' type-id='type-id-229' mangled-name='radcli_request_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_new@@RADCLI2_1'/>
-      <function-decl name='radcli_request_free' type-id='type-id-242' mangled-name='radcli_request_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_free@@RADCLI2_1'/>
+      <function-decl name='radcli_request_done' type-id='type-id-193' mangled-name='radcli_request_done' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_done@@RADCLI2_1'/>
+      <function-decl name='radcli_request_perform' type-id='type-id-196' mangled-name='radcli_request_perform' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_perform@@RADCLI2_1'/>
+      <function-decl name='radcli_request_set_timeout' type-id='type-id-195' mangled-name='radcli_request_set_timeout' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_set_timeout@@RADCLI2_1'/>
+      <function-decl name='radcli_request_code' type-id='type-id-215' mangled-name='radcli_request_code' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_code@@RADCLI2_1'/>
+      <function-decl name='radcli_request_new' type-id='type-id-230' mangled-name='radcli_request_new' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_new@@RADCLI2_1'/>
+      <function-decl name='radcli_request_free' type-id='type-id-243' mangled-name='radcli_request_free' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_request_free@@RADCLI2_1'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/sendserver.c' language='LANG_C99'>
-      <function-decl name='add_msg_auth_attr' type-id='type-id-202' mangled-name='add_msg_auth_attr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='add_msg_auth_attr@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli_transport_exchange' type-id='type-id-200' mangled-name='radcli_transport_exchange' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_transport_exchange@@RADCLI2_PRIVATE'/>
+      <function-decl name='add_msg_auth_attr' type-id='type-id-201' mangled-name='add_msg_auth_attr' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='add_msg_auth_attr@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli_transport_exchange' type-id='type-id-199' mangled-name='radcli_transport_exchange' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli_transport_exchange@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/session.c' language='LANG_C99'>
-      <function-decl name='radcli2_priv_check_tls' type-id='type-id-198' mangled-name='radcli2_priv_check_tls' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_check_tls@@RADCLI2_PRIVATE'/>
-      <function-decl name='radcli2_priv_tls_fd' type-id='type-id-198' mangled-name='radcli2_priv_tls_fd' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_tls_fd@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_check_tls' type-id='type-id-197' mangled-name='radcli2_priv_check_tls' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_check_tls@@RADCLI2_PRIVATE'/>
+      <function-decl name='radcli2_priv_tls_fd' type-id='type-id-197' mangled-name='radcli2_priv_tls_fd' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='radcli2_priv_tls_fd@@RADCLI2_PRIVATE'/>
   </abi-instr>
   <abi-instr address-size='64' path='../lib/util.c' language='LANG_C99'>
-      <function-decl name='rc_getmtime' type-id='type-id-107' mangled-name='rc_getmtime' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getmtime@@RADCLI2_PRIVATE'/>
-      <function-decl name='rc_str2tm' type-id='type-id-112' mangled-name='rc_str2tm' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_str2tm@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_str2tm' type-id='type-id-111' mangled-name='rc_str2tm' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_str2tm@@RADCLI2_PRIVATE'/>
+      <function-decl name='rc_getmtime_ms' type-id='type-id-207' mangled-name='rc_getmtime_ms' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='rc_getmtime_ms@@RADCLI2_PRIVATE'/>
   </abi-instr>
 </abi-corpus>
