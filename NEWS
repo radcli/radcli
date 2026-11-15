@@ -1,3 +1,6 @@
+* Version 2.0.3 (unreleased)
+
+
 * Version 2.0.2 (released 2026-11-15)
 - Added RADCLI_REQUEST_SENDONLY_NONBLOCK, which submits a request without
   waiting for the network, so that an application built around an event
