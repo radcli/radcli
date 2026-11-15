@@ -152,7 +152,7 @@ main (int argc, char **argv)
 
 		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0)
 			break;
-		if (nfds == 0)
+		if (nfds == 0 && timeout_ms == -1)
 			break; /* nothing left to wait on */
 
 		ret = poll(pfds, (nfds_t)nfds, timeout_ms);
