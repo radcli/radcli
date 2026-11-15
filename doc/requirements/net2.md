@@ -256,12 +256,14 @@ descriptor(s) to watch and the direction(s) to watch each in, report how many
 of them it used in `*nfds` (0 if there is nothing to watch yet), and radcli
 MUST NOT call `poll()`, `select()`, `epoll_wait()`, or sleep on the caller's
 behalf, so that any event loop (libev, libevent, epoll, plain `poll()`) can
-host it. For TLS/DTLS, or for a UDP `ctx` with no `radcli_dae` active, this is
-always exactly one descriptor: the session fd (TLS/DTLS, also carrying any
-in-flight `RADCLI_REQUEST_SENDONLY` request traffic, REQ-NET2-SEND-013/016)
-or the request-registry socket (UDP, REQ-NET2-SEND-016). A UDP `ctx` with an
-active `radcli_dae` reports a second, independent descriptor for the DAE
-listener alongside it — the two are genuinely different local sockets/ports
+host it. Without an active UDP DAE listener (no `radcli_dae`, or a RadSec
+one under `dae-accept yes`), this is at most one descriptor: the session fd
+(TCP/TLS/DTLS, also carrying any in-flight `RADCLI_REQUEST_SENDONLY` request
+traffic, REQ-NET2-SEND-013/016, and any RadSec DAE traffic) or the
+request-registry socket (UDP, REQ-NET2-SEND-016). An active UDP DAE listener
+is reported as a second, independent descriptor alongside it under every
+`serv-type` — including `dae-accept udp` under TLS/DTLS, which binds that
+listener regardless of `serv-type` — the two are genuinely different local sockets/ports
 (dae.md's REQ-DAE-INIT-002) and cannot be merged into one without changing
 the wire protocol; two is the maximum this API ever needs. "On the caller's
 behalf" means waiting: a zero-timeout `poll()` that only checks a descriptor's
@@ -308,7 +310,7 @@ to `radius_timeout`, or the operating system's SYN retry timeout).
 lib/sendserver.c (`radcli2_priv_reqreg_service_timeouts()`); lib/dae.c
 (`radcli_ctx_dispatch()`, `radcli_ctx_get_poll()`,
 `radcli2_priv_dae_send_watchdog()`)
-**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request. [NET] negative, local —
+**Acceptance:** [NET] positive, unit, local — `tests/dae.c`: `radcli_ctx_get_poll()` reports `*nfds == 0` before `radcli_dae_start()` and after `radcli_dae_free()` (UDP, no in-flight requests), and a valid, `POLLIN`-watched descriptor in between; no polling symbol appears in `lib/dae.c`. `src/raddaeserver.c` is a real plain-`poll()`-loop application built on exactly this contract, driven end to end by `tests/dae-tests.sh`/`tests/dae-client.py`. [NET] positive, unit, local — `tests/request-poll-multi.c`: a UDP `ctx` with both an active `radcli_dae` and several in-flight `RADCLI_REQUEST_SENDONLY` requests reports exactly two descriptors (`*nfds == 2`), not one per request. [NET] positive, unit, local — `tests/dae.c`: a `serv-type tls` `ctx` with a started `dae-accept udp` listener (no session established yet) reports the listener as a `POLLIN`-watched descriptor, and a datagram sent to it wakes `poll()` on what was reported; with a TLS connection attempt also in progress (a `RADCLI_REQUEST_SENDONLY_NONBLOCK` request to a local peer that never handshakes) it reports exactly two descriptors, one `SOCK_DGRAM` (the listener) and one `SOCK_STREAM` (the session). Confirmed failing against the unfixed code (`*nfds == 0` and `*nfds == 1` respectively). [NET] positive, unit, local — `tests/poll-inventory.c`: every socket radcli opened for a `ctx` is reported, and nothing else, across `serv-type` udp/tcp/tls/dtls × no DAE / `dae-accept udp` × idle / one `RADCLI_REQUEST_SENDONLY_NONBLOCK` request in flight, compared against `/proc/self/fd` rather than a per-case expected list; `tests/poll-inventory-tests.sh` adds RadSec `dae-accept yes` against `tests/radius-server.py --transport tls`, where only the session is reported. Confirmed failing against the code before the `dae-accept udp` listener was reported under TLS/DTLS. [NET] negative, local —
 `tests/session-timeout-tests.sh`'s `stall` case: a TLS peer closes the connection on an
 unanswered `RADCLI_REQUEST_SENDONLY` request and then never completes a new handshake; no
 `radcli_ctx_dispatch()` call may take more than 200 ms while the request is retransmitted

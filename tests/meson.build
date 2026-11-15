@@ -43,6 +43,7 @@ if have_gnutls
   shell_tests += ['tls-lock-restart-tests.sh', 'request-tls-interleave-tests.sh',
                   'radsec-shared-ids-tests.sh', 'radsec-send-backpressure-tests.sh']
   shell_tests += ['radsec-framing-tests.sh']
+  shell_tests += ['poll-inventory-tests.sh']
 
   tls_restart = executable('tls-restart', 'tls-restart.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
@@ -172,6 +173,11 @@ if have_gnutls
   request_tls_secret = executable('request-tls-secret', 'request-tls-secret.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
+  # Run standalone by the foreach loop below, and again with a TLS peer's
+  # port by tests/poll-inventory-tests.sh (peer: tests/radius-server.py).
+  poll_inventory = executable('poll-inventory', 'poll-inventory.c',
+    include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
+    dependencies: link_libs, install: false)
   config_unit = executable('config-unit', 'config-unit.c',
     include_directories: tests_incdirs, link_with: [libradcli_shared, libradcli2_shared],
     dependencies: link_libs, install: false)
@@ -209,7 +215,7 @@ if have_gnutls
     link_with: libradcli_static,
     dependencies: [gnutls_dep, nettle_dep], install: false)
 
-  foreach t : [avpair, dict, dict_legacy, avp, request, request_set_timeout, aaa2_unit, dict_add, auth_userpass_len, dae, dae_codec, pack, avp_codec, avp_legacy, config_unit, ctx_unit]
+  foreach t : [avpair, dict, dict_legacy, avp, request, request_set_timeout, aaa2_unit, dict_add, auth_userpass_len, dae, dae_codec, poll_inventory, pack, avp_codec, avp_legacy, config_unit, ctx_unit]
     test(t.name(), t, env: test_env)
   endforeach
 endif

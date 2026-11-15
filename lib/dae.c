@@ -921,11 +921,13 @@ static void fold_timeout(int *timeout_ms, int candidate)
  * never leaves an application holding a watcher on a descriptor that has
  * quietly started meaning something else.
  *
- * For TLS/DTLS, or for a UDP/TCP ctx with no active radcli_dae, this is
- * at most one descriptor: the session fd (TCP/TLS/DTLS, also carrying any
- * in-flight RADCLI_REQUEST_SENDONLY traffic) or the request-registry socket
- * (UDP, REQ-NET2-SEND-016). A UDP/TCP ctx with an active radcli_dae reports
- * a second, independent descriptor for the DAE listener alongside it -- the
+ * Without a UDP DAE listener (no active radcli_dae, or a RadSec one,
+ * dae-accept=yes under TLS/DTLS), this is at most one descriptor: the
+ * session fd (TCP/TLS/DTLS, also carrying any in-flight
+ * RADCLI_REQUEST_SENDONLY traffic and any RadSec DAE) or the
+ * request-registry socket (UDP, REQ-NET2-SEND-016). An active UDP DAE
+ * listener (under any serv-type, including dae-accept=udp under
+ * TLS/DTLS) is reported as a second, independent descriptor -- the
  * two are genuinely different local sockets/ports and cannot be merged into
  * one without changing the wire protocol; RADCLI_CTX_MAX_POLLFDS (2) is the
  * maximum this API ever needs. *timeout_ms folds together every deadline
@@ -970,6 +972,15 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 
 	*timeout_ms = -1;
 
+	/* A UDP DAE listener (dae-accept=udp, under any serv-type) is its own
+	 * socket; a RadSec DAE has none (fd stays -1) and shares the session. */
+	if (rh->active_dae != NULL && rh->active_dae->fd != -1) {
+		pfds[n].fd = rh->active_dae->fd;
+		pfds[n].events = POLLIN;
+		pfds[n].revents = 0;
+		n++;
+	}
+
 	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
 		/* Reported for any established RadSec radcli_ctx, whether or not
 		 * dynamic authorization is active on it: the watchdog machinery
@@ -1010,16 +1021,10 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 		return 0;
 	}
 
-	/* UDP/TCP: the DAE listener (if active) and the request path -- the
-	 * shared UDP request-registry socket (if any RADCLI_REQUEST_SENDONLY
-	 * exchange has ever used one) or the TCP connection (once established)
-	 * -- are genuinely different local sockets; report both when present. */
-	if (rh->active_dae != NULL && rh->active_dae->fd != -1) {
-		pfds[n].fd = rh->active_dae->fd;
-		pfds[n].events = POLLIN;
-		pfds[n].revents = 0;
-		n++;
-	}
+	/* UDP/TCP: the request path -- the shared UDP request-registry socket
+	 * (if any RADCLI_REQUEST_SENDONLY exchange has ever used one) or the
+	 * TCP connection (once established) -- is a different local socket
+	 * from the DAE listener above; report both when present. */
 	if (rh->so_type == RC_SOCKET_TCP) {
 		short events;
 		int sess_timeout_ms;
