@@ -128,7 +128,10 @@ main (int argc, char **argv)
 		return 1;
 	}
 
-	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY) != RADCLI_OK) {
+	/* Returns without waiting for the network: a TCP connect or TLS/DTLS
+	 * handshake still in progress is completed, and the queued packet
+	 * sent, by radcli_ctx_dispatch() in the loop below. */
+	if (radcli_request_perform(r, RADCLI_REQUEST_SENDONLY_NONBLOCK) != RADCLI_OK) {
 		fprintf(stderr, "cannot send the Access-Request\n");
 		radcli_request_free(r);
 		radcli_ctx_free(ctx);
@@ -139,11 +142,11 @@ main (int argc, char **argv)
 	 * pending Access-Request (r) alongside the already-running watchdog
 	 * and DAE listener (dae) -- all through one ctx-level descriptor set.
 	 * radcli_ctx_get_poll() already folds r's own retransmit/timeout
-	 * deadline into timeout_ms (it shares ctx's own request-registry
-	 * socket/session, REQ-NET2-SEND-016), and radcli_ctx_dispatch()
-	 * already drains and resolves r's reply along with DAE traffic and
-	 * the watchdog -- so radcli_request_done(r) below is a pure,
-	 * no-I/O status check, not a second read. */
+	 * deadline into timeout_ms (r shares ctx's socket or session), and
+	 * radcli_ctx_dispatch() already sends r and drains and resolves its
+	 * reply along with DAE traffic and the watchdog -- so
+	 * radcli_request_done(r) below is a pure, no-I/O status check, not a
+	 * second read. */
 	for (;;) {
 		struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
 		size_t nfds;
