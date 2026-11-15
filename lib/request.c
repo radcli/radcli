@@ -373,15 +373,18 @@ int radcli_do_exchange(rc_handle *rh, uint8_t code, const radcli_avp_list *send,
  *
  * By default (flags == RADCLI_REQUEST_NONE), sends r and waits for the
  * reply. With RADCLI_REQUEST_SENDONLY, sends r and returns once the packet
- * is handed to the network, without blocking for a reply -- either as a pure fire-and-forget notification whose outcome the
- * caller does not act on (call radcli_request_free() without ever calling
+ * is handed to the network, without blocking for a reply -- either as a
+ * pure fire-and-forget notification whose outcome the caller does not act
+ * on (call radcli_request_free() without ever calling
  * radcli_ctx_dispatch(); radcli.h's rc_acct_async() is the equivalent call
  * in the legacy API), or to read the reply later via radcli_request_done(),
  * driven by the caller's own radcli_ctx_get_poll()/radcli_ctx_dispatch()
- * loop (lib/dae.c), which also retransmits r. RADCLI_REQUEST_SENDONLY_NONBLOCK
- * is the same except that it never waits for the network: what cannot go
- * out at once, including while a TCP/TLS/DTLS session connects, is queued
- * for radcli_ctx_dispatch() to send (REQ-NET2-SEND-018).
+ * loop, which also retransmits r. RADCLI_REQUEST_SENDONLY_NONBLOCK is the
+ * same except that it never waits for the network: what cannot go out at
+ * once, including while a TCP/TLS/DTLS session connects, is queued for
+ * radcli_ctx_dispatch() to send. Its timeout and retries run from this
+ * call, so they can expire while the packet is still queued; name
+ * resolution may still block.
  *
  * May be called only once per request; construct a new radcli_request for
  * a retransmission with different content.
@@ -471,22 +474,24 @@ int radcli_request_perform(radcli_request *r, unsigned flags)
 /** @brief Report r's outcome once radcli_ctx_dispatch() has resolved it --
  *  a pure state query, performing no I/O of its own.
  *
- * Since REQ-NET2-SEND-016/013, r shares ctx's request socket/session with
- * every other concurrently in-flight RADCLI_REQUEST_SENDONLY request, and
- * radcli_ctx_dispatch() is what actually drives it to completion (draining
- * replies, retransmitting, expiring on timeout) -- this call never performs
- * I/O itself, so polling it any number of times between
- * radcli_ctx_dispatch() calls is free. The terminal result is reported
- * once; the reply then stays readable with radcli_request_code()/_attrs().
+ * r shares ctx's request socket or session with every other in-flight
+ * RADCLI_REQUEST_SENDONLY/RADCLI_REQUEST_SENDONLY_NONBLOCK request, and
+ * radcli_ctx_dispatch() is what actually drives it to completion (sending
+ * it if queued, draining replies, retransmitting, expiring on timeout) --
+ * this call never performs I/O itself, so polling it any number of times
+ * between radcli_ctx_dispatch() calls is free. The terminal result is
+ * reported once; the reply then stays readable with
+ * radcli_request_code()/_attrs().
  *
- * @param r a request radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)
- *  returned RADCLI_OK for.
+ * @param r a request radcli_request_perform() returned RADCLI_OK for, with
+ *  RADCLI_REQUEST_SENDONLY or RADCLI_REQUEST_SENDONLY_NONBLOCK.
  * @return RADCLI_AGAIN if still waiting (call radcli_ctx_get_poll()/
  *  radcli_ctx_dispatch() and try again), RADCLI_OK if a validated reply was
  *  received (read it with radcli_request_code()/_attrs(), same as
  *  radcli_request_perform()), RADCLI_TIMEOUT if retries are exhausted, or
  *  RADCLI_ERROR on failure, if r was never sent with
- *  RADCLI_REQUEST_SENDONLY, or if its terminal result was already returned.
+ *  RADCLI_REQUEST_SENDONLY or RADCLI_REQUEST_SENDONLY_NONBLOCK, or if its
+ *  terminal result was already returned.
  */
 int radcli_request_done(radcli_request *r)
 {
