@@ -24,9 +24,9 @@
  */
 
 /** @file radexample-async-dae.c
- * @brief radexample.c's This is a client the maintains a long-lived TLS/DTLS session
- *  with the radius server, sending Access-Request, and sending a watchdog message,
- *  plus a Disconnect-Request (Dynamic Authorization) listener.
+ * @brief An event-loop client that sends an Access-Request without blocking
+ *  and serves RFC 5176 Disconnect-Requests, keeping a TLS/DTLS session
+ *  alive with RFC 5997 watchdogs.
  */
 
 #include	<config.h>
