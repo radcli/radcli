@@ -910,6 +910,15 @@ static void fold_timeout(int *timeout_ms, int candidate)
 		*timeout_ms = candidate;
 }
 
+/*- Append fd, watched for events, to pfds and advance *n. */
+static void add_pollfd(struct pollfd *pfds, size_t *n, int fd, short events)
+{
+	pfds[*n].fd = fd;
+	pfds[*n].events = events;
+	pfds[*n].revents = 0;
+	(*n)++;
+}
+
 /** @brief Report what to wait for on ctx's behalf, for the caller's own
  *  event loop -- radcli never calls poll()/select()/epoll_wait() itself.
  *
@@ -974,80 +983,38 @@ int radcli_ctx_get_poll(radcli_ctx *ctx, struct pollfd *pfds, size_t max_pfds,
 
 	/* A UDP DAE listener (dae-accept=udp, under any serv-type) is its own
 	 * socket; a RadSec DAE has none (fd stays -1) and shares the session. */
-	if (rh->active_dae != NULL && rh->active_dae->fd != -1) {
-		pfds[n].fd = rh->active_dae->fd;
-		pfds[n].events = POLLIN;
-		pfds[n].revents = 0;
-		n++;
-	}
+	if (rh->active_dae != NULL && rh->active_dae->fd != -1)
+		add_pollfd(pfds, &n, rh->active_dae->fd, POLLIN);
 
-	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
-		/* Reported for any established RadSec radcli_ctx, whether or not
-		 * dynamic authorization is active on it: the watchdog machinery
-		 * below (REQ-WATCHDOG-NET-001/002) is a property of the TLS/DTLS
-		 * session itself (keeping a NAT/firewall mapping alive, or just
-		 * avoiding a rehandshake after an idle period), not of DAE -- an
-		 * application using radcli purely as an ordinary rc_auth()/
-		 * rc_acct() RadSec client, with no radcli_dae at all, is as
-		 * entitled to it as one with dae-accept=yes. */
-		int dae_radsec = (rh->active_dae != NULL && rh->active_dae->radsec);
+	/* The request path, split exactly as radcli_ctx_dispatch() reads it. */
+	if (RC_USES_SESSION(rh)) {
 		short events;
 		int sess_timeout_ms;
 		int fd = radcli2_priv_sess_poll(rh, &events, &sess_timeout_ms);
 
-		if (fd != -1) {
-			pfds[n].fd = fd;
-			pfds[n].events = events;
-			pfds[n].revents = 0;
-			n++;
-		}
-
-		/* A record already pulled off the wire by an in-flight ordinary
-		 * request (radcli2_priv_sess_route()) may be sitting queued
-		 * with no further fd activity to prompt a redispatch -- ask the
-		 * caller back promptly rather than only on the next POLLIN.
-		 * DAE-only, same reason as above. */
-		if (dae_radsec && rh->active_dae->radsec_queue_len > 0)
-			*timeout_ms = 0;
-		else
-			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, radcli2_priv_sess_fd(rh)));
-
-		fold_timeout(timeout_ms, radcli2_priv_reqreg_earliest_deadline_ms(rh));
+		if (fd != -1)
+			add_pollfd(pfds, &n, fd, events);
 		/* A connection attempt's deadline, or a record GnuTLS already
 		 * holds, which raises no POLLIN. */
 		fold_timeout(timeout_ms, sess_timeout_ms);
-
-		*nfds = n;
-		return 0;
-	}
-
-	/* UDP/TCP: the request path -- the shared UDP request-registry socket
-	 * (if any RADCLI_REQUEST_SENDONLY exchange has ever used one) or the
-	 * TCP connection (once established) -- is a different local socket
-	 * from the DAE listener above; report both when present. */
-	if (rh->so_type == RC_SOCKET_TCP) {
-		short events;
-		int sess_timeout_ms;
-		int fd = radcli2_priv_sess_poll(rh, &events, &sess_timeout_ms);
-
-		if (fd != -1) {
-			pfds[n].fd = fd;
-			pfds[n].events = events;
-			pfds[n].revents = 0;
-			n++;
-		}
-		fold_timeout(timeout_ms, sess_timeout_ms);
 	} else if (rh->req_fd != -1) {
-		pfds[n].fd = rh->req_fd;
-		pfds[n].events = POLLIN;
-		pfds[n].revents = 0;
-		n++;
+		add_pollfd(pfds, &n, rh->req_fd, POLLIN);
 	}
 
-	/* No DAE-proactive timer needed: the duplicate-suppression table
-	 * expires slots lazily, on next access, rather than on a schedule --
-	 * radcli owns no timer (REQ-GEN-SEC-003). Only an in-flight
-	 * RADCLI_REQUEST_SENDONLY exchange contributes a deadline on UDP. */
+	if (rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) {
+		/* A RadSec DAE request already pulled off the wire by an
+		 * in-flight ordinary request (radcli2_priv_sess_route()) raises
+		 * no further POLLIN, so ask to be called back now. Otherwise the
+		 * watchdog (REQ-WATCHDOG-NET-001/002) is due: a property of the
+		 * session, with or without a radcli_dae. */
+		if (rh->active_dae != NULL && rh->active_dae->radsec_queue_len > 0)
+			fold_timeout(timeout_ms, 0);
+		else
+			fold_timeout(timeout_ms, watchdog_deadline_ms(rh, radcli2_priv_sess_fd(rh)));
+	}
+
+	/* The DAE duplicate-suppression table expires lazily, so DAE adds no
+	 * deadline of its own (REQ-GEN-SEC-003). */
 	fold_timeout(timeout_ms, radcli2_priv_reqreg_earliest_deadline_ms(rh));
 
 	*nfds = n;
