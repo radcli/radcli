@@ -1,4 +1,6 @@
 * Version 2.0.3 (unreleased)
+- Fixed issue in radcli_ctx_get_poll that did not report the DAE listener
+  when setup with TLS or DTLS server.
 
 
 * Version 2.0.2 (released 2026-11-15)
