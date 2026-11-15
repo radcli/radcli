@@ -17,9 +17,12 @@ This page documents the current, recommended way to use radcli.
   and -Gigawords pairing. It includes a built-in dictionary covering
   RFC 2865/2866/2869's attributes as well as RFC6929 and RFC 8044 data types;
   extendable with additional dictionaries via radcli_ctx_read_dictionary().
-- **Transport**: plain UDP or TCP, or **TLS/DTLS** ("RadSec", RFC 6614 for
-  TLS and RFC 7360 for DTLS), selected purely through the config file's
-  `serv-type` and requiring no transport-specific application code. TLS/DTLS
+- **Transport**: plain UDP or TCP (RFC 6613), or **TLS/DTLS** ("RadSec",
+  RFC 6614 for TLS and RFC 7360 for DTLS), selected purely through the
+  config file's `serv-type` and requiring no transport-specific application
+  code. TCP, TLS and DTLS carry every request over one persistent
+  connection, reconnecting when it fails; over TCP and TLS a request is
+  retransmitted only on a new connection. TLS/DTLS
   credentials are either X.509 (CA/certificate/key files) or a Pre-Shared
   Key, set programmatically with radcli_ctx_set_tls_psk() or via the config
   file's `tls-*` options.
@@ -33,8 +36,10 @@ This page documents the current, recommended way to use radcli.
   Event-Timestamp freshness, and duplicate suppression -- before the
   application's handler ever sees them. See
   [src/radexample-async-dae.c](radexample-async-dae_8c-example.html) for
-  a working Disconnect server alongside an RFC 5997 watchdog. DAC traffic
-  today is UDP/3799 per RFC 5176.
+  a working Disconnect server alongside an RFC 5997 watchdog. Requests
+  arrive either on a separate RFC 5176 UDP listener, or, with
+  `dae-accept yes` under `serv-type` tls or dtls, over the RadSec connection
+  itself.
 
 ## Quick start
 
@@ -80,6 +85,59 @@ with radcli_ctx_set_tls_psk().
 See [src/radexample.c](radexample_8c-example.html) for a complete, runnable
 example, and [src/radexample-async-dae.c](radexample-async-dae_8c-example.html)
 for an asynchronous version with Dynamic Authorization one.
+
+A context, and every request and DAE object created from it, must be used
+by one thread at a time; separate contexts are independent.
+
+## Per-request timeout
+
+radcli_aaa() and radcli_request_new() take the timeout and retry count from
+the config file (`radius_timeout`, `radius_retries`).
+radcli_request_set_timeout() overrides them for a single request, e.g. to
+send a final Accounting-Stop once within a fixed deadline without changing
+the context:
+@code{.c}
+radcli_request *r = radcli_request_new(ctx, RADCLI_CODE_ACCOUNTING_REQUEST, send);
+radcli_request_set_timeout(r, 1000, 0);   // one attempt, 1s for the reply
+radcli_request_perform(r, RADCLI_REQUEST_NONE);
+radcli_request_free(r);
+@endcode
+Connecting a TCP/TLS/DTLS session still uses the configured `radius_timeout`.
+
+## Asynchronous requests
+
+An application built around an event loop sends a request with
+radcli_request_perform() and one of two flags, then drives it from its own
+loop:
+
+- `RADCLI_REQUEST_SENDONLY` returns once the packet is sent, without waiting
+  for the reply; it may still wait to connect a TCP/TLS/DTLS session.
+- `RADCLI_REQUEST_SENDONLY_NONBLOCK` never waits for the network: what cannot
+  be sent at once is queued and sent by radcli_ctx_dispatch(). Name
+  resolution may still block.
+
+radcli never polls by itself: radcli_ctx_get_poll() reports the descriptors
+and the timeout to wait on, and radcli_ctx_dispatch() must be called when
+either fires, including when only the timeout expires. radcli_request_done()
+then reports the outcome without performing I/O:
+@code{.c}
+radcli_request_perform(r, RADCLI_REQUEST_SENDONLY_NONBLOCK);
+
+while (radcli_request_done(r) == RADCLI_AGAIN) {
+        struct pollfd pfds[RADCLI_CTX_MAX_POLLFDS];
+        size_t nfds;
+        int timeout_ms;
+
+        radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms);
+        poll(pfds, nfds, timeout_ms);
+        radcli_ctx_dispatch(ctx);
+}
+// RADCLI_OK: read the reply with radcli_request_code()/radcli_request_attrs()
+@endcode
+For a fire-and-forget notification, send with `RADCLI_REQUEST_SENDONLY` and
+call radcli_request_free() right after radcli_request_perform() instead; a
+`RADCLI_REQUEST_SENDONLY_NONBLOCK` request freed before radcli_ctx_dispatch()
+sent it is never sent.
 
 ## Transitioning from earlier versions
 
