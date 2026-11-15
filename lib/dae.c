@@ -2146,26 +2146,31 @@ void radcli2_priv_dae_on_radsec_packet(rc_handle *rh, const uint8_t *buf, size_t
 
 /** @brief Read what is ready on ctx's descriptor(s), validate it, and
  *  invoke the registered handler for anything that passes -- see
- *  radcli_dae_set_handler(). Also: drains any in-flight
- *  RADCLI_REQUEST_SENDONLY exchange's reply and services its retransmit/
- *  timeout deadline (net2.md's REQ-NET2-SEND-013/016), and, once due, sends
- *  the RFC 5997 watchdog on an established RadSec session
- *  (watchdog.md's REQ-WATCHDOG-NET-001) -- all unconditionally, every call,
- *  regardless of whether an active radcli_dae exists at all: this is now
- *  the single entry point radcli_ctx_get_poll() drives, for everything ctx
- *  owns, not a DAE-only call.
+ *  radcli_dae_set_handler().
+ *
+ * This is the single entry point radcli_ctx_get_poll() drives, for
+ * everything ctx owns, whether or not an active radcli_dae exists. Every
+ * call, without blocking, advances a TCP/TLS/DTLS connection attempt
+ * (connect, handshake, or a reconnect after the session failed); sends
+ * what RADCLI_REQUEST_SENDONLY_NONBLOCK requests left queued; drains the
+ * replies of in-flight RADCLI_REQUEST_SENDONLY/_NONBLOCK requests and
+ * services their retransmit/timeout deadlines, retransmitting over TCP/TLS
+ * only on a new connection, never on the one a request was sent on
+ * (RFC 6613 section 2.6.1); and, once due, sends the RFC 5997 watchdog on
+ * an established TLS/DTLS session.
  *
  * On the DAE side specifically, reads exactly one datagram per call
  * (non-blocking), so a burst of requests re-arms the caller's loop rather
  * than starving it, and runs it through process_packet()'s validation
  * pipeline before ever invoking the registered handler. Every rejection
  * short of "authorized sender" is silent: no reply, no Error-Cause, no log
- * of the secret or either authenticator (REQ-DAE-SEC-009).
+ * of the secret or either authenticator.
  *
  * Not reentrant: calling this, radcli_dae_start(), or radcli_dae_free()
  * from within a handler radcli_ctx_dispatch() itself invoked is undefined.
  *
- * @param ctx a context previously reported ready by radcli_ctx_get_poll().
+ * @param ctx a context radcli_ctx_get_poll() reported a ready descriptor
+ *  for, or whose radcli_ctx_get_poll() timeout has expired.
  * @return 0 on success (including "nothing was ready"), -1 on failure
  *  (e.g. ctx is NULL, or called reentrantly).
  */
