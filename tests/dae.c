@@ -42,6 +42,10 @@
 #include <assert.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <radcli/radcli.h>
 #include <radcli/radcli2.h>
@@ -321,7 +325,111 @@ int main(int argc, char **argv)
 				"listener forced by dae-accept=udp under serv-type=tls\n");
 		exit(1);
 	}
+	/* REQ-NET2-NET-001: the listener must be reported under serv-type=tls
+	 * too, and a datagram sent to it must wake a poll() on what was
+	 * reported. No TLS session exists yet (connecting is deferred to
+	 * first use), so the listener is the only descriptor. */
+	if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
+		fprintf(stderr, "error: radcli_ctx_get_poll() failed under serv-type=tls\n");
+		exit(1);
+	}
+	if (nfds != 1 || pfds[0].fd < 0 || !(pfds[0].events & POLLIN)) {
+		fprintf(stderr, "error: radcli_ctx_get_poll() did not report the "
+				"dae-accept=udp listener under serv-type=tls (nfds=%zu)\n", nfds);
+		exit(1);
+	}
+	{
+		struct sockaddr_storage addr;
+		socklen_t addrlen = sizeof(addr);
+		int s;
+
+		assert(getsockname(pfds[0].fd, (struct sockaddr *)&addr, &addrlen) == 0);
+		s = socket(addr.ss_family, SOCK_DGRAM, 0);
+		assert(s != -1);
+		assert(sendto(s, "x", 1, 0, (struct sockaddr *)&addr, addrlen) == 1);
+		if (poll(pfds, nfds, 2000) != 1 || !(pfds[0].revents & POLLIN)) {
+			fprintf(stderr, "error: a datagram to the dae-accept=udp listener "
+					"did not wake poll() under serv-type=tls\n");
+			exit(1);
+		}
+		close(s);
+	}
 	radcli_dae_free(dae);
+	radcli_ctx_free(ctx);
+
+	/* --- dae-accept=udp under serv-type=tls, session attempt in progress ---
+	 * The listener and the TLS session are reported side by side (nfds
+	 * == 2). The peer is a local TCP socket that is never accept()ed: the
+	 * kernel completes connect(), and the TLS handshake then stalls,
+	 * keeping the attempt's descriptor reported without a real server. */
+	{
+		struct sockaddr_in peer;
+		socklen_t peerlen = sizeof(peer);
+		char authserver[64];
+		radcli_request *req;
+		int lfd, dgram = -1, stream = -1;
+		size_t i;
+
+		lfd = socket(AF_INET, SOCK_STREAM, 0);
+		assert(lfd != -1);
+		memset(&peer, 0, sizeof(peer));
+		peer.sin_family = AF_INET;
+		peer.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		assert(bind(lfd, (struct sockaddr *)&peer, sizeof(peer)) == 0);
+		assert(listen(lfd, 1) == 0);
+		assert(getsockname(lfd, (struct sockaddr *)&peer, &peerlen) == 0);
+		snprintf(authserver, sizeof(authserver), "127.0.0.1:%u", ntohs(peer.sin_port));
+
+		ctx = new_ctx();
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_SERV_TYPE, "tls") == 0);
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER, authserver) == 0);
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_ACCEPT, "udp") == 0);
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_SERVER, "192.0.2.9") == 0);
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_SECRET, "testing123") == 0);
+		assert(radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DAE_LISTEN, "127.0.0.1:0") == 0);
+		assert(radcli_ctx_apply(ctx) == 0);
+		dae = radcli_dae_new(ctx, 0);
+		assert(dae != NULL);
+		assert(radcli_dae_start(dae) == 0);
+
+		req = radcli_request_new(ctx, RADCLI_CODE_ACCESS_REQUEST, NULL);
+		assert(req != NULL);
+		if (radcli_request_perform(req, RADCLI_REQUEST_SENDONLY_NONBLOCK) != RADCLI_OK) {
+			fprintf(stderr, "error: radcli_request_perform(RADCLI_REQUEST_SENDONLY_NONBLOCK) "
+					"did not begin a connection attempt\n");
+			exit(1);
+		}
+
+		if (radcli_ctx_get_poll(ctx, pfds, RADCLI_CTX_MAX_POLLFDS, &nfds, &timeout_ms) != 0) {
+			fprintf(stderr, "error: radcli_ctx_get_poll() failed under serv-type=tls\n");
+			exit(1);
+		}
+		for (i = 0; i < nfds; i++) {
+			int type;
+			socklen_t typelen = sizeof(type);
+
+			assert(getsockopt(pfds[i].fd, SOL_SOCKET, SO_TYPE, &type, &typelen) == 0);
+			if (type == SOCK_DGRAM)
+				dgram = (int)i;
+			else if (type == SOCK_STREAM)
+				stream = (int)i;
+		}
+		if (nfds != 2 || dgram == -1 || stream == -1 || !(pfds[dgram].events & POLLIN)) {
+			fprintf(stderr, "error: radcli_ctx_get_poll() did not report both the "
+					"dae-accept=udp listener and the TLS session attempt "
+					"(nfds=%zu)\n", nfds);
+			exit(1);
+		}
+		if (timeout_ms < 0) {
+			fprintf(stderr, "error: radcli_ctx_get_poll() reported no timeout "
+					"with a request and a connection attempt pending\n");
+			exit(1);
+		}
+
+		radcli_request_free(req);
+		radcli_dae_free(dae);
+		close(lfd);
+	}
 	radcli_ctx_free(ctx);
 
 	/* --- fully valid configuration --- */
