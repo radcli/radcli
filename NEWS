@@ -1,6 +1,11 @@
 * Version 2.0.3 (unreleased)
 - Fixed issue in radcli_ctx_get_poll that did not report the DAE listener
   when setup with TLS or DTLS server.
+- Hardened blocking requests over UDP: replies are accepted only from the
+  address and port the request was sent to (RFC 2865 section 3), and short or
+  foreign datagrams are discarded instead of aborting the request or
+  redirecting its retransmissions. A server on a multi-homed host must now
+  reply from the address it was queried on.
 
 
 * Version 2.0.2 (released 2026-11-15)

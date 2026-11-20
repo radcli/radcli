@@ -549,6 +549,38 @@ local — `tests/session-timeout-tests.sh`'s DTLS cases, with a peer that never 
 send is retried well before the 1 s retransmission timer.
 **Links:** REQ-NET2-NET-001, REQ-NET-NET-005, REQ-NET-NET-007, REQ-NET-TEARDOWN-004
 
+### REQ-NET-NET-024 — A blocking UDP exchange accepts replies only from the address it sent to, and a received datagram never changes where it sends
+
+**Requirement:** On UDP, `radcli_transport_exchange()` MUST receive each datagram's source into
+storage of its own, not into the address it sends the request to, and MUST silently discard a
+datagram whose source family, address or port differs from that destination before any check
+other than REQ-NET-ERR-005's length check, with the attempt still waiting for its reply. Retransmissions MUST go to the same
+address as the first transmission, whatever was received in between. A conforming server
+already replies from that address and port: RFC 2865 §3 requires that "when a reply is
+generated, the source and destination ports are reversed", and replying from the address the
+request was sent to, which RFC 2865 assumes without stating it, is what servers do; a server on
+a multi-homed host that replies from another of its addresses is not accepted. The request socket is
+unconnected (`plain_get_fd()` binds an ephemeral port only), so the kernel delivers datagrams
+from any sender; without this, a datagram from a third host redirects later
+retransmissions — and with them the Access-Request — to that host. This is the same source
+check REQ-NET2-SEND-016 applies to the `RADCLI_REQUEST_SENDONLY` registry socket. TCP, TLS and
+DTLS receive over a connected session, which is not subject to this requirement.
+**Strength:** MUST
+**Status:** DERIVED — fixes a bug: `recvfrom()` wrote each datagram's sender into the
+destination address, and no source was checked, so a valid reply from another port was
+accepted and any datagram from a third host redirected the next retransmission there.
+**Source:** lib/sendserver.c `radcli_transport_exchange()`, `peer_matches()`
+**Acceptance:** [NET][SEC] negative, local, no root — `tests/request-stray-reply-tests.sh`
+(peer: `tests/radius-server.py`): with `--spoof-source` (the valid reply sent from another port)
+or `--spoof-address` (sent from the server's port on 127.0.0.2) and `radius_retries 0`, the
+blocking request ends in `RADCLI_TIMEOUT`; with `--other-port-first`
+(a datagram from another port answers the first transmission, and only the retransmission gets
+the real reply) and `radius_retries 1`, the server receives the Access-Request twice and the
+request yields the Access-Accept. The `--spoof-source` and `--other-port-first` cases confirmed
+failing against the unfixed code
+(`RADCLI_OK`, and one Access-Request with `RADCLI_TIMEOUT`, respectively).
+**Links:** REQ-NET2-SEND-016, REQ-NET-NET-010, REQ-NET-ERR-005, REQ-NET-SEC-004
+
 ---
 
 ## SEC — Message-Authenticator, Response Authenticator, TLS/DTLS credential handling
@@ -931,18 +963,27 @@ generic `ERROR_RC`, so callers/`rc_aaa_ctx_server()` can distinguish "try next s
 `attrs.md`'s multi-server loop, lib/legacy/buildreq.c `rc_aaa_ctx_server()`).
 **Links:** REQ-GEN-SEC-001
 
-### REQ-NET-ERR-005 — A short (`length < AUTH_HDR_LEN`) or truncated (`length < ntohs(auth->length)`) read is rejected immediately, not padded or partially processed
+### REQ-NET-ERR-005 — A short (`length < AUTH_HDR_LEN`) or truncated (`length < ntohs(auth->length)`) read is discarded, not padded or partially processed
 
-**Requirement:** `rc_send_server_ctx()` MUST check the raw byte count returned by `recvfrom()`
-against both `AUTH_HDR_LEN` (20) and the packet's own declared `length` field before doing
-anything else with the buffer, rejecting with `ERROR_RC` if either check fails — a
-transport that delivers fewer bytes than the RADIUS header requires, or fewer bytes than the
-packet claims to contain, MUST NOT be treated as a valid (if short) reply.
+**Requirement:** `radcli_transport_exchange()` MUST check the raw byte count returned by
+`recvfrom()` against both `AUTH_HDR_LEN` (20) and the packet's own declared `length` field
+before doing anything else with the buffer. A datagram (UDP) or record (DTLS) that fails either
+check MUST NOT be treated as a valid (if short) reply, and MUST be silently discarded with the
+attempt still waiting for its reply (RFC 2865 §3: a packet shorter than its Length, or shorter
+than the 20-octet minimum, "MUST be silently discarded"), not end the exchange: on UDP anyone
+who can reach the client's source port can send one, so failing the exchange would let a single
+unauthenticated datagram abort the request and skip its remaining retries and addresses.
 **Strength:** MUST
-**Status:** DERIVED
+**Status:** DERIVED — fixes a bug: such a read ended the exchange in `ERROR_RC`.
 **Source:** lib/sendserver.c `radcli_transport_exchange()`
-**Acceptance:** [ERR] negative, local — a reply truncated to 10 bytes, and a reply whose header
-declares 200 bytes but whose UDP datagram contains only 50, both yield `ERROR_RC`.
+**Acceptance:** [ERR] negative, local, no root — `tests/request-stray-reply-tests.sh`'s
+`--short-datagrams-first` case (peer: `tests/radius-server.py`): a 4-byte datagram and the
+reply's bare 20-byte header (Length still claiming the whole reply) ahead of the real reply,
+with `radius_retries 0`; the blocking request must still yield the Access-Accept. Confirmed
+failing (`RADCLI_ERROR`) against the unfixed code. Its `--stale-truncated` case (a valid reply
+under another Identifier, then only the real reply's header): the request ends in
+`RADCLI_TIMEOUT`.
+**Links:** REQ-NET2-SEND-017, REQ-NET-NET-010, REQ-NET-NET-024
 
 ### REQ-NET-ERR-006 — An oversized UDP datagram is trimmed to the RADIUS-declared length before parsing, not rejected
 
