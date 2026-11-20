@@ -786,13 +786,9 @@ minimizing misattribution of a stale, delayed reply. A round-robin cursor
 over the 256 slots, skipping occupied ones, satisfies both RFC 5080
 constraints with O(1) amortized cost.
 
-Because the socket is shared and unconnected (not `connect()`ed to one peer
-the way a private per-request socket was), `radcli_ctx_dispatch()` MUST
-validate each received datagram's source address against the destination
-address recorded in `r`'s registry slot before accepting it as that
-request's reply — replacing the source filtering a `connect()`ed socket gave
-for free, the same principle dae.md's REQ-DAE-SEC-001 applies to the DAE
-listener's own shared socket.
+Because the socket is shared and unconnected, a reply is accepted only from
+the destination recorded in `r`'s registry slot, and retransmissions go to
+that destination, as for every UDP exchange (REQ-NET-NET-024).
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/config.c (`plain_get_fd()`, ephemeral-port bind
@@ -806,18 +802,14 @@ one `ctx`, confirms `radcli_ctx_get_poll()` reports exactly one fd
 throughout (not one per request), confirms one further
 `radcli_request_perform()` fails with `RADCLI_ERROR` while all 256 slots
 are occupied, and confirms a freed slot's Identifier becomes available
-again once its request completes or is freed. [SEND] negative, unit,
-local — a reply datagram spoofed from a source address that does not match
-any registry slot's expected peer is confirmed silently discarded, not
-matched to an in-flight request (`tests/request-async-validation-tests.sh`
-against `tests/radius-server.py --spoof-source`, which sends the valid reply
-from another port; the request times out). [SEND] unit, local — freeing a request
+again once its request completes or is freed. The source check's acceptance
+is REQ-NET-NET-024's. [SEND] unit, local — freeing a request
 mid-sequence (vacating a slot out of order) and then performing several new
 `RADCLI_REQUEST_SENDONLY` requests confirms the vacated slot's Identifier is
 reused only after every other, longer-free slot has been (LRU order, not
 lowest-available-first or random), and that no Identifier still recorded as
 in flight is ever reassigned (RFC 5080 §2.1.1's MUST NOT).
-**Links:** REQ-GEN-SEC-005, REQ-GEN-SEC-007, REQ-DAE-SEC-001,
+**Links:** REQ-GEN-SEC-005, REQ-GEN-SEC-007, REQ-DAE-SEC-001, REQ-NET-NET-024,
 REQ-NET2-SEND-010, REQ-NET2-SEND-013, REQ-NET2-SEND-014
 
 **Scope:** this requirement, and REQ-NET2-SEND-013/014's rewrite above,
@@ -827,31 +819,13 @@ apply only to `radcli2`'s async surface (`radcli_request_*`,
 `radcli_transport_exchange()` core (lib/sendserver.c) are unaffected: they
 continue to open and close one socket per call, exactly as before.
 
-### REQ-NET2-SEND-017 — the request-registry drain discards a datagram shorter than the RADIUS header or than its own Length field
+### REQ-NET2-SEND-017 — WITHDRAWN — the request-registry drain discards a datagram shorter than the RADIUS header or than its own Length field
 
-**Requirement:** `radcli_ctx_dispatch()`'s request-registry drain MUST
-compare the number of bytes actually received for each datagram (UDP) or
-record (TLS/DTLS) against both `AUTH_HDR_LEN` and the packet's own Length
-field, and MUST discard it — before Identifier matching, Response
-Authenticator verification, or decoding — if it is shorter than either,
-leaving any registry slot it names still waiting. The receive buffer is
-reused across datagrams within one drain, so without this check the bytes
-past a short read are left over from an earlier datagram and would be
-authenticated as part of this one. This is the same length rule, and the
-same discard, REQ-NET-ERR-005 sets for the blocking path, matching how the
-drain already treats every other datagram it cannot validate.
-**Strength:** MUST
-**Status:** DERIVED — fixes a bug: the drain checked only `AUTH_HDR_LEN`,
-so a reply's bare header, received right after a discarded datagram that
-carried the same reply's full contents under another Identifier, was
-accepted as that complete reply.
-**Source:** lib/sendserver.c (`radcli2_priv_reqreg_drain()`)
-**Acceptance:** [SEND] negative, local, no root —
-`tests/request-async-validation-tests.sh` (peer: `tests/radius-server.py
---stale-truncated`) confirms the request ends in `RADCLI_TIMEOUT`;
-confirmed failing (`RADCLI_OK`) against the unfixed code.
-**Links:** REQ-NET-ERR-005, REQ-NET2-SEND-013, REQ-NET2-SEND-016,
-REQ-GEN-TEST-003
+**Status:** WITHDRAWN — superseded by `net.md`'s `REQ-NET-ERR-005`, which now states the same
+length rule once for every UDP/DTLS exchange, blocking and `RADCLI_REQUEST_SENDONLY` alike,
+together with this requirement's rationale and acceptance. Kept here, WITHDRAWN rather than
+deleted, per `README.md`'s ID-stability rule.
+**Links:** REQ-NET-ERR-005
 
 ### REQ-NET2-SEND-018 — RADCLI_REQUEST_SENDONLY_NONBLOCK submits a request without waiting for the network
 

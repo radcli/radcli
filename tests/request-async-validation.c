@@ -22,22 +22,34 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Reply validation on the RADCLI_REQUEST_SENDONLY path: a reply the
- * request-registry drain must discard, so the request times out instead of
- * completing. Run by tests/request-async-validation-tests.sh against
- * tests/radius-server.py in two modes:
+/* Reply validation on the RADCLI_REQUEST_SENDONLY path, run by
+ * tests/request-async-validation-tests.sh against tests/radius-server.py,
+ * which picks the peer's behaviour, the retry count and whether the request
+ * must end in the Access-Accept or in RADCLI_TIMEOUT:
  *
  * --stale-truncated: the complete valid reply under another Identifier
  * (discarded, but left in the client's receive buffer), then only the real
  * reply's header; a client that skips the length check authenticates that
- * header over the leftover bytes (REQ-NET2-SEND-017).
+ * header over the leftover bytes (REQ-NET-ERR-005). Must time out.
+ *
+ * --short-datagrams-first: datagrams shorter than the header or than their
+ * own Length ahead of the real reply, which must still be accepted
+ * (REQ-NET-ERR-005).
  *
  * --spoof-source: the valid reply, sent from another port than the server's;
  * the shared request socket is unconnected, so only an explicit source check
- * rejects it (REQ-NET2-SEND-016). */
+ * rejects it (REQ-NET-NET-024). Must time out.
+ *
+ * --spoof-address: the same, sent from the server's port on another
+ * address (REQ-NET-NET-024). Must time out.
+ *
+ * --other-port-first: a datagram from another port answers the first
+ * transmission; the retransmission must still go to the server, whose reply
+ * is accepted (REQ-NET-NET-024). */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -55,11 +67,16 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	char authserver[160];
+	int retries = 0, expect_timeout = 1;
 	int rc, iterations = 0;
 
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <port> <secret>\n", argv[0]);
+	if (argc != 3 && argc != 5) {
+		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout]\n", argv[0]);
 		return 2;
+	}
+	if (argc == 5) {
+		retries = atoi(argv[3]);
+		expect_timeout = strcmp(argv[4], "timeout") == 0;
 	}
 
 	ctx = radcli_ctx_new(0);
@@ -68,7 +85,7 @@ int main(int argc, char **argv)
 	snprintf(authserver, sizeof(authserver), "127.0.0.1:%s:%s", argv[1], argv[2]);
 	if (radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER, authserver) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, 2) != 0 ||
-	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, 0) != 0 ||
+	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, retries) != 0 ||
 	    radcli_ctx_apply(ctx) != 0)
 		die("context setup");
 
@@ -103,15 +120,27 @@ int main(int argc, char **argv)
 			die("radcli_ctx_dispatch");
 	}
 
-	if (rc != RADCLI_TIMEOUT) {
-		fprintf(stderr, "error: a reply that must be discarded was accepted "
-				"(radcli_request_done() returned %d, expected "
-				"RADCLI_TIMEOUT)\n", rc);
+	if (expect_timeout) {
+		if (rc != RADCLI_TIMEOUT) {
+			fprintf(stderr, "error: a reply that must be discarded was accepted "
+					"(radcli_request_done() returned %d, expected "
+					"RADCLI_TIMEOUT)\n", rc);
+			return 1;
+		}
+		radcli_request_free(r);
+		radcli_ctx_free(ctx);
+		printf("OK: reply discarded, request timed out\n");
+		return 0;
+	}
+	if (rc != RADCLI_OK || radcli_request_code(r) != RADCLI_CODE_ACCESS_ACCEPT) {
+		fprintf(stderr, "error: radcli_request_done() returned %d, code %d; "
+				"expected the Access-Accept that followed the discarded "
+				"datagram\n", rc, (int)radcli_request_code(r));
 		return 1;
 	}
 
 	radcli_request_free(r);
 	radcli_ctx_free(ctx);
-	printf("OK: reply discarded, request timed out\n");
+	printf("OK: datagram discarded, the real reply accepted\n");
 	return 0;
 }

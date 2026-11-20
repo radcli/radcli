@@ -7,9 +7,10 @@
 srcdir="${srcdir:-.}"
 
 echo "===== radcli2 RADCLI_REQUEST_SENDONLY reply validation ====="
-echo " Replies the poll-driven path must discard: one shorter than its own"
-echo " Length field (even when the client's receive buffer still holds the"
-echo " rest of a valid reply), and a valid one from an unexpected source"
+echo " Datagrams the poll-driven path must discard: ones shorter than the"
+echo " header or than their own Length field (even when the client's receive"
+echo " buffer still holds the rest of a valid reply), and any from an"
+echo " unexpected source, which must not redirect the retransmission either"
 echo " (see tests/request-async-validation.c)."
 echo "============================================================"
 
@@ -31,9 +32,11 @@ function finish {
 }
 trap finish EXIT
 
-# $1: the tests/radius-server.py option selecting the reply to discard.
+# $1: the tests/radius-server.py option selecting the peer's behaviour,
+# $2: radius_retries, $3: accept|timeout (the outcome the request must end
+# in), $4: how many Access-Requests the peer must receive.
 function run_mode {
-	local mode="$1"
+	local mode="$1" retries="$2" expect="$3" requests="$4"
 
 	eval "$GETPORT"
 	python3 ${srcdir}/radius-server.py --port ${PORT} --secret testing123 \
@@ -44,15 +47,16 @@ function run_mode {
 		sleep 0.5
 	done
 
-	${top_builddir}/tests/request-async-validation ${PORT} testing123 >$TMPFILE 2>&1
+	${top_builddir}/tests/request-async-validation ${PORT} testing123 ${retries} ${expect} \
+		>$TMPFILE 2>&1
 	RET=$?
 	sed 's/^/         | /' $TMPFILE
 	kill ${SRVPID} >/dev/null 2>&1
 	wait ${SRVPID} 2>/dev/null
 	SRVPID=""
 
-	if ! grep -q "received Access-Request" $LOG; then
-		echo "[ FAIL ] ${mode}: the server never received the Access-Request"
+	if test $(grep -c "received Access-Request" $LOG) -ne ${requests}; then
+		echo "[ FAIL ] ${mode}: expected the server to receive ${requests} Access-Request(s)"
 		cat $LOG
 		exit 1
 	fi
@@ -63,8 +67,15 @@ function run_mode {
 	fi
 }
 
-run_mode --stale-truncated
-run_mode --spoof-source
+# REQ-NET-ERR-005: datagrams shorter than the header or than their Length
+run_mode --stale-truncated 0 timeout 1
+run_mode --short-datagrams-first 0 accept 1
+# REQ-NET-NET-024: a valid reply from another port or address is not
+# accepted ...
+run_mode --spoof-source 0 timeout 1
+run_mode --spoof-address 0 timeout 1
+# ... and a datagram from another port does not redirect the retransmission
+run_mode --other-port-first 1 accept 2
 
-echo "[  OK  ] truncated and wrong-source replies discarded on the RADCLI_REQUEST_SENDONLY path"
+echo "[  OK  ] short and wrong-source datagrams discarded on the RADCLI_REQUEST_SENDONLY path"
 exit 0
