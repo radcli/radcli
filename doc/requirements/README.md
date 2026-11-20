@@ -11,8 +11,8 @@ the prose in `AGENTS.md`'s "Architecture" section:
   testable statements with RFC 2119 keywords, source citations, and acceptance
   criteria.
 
-Each requirement cites the source file/line it was derived from. When code and a
-requirement disagree, treat it as a `[REVIEW]` item, not as an automatic override
+Each requirement cites the source file and function it was derived from. When
+code and a requirement disagree, treat it as a `[REVIEW]` item, not as an automatic override
 — resolve by reading the cited source and, if still unclear, ask a maintainer.
 
 ## Why radcli's layout differs from a multi-process application's
@@ -107,10 +107,36 @@ Every requirement carries a `Status`:
 <condition>, so that <rationale>.
 **Strength:** MUST | SHOULD | MAY | MUST NOT | SHOULD NOT
 **Status:** DERIVED | REVIEW | AMBIGUOUS | UNDOCUMENTED | WITHDRAWN
-**Source:** <file>:<line> [, ...]
+**Source:** <file> `<function>()` [, ...]
 **Acceptance:** <test path or description> — positive|negative|unit ;
   local | CI (root/full stack, if applicable)
 **Links:** <other REQ-IDs this depends on or relates to>
+```
+
+**Source** cites code by file and function name (lib/sendserver.c
+`rc_send_server()`), never by line number: line numbers go stale with every
+unrelated edit, while a function name stays valid until the code it names is
+changed, and then the requirement has to be revisited anyway. Where the
+evidence is not inside a function, name the entity instead: a macro or
+constant (`RADCLI_VENDOR_ATTR_SET`), a table or variable, a struct field
+(`SEND_DATA.timeout`), a configuration option (etc/radiusclient.conf.in
+`radius_timeout`), or an exported symbol and its version node in
+`lib/radcli.map`. Quote the relevant expression in parentheses when the
+function is long. Existing `<file>:<line>` citations predate this rule;
+convert them to this form whenever the requirement is touched.
+
+## Document frontmatter
+
+Each requirements document opens with:
+
+```yaml
+---
+title: <short title>
+generator: requirements-from-implementation | requirements-elicitation
+id-prefix: REQ-<PREFIX>
+sources:
+  - <file, glob, or RFC>
+---
 ```
 
 ## Completeness
@@ -137,3 +163,7 @@ Applying `requirements-from-implementation.md` Phase 5 to this repository means:
   `contrib/ai/personas/radcli-core-dev.md`'s Process-state neutrality checklist.
 - **ABI acceptance criteria must cite the exact symbol name(s)** and the
   `RADCLI_LIBMAJOR` version node in `lib/radcli.map`, not vague descriptions.
+- **Normative language uses RFC 2119 keywords only** — MUST, MUST NOT,
+  SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY, REQUIRED, RECOMMENDED,
+  OPTIONAL. Informal equivalents ("needs to," "has to," "can," "will")
+  MUST NOT be used to express a normative obligation in requirement prose.
