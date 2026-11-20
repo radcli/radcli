@@ -1091,8 +1091,8 @@ real FreeRADIUS server's interoperability quirks has no unprivileged
 equivalent and is exempt.
 **Strength:** SHOULD
 **Status:** DERIVED
-**Source:** tests/msg-auth-tests.sh:50,81 (`radius-server.py` +
-`${top_builddir}/src/radiusclient` pattern); tests/ns.sh:35,39-40,46,51 (root
+**Source:** tests/msg-auth-tests.sh (`radius-server.py` +
+`${top_builddir}/src/radiusclient` pattern); tests/ns.sh (root
 requirement, `exit 77` when absent); doc/radius-test-server.md
 **Acceptance:** [TEST] code-review — a new test file that spawns a server
 process is checked for whether `tests/radius-server.py` could serve instead of

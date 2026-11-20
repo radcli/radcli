@@ -39,12 +39,12 @@ and `rc_find_server_addr`; per the protocol these are recorded as `[REVIEW]`,
 not silently "fixed" or omitted.
 
 All twelve public symbols declared under `/* config.c */` in
-`include/radcli/radcli.h:698-715` (`rc_add_config`, `rc_config_init`,
+`include/radcli/radcli.h` (`rc_add_config`, `rc_config_init`,
 `rc_read_config`, `rc_conf_str`, `rc_conf_int`, `rc_conf_srv`,
 `rc_test_config`, `rc_apply_config`, `rc_find_server_addr`, `rc_config_free`,
 `rc_new`, `rc_destroy`, `rc_get_socket_type` — thirteen counting both) are
-present verbatim under the `RADCLI_@LIBMAJOR@` node in `lib/radcli.map.in`
-lines 32-43 and 71; see `REQ-GEN-ABI-001`.
+present verbatim under the `RADCLI_@LIBMAJOR@` node in `lib/radcli.map.in`;
+see `REQ-GEN-ABI-001`.
 
 ---
 
@@ -75,7 +75,7 @@ options so that subsequent `rc_add_config()` calls populate them. On any
 allocation failure it MUST call `rc_destroy(rh)` and return `NULL`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:374-414
+**Source:** lib/config.c `radcli2_priv_config_init()`
 **Acceptance:** [INIT] positive, local — `rc_config_init(rc_new())` followed by
 `rc_add_config(rh, "authserver", "host:1812:secret", ...)` succeeds without a
 config file; [INIT] negative — a forced `calloc` failure path calls
@@ -96,12 +96,12 @@ open), destroy the partially-built `rh`, and return `NULL` — never a
 partially-initialised handle.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:644-783
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [INIT] positive, local — `rc_read_config("etc/radiusclient.conf")`
 against a syntactically valid file with a reachable `authserver` returns a
 non-NULL handle with `rc_get_socket_type() == RC_SOCKET_UDP` by default;
 [INIT] negative — a nonexistent path or a file missing `authserver` returns
-`NULL` (`lib/config.c:666-671`, `lib/config.c:876-878`).
+`NULL` (lib/config.c `radcli2_priv_read_config()`, `radcli2_priv_test_config()`).
 **Links:** REQ-CONFIG-INIT-004, REQ-CONFIG-INIT-006, REQ-CONFIG-ERR-001
 
 ### REQ-CONFIG-INIT-004 — `rc_apply_config()` MUST select and initialise exactly one transport from `serv-type`
@@ -117,11 +117,11 @@ net.md's REQ-NET-NET-004), `tls` or `dtls` (via `rc_init_tls()`, only when built
 and, if `nas-ip` is set, validate and cache `rh->nas_addr`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:545-597 (transport dispatch lines 569-588);
-lib/config.c:550-560 (bind/nas-ip)
+**Source:** lib/config.c `radcli2_priv_apply_config()` (`serv-type` transport
+dispatch, `bindaddr`/`nas-ip` caching), `set_addr()`
 **Acceptance:** [INIT] positive, local — `serv-type udp/tcp` selects
 `RC_SOCKET_UDP`/`RC_SOCKET_TCP` (`rc_get_socket_type()`); [INIT] negative,
-local — `serv-type bogus` makes `rc_apply_config()` return `-1` (`lib/config.c:585-587`).
+local — `serv-type bogus` makes `rc_apply_config()` return `-1` (lib/config.c `radcli2_priv_apply_config()`).
 **Links:** REQ-CONFIG-CFG-012, REQ-CONFIG-CFG-013
 
 ### REQ-CONFIG-INIT-005 — `rc_destroy()` MUST release dictionary, session, and config state in that order before freeing the handle
@@ -135,7 +135,7 @@ that a caller stops using MUST eventually reach `rc_destroy()` exactly once —
 double-destroy or leaked handles are caller bugs this API cannot detect.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:1219-1234
+**Source:** lib/config.c `radcli2_priv_config_free()`
 **Acceptance:** [INIT] positive, local — after `rc_destroy(rh)`,
 `rh->config_options` and `rh->first_dict_read` are `NULL`'d by
 `rc_config_free()` (observable via a debug build reading freed-then-nulled
@@ -153,7 +153,7 @@ built-in load fails, `rc_read_config()` MUST fail (destroy `rh`, return
 `NULL`) without attempting the user dictionary.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:764-780
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [INIT] positive, local — `rc_read_config()` on a config file
 with no `dictionary` line still resolves standard attribute names (e.g.
 `User-Name`) via `rc_dict_findattr`. See `dict.md` (not yet generated) for the
@@ -174,10 +174,10 @@ already whitespace, meaning an empty name) MUST be rejected as "bogus format"
 and abort the whole load.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:674-692
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [CFG] positive, local — a well-formed line like
 `authserver localhost` parses; [CFG] negative — a line starting with a tab/space
-(empty option name) fails the load with "bogus format" (`lib/config.c:685-690`).
+(empty option name) fails the load with "bogus format" (lib/config.c `radcli2_priv_read_config()`).
 
 ### REQ-CONFIG-CFG-002 — Config lines of any length MUST be read intact, via `getline()`, never a fixed-size `fgets()` buffer
 
@@ -191,7 +191,7 @@ character stripped when that character actually is the trailing newline
 trailing newline keeps its real last byte.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:677-679 (`buffer`/`bufsize`/`nread`), lib/config.c:706-711
+**Source:** lib/config.c `radcli2_priv_read_config()` (`buffer`/`bufsize`/`nread`, `getline()` loop)
 **Acceptance:** [CFG][ERR] negative, local — a config file containing one
 line far longer than the old 511-byte `fgets()` limit parses correctly
 (e.g. a long `nas-identifier` value round-trips uncorrupted and the line
@@ -211,7 +211,7 @@ overwriting or accumulating (except `OT_SRV`, see `REQ-CONFIG-CFG-007`, whose
 because of this very check).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:701-706 (file), lib/config.c:317-321 (`rc_add_config`)
+**Source:** lib/config.c `radcli2_priv_read_config()` (file), `radcli2_priv_add_config()` (`rc_add_config`)
 **Acceptance:** [CFG] negative, local — a config file with `authserver` listed
 twice fails to load; `rc_add_config()` called twice for the same option name
 returns `-1` the second time.
@@ -232,7 +232,7 @@ written for the legacy local-login-daemon feature set still loads, not as a
 general "skip unknown option and continue" mode.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:774-780 (file parsing), lib/config.c:388-393
+**Source:** lib/config.c `radcli2_priv_read_config()` (file parsing), `radcli2_priv_add_config()`
 (`rc_add_config()`); lib/options.h's `RC_OPTION_TABLE` (recognised, stored
 options) and `RC_IGNORED_OPTION_TABLE` (accepted-but-discarded names)
 **Acceptance:** [CFG] negative, local — a config file containing a misspelled
@@ -250,7 +250,7 @@ type-specific setter, so `"authserver \tlocalhost  \n"` stores `"localhost"`,
 not the padded string.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:708-714
+**Source:** lib/config.c `radcli2_priv_conf_str()`
 **Acceptance:** [CFG] positive, local — a line with trailing spaces stores a
 trimmed value (`rc_conf_str()` returns the trimmed string, no trailing
 whitespace).
@@ -273,7 +273,7 @@ correct reimplementation could reasonably choose to validate instead, but
 callers of the current library depend on the "malformed → 0" behavior not
 erroring)
 **Status:** DERIVED
-**Source:** lib/config.c:90-108
+**Source:** lib/config.c `set_option_int()`
 **Acceptance:** [CFG] positive, local — `radius_timeout 10` yields
 `rc_conf_int(rh, "radius_timeout") == 10`; [CFG] negative, local —
 `clientdebug notanumber` loads successfully with `rc_conf_int(rh,
@@ -292,7 +292,7 @@ selects which pair is used, and any other option name reaching this code path
 is a fatal "no default port" error.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:112-234 (grammar 140-212, default port 195-212)
+**Source:** lib/config.c `set_option_srv()` (server-list grammar, default-port fallback)
 **Acceptance:** [CFG] positive, local — `authserver host1,[::1]:1812:sec,
 host2:1813` parses into three `SERVER` entries with expected
 name/port/secret; [CFG] positive — `authserver localhost` (no port) resolves
@@ -327,7 +327,7 @@ used by the file parser (switched on `option->type`), so a program calling
 config-file line.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:307-350
+**Source:** lib/config.c `radcli2_priv_add_config()`
 **Acceptance:** [CFG] positive, local — `rc_add_config(rh, "authserver",
 "host:1812:sec", __FILE__, __LINE__)` populates the `SERVER` list identically
 to the equivalent file line.
@@ -386,7 +386,7 @@ set by the same function's later call to `rc_apply_config()`
 string is `"tcp"`, `"tls"` or `"dtls"` (case-insensitively).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:897-910 (check); lib/config.c:562-567
+**Source:** lib/config.c `radcli2_priv_test_config()` (check); lib/config.c `radcli2_priv_apply_config()`
 (`rc_apply_config()`'s own `serv-type`/`serv-auth-type` fallback, mirrored
 here)
 **Acceptance:** [CFG] negative, local — load a `serv-type tls` config with no
@@ -400,8 +400,8 @@ A `serv-type udp`/absent config with no `acctserver` still emits it.
 unset (`NULL`), fall back to `serv-auth-type` before defaulting to `"udp"`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:562-567; lib/options.h:34 (comment: "alias for
-serv-type")
+**Source:** lib/config.c `radcli2_priv_apply_config()`; include/radcli/radcli-defs.h `RC_OPTION_TABLE` (`OPT_SERV_AUTH_TYPE`
+entry, comment: "alias for serv-type")
 **Acceptance:** [CFG] positive, local — a config file with only
 `serv-auth-type tcp` (no `serv-type`) selects `RC_SOCKET_TCP`.
 
@@ -414,7 +414,7 @@ neither succeeds it MUST log `LOG_CRIT` "invalid IP address for nas-ip" and
 fallback for `nas-ip`, unlike `bindaddr`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:515-527 (`set_addr`), lib/config.c:555-560
+**Source:** lib/config.c `set_addr()`, `radcli2_priv_apply_config()`
 **Acceptance:** [CFG] negative, local — `nas-ip not-an-address` makes
 `rc_read_config()`/`rc_apply_config()` fail; [CFG] positive — `nas-ip
 10.0.0.1` and `nas-ip ::1` both succeed.
@@ -426,7 +426,7 @@ fallback for `nas-ip`, unlike `bindaddr`).
 it to the process-wide `radcli_debug` variable.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:757-762
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [CFG] positive, local — `clientdebug 3` in the config file
 results in `radcli_debug == 3` after `rc_read_config()` returns.
 **Links:** REQ-GEN-SEC-005 (accepted global-state exception)
@@ -438,7 +438,7 @@ call `rc_read_dictionary(rh, p)` after the built-in RFC dictionary has loaded
 successfully, and MUST fail the whole config load if that call fails.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:773-780
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [CFG] negative, local — `dictionary /nonexistent/path` makes
 `rc_read_config()` return `NULL`. See `dict.md` (not yet generated) for
 dictionary file grammar.
@@ -456,8 +456,8 @@ option requested" — there is no distinct diagnostic for "wrong type" versus
 "no such option".
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:47-61 (`find_option`), lib/config.c:791-803,
-812-829, 849-861
+**Source:** lib/config.c `find_option()`, `radcli2_priv_conf_str()`,
+`radcli2_priv_conf_int()`, `radcli2_priv_conf_srv()`
 **Acceptance:** [CFG] negative, local — `rc_conf_srv(rh, "radius_timeout")`
 (an `OT_INT` option) returns `NULL` and logs "unknown config option requested"
 even though `radius_timeout` is a real, recognised option name.
@@ -470,7 +470,7 @@ last set by `rc_apply_config()` (`RC_SOCKET_UDP`/`TCP`/`TLS`/`DTLS`); it
 performs no independent computation.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:1243-1246
+**Source:** lib/legacy/compat.c `rc_get_socket_type()`
 **Acceptance:** [CFG] positive, local — after `rc_read_config()` with
 `serv-type dtls` (GnuTLS build), `rc_get_socket_type()` returns
 `RC_SOCKET_DTLS`.
@@ -489,13 +489,13 @@ one of its resolved addresses matches an address of the originally requested
 requested strings directly.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:1053-1120 (file fallback), lib/config.c:906-935
-(`find_match`), lib/config.c:971-991 (`rc_is_myname`)
+**Source:** lib/config.c `radcli2_priv_find_server_addr()` (file fallback), `find_match()`,
+`rc_is_myname()`
 **Acceptance:** [CFG] positive, local — a `servers` file entry for a hostname
 that resolves to the same address as the requested `server_name` (even under
 a different spelling) supplies the secret. [CFG] negative — no match found in
 either the inline config or the `servers` file makes `rc_find_server_addr()`
-return `-1` and clear the output `secret` buffer (`lib/config.c:1121-1128`).
+return `-1` and clear the output `secret` buffer (lib/config.c `radcli2_priv_find_server_addr()`).
 **Links:** REQ-CONFIG-SEC-002
 
 ### REQ-CONFIG-CFG-019 — `rc_find_server_addr()` MUST NOT require a resolvable secret for a `TLS`/`DTLS` server
@@ -560,8 +560,8 @@ something `radcli_ctx_get_opt_int()` special-cases on its own.
 ### REQ-CONFIG-SEC-001 — `set_option_srv()` MUST NOT write past the `RC_SERVER_MAX`-sized `SERVER` arrays
 
 **Requirement:** A `SERVER`'s `name[]`, `port[]`, and `secret[]` arrays are
-declared `[RC_SERVER_MAX]` (`RC_SERVER_MAX` = 8, `include/radcli/radcli.h:81,
-97-99`), so valid indices are `0..7`. `set_option_srv()` MUST refuse to write
+declared `[RC_SERVER_MAX]` (`RC_SERVER_MAX` = 8, include/radcli/radcli.h `RC_SERVER_MAX`,
+`SERVER`), so valid indices are `0..7`. `set_option_srv()` MUST refuse to write
 a 9th entry: the loop's guard is `if (serv->max >= RC_SERVER_MAX) goto fail;`,
 checked before writing at index `serv->max` and incrementing, so the 9th
 comma-separated server token in a single `authserver`/`acctserver` value is
@@ -569,10 +569,10 @@ rejected instead of being written to `name[8]`/`port[8]`/`secret[8]` — one
 element past the end of each 8-element array.
 **Strength:** MUST NOT (write past the array)
 **Status:** DERIVED
-**Source:** lib/config.c:112-146 (loop and guard, guard at line 143);
-lib/config.c:214-220 (writes at `serv->name[serv->max]` /
-`serv->port[serv->max]` / `serv->secret[serv->max]`, increment at line 220);
-include/radcli/radcli.h:81 (`RC_SERVER_MAX 8`), :97-99 (array declarations)
+**Source:** lib/config.c `set_option_srv()` (server-list loop, its `RC_SERVER_MAX`
+guard, the writes at `serv->name[serv->max]` / `serv->port[serv->max]` /
+`serv->secret[serv->max]`, and the `serv->max` increment);
+include/radcli/radcli.h `RC_SERVER_MAX`, `SERVER` (array declarations)
 **Acceptance:** [SEC] negative, local, best run under ASan/Valgrind — a config
 file with `authserver h1,h2,h3,h4,h5,h6,h7,h8,h9` (9 comma-separated hosts)
 now fails cleanly at the 9th token ("cannot set more than 8 servers") instead
@@ -588,7 +588,7 @@ servers->name[servernum]) == 0`.
 **Strength:** MUST NOT (return a secret for anything other than an exact name
 match)
 **Status:** DERIVED
-**Source:** lib/config.c:1031-1045 (`strcmp`)
+**Source:** lib/config.c `radcli2_priv_find_server_addr()` (`strcmp`)
 **Acceptance:** [SEC] negative, local — configure `authserver
 short.example,long.example.evil:1812:secretB` and call
 `rc_find_server_addr(rh, "long.example", ...)`; confirm it does not match
@@ -599,18 +599,19 @@ short.example,long.example.evil:1812:secretB` and call
 
 **Requirement:** `tls-ca-file`, `tls-cert-file`, `tls-key-file`,
 `tls-verify-hostname`, and `require-message-authenticator` MUST be registered
-as `OT_STR` options (`lib/options.h:37-41`) and exposed unmodified via
+as `OT_STR` options (include/radcli/radcli-defs.h `RC_OPTION_TABLE`) and exposed unmodified via
 `rc_conf_str()`. `config.c` MUST NOT itself interpret their values (e.g. no
 boolean parsing of `tls-verify-hostname`/`require-message-authenticator`
-happens in this file) — that parsing is performed by `lib/tls.c:396`
-(`tls-verify-hostname`) and `lib/sendserver.c:882`
+happens in this file) — that parsing is performed by lib/tls.c `tls_start()`
+(`tls-verify-hostname`) and lib/sendserver.c `decode_reply()`
 (`require-message-authenticator`), which is `net.md`'s responsibility, not
 `config.md`'s.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/options.h:37-41; lib/config.c doc comment lines 620-631 (lists
-the options without parsing their values); grep confirms no reference to
-these option names outside `lib/config.c`'s Doxygen comment and
+**Source:** include/radcli/radcli-defs.h `RC_OPTION_TABLE`; lib/legacy/compat.c
+`rc_read_config()` doc comment (lists the options without parsing their
+values); grep confirms no reference to these option names outside
+`rc_read_config()`'s Doxygen comment and
 `lib/tls.c`/`lib/sendserver.c`
 **Acceptance:** [SEC] code-review — `grep -n 'tls-verify-hostname\|require-message-authenticator' lib/config.c`
 shows only the Doxygen comment, no parsing logic.
@@ -638,8 +639,7 @@ before returning `NULL`. No caller-visible handle is ever left half
 initialised.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:666-671, 686-690, 695-699, 702-706, 719-748, 752-755,
-768-771, 775-779
+**Source:** lib/config.c `radcli2_priv_read_config()`
 **Acceptance:** [ERR] negative, local, ASan-clean — every failure path listed
 above, exercised individually, leaks no memory (verified by running each
 failing-config-file case under `tests/` with ASan/LeakSanitizer).
@@ -654,8 +654,7 @@ MUST check the return of every `strdup()`/`malloc()`/`calloc()` call, log
 same call before returning).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:76-80, 99-102, 122-127, 131-136, 172-175, 187-191,
-215-218
+**Source:** lib/config.c `set_option_str()`, `set_option_int()`, `set_option_srv()`
 **Acceptance:** [ERR][MEM] code-review — every allocation in these three
 functions is followed by a NULL check before use.
 **Links:** REQ-GEN-MEM-002
@@ -672,7 +671,7 @@ distinguishing "never heard of this option" from "known option, unset value" —
 both still return `0`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:791-803, 812-829, 849-861
+**Source:** lib/config.c `radcli2_priv_conf_str()`, `rc_conf_int_2()`, `radcli2_priv_conf_srv()`
 **Acceptance:** [ERR] negative, local — `rc_conf_str(rh, "no-such-option")`
 returns `NULL` without crashing; `rc_conf_int(rh, "clientdebug")` before
 it is set in the config returns `0` with a `LOG_ERR`, not `LOG_CRIT`, log line.
@@ -694,7 +693,7 @@ attribute/vendor entries — only `rc_destroy()` (which calls `rc_dict_free()`
 separately, first) fully releases a handle.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:1144-1180 (doc comment 1144-1153, body 1154-1180)
+**Source:** lib/config.c `radcli2_priv_config_free()` (doc comment and body)
 **Acceptance:** [DATA][MEM] negative, local, ASan/LeakSanitizer-clean — after
 `rc_config_free(rh)` on a fully-populated handle (multiple `authserver`
 entries with secrets, several string/int options set), no leaks are reported
@@ -711,8 +710,8 @@ remain valid and readable until a subsequent `rc_dict_free()`/`rc_destroy()`.
 entries or count.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/options.h:44-45 (`authserver`, `acctserver` as distinct
-`OT_SRV` entries); include/radcli/radcli.h:81 (`RC_SERVER_MAX`)
+**Source:** include/radcli/radcli-defs.h `RC_OPTION_TABLE` (`authserver`, `acctserver` as distinct
+`OT_SRV` entries); include/radcli/radcli.h (`RC_SERVER_MAX`)
 **Acceptance:** [DATA] positive, local — a config with 3 `authserver` hosts
 and 1 `acctserver` host yields `rc_conf_srv(rh,"authserver")->max == 3` and
 `rc_conf_srv(rh,"acctserver")->max == 1`, independently.
@@ -722,8 +721,8 @@ and 1 `acctserver` host yields `rc_conf_srv(rh,"authserver")->max == 3` and
 
 ## Phase 5 — completeness check
 
-Every symbol declared under `/* config.c */` in `include/radcli/radcli.h:698-715`
-and mirrored in `lib/radcli.map.in` (lines 32-43, 71) is cited by at least one
+Every symbol declared under `/* config.c */` in `include/radcli/radcli.h`
+and mirrored in `lib/radcli.map.in` is cited by at least one
 requirement above:
 
 | Symbol | Cited by |

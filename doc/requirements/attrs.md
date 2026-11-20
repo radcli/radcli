@@ -48,7 +48,7 @@ the upper 32 bits and the attribute ID in the lower 32 bits, built with
 upper bits.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/radcli/radcli.h:63-68, 499
+**Source:** include/radcli/radcli.h `ATTRID`, `RADCLI_VENDOR_ATTR_SET`, `VENDOR`, `VALUE_PAIR`
 **Acceptance:** [DATA] unit, local — round-trip `VENDOR(RADCLI_VENDOR_ATTR_SET(a, v)) == v` and `ATTRID(RADCLI_VENDOR_ATTR_SET(a, v)) == a` for representative `a`/`v` pairs, including `v = 0`.
 **Links:** REQ-ATTR-DATA-002, REQ-ATTR-DATA-018
 
@@ -61,7 +61,7 @@ via `rc_dict_getattr()`/`rc_dict_getvend()` and fail (return `NULL`, logging at
 before any `VALUE_PAIR` is allocated.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:196-217
+**Source:** lib/legacy/avpair.c `rc_avpair_new()`
 **Acceptance:** [DATA] negative, local — `rc_avpair_new()`/`rc_avpair_add()` with an attribute ID or vendor ID absent from the loaded dictionary returns `NULL`.
 **Links:** REQ-ATTR-SEC-036, REQ-DICT-* (dict.md)
 
@@ -78,7 +78,7 @@ requires `2 <= len <= 18`; any other `vp->type` is rejected as "no attribute ...
 in dictionary".
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:135-183; include/includes.h:151-152 (`VSA_HDR_LEN`)
+**Source:** lib/legacy/avpair.c `rc_avpair_assign()`; lib/includes.h (`VSA_HDR_LEN`)
 **Acceptance:** [DATA] unit, local — for each `rc_attr_type`, a length one byte over the limit is rejected (`-1`) and a length at the limit succeeds; an `IPV6ADDR` assign with `len != 16` and an `IPV6PREFIX` assign with `len` outside `[2,18]` are rejected.
 **Links:** REQ-ATTR-DATA-004
 
@@ -92,7 +92,7 @@ standard attribute, reflecting the 6-byte Vendor-Specific envelope
 encoder must still fit inside a 255-byte RADIUS attribute.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:146; include/includes.h:151-152
+**Source:** lib/legacy/avpair.c `rc_avpair_assign()`; lib/includes.h `VSA_HDR_LEN`
 **Acceptance:** [DATA] unit, local — a 248-byte string value assigned to a vendor-specific `PW_TYPE_STRING` attribute is rejected; a 253-byte string assigned to a standard one succeeds.
 **Links:** REQ-ATTR-DATA-003, REQ-NET-DATA-* (packet packing, net.md)
 
@@ -105,7 +105,7 @@ on entry, since that indicates the caller is passing a node that is already
 linked into some list (a state this function cannot safely splice from).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:532-578
+**Source:** lib/legacy/avpair.c `rc_avpair_insert()`
 **Acceptance:** [DATA][ERR] unit, local — inserting a fresh (`next == NULL`) node at `p == NULL` appends it as the new tail; inserting after a specific `p` places it immediately after `p`; passing a node with `next != NULL` aborts the process (verified via a crash/signal test, not a return-code check).
 **Links:** REQ-ATTR-DATA-008
 
@@ -117,7 +117,7 @@ linked into some list (a state this function cannot safely splice from).
 position — matching its documented "always appends" contract.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:32-59
+**Source:** lib/legacy/avpair.c `rc_avpair_add()`
 **Acceptance:** [DATA] unit, local — two successive `rc_avpair_add()` calls on the same list produce a list whose iteration order (via `rc_avpair_next()`) matches call order.
 **Links:** REQ-ATTR-DATA-007
 
@@ -130,7 +130,7 @@ that one node, and leave the rest of the list (including any further matches)
 untouched; it MUST be a no-op if no match is found.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:69-101
+**Source:** lib/legacy/avpair.c `rc_avpair_remove()`
 **Acceptance:** [DATA] unit, local — a list with two pairs sharing the same `(attrid, vendorspec)` has exactly one removed by a single `rc_avpair_remove()` call; calling it again removes the second.
 **Links:** REQ-ATTR-DATA-001
 
@@ -143,7 +143,7 @@ REQ-ATTR-DATA-009), or `NULL` if none matches. `rc_avpair_next(t)` MUST return
 `VALUE_PAIR`'s internal layout can still walk the list.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:112-115, 480-489; include/radcli/radcli.h:490-494 (doc note directing callers to the accessor API instead of the struct)
+**Source:** lib/legacy/avpair.c `rc_avpair_next()`, `rc_avpair_get()`; include/radcli/radcli.h `VALUE_PAIR` (doc note directing callers to the accessor API instead of the struct)
 **Acceptance:** [DATA] unit, local — `rc_avpair_get()` on a list with a known matching third element returns that element; on an empty or non-matching list returns `NULL`. Iterating via `rc_avpair_next()` from the list head visits every element exactly once and terminates at `NULL`.
 
 ### REQ-ATTR-DATA-011 — rc_avpair_copy performs an atomic, all-or-nothing shallow copy
@@ -155,7 +155,7 @@ middle of the list fails, it MUST free every node allocated so far in this
 call and return `NULL` rather than returning a partial list.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:497-521
+**Source:** lib/legacy/avpair.c `rc_avpair_copy()`
 **Acceptance:** [DATA][ERR] unit, local — copying a non-empty list yields a list of equal length with field-identical, but pointer-distinct, nodes; a simulated allocation failure partway through leaves no leaked nodes and returns `NULL`.
 **Links:** REQ-GEN-MEM-002
 
@@ -166,7 +166,7 @@ end, calling `free()` on every node, and MUST accept `pair == NULL` as a
 no-op (no crash, no error).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:584-594
+**Source:** lib/legacy/avpair.c `rc_avpair_free()`
 **Acceptance:** [DATA] unit, local — `rc_avpair_free(NULL)` returns without incident; freeing an N-node list does not leak (verified under a leak detector).
 
 ### REQ-ATTR-DATA-013 — rc_avpair_parse decodes a "name = value[, ...]" text line per attribute type
@@ -182,7 +182,7 @@ literal when the first value character is a digit, otherwise via
 `rc_str2tm()` against today's date at midnight local time.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:650-867
+**Source:** lib/legacy/avpair.c `rc_avpair_parse()`
 **Acceptance:** [DATA] unit, local — one representative parse per `rc_attr_type` produces a `VALUE_PAIR` with the expected `lvalue`/`strvalue`; a quoted string value containing a comma is parsed as one token, not split.
 **Links:** REQ-ATTR-ERR-038, REQ-DICT-* (rc_dict_findattr/rc_dict_findval, dict.md)
 
@@ -199,7 +199,7 @@ via `inet_ntop()` (the latter appending `/prefixlen`); `PW_TYPE_DATE` via
 has an empty `name`, or if `pair->type` is not one of the above.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:879-988
+**Source:** lib/legacy/avpair.c `rc_avpair_tostr()`
 **Acceptance:** [DATA] unit, local — one round-trip test per `rc_attr_type` (`rc_avpair_add()` then `rc_avpair_tostr()`) produces the expected string; `rc_avpair_tostr(rh, NULL, ...)` returns `-1`.
 
 ### REQ-ATTR-DATA-015 — rc_avpair_log formats a whole list into a caller buffer, stopping at capacity
@@ -211,7 +211,7 @@ estimated size would not fit in the remaining `buf_len`, and MUST return
 `NULL` if any pair fails to stringify.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:1000-1018
+**Source:** lib/legacy/avpair.c `rc_avpair_log()`
 **Acceptance:** [DATA] unit, local — logging a list that fits well within `buf_len` renders every pair; logging into a deliberately small `buf_len` stops before the buffer's declared capacity is exceeded (see REQ-ATTR-DATA-016 for the case where this guarantee can be violated).
 
 ### REQ-ATTR-DATA-016 — rc_avpair_log() MUST bound each rendered line by the actual written length, not a fixed-width estimate
@@ -230,7 +230,7 @@ exceed the estimate used to decide whether the line fit in `buf`, and
 **Strength:** MUST NOT (write past `buf_len`) ; MUST (use snprintf's actual
 return value for bounds tracking) — per `REQ-GEN-MEM-004`
 **Status:** DERIVED
-**Source:** lib/avpair.c:1000-1017
+**Source:** lib/legacy/avpair.c `rc_avpair_log()`
 **Acceptance:** [DATA][MEM] negative, local — construct a pair whose
 dictionary name is longer than 32 bytes; `rc_avpair_log()` does not overrun
 `buf` regardless of `buf_len`, verified under ASan.
@@ -249,7 +249,7 @@ non-NULL) only when `vp->type` is `PW_TYPE_DATE`, `PW_TYPE_INTEGER`, or
 and never fail. None of the four allocate memory.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:1030-1109
+**Source:** lib/legacy/avpair.c `rc_avpair_get_attr()`, `rc_avpair_get_in6()`, `rc_avpair_get_raw()`, `rc_avpair_get_uint32()`
 **Acceptance:** [DATA][ERR] unit, local — each accessor called with a `vp->type` outside its valid set returns `-1` and does not write through a non-NULL output pointer; `rc_avpair_get_raw()`'s returned pointer, when written through, is observed to mutate the original `vp->strvalue` (proving it is not a copy).
 **Links:** REQ-ATTR-DATA-001
 
@@ -272,7 +272,7 @@ Attribute IDs not found via `rc_dict_getattr()` under the current
 (`LOG_WARNING`/`LOG_ERR`) and skipped, not treated as a hard decode failure.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:266-434, 459-471
+**Source:** lib/legacy/avpair.c `rc_avpair_gen2()`, `rc_avpair_gen()`
 **Acceptance:** [DATA] unit, local — decoding a buffer containing one recognized attribute, one attribute with an unknown ID, and one VSA envelope with two recognized sub-attributes yields a list with 3 entries (the unknown one skipped) in wire order; a VSA whose declared vendor PEN is not in the dictionary is skipped, not a hard error.
 **Links:** REQ-ATTR-DATA-001, REQ-ATTR-ERR-039
 
@@ -288,7 +288,7 @@ non-NULL `pair` into `rc_avpair_gen()` and receives `NULL` back MUST NOT
 reuse or re-free that original list; it has already been freed.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:280-282, 428-434, 459-471
+**Source:** lib/legacy/avpair.c `rc_avpair_gen2()`, `rc_avpair_gen()`
 **Acceptance:** [DATA][ERR] negative, local — call `rc_avpair_gen(rh, existing_list, malformed_bytes, len, 0)` with a length byte that overruns the buffer; verify the return is `NULL` and (under a leak/use-after-free detector) that `existing_list`'s nodes were freed exactly once, not leaked and not double-freed by the caller.
 **Links:** REQ-GEN-MEM-002, REQ-ATTR-ERR-039
 
@@ -301,7 +301,7 @@ changing the struct's size (an ABI-additive change under REQ-GEN-ABI-002),
 not as usable storage in the current implementation.
 **Strength:** MUST NOT (use today) 
 **Status:** DERIVED
-**Source:** include/radcli/radcli.h:504 (`char pad[32]; //!< unused pad`)
+**Source:** include/radcli/radcli.h `VALUE_PAIR` (`char pad[32]; //!< unused pad`)
 **Acceptance:** [DATA][ABI] code-review — no new code reads/writes `VALUE_PAIR.pad`; any change that gives it meaning is reviewed as a `REQ-GEN-ABI-002` struct-layout change even though the total `sizeof(VALUE_PAIR)` does not change.
 **Links:** REQ-GEN-ABI-002
 
@@ -320,7 +320,7 @@ NOT touch `data->send_pairs`/`data->receive_pairs`, which callers (or
 it.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/legacy/buildreq.c:38-46
+**Source:** lib/legacy/buildreq.c `rc_buildreq()`
 **Acceptance:** [NET] unit, local — calling `rc_buildreq()` on a `SEND_DATA` whose `send_pairs`/`receive_pairs` were pre-set leaves those two fields unchanged; two successive calls typically (not guaranteed) produce different `seq_nbr` values, since `seq_nbr` is not a security-sensitive nonce, only a retransmission-matching ID (see REQ-NET-* in net.md for how it's used on the wire).
 **Links:** REQ-ATTR-NET-025
 
@@ -338,7 +338,7 @@ by `rc_aaa_ctx()` and `rc_acct_async()` (`REQ-ATTR-NET-030`) — both MUST
 apply the identical authserver/acctserver rule, not divergent copies.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:69-85 (`rc_select_aaa_server`), lib/buildreq.c:166-179 (`rc_aaa_ctx`)
+**Source:** lib/legacy/buildreq.c (`rc_select_aaa_server`), lib/legacy/buildreq.c (`rc_aaa_ctx`)
 **Acceptance:** [NET] unit, local — with `so_type == RC_SOCKET_TLS`, an accounting-type request still selects `authserver`; with `so_type == RC_SOCKET_UDP`, it selects `acctserver`; with no `acctserver` configured, `rc_acct()` returns `ERROR_RC` before any packet is built.
 **Links:** REQ-NET-* (transport type / TLS-DTLS shared-port behavior, net.md), REQ-ATTR-NET-030
 
@@ -358,7 +358,7 @@ helper `rc_fill_acct_pairs()`, shared verbatim by `rc_aaa_ctx_server()` and
 `rc_aaa_ctx_server_async()` (`REQ-ATTR-NET-030`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:102-140 (`rc_fill_acct_pairs`), lib/buildreq.c:222-224 (call site in `rc_aaa_ctx_server`)
+**Source:** lib/legacy/buildreq.c (`rc_fill_acct_pairs`), lib/legacy/buildreq.c `rc_aaa_ctx_server()` (call site in `rc_aaa_ctx_server`)
 **Acceptance:** [NET] unit, local — an accounting request with no `PW_NAS_PORT`/`PW_ACCT_DELAY_TIME` gets both added; one with a caller-supplied `PW_NAS_PORT` keeps the caller's value; one with a caller-supplied non-zero `PW_ACCT_DELAY_TIME` does not get a second such pair added.
 **Links:** REQ-ATTR-NET-024, REQ-ATTR-NET-030
 
@@ -372,7 +372,7 @@ a second server reports actual elapsed wait time, not a stale value from the
 first attempt.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:190-193
+**Source:** lib/legacy/buildreq.c `rc_aaa_ctx_server()`
 **Acceptance:** [NET] unit, local (with a fake clock/mockable `rc_getmtime()`) — a two-server accounting request that times out against the first server and succeeds against the second carries a larger `PW_ACCT_DELAY_TIME` value in the second attempt than the first.
 **Links:** REQ-ATTR-NET-023
 
@@ -388,7 +388,7 @@ remain (`servernum < aaaserver->max`); any other non-terminal result ends the
 loop and is returned as-is.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:184-218
+**Source:** lib/legacy/buildreq.c `rc_aaa_ctx_server()`
 **Acceptance:** [NET][ERR] unit, local — a 3-server list where server 0 returns `TIMEOUT_RC` and server 1 returns `OK_RC` yields an overall `OK_RC` using server 1's response, without contacting server 2; a list where server 0 returns `BADRESP_RC` yields `BADRESP_RC` immediately, without trying server 1.
 **Links:** REQ-ATTR-ERR-039
 
@@ -410,7 +410,7 @@ non-NULL `received` MUST NOT expect accounting-response attributes to be
 returned through it.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:197-203
+**Source:** lib/legacy/buildreq.c `rc_aaa_ctx_server()`
 **Acceptance:** [NET][ERR] unit, local — call `rc_aaa_ctx()` directly with
 `request_type = PW_ACCOUNTING_REQUEST` and a non-NULL `received` pointing at
 a sentinel value; confirm the sentinel is unchanged after a successful call.
@@ -429,7 +429,7 @@ these five simpler entry points); `rc_aaa_ctx()` MUST resolve the server list
 (REQ-ATTR-NET-022) and forward to `rc_aaa_ctx_server()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:83-104, 234-310
+**Source:** lib/legacy/buildreq.c `rc_aaa_ctx()`, `rc_aaa()`, `rc_acct()`, `rc_acct_proxy()`, `rc_auth()`, `rc_auth_proxy()`
 **Acceptance:** [NET] unit, local — `rc_auth()`'s and `rc_acct()`'s `add_nas_port`/`request_type` arguments to the underlying `rc_aaa()` call match the values above (verifiable via a call-count/argument-capturing stub of `rc_aaa_ctx_server()` in a test build).
 **Links:** REQ-ATTR-NET-022, REQ-ATTR-NET-025
 
@@ -445,7 +445,7 @@ REQ-ATTR-NET-025. It MUST free `data.receive_pairs` itself; there is no
 output parameter for received attributes.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:322-354
+**Source:** lib/legacy/buildreq.c `rc_check()`
 **Acceptance:** [NET] unit, local — `rc_check()` never invokes `rc_conf_srv()` (verifiable via a stub that fails the test if called); a `rc_check()` call against an unreachable single host does not attempt a second host, even if `authserver`/`acctserver` in the config would provide one.
 **Links:** REQ-ATTR-NET-025
 
@@ -460,7 +460,7 @@ received `PW_REPLY_MESSAGE` attribute into it with no length parameter to
 bound the write to a smaller caller buffer.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/radcli/radcli.h:70 (`PW_MAX_MSG_SIZE`), 655-667 (declarations); lib/buildreq.c:76, 123, 226, 248, 270, 318 (Doxygen `@param msg` notes: "must point to a buffer of PW_MAX_MSG_SIZE bytes"); all `msg` parameters passed through unchanged to `rc_send_server`/`rc_send_server_ctx`
+**Source:** include/radcli/radcli.h (`PW_MAX_MSG_SIZE`, and the `rc_aaa*`/`rc_auth*`/`rc_check` declarations); lib/legacy/buildreq.c `rc_aaa_ctx()`, `rc_aaa_ctx_server()`, `rc_aaa()`, `rc_auth()`, `rc_auth_proxy()`, `rc_check()` (Doxygen `@param msg` notes: "must point to a buffer of PW_MAX_MSG_SIZE bytes"); all `msg` parameters passed through unchanged to `rc_send_server`/`rc_send_server_ctx`
 **Acceptance:** [NET][SEC] code-review — every call site passing a non-NULL `msg` allocates it as `char msg[PW_MAX_MSG_SIZE]` or equivalent; flagged as a precondition, not independently enforced by this document's functions (no length is passed in, so a too-small buffer cannot be detected here — see `net.md` for the write itself).
 **Links:** REQ-NET-* (msg write, net.md)
 
@@ -484,7 +484,7 @@ least one server was reached, `ERROR_RC` only if every server's send failed
 outright.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:373-420 (`rc_aaa_ctx_server_async`), lib/buildreq.c:440-449
+**Source:** lib/legacy/buildreq.c (`rc_aaa_ctx_server_async`), lib/legacy/buildreq.c `rc_acct_async()`
 (`rc_acct_async`)
 **Acceptance:** [NET] unit, local — a 2-server `acctserver` list with the first
 unreachable and the second reachable yields `OK_RC` and the second server MUST still be
@@ -515,7 +515,7 @@ re-look-up the secret or regenerate a vector out of band. Passing `ctx == NULL`
 MUST skip capturing this information entirely (no allocation).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/radcli/radcli.h:527-537; include/includes.h:206-210; lib/aaa_ctx.c:41-55
+**Source:** include/radcli/radcli.h `RC_AAA_CTX`; lib/includes.h `struct rc_aaa_ctx_st`; lib/legacy/aaa_ctx.c `rc_aaa_ctx_get_secret()`, `rc_aaa_ctx_get_vector()`
 **Acceptance:** [SEC] unit, local — a successful `rc_aaa_ctx()` call with non-NULL `ctx` yields a `*ctx` whose `rc_aaa_ctx_get_secret()` equals the secret configured for the server actually used, and whose `rc_aaa_ctx_get_vector()` is `AUTH_VECTOR_LEN` bytes.
 **Links:** REQ-GEN-SEC-006, REQ-NET-SEC-* (request authenticator generation, net.md)
 
@@ -528,7 +528,7 @@ allocate or copy. The returned pointer's validity is therefore bounded by the
 called.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/aaa_ctx.c:41-55
+**Source:** lib/legacy/aaa_ctx.c `rc_aaa_ctx_get_secret()`, `rc_aaa_ctx_get_vector()`
 **Acceptance:** [SEC][MEM] code-review — no call site retains a pointer returned by either accessor past the matching `rc_aaa_ctx_free()` call (a use-after-free check under ASan on any new test exercising this).
 **Links:** REQ-ATTR-SEC-033
 
@@ -541,7 +541,7 @@ plain `free()`. Every `RC_AAA_CTX *` a caller receives (non-NULL) from
 copy of the shared secret.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/aaa_ctx.c:58-65
+**Source:** lib/legacy/aaa_ctx.c `rc_aaa_ctx_free()`
 **Acceptance:** [SEC][MEM] unit, local — a call sequence obtaining and freeing an `RC_AAA_CTX` shows no leak under a leak detector; `rc_aaa_ctx_free()` is idempotent-unsafe like `free()` (double-free is caller error, not guarded against — consistent with REQ-GEN-MEM-003's cleanup-label convention, not a distinct guarantee here).
 
 ### REQ-ATTR-SEC-034 — rc_aaa_ctx_free() MUST zero the secret and vector before releasing memory
@@ -554,7 +554,7 @@ not an ephemeral stack buffer — which makes zero-before-free more important
 here than for shorter-lived buffers, not less.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/aaa_ctx.c:62-67 (`memset(ctx, '\0', sizeof(*ctx))` before
+**Source:** lib/legacy/aaa_ctx.c `rc_aaa_ctx_free()` (`memset(ctx, '\0', sizeof(*ctx))` before
 `free(ctx)`)
 **Acceptance:** [SEC] unit, local — after `rc_aaa_ctx_free(ctx)`, the memory
 formerly holding `ctx->secret` is all-zero (verifiable via a debug build that
@@ -572,7 +572,7 @@ validity is therefore tied to whichever object actually owns the string, not
 to the `SEND_DATA`/request lifetime.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:50-52, 186-188, 347-348; include/radcli/radcli.h:512-523
+**Source:** lib/legacy/buildreq.c `rc_buildreq()`, `rc_aaa_ctx_server()`, `rc_check()`; include/radcli/radcli.h `SEND_DATA`
 **Acceptance:** [SEC][MEM] code-review — no code in this document frees or mutates `data->secret`; freeing the `rc_handle`/`SERVER` that owns the underlying secret string before the `SEND_DATA` using it is fully processed is a use-after-free bug in the *caller*, not something `rc_buildreq()` guards against.
 **Links:** REQ-GEN-SEC-006, REQ-ATTR-SEC-031
 
@@ -587,7 +587,7 @@ validation is entirely the per-type logic in `rc_avpair_assign()`
 still be rejected by the type-specific checks.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:196-261
+**Source:** lib/legacy/avpair.c `rc_avpair_new()`
 **Acceptance:** [SEC] code-review — no reviewer should treat "the attribute exists in the dictionary" as evidence that its value has been bounds-checked; the two checks are independent and both required.
 **Links:** REQ-ATTR-DATA-002, REQ-ATTR-DATA-003
 
@@ -607,7 +607,7 @@ checks this return value before using the result (e.g.
 `if (rc_avpair_add(...) == NULL) return ERROR_RC;`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:196-261; lib/buildreq.c:155-157, 168-172
+**Source:** lib/legacy/avpair.c `rc_avpair_new()`; lib/legacy/buildreq.c `rc_aaa_ctx_server()`
 **Acceptance:** [ERR] negative, local — `rc_avpair_new()`/`rc_avpair_add()` with each of the failure conditions above returns `NULL`, and does not leak the partially-constructed node (checked under a leak detector for the `rc_avpair_assign()`-failure path, which explicitly `free(vp)`s before returning).
 **Links:** REQ-GEN-MEM-002, REQ-ATTR-DATA-002, REQ-ATTR-DATA-003
 
@@ -623,7 +623,7 @@ and reset `*first_pair` to `NULL` — a caller never receives a partial list
 representing "everything up to the error."
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avpair.c:650-867 (every `return -1` branch pairs with `rc_avpair_free(*first_pair); *first_pair = NULL;` when `*first_pair` is non-NULL)
+**Source:** lib/legacy/avpair.c `rc_avpair_parse()` (every `return -1` branch pairs with `rc_avpair_free(*first_pair); *first_pair = NULL;` when `*first_pair` is non-NULL)
 **Acceptance:** [ERR] negative, local — a buffer with two valid `name = value` pairs followed by a third with an unknown attribute name causes `rc_avpair_parse()` to return `-1` with `*first_pair == NULL`, not a 2-element list.
 **Links:** REQ-ATTR-DATA-013
 
@@ -641,7 +641,7 @@ number of pre-transmission failure cases: no matching server list
 auto-filling NAS-Port/Acct-Delay-Time (REQ-ATTR-NET-023).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/buildreq.c:90-99 (rc_aaa_ctx server selection), 150-177 (NAS-Port/Acct-Delay-Time seeding), 184-218 (rc_aaa_ctx_server, propagating `result` from `rc_send_server_ctx`); include/radcli/radcli.h:475-484 (`rc_send_status`)
+**Source:** lib/legacy/buildreq.c `rc_aaa_ctx()` (server selection), `rc_fill_acct_pairs()` (NAS-Port/Acct-Delay-Time seeding), `rc_aaa_ctx_server()` (propagating `result` from `rc_send_server_ctx`); include/radcli/radcli.h (`rc_send_status`)
 **Acceptance:** [ERR] code-review — every non-`ERROR_RC` return value observed from a function in this document traces back to a `rc_send_server`/`rc_send_server_ctx` return, not a value invented in `lib/avpair.c`/`lib/buildreq.c`/`lib/aaa_ctx.c`.
 **Links:** REQ-ATTR-NET-025, REQ-NET-* (net.md, origin of the non-`ERROR_RC` values)
 
@@ -715,7 +715,7 @@ and `rc_aaa_ctx_server()` have no requirement describing what happens if
 value (e.g. a misconfigured negative number) — that belongs to `config.md`
 (`rc_conf_int()`'s own contract), not here; this document only notes that
 `buildreq.c` passes the value through to `rc_buildreq()` uninspected (see
-lib/buildreq.c:140-141, 328-329).
+lib/legacy/buildreq.c `rc_aaa_ctx_server()`, `rc_check()`).
 
 **Cross-cutting concerns.** Thread safety: none of `avpair.c`/`buildreq.c`/
 `aaa_ctx.c` touch process-wide state (`DEBUG()`'s `rh->debug` is a per-handle

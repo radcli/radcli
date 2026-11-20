@@ -76,11 +76,11 @@ dictionary, matching case-insensitively (the same matching rule the legacy
 attribute with that name is loaded.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:428-433 (`radcli_dict_lookup`), lib/dict2.c:118-133
+**Source:** lib/dict2.c (`radcli_dict_lookup`), lib/dict2.c
 (`radcli_dict_attr_by_name`, the case-folding `HASH_FIND` it delegates to)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:351` resolves
-`"Test-Std-Attr"` by name; `tests/dict.c:226-233` confirms
-`"framed-protocol"`/`"FRAMED-PROTOCOL"` both resolve despite the differing
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s
+`radcli_dict_lookup(ctx, "Test-Std-Attr")` resolves `"Test-Std-Attr"` by name;
+its `"framed-protocol"`/`"FRAMED-PROTOCOL"` checks confirm both resolve despite the differing
 case.
 **Links:** REQ-DICT2-DATA-004
 
@@ -96,11 +96,11 @@ every `radcli_ctx_new()` context unless created with
 `RADCLI_CTX_NO_BUILTIN_DICT`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:435-441 (`radcli_dict_lookup_num`), lib/dict2.c:135-144
+**Source:** lib/dict2.c (`radcli_dict_lookup_num`), lib/dict2.c
 (`radcli_dict_attr_by_id`, the `RADCLI_VENDOR_ATTR_SET()`-keyed `HASH_FIND` it
 delegates to)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:362-366` resolves
-attribute `250` (vendor `0`) to the same definition `radcli_dict_lookup()`
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s
+`radcli_dict_lookup_num(ctx, 250, 0)` check resolves attribute `250` (vendor `0`) to the same definition `radcli_dict_lookup()`
 returns by name; `lib/avp.c`'s `_by_num()` wrapper family (REQ-AVP2-DATA-015)
 exercises it transitively against every RFC 2865/2866/2869 attribute the
 local test suite adds by number.
@@ -122,11 +122,12 @@ TLV-nested attributes to match against, and a 2-component `26.<vendor>` names
 a vendor rather than an attribute.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:392-425 (`parse_oid`), lib/dict2.c:443-466
+**Source:** lib/dict2.c (`parse_oid`), lib/dict2.c
 (`radcli_dict_lookup_oid`)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:369-373` resolves
-standard OID `"250"`; `tests/dict.c:381-389` resolves vendor OID
-`"26.19999.5"`. [ERR] negative, local — `tests/dict.c:409-416` confirms a
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s
+`radcli_dict_lookup_oid()` checks resolve standard OID `"250"` and vendor OID
+`"26.19999.5"`. [ERR] negative, local — the same file's
+`radcli_dict_lookup_oid(ctx, "241.1")`/`(ctx, "26.19999")` checks confirm a
 well-formed 2-component `"241.1"` (extended attribute, unloaded) and
 `"26.19999"` (vendor-only) both miss without crashing.
 **Links:** REQ-DICT2-DATA-002, REQ-DICT2-ERR-008
@@ -140,12 +141,12 @@ accept any `def` returned by `radcli_dict_lookup()` or a sibling lookup
 function, and neither allocates or may fail for a valid, non-NULL `def`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:468-472 (`radcli_attr_def_name`), lib/dict2.c:474-478
-(`radcli_attr_def_type`), lib/dict2.c:333-380 (`dict_type_to_radcli`, the
+**Source:** lib/dict2.c (`radcli_attr_def_name`), lib/dict2.c
+(`radcli_attr_def_type`), lib/dict2.c (`dict_type_to_radcli`, the
 `rc_attr_type` -> `radcli_attr_type` mapping `_type()` applies)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:352,356` confirm the
-name and `RADCLI_TYPE_INTEGER` type of a standard-typed attribute;
-`tests/dict.c:386` confirms `RADCLI_TYPE_STRING` for a vendor attribute.
+**Acceptance:** [DATA] positive, local — `tests/dict.c` confirms the
+name and `RADCLI_TYPE_INTEGER` type of `Test-Std-Attr` (a standard-typed
+attribute) and `RADCLI_TYPE_STRING` for `Test-Vendor-Attr` (a vendor attribute).
 **Links:** REQ-DICT2-DATA-001
 
 ### REQ-DICT2-DATA-005 — radcli_attr_def_oid() renders the same RFC 6929 §2.7 OID text radcli_dict_lookup_oid() would parse back to the same definition
@@ -160,10 +161,10 @@ call first. Passing the returned text back through `radcli_dict_lookup_oid()`
 on the same dictionary MUST resolve to the same `def` (round-trip).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:480-494 (`radcli_attr_def_oid`)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:374-377` round-trips a
-standard attribute's OID (`"250"`); `tests/dict.c:390-393` round-trips a
-vendor attribute's OID (`"26.19999.5"`) through `radcli_dict_lookup_oid()`.
+**Source:** lib/dict2.c (`radcli_attr_def_oid`)
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s
+`radcli_attr_def_oid()` checks round-trip a standard attribute's OID (`"250"`)
+and a vendor attribute's OID (`"26.19999.5"`) through `radcli_dict_lookup_oid()`.
 **Links:** REQ-DICT2-DATA-003, REQ-DICT2-ERR-010
 
 ### REQ-DICT2-DATA-006 — radcli_dict_lookup_value() resolves a VALUE name scoped to one attribute, case-insensitively
@@ -177,13 +178,13 @@ every other dict2 name lookup (REQ-DICT2-DATA-001), writing the resolved
 number to `*out` and returning `0` on success.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:496-511 (`radcli_dict_lookup_value`), lib/dict2.c:179-193
+**Source:** lib/dict2.c (`radcli_dict_lookup_value`), lib/dict2.c
 (`radcli_dict_value_by_attr_name`, the attribute-name-scoped `HASH_FIND` it
 delegates to)
-**Acceptance:** [DATA] positive, local — `tests/dict.c:443-448` resolves
-`Test-Std-Attr`'s `"One"`/`"Two"` to their distinct numbers;
-`tests/dict.c:451-454` confirms case-insensitive matching (`"oNe"`);
-`tests/dict.c:456-461` is the scoping proof — `Test-Std-Attr2`'s own `"One"`
+**Acceptance:** [DATA] positive, local — `tests/dict.c`'s
+`radcli_dict_lookup_value()` checks resolve `Test-Std-Attr`'s `"One"`/`"Two"`
+to their distinct numbers and confirm case-insensitive matching (`"oNe"`);
+the check under its "scoping proof" comment shows that `Test-Std-Attr2`'s own `"One"`
 resolves to a different number (`100`) than `Test-Std-Attr`'s `"One"` (`1`),
 confirming the two do not collide.
 **Links:** REQ-DICT2-DATA-001, REQ-DICT2-ERR-010
@@ -209,14 +210,14 @@ observe `RADCLI_TYPE_INTEGER64` correctly even by inspecting a
 type `>= PW_TYPE_MAX` to `PW_TYPE_STRING`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2-parse.c:318-330 (`"integer64"` token parsing);
-lib/dict2-parse.c:811 (`radcli_dict_attr_add()`'s -- `rc_dict_addattr()`'s
-real implementation -- `type >= PW_TYPE_MAX` rejection); lib/dict2.c:333-359
+**Source:** lib/dict2-parse.c `dict2_parse()` (`"integer64"` token parsing);
+lib/dict2-parse.c (`radcli_dict_attr_add()`'s -- `rc_dict_addattr()`'s
+real implementation -- `type >= PW_TYPE_MAX` rejection); lib/dict2.c
 (`dict_type_to_radcli()`'s `PW_TYPE_MAX` -> `RADCLI_TYPE_INTEGER64` mapping)
 **Acceptance:** [DATA] positive, local — a synthetic `integer64` line
-(`Test-Int64-Attr`, `tests/dict.c`'s Phase 2 section, `tests/dict.c:98-107`)
+(`Test-Int64-Attr`, `tests/dict.c`'s `counter64_dict`)
 loads and `radcli_attr_def_type()` reports `RADCLI_TYPE_INTEGER64`
-(`tests/dict.c:484-495`). `[UNDOCUMENTED]` gap: no test loads the built-in
+(`tests/dict.c`'s Phase 2 section). `[UNDOCUMENTED]` gap: no test loads the built-in
 dictionary and looks up `MIP6-Feature-Vector` (124) itself by name —
 coverage is via the synthetic attribute only, not the one real standard
 user of this type. [ERR] negative, local — `tests/dict.c`'s
@@ -245,11 +246,11 @@ the wire, even though an interface identifier is not itself a numeric
 quantity.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2-parse.c:354-364 (`"ifid"` token parsing); lib/dict2.c:370-374
+**Source:** lib/dict2-parse.c `dict2_parse()` (`"ifid"` token parsing); lib/dict2.c
 (`dict_type_to_radcli()`'s `PW_TYPE_MAX + 3` -> `RADCLI_TYPE_IFID` mapping)
 **Acceptance:** [DATA] positive, local — a synthetic `ifid` line
-(`tests/dict.c:126-127`) loads and `radcli_attr_def_type()` reports
-`RADCLI_TYPE_IFID` (`tests/dict.c:564-577`); `radcli_avp_add_uint64()`/
+(`tests/dict.c`'s `ifid_dict`) loads and `radcli_attr_def_type()` reports
+`RADCLI_TYPE_IFID` (`tests/dict.c`'s Phase 6 section); `radcli_avp_add_uint64()`/
 `_get_uint64()` round-trip a value through it. `[UNDOCUMENTED]` gap: no test
 loads the built-in dictionary and looks up `Framed-Interface-Id` (96) itself
 by name — coverage is via the synthetic attribute only. [ERR] negative,
@@ -275,10 +276,10 @@ mapper's default case, applied to `def`'s absence the same way it is applied
 to an unrecognised stored type).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:428-433, lib/dict2.c:435-441, lib/dict2.c:443-450
-(the three lookup functions' leading `NULL` guards), lib/dict2.c:468-478
-(`radcli_attr_def_name`/`_type`'s ternary `NULL` handling)
-**Acceptance:** [ERR] negative, local — `tests/dict.c:421-425` confirms
+**Source:** lib/dict2.c `radcli_dict_lookup()`, `radcli_dict_lookup_num()`,
+`radcli_dict_lookup_oid()` (the three lookup functions' leading `NULL` guards),
+`radcli_attr_def_name()`, `radcli_attr_def_type()` (ternary `NULL` handling)
+**Acceptance:** [ERR] negative, local — `tests/dict.c` confirms
 `radcli_dict_lookup(NULL, "Test-Std-Attr")`,
 `radcli_dict_lookup(ctx, NULL)`, `radcli_dict_lookup_num(NULL, 250, 0)`, and
 `radcli_dict_lookup_oid(NULL, "250")` all return `NULL` rather than crashing.
@@ -294,9 +295,9 @@ failure shape (`NULL`, no crash) as a well-formed-but-unresolvable OID
 but absent" without separately validating the input first.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:392-425 (`parse_oid`'s rejection paths)
-**Acceptance:** [ERR] negative, local — `tests/dict.c:397-408` confirms an
-empty string (`""`), an over-long OID (`"1.2.3.4.5.6"`, 6 components), and a
+**Source:** lib/dict2.c (`parse_oid`'s rejection paths)
+**Acceptance:** [ERR] negative, local — `tests/dict.c`'s
+`radcli_dict_lookup_oid()` rejection checks confirm an empty string (`""`), an over-long OID (`"1.2.3.4.5.6"`, 6 components), and a
 non-numeric component (`"250x"`) are all rejected.
 **Links:** REQ-DICT2-DATA-003
 
@@ -310,7 +311,7 @@ that case is truncation, reported the normal `snprintf()` way, and is not
 itself an error).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:480-486 (`radcli_attr_def_oid`'s `a == NULL` check
+**Source:** lib/dict2.c (`radcli_attr_def_oid`'s `a == NULL` check
 returning `-1` before the `snprintf()` calls)
 **Acceptance:** not exercised by the current local test suite (`tests/dict.c`
 only exercises the non-NULL-`def` round-trip path) — `Needs-domain-check`
@@ -328,11 +329,10 @@ defined for a *different* attribute than `def` (the scoping case —
 REQ-DICT2-DATA-006's negative counterpart).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/dict2.c:496-511 (`radcli_dict_lookup_value`'s guard clause
+**Source:** lib/dict2.c (`radcli_dict_lookup_value`'s guard clause
 and not-found return)
-**Acceptance:** [ERR] negative, local — `tests/dict.c:463-467` confirms
+**Acceptance:** [ERR] negative, local — `tests/dict.c` confirms
 `Test-Std-Attr2`'s lookup of `"Two"` (defined only for `Test-Std-Attr`)
-fails; `tests/dict.c:468-471` confirms an unknown name
-(`"Not-A-Real-Value"`) fails; `tests/dict.c:472-477` confirms a `NULL`
+fails, an unknown name (`"Not-A-Real-Value"`) fails, and a `NULL`
 `ctx`/`def`/`name`/`out` is each individually rejected.
 **Links:** REQ-DICT2-DATA-006

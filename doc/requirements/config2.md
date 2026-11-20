@@ -309,7 +309,7 @@ failure shape as the setters, since a caller checking a getter's result
 already knows which `opt` it asked for.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config2.c:175-193 (`radcli_ctx_get_opt_str()`,
+**Source:** lib/config2.c `radcli_opt_lookup()` (`radcli_ctx_get_opt_str()`,
 `radcli_ctx_get_opt_int()`)
 **Acceptance:** [CFG] positive, local — `tests/ctx.c`: `radcli_ctx_get_opt_str()`
 round-trips a value set via `radcli_ctx_set_opt_str(ctx, RADCLI_OPT_DICTIONARY,

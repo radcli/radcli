@@ -56,7 +56,7 @@ modify `head` or `end` after initialization — they are the caller-supplied
 hard capacity limit that every subsequent write/read helper checks against.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:123-136 (`pb_init`, `pb_init_read`)
+**Source:** lib/util.h `pb_init()`, `pb_init_read()` (`pb_init`, `pb_init_read`)
 **Acceptance:** [DATA] unit, local — after `pb_init(&pb, buf, cap)`,
 `pb.end - pb.head == cap` and `pb_tailroom(&pb) == cap`; no function in
 `lib/util.h` besides these two writes `pb->head` or `pb->end`.
@@ -70,7 +70,7 @@ when the buffer is full; on success it MUST write `v` at `tail` and advance
 `tail` by exactly one byte.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:151-156
+**Source:** lib/util.h `pb_put_byte()`
 **Acceptance:** [DATA] unit, local — calling `pb_put_byte()` on a `pkt_buf`
 with `pb_tailroom() == 0` returns `-1` and leaves `tail`/buffer contents
 unchanged.
@@ -85,7 +85,7 @@ advance `tail` by `n`. There MUST be no code path that copies a truncated
 prefix of `src` on overflow.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:158-164
+**Source:** lib/util.h `pb_put_bytes()`
 **Acceptance:** [DATA] unit, local — `pb_put_bytes(&pb, src, pb_tailroom(&pb)+1)`
 returns `-1` and `pb.tail` is unchanged; `pb_put_bytes(&pb, src, -1)` returns
 `-1`.
@@ -100,7 +100,7 @@ by `n`, leaving any reserved region's contents uninitialized (the caller is
 responsible for filling it before the buffer is transmitted or read).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:166-174
+**Source:** lib/util.h `pb_put_reserve()`
 **Acceptance:** [DATA] unit, local — `pb_put_reserve(&pb, pb_tailroom(&pb)+1)`
 returns `NULL`; `pb_put_reserve(&pb, 0)` returns the current `tail` pointer
 without advancing it, matching `pb_put_bytes(pb, src, 0)`'s no-op success
@@ -115,7 +115,7 @@ when `n < 0` or `pb->data + n > pb->tail` (i.e. fewer than `n` unconsumed
 bytes remain). On success it MUST advance `data` by exactly `n`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:179-184
+**Source:** lib/util.h `pb_pull()`
 **Acceptance:** [DATA] unit, local — `pb_pull(&pb, pb_len(&pb)+1)` returns
 `-1` and `pb.data` is unchanged.
 **Links:** REQ-GEN-MEM-005
@@ -130,7 +130,7 @@ tailroom, not valid data. `data` MUST NOT be modified by this call
 regardless of success or failure.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:187-192
+**Source:** lib/util.h `pb_peek_byte()`
 **Acceptance:** [DATA] unit, local — after `pb_init_read(&pb, buf, len, cap)`
 with `cap > len`, `pb_peek_byte(&pb, len, &out)` (offset at old `tail`)
 returns `-1`, and `pb_peek_byte(&pb, len - 1, &out)` (last valid byte)
@@ -143,11 +143,11 @@ succeeds.
 `pb_written() == tail - head`, `pb_len() == tail - data`, and
 `pb_tailroom() == end - tail` MUST hold, and MUST be side-effect-free
 (read-only). Callers rely on these to size subsequent operations (e.g.
-`lib/sendserver.c`'s `return (int)pb_written(&pb)` as the final packet
+lib/legacy/send.c `rc_pack_list()`'s `return (int)pb_written(&pb)` as the final packet
 length).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:140-147; lib/sendserver.c:165 (`return (int)pb_written(&pb)`)
+**Source:** lib/util.h `pb_len()`, `pb_tailroom()`, `pb_written()`; lib/legacy/send.c `rc_pack_list()` (`return (int)pb_written(&pb)`)
 **Acceptance:** [DATA] unit, local — construct a `pkt_buf`, perform a mix of
 `pb_put_byte`/`pb_put_bytes`/`pb_pull` calls, and assert the three measurement
 functions against manually tracked pointer arithmetic after each step.
@@ -163,7 +163,7 @@ pointer without advancing it, rather than rejecting the call, so the two
 sibling `pkt_buf` write primitives have identical zero-length semantics.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:158-164 (`pb_put_bytes`), 166-174 (`pb_put_reserve`)
+**Source:** lib/util.h `pb_put_bytes()`, `pb_put_reserve()`
 **Acceptance:** [DATA] unit, local — `pb_put_bytes(&pb, src, 0)` and
 `pb_put_reserve(&pb, 0)` both succeed without advancing `pb->tail`.
 **Links:** REQ-UTIL-DATA-004
@@ -177,9 +177,9 @@ truncation, so callers can detect truncation via `return value >= siz`. When
 `siz == 0`, `dst` MUST NOT be written at all.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.c:139-163 (`rc_strlcpy`, compiled only when
+**Source:** lib/util.c (`rc_strlcpy`, compiled only when
 `RC_NEED_STRLCPY` is defined — i.e. no platform `strlcpy()`, or under
-MemorySanitizer per lib/util.h:37-43)
+MemorySanitizer per lib/util.h `RC_NEED_STRLCPY`, `strlcpy`, lib/util.c `rc_strlcpy()`)
 **Acceptance:** [DATA] unit, local — `rc_strlcpy(buf, "toolong", 4)` copies
 `"too"` + NUL into a 4-byte `buf` and returns `7` (`>= 4`, signaling
 truncation); `rc_strlcpy(buf, "ok", 0)` does not write to `buf`.
@@ -195,7 +195,7 @@ unset, producing false-negative (missed) or false-positive MSan reports in
 code that consumes the copied buffer.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:37-43
+**Source:** lib/util.h `RC_NEED_STRLCPY`, `strlcpy`, lib/util.c `rc_strlcpy()`
 **Acceptance:** [DATA] build-config check, local — building with
 `-fsanitize=memory` defines `RC_NEED_STRLCPY` regardless of the platform's
 `HAVE_STRLCPY` value; `nm`/`grep` confirms `rc_strlcpy` (not the libc symbol)
@@ -206,12 +206,12 @@ is linked into the MSan build.
 
 **Requirement:** `rc_bin2hex(dst, dst_size, src, len)` MUST assert
 `dst_size >= 2 * len + 1` (asserts are never compiled out in this codebase —
-`lib/util.h:14` `#undef NDEBUG`), encode each source byte as two uppercase
+lib/util.h's top-of-file `#undef NDEBUG`), encode each source byte as two uppercase
 hex digits, and write a terminating NUL after the last digit, returning a
 pointer to that NUL.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:196-207, lib/util.h:13-15 (`#undef NDEBUG` — asserts
+**Source:** lib/util.h `rc_bin2hex()`, lib/util.h (top-of-file `#undef NDEBUG` — asserts
 stay compiled in for security-sensitive parsing code)
 **Acceptance:** [DATA] unit, local — `rc_bin2hex(buf, 5, "\xAB\xCD", 2)`
 writes `"ABCD\0"`; calling with `dst_size < 2*len+1` aborts via `assert()`
@@ -230,7 +230,7 @@ from `atoi(&valstr[7]) - 1900` and returns `0`. `rc_str2tm()` is internal
 `void`→`int` signature change has no ABI impact.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.c:43-67 (`rc_str2tm`); lib/avpair.c:796-809
+**Source:** lib/util.c (`rc_str2tm`); lib/legacy/avpair.c `rc_avpair_parse()`
 (`rc_avpair_parse`'s `PW_TYPE_DATE` case, checks the return value and
 fails the parse on `-1`)
 **Acceptance:** [DATA] unit, local — `rc_str2tm("Jan 01 2024", &tm)` returns
@@ -253,7 +253,7 @@ host with no service-based port lookup). On `getaddrinfo()` failure it MUST
 return `NULL`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/ip_util.c:28-50; lib/util.h:67-70 (`PW_AI_PASSIVE`,
+**Source:** lib/ip_util.c `rc_getaddrinfo()`; lib/util.h `PW_AI_ACCT`, `PW_AI_AUTH`, `PW_AI_PASSIVE` (`PW_AI_PASSIVE`,
 `PW_AI_AUTH`, `PW_AI_ACCT`)
 **Acceptance:** [DATA] unit, local — `rc_getaddrinfo("badname.invalid.", PW_AI_AUTH)`
 returns `NULL`; a mock/stub `getaddrinfo()` confirms `service == "radius"`
@@ -275,7 +275,7 @@ with `'*'` maps to `AF_INET`/`INADDR_ANY`; otherwise it resolves via
 `AF_INET`/`INADDR_ANY` and logging an error if resolution fails.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/ip_util.c:165-193
+**Source:** lib/ip_util.c `rc_own_bind_addr()`
 **Acceptance:** [DATA] unit, local — with `rh->own_bind_addr_set = 1`, no
 `getaddrinfo()` call occurs and `lia` equals the stored address; with
 `bindaddr` unset, `lia` is `INADDR_ANY`.
@@ -290,7 +290,7 @@ REQ-UTIL-DATA-010), bounding the copy to the caller-supplied `len`. It MUST
 NOT use `strcpy()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/ip_util.c:81-111
+**Source:** lib/legacy/compat.c `rc_own_hostname()`
 **Acceptance:** [DATA] negative, local — `grep -n 'strcpy(' lib/ip_util.c`
 returns no matches; a `uts.nodename` longer than the caller's `hostname`
 buffer does not overflow it (truncates per REQ-UTIL-DATA-009).
@@ -310,7 +310,7 @@ REQ-UTIL-DATA-002 through -006) — the caller can treat any of these sentinel
 values as "the whole operation did not happen."
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:151-192
+**Source:** lib/util.h `pb_peek_byte()`, `pb_pull()`, `pb_put_byte()`, `pb_put_bytes()`, `pb_put_reserve()`
 **Acceptance:** [ERR] code-review — every call site in `lib/sendserver.c`
 that invokes a `pb_*` function checks its return value before continuing
 (cross-check against `REQ-GEN-MEM-005`'s "-1 MUST be propagated" clause).
@@ -329,8 +329,8 @@ pattern they establish (log-then-return, no partial success state) is the
 one `net.md`'s secret-handling code must deviate from carefully.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/ip_util.c:90-152 (rc_own_hostname, rc_get_srcaddr);
-lib/util.c:184-222 (rc_set_netns), lib/util.c:238-252 (rc_reset_netns)
+**Source:** lib/legacy/compat.c `rc_own_hostname()`; lib/ip_util.c `radcli2_priv_get_srcaddr()` (`rc_get_srcaddr`);
+lib/util.c `rc_set_netns()` (rc_set_netns), lib/util.c `rc_reset_netns()` (rc_reset_netns)
 **Acceptance:** [ERR] code-review — each failure return path in the cited
 functions has a preceding `rc_log(LOG_ERR, ...)` call except `rc_getaddrinfo`
 (REQ-UTIL-ERR-003).
@@ -345,7 +345,7 @@ functions has a preceding `rc_log(LOG_ERR, ...)` call except `rc_getaddrinfo`
 failure, instead of silently dropping the error code.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/ip_util.c:28-51 (`rc_log(LOG_ERR, "rc_getaddrinfo: %s: %s", host, gai_strerror(err))`)
+**Source:** lib/ip_util.c `rc_getaddrinfo()` (`rc_log(LOG_ERR, "rc_getaddrinfo: %s: %s", host, gai_strerror(err))`)
 **Acceptance:** [ERR] code-review — `rc_getaddrinfo()` matches the logging
 convention of its siblings in the same file.
 
@@ -381,7 +381,8 @@ argument present or absent per `HAVE_DIGEST_LENGTH_ARG`) -- the only
 implementation in the tree since `REQ-GEN-TECH-006` made nettle mandatory
 and retired the bundled fallback this requirement used to hold equivalent
 to it. Callers computing the RADIUS Response Authenticator
-(`lib/sendserver.c:281`) and encrypting `User-Password` (`lib/sendserver.c:119`)
+(lib/sendserver.c `rc_check_reply()`) and encrypting `User-Password` (lib/avp.c
+`user_password_encrypt()`, lib/legacy/send.c `rc_pack_list()`)
 depend on this being a correct RFC 1321 implementation to interoperate with
 any RFC 2865-compliant server.
 **Strength:** MUST
@@ -406,7 +407,7 @@ implementation, and vice versa.
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/rc-crypto.c (`rc_hmac_md5`); lib/rc-crypto.h;
-lib/sendserver.c:340 (`add_msg_auth_attr`), lib/sendserver.c:402
+lib/sendserver.c (`add_msg_auth_attr`), lib/sendserver.c `validate_message_authenticator()`
 (`validate_message_authenticator`)
 **Acceptance:** [SEC] unit, CI — an HMAC-MD5 known-answer test (RFC 2104 test
 vectors) run against `rc_hmac_md5()`.
@@ -440,14 +441,13 @@ step is externally observable and testable).
 GnuTLS is unavailable (a build configuration with no constant-time-compare
 primitive on hand). Code comparing RADIUS Response Authenticator digests or
 Message-Authenticator digests against attacker-influenced network input
-(`lib/sendserver.c:283` `rc_check_reply`, `lib/sendserver.c:404`
-`validate_message_authenticator`) MUST call `rc_memcmp`, never `memcmp`
+(lib/sendserver.c `rc_check_reply()`, `validate_message_authenticator()`) MUST call `rc_memcmp`, never `memcmp`
 directly, per `REQ-GEN-SEC-006`'s ban on data-dependent-timing comparisons
 of secret-derived values.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/util.h:28-35 (`rc_memcmp`); lib/sendserver.c:283, :404
-(call sites)
+**Source:** lib/util.h (`rc_memcmp`); lib/sendserver.c `rc_check_reply()`,
+`validate_message_authenticator()` (call sites)
 **Acceptance:** [SEC] negative, local — `grep -n 'memcmp(' lib/sendserver.c`
 shows only `rc_memcmp` at the two digest-verification sites, no bare
 `memcmp`; code-review flags any new digest/secret comparison using
@@ -501,24 +501,24 @@ when written)
 | `rc_log` macro | util.h | n/a (macro) | REQ-UTIL-ERR-002, REQ-UTIL-ERR-004 |
 | `rc_str2tm` | util.c/util.h | no | REQ-UTIL-DATA-012 |
 | `rc_getmtime_ms` | util.c/util.h | no | [UNDOCUMENTED] — see below |
-| `rc_mksid` | lib/legacy/compat.c | **yes** (radcli.map.in:69) | see below |
+| `rc_mksid` | lib/legacy/compat.c | **yes** (lib/radcli.map.in) | see below |
 | `rc_set_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
 | `rc_reset_netns` | util.c/util.h | no | REQ-UTIL-ERR-002 |
 | `rc_getaddrinfo` | ip_util.c/util.h | no | REQ-UTIL-DATA-013, REQ-UTIL-ERR-003 |
-| `rc_getport` | ip_util.c | **yes** (radcli.map.in:58) | [UNDOCUMENTED] — see below |
-| `rc_own_hostname` | ip_util.c | **yes** (radcli.map.in:59) | REQ-UTIL-DATA-015, REQ-UTIL-ERR-002 |
-| `rc_get_srcaddr` | ip_util.c | **yes** (radcli.map.in:60) | REQ-UTIL-ERR-002 |
+| `rc_getport` | ip_util.c | **yes** (lib/radcli.map.in) | [UNDOCUMENTED] — see below |
+| `rc_own_hostname` | ip_util.c | **yes** (lib/radcli.map.in) | REQ-UTIL-DATA-015, REQ-UTIL-ERR-002 |
+| `rc_get_srcaddr` | ip_util.c | **yes** (lib/radcli.map.in) | REQ-UTIL-ERR-002 |
 | `rc_own_bind_addr` | ip_util.c/util.h | no | REQ-UTIL-DATA-014 |
-| `rc_setdebug` | legacy/compat.c | **yes** (radcli.map.in:63) | REQ-UTIL-ERR-004 (via `radcli_legacy_debug`, pre-seeds `struct rc_conf.debug` on handle construction) |
-| `rc_openlog` | log.c | **yes** (radcli.map.in:61) | [UNDOCUMENTED] — see below |
-| `rc_md5_calc` | rc-crypto.c | **yes** (radcli2.map.in:152) | REQ-UTIL-SEC-001 |
+| `rc_setdebug` | legacy/compat.c | **yes** (lib/radcli.map.in) | REQ-UTIL-ERR-004 (via `radcli_legacy_debug`, pre-seeds `struct rc_conf.debug` on handle construction) |
+| `rc_openlog` | log.c | **yes** (lib/radcli.map.in) | [UNDOCUMENTED] — see below |
+| `rc_md5_calc` | rc-crypto.c | **yes** (lib/radcli2.map.in) | REQ-UTIL-SEC-001 |
 | `rc_hmac_md5` | rc-crypto.c | no | REQ-UTIL-SEC-002, REQ-UTIL-SEC-003 |
 | `rc_sha256_calc` | rc-crypto.c | no | REQ-DAE-SEC-005 (dae.md; dedup key, not an util.md-owned use) |
 
 **Gaps flagged:**
 
 - **`rc_getport(type)`** [UNDOCUMENTED]: public ABI symbol
-  (`lib/radcli.map.in:58`, declared `lib/ip_util.c:63-73`) with no dedicated
+  (`lib/radcli.map.in`, declared lib/legacy/compat.c `rc_getport()`) with no dedicated
   requirement above. Behavior: looks up `"radius"`/`"radacct"` via
   `getservbyname(..., "udp")`, falling back to the compiled-in defaults
   `PW_AUTH_UDP_PORT`/`PW_ACCT_UDP_PORT` when no `/etc/services` entry exists.
@@ -526,7 +526,7 @@ when written)
   a requirement in a future revision of this document (not added here to
   avoid inflating coverage with a rubber-stamped entry written after the
   fact — flagging instead per Phase 5's intent).
-- **`rc_mksid()`**: public ABI symbol (`lib/radcli.map.in:69`)
+- **`rc_mksid()`**: public ABI symbol (`lib/radcli.map.in`)
   marked `@deprecated` in its own Doxygen comment (`lib/legacy/compat.c`) —
   returns a pointer to a `static`, non-reentrant buffer overwritten on each
   call. Accepted as a documented exception to `general.md`'s
@@ -538,7 +538,7 @@ when written)
   not rely on the returned pointer surviving a subsequent call") is already
   captured by `general.md`'s enumeration.
 - **`rc_openlog(ident)`** [UNDOCUMENTED]: public ABI symbol
-  (`lib/radcli.map.in:61`, `lib/log.c:54-59`) with no dedicated requirement
+  (`lib/radcli.map.in`, lib/legacy/compat.c `rc_openlog()`) with no dedicated requirement
   above — a thin `openlog(3)` wrapper (no-op under `_MSC_VER`). Low risk,
   flagged for the same reason as `rc_getport`.
 - **`rc_getmtime_ms()`**: internal-only (in map.in's `RADCLI2_PRIVATE`

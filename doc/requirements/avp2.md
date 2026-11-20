@@ -57,7 +57,7 @@ not need to guard every teardown path with a separate NULL check (mirrors
 `REQ-ATTR-DATA-012`'s `rc_avpair_free()` contract for the legacy API).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:126-135 (`radcli_avp_list_new`), lib/avp.c:137-189 (`radcli_avp_list_free`)
+**Source:** lib/avp.c (`radcli_avp_list_new`), lib/avp.c (`radcli_avp_list_free`)
 **Acceptance:** [INIT] unit, local — `tests/avp.c` constructs a list, adds
 attributes, frees it, then calls `radcli_avp_list_free(NULL)` and confirms no
 crash.
@@ -76,7 +76,7 @@ itself MUST accept any type, since the underlying storage is always
 length-carrying bytes regardless of interpretation.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:191 (`radcli_avp_add_bytes`), lib/avp.c:242-318 (typed wrappers: `_add_str`/`_add_uint32`/`_add_uint64`/`_add_ip4`/`_add_ip6`)
+**Source:** lib/avp.c (`radcli_avp_add_bytes`), lib/avp.c (typed wrappers: `_add_str`/`_add_uint32`/`_add_uint64`/`_add_ip4`/`_add_ip6`)
 **Acceptance:** [DATA] unit, local — `tests/avp.c` adds one attribute of each
 accepted type, then confirms each typed setter rejects a `def` of the wrong
 `radcli_attr_type` (negative case).
@@ -89,7 +89,7 @@ attribute after every attribute already in the list, so that iteration order
 (`radcli_avp_list_iter()`/`radcli_avp_iter_next()`) matches insertion order.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:218 (`list_add_tail(&list->head, &a->node)`)
+**Source:** lib/avp.c (`radcli_avp_add_bytes()`'s `list_add_tail(&list->head, &a->node)`)
 **Acceptance:** [DATA] unit, local — `tests/avp.c`'s "wire order is preserved"
 section adds five attributes and confirms the iterator yields them in the same
 order.
@@ -102,7 +102,7 @@ order.
 `NULL` if fewer than `idx+1` occurrences exist. It MUST NOT allocate.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:449-466
+**Source:** lib/avp.c (`radcli_avp_get()`)
 **Acceptance:** [DATA] unit, local — `tests/avp.c`'s "repeated attributes"
 section adds two `User-Name` attributes and confirms `idx=0`/`idx=1` each
 resolve to the correct one, and that `idx=1` returns `NULL` before the second
@@ -119,7 +119,7 @@ subsequent call on that same iterator MUST also return `NULL` — it MUST NOT
 re-derive a position from the list and restart.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:468-476 (`radcli_avp_list_iter`), lib/avp.c:478-498 (`radcli_avp_iter_next`)
+**Source:** lib/avp.c (`radcli_avp_list_iter`), lib/avp.c (`radcli_avp_iter_next`)
 **Acceptance:** [DATA] unit, local — `tests/avp.c`: empty-list iterator yields
 `NULL` immediately; a `NULL`-list iterator yields `NULL` immediately; after
 draining a 5-attribute list, two further consecutive `radcli_avp_iter_next()`
@@ -138,7 +138,8 @@ is in use (mutation during concurrent iteration is out of scope; see
 `lib/avp.c`'s struct-level locking note).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:71-84 (locking/lifetime comment), lib/avp.c:468-498
+**Source:** lib/avp.c (`struct radcli_avp_st`'s locking/lifetime comment), lib/avp.c
+(`radcli_avp_list_iter()`, `radcli_avp_iter_next()`)
 **Acceptance:** [DATA] unit, local — `tests/avp.c`'s "two independent iterators"
 section fully drains one iterator, then confirms a freshly-constructed second
 iterator over the same list still starts at the first attribute.
@@ -158,7 +159,8 @@ MUST additionally reject a non-zero `prefix` for `RADCLI_TYPE_IPV6ADDR` and a
 `prefix` over 128 for `RADCLI_TYPE_IPV6PREFIX`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:242-318
+**Source:** lib/avp.c (the typed setters `radcli_avp_add_str()`/`_add_uint32()`/
+`_add_uint64()`/`_add_ip4()`/`_add_ip6()`)
 **Acceptance:** [ERR] unit, local — `tests/avp.c`'s "setters MUST reject a
 definition of the wrong type" section exercises every rejection case listed
 above.
@@ -174,7 +176,7 @@ before returning, so the failure is diagnosable without the caller needing to
 add its own logging at every call site.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:126-135 (`radcli_avp_list_new`), lib/avp.c:191-221
+**Source:** lib/avp.c (`radcli_avp_list_new`), lib/avp.c
 (`radcli_avp_add_bytes`)
 **Acceptance:** [ERR] not exercised by the current local test suite (would
 require fault-injecting `calloc()`); `Needs-domain-check` whether this project
@@ -205,7 +207,7 @@ because both are byte-for-byte identical on the wire (8 raw octets), even
 though an interface identifier is not itself an arithmetic quantity.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:272-282 (`radcli_avp_add_uint64`), lib/avp.c:524-539
+**Source:** lib/avp.c (`radcli_avp_add_uint64`), lib/avp.c
 (`radcli_avp_get_uint64`)
 **Acceptance:** [DATA] positive, local — `tests/avp.c`'s "Phase 2:
 RADCLI_TYPE_INTEGER64, radcli_avp_add_uint64()/_get_uint64()" section adds
@@ -250,7 +252,7 @@ The decode side (REQ-AVP2-DATA-010) MUST reverse this exactly (`ntohl()` on
 each half, high half shifted into bits 63:32).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:1318-1333 (`radcli_avp_encode()`'s
+**Source:** lib/avp.c (`radcli_avp_encode()`'s
 `RADCLI_TYPE_INTEGER64`/`RADCLI_TYPE_IFID` branch)
 **Acceptance:** [DATA] positive, local — `tests/avp-codec.c`'s "round trip:
 RADCLI_TYPE_INTEGER64, 8-octet network byte order" section encodes
@@ -277,7 +279,7 @@ attribute is present in `list` — its value as the high 32 bits (treated as
 `0` if absent), combining them into `*out`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:798-825 (`radcli_avp_add_gigawords64`), lib/avp.c:827-852
+**Source:** lib/avp.c (`radcli_avp_add_gigawords64`), lib/avp.c
 (`radcli_avp_get_gigawords64`)
 **Acceptance:** [DATA] positive, local — `tests/avp.c`'s counter64 section:
 a value over 2^32 (`5000000000`) round-trips through both the Octets and
@@ -301,8 +303,8 @@ Gigawords attribute is present in `list` but is not itself a valid 32-bit
 integer (present-but-malformed is an error, not treated as absent).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:804-812 (`radcli_avp_add_gigawords64` validation),
-lib/avp.c:835-848 (`radcli_avp_get_gigawords64` validation, including the
+**Source:** lib/avp.c (`radcli_avp_add_gigawords64` validation),
+lib/avp.c (`radcli_avp_get_gigawords64` validation, including the
 present-but-malformed Gigawords check)
 **Acceptance:** [ERR] negative, local — `tests/avp.c`'s counter64 section
 confirms both `radcli_avp_add_gigawords64()` and `radcli_avp_get_gigawords64()`
@@ -571,14 +573,14 @@ and MUST return `-1` for a `NULL`/wrong-typed `a`.
 this pair's `_by_num()` wrappers, per REQ-AVP2-DATA-015/REQ-GEN-STYLE-002.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:320-337 (`radcli_avp_add_ip4prefix`), lib/avp.c:579-604
-(`radcli_avp_get_ip4prefix`), lib/avp.c:410-419
-(`radcli_avp_add_ip4prefix_by_num`), lib/avp.c:709-717
+**Source:** lib/avp.c (`radcli_avp_add_ip4prefix`), lib/avp.c
+(`radcli_avp_get_ip4prefix`), lib/avp.c
+(`radcli_avp_add_ip4prefix_by_num`), lib/avp.c
 (`radcli_avp_get_ip4prefix_by_num`)
 **Acceptance:** [DATA] positive, local — `tests/avp.c`'s "Phase 3:
-RADCLI_TYPE_IPV4PREFIX" section (`tests/avp.c:363-408`) round-trips a
+RADCLI_TYPE_IPV4PREFIX" section round-trips a
 `/24` prefix through `radcli_avp_add_ip4prefix()`/`_get_ip4prefix()`; a
-parallel section in `tests/avp-codec-freeradius.c:363` exercises
+parallel section in `tests/avp-codec-freeradius.c` exercises
 `radcli_avp_get_ip4prefix()` against a live-decoded attribute. [ERR]
 negative, local — the same `tests/avp.c` section confirms
 `radcli_avp_add_ip4prefix()` rejects an `IPADDR`-typed `def` and a `prefix`
@@ -599,12 +601,13 @@ whose getter had no requirement. `radcli_avp_get_ip6_by_num()` is this
 getter's `_by_num()` wrapper (REQ-AVP2-DATA-015).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:542-577 (`radcli_avp_get_ip6`), lib/avp.c:698-706
+**Source:** lib/avp.c (`radcli_avp_get_ip6`), lib/avp.c
 (`radcli_avp_get_ip6_by_num`)
-**Acceptance:** [DATA] positive, local — `tests/avp.c:263,272` round-trips
-both an `IPV6ADDR` and an `IPV6PREFIX` value; `tests/avp.c:585` round-trips
+**Acceptance:** [DATA] positive, local — `tests/avp.c`'s "typed getters
+round-trip" section round-trips both an `IPV6ADDR` and an `IPV6PREFIX` value;
+its "Phase 6a" section round-trips
 `radcli_avp_get_ip6_by_num()` against a `Framed-IPv6-Address` added by
-number; `tests/avp-codec.c:172` and `tests/avp-legacy.c:127` exercise it
+number; `tests/avp-codec.c` and `tests/avp-legacy.c` exercise it
 against a live-decoded attribute.
 **Links:** REQ-AVP2-ERR-007, REQ-AVP2-DATA-015
 
@@ -621,7 +624,7 @@ without mutating the list if `ctx`'s dictionary has no `User-Name` attribute
 or `username` is `NULL`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:421-447 (`radcli_avp_add_username`)
+**Source:** lib/avp.c (`radcli_avp_add_username`)
 **Acceptance:** not exercised by the current local test suite (no
 `tests/avp*.c`/`tests/ctx.c` call site found by inspection) —
 `Needs-domain-check` whether this project wants dedicated coverage before
@@ -639,9 +642,9 @@ the numeric lookup resolves to no attribute — the `_by_num()` counterpart to
 family REQ-AVP2-DATA-015 otherwise only states for the getters.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:348-357 (`radcli_avp_add_bytes_by_num`)
+**Source:** lib/avp.c (`radcli_avp_add_bytes_by_num`)
 **Acceptance:** [DATA] positive, local — `tests/avp.c`'s "_by_num() family"
-section (around `tests/avp.c:575-590`) adds attributes via the sibling
+section ("Phase 6a") adds attributes via the sibling
 `_add_str_by_num()`/`_add_uint32_by_num()`/`_add_ip4_by_num()`/
 `_add_ip6_by_num()` wrappers, all built the same way `radcli_avp_add_bytes_by_num()`
 is; no test exercises `radcli_avp_add_bytes_by_num()` itself by name —
@@ -660,11 +663,11 @@ recover each attribute's identity without having pre-selected a `def` to
 search for via `radcli_avp_get()`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:500-504 (`radcli_avp_def`)
-**Acceptance:** [DATA] positive, local — `tests/avp.c:142,147` confirm
-`radcli_avp_def()` returns the expected definition for a `User-Name` and a
-`NAS-IP-Address` attribute just added; `tests/avp.c:181` confirms it during
-iteration.
+**Source:** lib/avp.c (`radcli_avp_def`)
+**Acceptance:** [DATA] positive, local — `tests/avp.c`'s "wire order is
+preserved" section confirms `radcli_avp_def()` returns the expected definition
+for a `User-Name` and a `NAS-IP-Address` attribute just added; its "two
+independent iterators" section confirms it during iteration.
 **Links:** REQ-AVP2-DATA-005, REQ-AVP2-DATA-004
 
 ### REQ-AVP2-DATA-033 — every attribute-keyed accessor exists in both a `radcli_attr_def`-taking form and a `_by_num()` form
@@ -690,10 +693,10 @@ for a function this rule covers.
 `_by_num()` siblings); `radcli_avp_concat_str_by_num()` was closed by
 REQ-AVP2-DATA-036 (adds its `def`-taking sibling,
 `radcli_avp_concat_str()`, REQ-AVP2-DATA-017).
-**Source:** include/radcli/radcli2.h:300-357 (`radcli_avp_add_bytes()` /
+**Source:** include/radcli/radcli2.h (`radcli_avp_add_bytes()` /
 `_add_str()` / `_add_uint32()` / `_add_uint64()` / `_add_ip4()` / `_add_ip6()`
 / `_add_ip4prefix()`, each paired with an `_by_num()` sibling at
-radcli2.h:337-360); radcli2.h:399-454 (`radcli_avp_get_uint32()` /
+radcli2.h); radcli2.h (`radcli_avp_get_uint32()` /
 `_get_uint64()` / `_get_ip6()` / `_get_ip4prefix()` / `_get_bytes()`, each
 paired via `radcli_avp_get()` + `_by_num()` per REQ-AVP2-DATA-015);
 radcli2.h (`radcli_avp_concat_str()`/`_concat_str_by_num()`, paired per
@@ -746,10 +749,10 @@ This is the 4-octet counterpart to REQ-AVP2-DATA-010/011's 8-octet
 `RADCLI_TYPE_INTEGER64`/`RADCLI_TYPE_IFID` byte-order contract.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:1124-1132 (decode's `RADCLI_TYPE_INTEGER`/`_IPADDR`/
-`_DATE` branch), lib/avp.c:1334-1344 (`radcli_avp_encode()`'s mirror
+**Source:** lib/avp.c (`avp_decode_into()`'s `RADCLI_TYPE_INTEGER`/`_IPADDR`/
+`_DATE` branch), lib/avp.c (`radcli_avp_encode()`'s mirror
 branch)
-**Acceptance:** [DATA] positive, local — `tests/avp-codec.c:113-187`'s
+**Acceptance:** [DATA] positive, local — `tests/avp-codec.c`'s
 round-trip section encodes a `NAS-IP-Address` (`RADCLI_TYPE_IPADDR`) and a
 `Session-Timeout` (`RADCLI_TYPE_INTEGER`) through `radcli_avp_encode()`
 then decodes the resulting bytes back with `radcli_avp_decode()`, confirming
@@ -773,10 +776,10 @@ already inside a VSA (`vendorspec != 0`) is not itself recursed into again
 — RFC 2865's VSA envelope is one level deep in this implementation.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:1017-1032 (decode's VSA-envelope branch, the recursive
-`avp_decode_into()` call), lib/avp.c:1303-1310,1354-1356 (encode's VSA
+**Source:** lib/avp.c (`avp_decode_into()`'s VSA-envelope branch, the recursive
+`avp_decode_into()` call), lib/avp.c (`radcli_avp_encode()`'s VSA
 envelope emission and length patch-back)
-**Acceptance:** [DATA] positive, local — `tests/avp-codec.c:113-187`'s
+**Acceptance:** [DATA] positive, local — `tests/avp-codec.c`'s
 round-trip section includes an `Agent-Circuit-Id`-style VSA attribute
 alongside non-VSA ones, confirming it round-trips through both directions
 in the same call as everything else.
@@ -799,15 +802,16 @@ dictionary (standard or vendor-specific); a VSA envelope shorter than the
 loaded `VENDOR`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:997-1006 (structural framing checks, hard failure),
-lib/avp.c:1017-1044 (VSA-envelope-too-short and unknown-vendor skip paths),
-lib/avp.c:1035-1045 (unrecognised-attribute skip path)
-**Acceptance:** [ERR] negative, local — `tests/avp-codec.c:314-335` confirms
+**Source:** lib/avp.c (`avp_decode_into()`'s structural framing checks, hard failure;
+its VSA-envelope-too-short and unknown-vendor skip paths; its unrecognised-attribute
+skip path)
+**Acceptance:** [ERR] negative, local — `tests/avp-codec.c`'s "hard framing errors"
+section confirms
 a 1-byte region, a length-byte-of-1 attribute, and an attribute whose
 declared length exceeds the buffer are all hard decode failures (`-1`).
-`tests/avp-codec.c:339-366` confirms an unrecognised attribute ID and an
+Its "unrecognised attribute/VSA is skipped" section confirms an unrecognised attribute ID and an
 undersized VSA envelope are each skipped, yielding a successful decode of
-an empty list rather than a failure. `tests/avp-codec.c:369-384` confirms a
+an empty list rather than a failure. Its "unrecognised vendor's VSA" section confirms a
 VSA for an unrecognised vendor is skipped whole.
 **Links:** REQ-AVP2-DATA-028
 
@@ -831,14 +835,14 @@ Only decryption is implemented; `radcli_avp_encode()` never
 originates an `encrypt=Tunnel-Password`-flagged attribute (REQ-AVP2-ERR-032).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:909-943 (`salt_decrypt`), lib/avp.c:1047-1091
+**Source:** lib/avp.c (`salt_decrypt`), lib/avp.c
 (`avp_decode_into()`'s salt-encryption branch)
-**Acceptance:** [SEC] positive, local — `tests/avp-codec.c:385-490`
-decrypts a `Tunnel-Password` attribute against test vectors computed
+**Acceptance:** [SEC] positive, local — `tests/avp-codec.c`'s salt-encryption
+section decrypts a `Tunnel-Password` attribute against test vectors computed
 independently in Python (`hashlib.md5`), not derived from this
 implementation, confirming the algorithm is RFC-correct rather than merely
 self-consistent. [ERR] negative, local — the same section
-(`tests/avp-codec.c:491`) confirms decoding with the wrong secret does not
+confirms decoding with the wrong secret does not
 raise a hard error and does not yield the correct plaintext.
 **Links:** REQ-AVP2-ERR-029, REQ-AVP2-ERR-032
 
@@ -861,15 +865,16 @@ cross-check the count against how many `User-Password`-like attributes its
 own list should contain.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:945-981 (`user_password_encrypt`), lib/avp.c:1238-1285
+**Source:** lib/avp.c (`user_password_encrypt`), lib/avp.c
 (`radcli_avp_encode()`'s `encrypt_type == 1` branch)
-**Acceptance:** [SEC] positive, local — `tests/avp-codec.c:775-825` encrypts
+**Acceptance:** [SEC] positive, local — `tests/avp-codec.c`'s "User-Password
+encryption" section encrypts
 a 7-byte (one block) and a 20-byte (two block) password against vectors
 computed independently in Python (`hashlib.md5`), confirming both the
 ciphertext and `n_encrypted`. [ERR] negative, local —
-`tests/avp-codec.c:826-860` confirms a password one byte over
+the same section confirms a password one byte over
 `AUTH_PASS_LEN` is rejected rather than truncated;
-`tests/avp-codec.c:861-878` confirms encoding without a secret is refused
+its "User-Password without a secret" section confirms encoding without a secret is refused
 rather than sent as plaintext.
 **Links:** REQ-AVP2-SEC-030, REQ-AVP2-ERR-032
 
@@ -891,7 +896,7 @@ dictionary that is simply missing an `encrypt=` flag it should carry; that
 gap is what `n_encrypted` (REQ-AVP2-SEC-031) exists for.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/avp.c:1220-1290 (`radcli_avp_encode()`'s
+**Source:** lib/avp.c (`radcli_avp_encode()`'s
 `switch (fl ? fl->encrypt_type : 0)`, `default:` branch)
 **Acceptance:** not exercised by the current local test suite
 (`tests/avp-codec.c` exercises `encrypt_type == 0`/`1` but the bundled

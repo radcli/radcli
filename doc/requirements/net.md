@@ -25,7 +25,7 @@ sources:
 
 # Transport and Wire-Level Response Authentication Requirements
 
-Scope: the socket abstraction (`rc_sockets_override`, `include/includes.h:167-182`) that lets
+Scope: the socket abstraction (`rc_sockets_override`, lib/includes.h `rc_sockets_override`) that lets
 UDP, TCP, TLS and DTLS share one request/response code path in `lib/sendserver.c`; the
 per-transport implementations (`default_socket_funcs` in `lib/config.c` for UDP, and the
 persistent-connection vtable of `lib/session.c` for TCP, TLS and DTLS, whose GnuTLS backend
@@ -40,7 +40,7 @@ they affect transport-level framing; `attrs.md` and `util.md` own the attribute/
 contracts themselves (see `REQ-GEN-MEM-005`).
 
 `rc_sockets_override` is declared in `include/includes.h`, not `include/radcli/radcli.h`, and
-`include/meson.build:1` installs only `radcli/radcli.h`. It is therefore **not part of the
+`include/meson.build` installs only `radcli/radcli.h`. It is therefore **not part of the
 public ABI** — no exported function lets a caller supply a custom vtable; `rh->so` is populated
 exclusively by `rc_apply_config()` (UDP/TCP) or `rc_init_tls()` (TLS/DTLS) based on the
 `serv-type` config option. Requirements below describing the vtable are about radcli's internal
@@ -85,7 +85,7 @@ code path with a different `rh->so`.
 ### REQ-NET-NET-002 — `rc_sockets_override` MUST remain an internal abstraction, not a public extension point
 
 **Requirement:** No function exported in `lib/radcli.map.in` MUST set or expose `rh->so` to a
-caller-supplied vtable; `rc_sockets_override` (`include/includes.h:167-182`) MUST be populated
+caller-supplied vtable; `rc_sockets_override` (lib/includes.h `rc_sockets_override`) MUST be populated
 only by `rc_apply_config()`/`rc_init_tls()` from radcli's own UDP table
 (`default_socket_funcs` in `lib/config.c`) or the session vtable (`radcli2_priv_sess_init()`,
 `lib/session.c`) for TCP, TLS and DTLS. Any future public API that exposes this vtable to callers MUST be
@@ -93,7 +93,7 @@ reconciled with `REQ-GEN-SEC-005` (no new library-owned global state) and `REQ-G
 (header+map co-declaration) before being added.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/includes.h:167-182; lib/config.c (`default_socket_funcs`); lib/session.c
+**Source:** lib/includes.h `rc_sockets_override`; lib/config.c (`default_socket_funcs`); lib/session.c
 (`radcli2_priv_sess_init()`);
 lib/radcli.map.in (no `rc_set_sockets`/`rc_sockets_override`-related symbol); AGENTS.md
 ("Key data structures")
@@ -110,7 +110,7 @@ MUST be thin wrappers over `sendto()`/`recvfrom()` with an explicit destination 
 different local address/port than it was addressed on (RFC 2865 tolerates this).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:417-424,439-445,454-474,500-505
+**Source:** lib/config.c `plain_recvfrom()`, `plain_get_fd()`
 **Acceptance:** [NET] unit, local — a UDP round-trip against a test server on an unprivileged
 port succeeds without the client `connect()`-ing the socket.
 
@@ -207,7 +207,7 @@ socket via `restart_session()`; polling the fd captured before `sendto()` would 
 descriptor.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:697-706; lib/session.c (`sess_get_active_fd`)
+**Source:** lib/sendserver.c `radcli_transport_exchange()`; lib/session.c (`sess_get_active_fd`)
 **Acceptance:** [NET] unit, local — a TLS session restart triggered mid-`sendto()` still yields
 a valid reply within the configured timeout, not a `poll()` hang or `EBADF`.
 
@@ -222,7 +222,7 @@ timeout budget within a single attempt MUST be computed from `rc_getmtime_ms()` 
 when available), decremented across `EINTR`-interrupted `poll()` calls, not restarted.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:682-793; lib/util.c (`rc_getmtime_ms`)
+**Source:** lib/sendserver.c `radcli_transport_exchange()`; lib/util.c (`rc_getmtime_ms`)
 **Acceptance:** [NET] unit, local — a UDP server that never replies causes exactly
 `data->retries + 1` transmissions before `TIMEOUT_RC`; interrupting the process with a
 caller-installed non-fatal signal during `poll()` does not extend the wait past `data->timeout`.
@@ -254,7 +254,8 @@ application can branch on transport (e.g. to decide whether `rc_check_tls()` is 
 without inspecting config strings itself.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/config.c:1243-1246; include/radcli/radcli.h:713; lib/radcli.map.in:43
+**Source:** lib/legacy/compat.c `rc_get_socket_type()`; include/radcli/radcli.h (its
+declaration); lib/radcli.map.in (`rc_get_socket_type`)
 **Acceptance:** [NET] unit, local — `rc_get_socket_type()` after `rc_apply_config()` with
 `serv-type=dtls` returns `RC_SOCKET_DTLS`.
 
@@ -265,7 +266,8 @@ touching any session state, when `rh->so_type` is neither `RC_SOCKET_TLS` nor `R
 so an application can call these unconditionally regardless of configured transport.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:563-576 (`rc_tls_fd`), 596-619 (`rc_check_tls`)
+**Source:** lib/session.c `radcli2_priv_tls_fd()` (`rc_tls_fd`), `radcli2_priv_check_tls()`
+(`rc_check_tls`)
 **Acceptance:** [NET] unit, local — `rc_check_tls()` on a UDP-configured `rh` returns 0
 immediately; `rc_tls_fd()` returns -1.
 
@@ -288,8 +290,8 @@ to enforce set/reset symmetry structurally, so this remains a code-review obliga
 change to these functions' exit paths, not a compiler-enforced invariant.
 **Strength:** MUST (symmetric set/reset on every exit path)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:460-466,941-947; lib/tls.c (`rc_init_tls`);
-lib/session.c (`attempt_begin`, `radcli2_priv_sess_deinit`); lib/util.c:174-253 (`rc_set_netns`/`rc_reset_netns`);
+**Source:** lib/sendserver.c `radcli_transport_exchange()`; lib/tls.c (`rc_init_tls`);
+lib/session.c (`attempt_begin`, `radcli2_priv_sess_deinit`); lib/util.c `rc_reset_netns()`, `rc_set_netns()` (`rc_set_netns`/`rc_reset_netns`);
 tests/namespace-tests.sh (existing root-requiring test coverage, wired into `tests/meson.build`)
 **Acceptance:** [NET][SEC] `tests/namespace-tests.sh` and `tests/namespace-reconnect-tests.sh` (a
 request resent from `radcli_ctx_dispatch()` over a new TCP connection must reach a server only that
@@ -350,9 +352,9 @@ the only observable outcomes are `OK_RC` (send succeeded) or a send-failure code
 `TIMEOUT_RC` everywhere else in the function.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:470 (`no_wait` parameter), lib/sendserver.c:625-630 (early
+**Source:** lib/sendserver.c `radcli_transport_exchange()` (`no_wait` parameter; the early
 `SCLOSE`/`populate_ctx`/`OK_RC` branch, taken before the retry/poll loop that produces
-`TIMEOUT_RC` at lines 692-702); lib/buildreq.c:363-411 (`rc_aaa_ctx_server_async()` calling
+`TIMEOUT_RC`); lib/legacy/buildreq.c (`rc_aaa_ctx_server_async()` calling
 `rc_send_server_ctx(rh, NULL, &data, NULL, type, 1)` and treating only `OK_RC` as per-server
 success). Note: `radcli2.h`'s `radcli_request_perform(r, RADCLI_REQUEST_SENDONLY)` no longer
 routes through this `no_wait` parameter at all -- it calls the separate
@@ -390,10 +392,10 @@ second attempt by. Nor is a TCP/TLS/DTLS session: it connects to the first addre
 server resolves to (`conn_open()`), and every address's budget is spent on that connection.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:477-716 (`radcli_transport_exchange()`'s `for (cur_addr = auth_addr;
+**Source:** lib/sendserver.c (`radcli_transport_exchange()`'s `for (cur_addr = auth_addr;
 cur_addr != NULL; cur_addr = cur_addr->ai_next)` loop, fresh `sfuncs->get_fd()`/
-`rc_get_srcaddr()` per iteration, inner send/poll/retry loop scoped to `cur_addr`); lib/sendserver.c:1061-1066
-(`rc_send_server_ctx()` delegating its socket/retry/receive step to `radcli_transport_exchange()`)
+`rc_get_srcaddr()` per iteration, inner send/poll/retry loop scoped to `cur_addr`); lib/legacy/send.c `rc_send_server_ctx()`
+(delegating its socket/retry/receive step to `radcli_transport_exchange()`)
 **Acceptance:** [NET] shell, local, no root — `tests/dns-failover-tests.sh` points `authserver` at
 a name (`localhost`) that resolves to both an IPv4 and an IPv6 loopback address, with a mock
 RADIUS server (`tests/radius-server.py`) listening on only whichever address `getaddrinfo()`
@@ -568,8 +570,8 @@ predictable Request Authenticator would let an off-path attacker precompute a
 valid User-Password obfuscation XOR-mask or Response Authenticator MD5 input.
 **Strength:** MUST NOT (weak RNG) ; MUST (gnutls_rnd/getentropy, fail on error)
 **Status:** DERIVED
-**Source:** lib/rc-random.c:40 (`rc_get_random_bytes`); lib/sendserver.c:1036
-(call site for Access-Request); REQ-GEN-TECH-001, REQ-GEN-SEC-007
+**Source:** lib/rc-random.c (`rc_get_random_bytes`); lib/legacy/send.c `rc_send_server_ctx()`,
+lib/request.c `radcli_encode_request()` (call sites for Access-Request); REQ-GEN-TECH-001, REQ-GEN-SEC-007
 **Acceptance:** [SEC] code-review — `rc_get_random_bytes()`'s only entropy
 source is `gnutls_rnd`/`getentropy`; the `assert` is not compiled out
 (`NDEBUG` builds are not the project's release configuration — flag if this
@@ -585,7 +587,7 @@ zeroing and the hash MUST happen in that order so the digest does not include st
 vector bytes from a previous request reusing the same stack buffer.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:632-648
+**Source:** lib/legacy/send.c `rc_send_server_ctx()`
 **Acceptance:** [SEC] unit, local — capture an Accounting-Request on the wire and recompute
 MD5(header‖attrs‖secret) with the vector field zeroed; it MUST equal the transmitted
 `auth->vector`.
@@ -621,7 +623,7 @@ Authenticator does not match — this is what prevents an off-path attacker who 
 the request ID from injecting a forged Access-Accept without knowing the shared secret.
 **Strength:** MUST NOT (accept without this check) ; MUST (perform the check, reject on mismatch)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:246-292
+**Source:** lib/sendserver.c `rc_check_reply()`
 **Acceptance:** [SEC] negative, local — a forged reply with correct `id` but wrong or missing
 Response Authenticator (or authenticator computed with a different secret) MUST be rejected with
 `BADRESP_RC`, not accepted. Per `REQ-GEN-TEST-003`, this negative test is mandatory and must
@@ -640,7 +642,7 @@ but has the wrong length (not exactly `2 + MD5_DIGEST_SIZE`) MUST be rejected ou
 **Strength:** MUST NOT (compare against unsubstituted bytes, or skip length check) ; MUST
 (substitute request authenticator, validate length, reject on mismatch)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:346-404 (`validate_message_authenticator`, doc comment at 350-355
+**Source:** lib/sendserver.c (`validate_message_authenticator`, whose doc comment
 cites RFC 3579 §3.2 explicitly)
 **Acceptance:** [SEC] negative, local — a reply with a Message-Authenticator computed over the
 Response Authenticator (a common implementation bug in third-party servers, deliberately
@@ -660,7 +662,7 @@ exists to prevent.
 **Strength:** MUST NOT (accept a mismatched MA on any AUTH reply code) ; MUST (verify whenever
 present)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:862-877 (verification is inside `if (type == AUTH)`, gated only on
+**Source:** lib/sendserver.c `decode_reply()` (verification is inside `if (type == AUTH)`, gated only on
 attribute presence via `rc_avpair_get`, not on `recv_auth->code`)
 **Acceptance:** [SEC] negative, local — a forged Access-Reject carrying a
 Message-Authenticator computed with the wrong secret MUST be rejected (`ERROR_RC`), not passed
@@ -686,7 +688,7 @@ reachable, and a reply missing or misordering Message-Authenticator MUST still b
 **Strength:** MUST NOT (accept non-first or absent MA by default, over UDP/TCP) ; MUST (enforce
 position over UDP/TCP, respect the opt-out) ; MUST NOT (enforce presence/position over TLS/DTLS)
 **Status:** DERIVED
-**Source:** lib/sendserver.c:862-897 (the `rh->so_type != RC_SOCKET_TLS && rh->so_type !=
+**Source:** lib/sendserver.c `decode_reply()` (the `rh->so_type != RC_SOCKET_TLS && rh->so_type !=
 RC_SOCKET_DTLS` guard at 879 scopes the enforcement to UDP/TCP)
 **Acceptance:** [SEC] negative, local — over UDP/TCP, a reply with a valid Message-Authenticator
 attribute appended *after* another attribute MUST be rejected under default config, and accepted
@@ -733,10 +735,10 @@ caller actually owns the buffer once it is done with it: `rc_send_server_ctx()` 
 `radcli_request_free()` (`lib/request.c`) for the `radcli2.h` path.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/legacy/send.c:343,408,421,444,466 (5 `memset(secret, ...)` call sites — 4 before
+**Source:** lib/legacy/send.c `rc_send_server_ctx()` (5 `memset(secret, ...)` call sites — 4 before
 `radcli_transport_exchange()` is reached, 1 single site after it covering all of its return
 outcomes); lib/sendserver.c's doc comment above `radcli_transport_exchange()` (explains why that
-function does not scrub `secret` itself); lib/request.c:534 (`radcli_request_free()`'s equivalent
+function does not scrub `secret` itself); lib/request.c (`radcli_request_free()`'s equivalent
 scrub for the `radcli2.h` path, REQ-NET2-INIT-007, `net2.md`)
 **Acceptance:** [MEM][SEC] code-review — any new early-return/`goto` added to
 `rc_send_server_ctx()` (`lib/legacy/send.c`) after `secret[]` is populated must be checked for a
@@ -748,7 +750,7 @@ the caller's behalf except where a function-local copy never reaches the caller 
 
 ### REQ-NET-SEC-010 — Response Authenticator and Message-Authenticator comparisons use a constant-time compare under GnuTLS builds; the non-GnuTLS (`-Dtls=disabled`) fallback has a documented timing side-channel
 
-**Requirement:** `rc_memcmp()` (`lib/util.h:28-35`) is used for both the Response Authenticator
+**Requirement:** `rc_memcmp()` (lib/util.h `rc_memcmp()`) is used for both the Response Authenticator
 compare (`REQ-NET-SEC-004`) and the Message-Authenticator compare (`REQ-NET-SEC-005`). When built
 with GnuTLS it MUST call `gnutls_memcmp()`, which GnuTLS documents as side-channel resistant,
 satisfying `REQ-GEN-SEC-006`'s "MUST NOT use a data-dependent-timing function" for secret-derived
@@ -760,8 +762,8 @@ and a hand-rolled constant-time fallback for the non-GnuTLS path is not planned.
 **Strength:** MUST NOT (non-constant-time secret comparison) under `HAVE_GNUTLS`; accepted residual
 risk under `-Dtls=disabled`
 **Status:** DERIVED
-**Source:** lib/util.h:28-35; lib/sendserver.c:283-284,402-403 (both call sites); meson.build:63-65
-(`HAVE_GNUTLS` tied to `-Dtls`); .github/workflows/tests.yaml (`tests-notls` job builds with
+**Source:** lib/util.h `rc_memcmp()`; lib/sendserver.c `rc_check_reply()`, `validate_message_authenticator()` (both call
+sites); meson.build (`HAVE_GNUTLS` tied to `-Dtls`); .github/workflows/tests.yaml (`tests-notls` job builds with
 `-Dtls=disabled`)
 **Acceptance:** [SEC] documentation — `AGENTS.md`'s `-Dtls=disabled` option description notes this
 residual timing side-channel.
@@ -801,7 +803,7 @@ without a certificate, but priority-string misconfiguration is a known downgrade
 the deprecated TLS 1.0 protocol version.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:401-413
+**Source:** lib/tls.c `tls_start()` (`psk_cred` branch)
 **Acceptance:** [SEC] unit, local — a PSK-configured client's `ClientHello` cipher suite list
 (captured via a test proxy) contains only PSK key-exchange suites and offers a minimum protocol
 version above TLS 1.0.
@@ -817,7 +819,7 @@ than skipping verification entirely — hostname checking, not chain trust, is t
 **Strength:** MUST NOT (accept an unverified or hostname-mismatched certificate by default) ;
 MUST (verify chain always; verify hostname unless explicitly disabled)
 **Status:** DERIVED
-**Source:** lib/tls.c:261-303 (`cert_verify_callback`); lib/tls.c:396-399
+**Source:** lib/tls.c (`cert_verify_callback`); lib/tls.c `tls_start()`
 (`tls-verify-hostname` parsing) [AMBIGUOUS — see below]
 **Acceptance:** [SEC] negative, local — a server presenting a certificate for the wrong hostname
 MUST fail the handshake under default config, and succeed (chain still validated) with
@@ -826,14 +828,14 @@ MUST fail the handshake under default config, and succeed (chain still validated
 
 ### REQ-NET-SEC-014 — `tls-verify-hostname` MUST only disable hostname checks for `"false"`/`"no"`, not for any other value
 
-**Requirement:** The condition at `lib/tls.c:397` MUST be
+**Requirement:** The `tls-verify-hostname` condition in lib/tls.c `tls_start()` MUST be
 `if (p && (strcasecmp(p, "false") == 0 || strcasecmp(p, "no") == 0))` — both branches require an
 exact (case-insensitive) match. `skip_hostname_check` MUST NOT be set for any other configured
 value of `tls-verify-hostname` (including `"true"`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/tls.c:396-399; matches the same two-`==0` pattern at
-lib/sendserver.c:882-883
+**Source:** lib/tls.c `tls_start()`; matches the same two-`==0` pattern in
+lib/sendserver.c `decode_reply()` (`require-message-authenticator`)
 **Acceptance:** [SEC] negative, local — set `tls-verify-hostname=true` and confirm hostname
 verification is still performed; set `tls-verify-hostname=no` and confirm it is skipped.
 **Links:** REQ-NET-SEC-013, REQ-GEN-TEST-003, REQ-NET-NET-016 (the field this check writes was
@@ -872,8 +874,8 @@ never a caller-visible return), so in practice only the other seven values are o
 callers.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** include/radcli/radcli.h:473-484 (`rc_send_status` enum); lib/sendserver.c (every
-`result = ...; goto cleanup/exit_error` site; `910-930` for the code-to-status mapping)
+**Source:** include/radcli/radcli.h (`rc_send_status` enum); lib/sendserver.c (every
+`result = ...; goto cleanup/exit_error` site; `decode_reply()` for the code-to-status mapping)
 **Acceptance:** [ERR] code-review — every `return`/`goto cleanup` path in
 `rc_send_server_ctx()` assigns `result` from the enumerated set before falling through to
 `return result`.
@@ -890,7 +892,7 @@ received-packet region of `recv_buffer`; a too-large length is rejected as a def
 sanity check even though `recv_buffer`/`RC_BUFFER_LEN` (8192) could technically hold more.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:257-263
+**Source:** lib/sendserver.c `rc_check_reply()`
 **Acceptance:** [ERR][MEM] negative, local — a reply with `length` field set to 4 or to 8000
 bytes MUST be rejected with `BADRESP_RC` without a crash/ASan violation.
 
@@ -904,7 +906,7 @@ exceeds the remaining declared packet length — before handing the buffer to
 untrusted network peer cannot cause `rc_avpair_gen()` to read past the packet boundary.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:801-845
+**Source:** lib/sendserver.c `decode_reply()`
 **Acceptance:** [ERR][MEM] negative, local — a crafted reply with an attribute claiming length
 255 but only 3 bytes remaining in the packet MUST be rejected with `ERROR_RC`, not passed to
 `rc_avpair_gen()`.
@@ -921,12 +923,12 @@ spurious RADIUS-layer failure. `EAGAIN` on `recvfrom()` MUST also `continue` the
 socket, zero the secret, and return `ERROR_RC` (or `NETUNREACH_RC` for `ENETUNREACH` on `sendto()`).
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:682-695 (sendto/EINTR, ENETUNREACH), 708-713 (poll/EINTR),
-726-748 (recvfrom/EINTR/EAGAIN)
+**Source:** lib/sendserver.c `radcli_transport_exchange()` (sendto/EINTR, ENETUNREACH;
+poll/EINTR; recvfrom/EINTR/EAGAIN)
 **Acceptance:** [ERR] unit, local — a `sendto()` returning `-1`/`EINTR` is retried without
 incrementing the retry counter; `ENETUNREACH` maps specifically to `NETUNREACH_RC`, distinct from
 generic `ERROR_RC`, so callers/`rc_aaa_ctx_server()` can distinguish "try next server" cases (see
-`attrs.md`'s multi-server loop, `lib/buildreq.c:264`).
+`attrs.md`'s multi-server loop, lib/legacy/buildreq.c `rc_aaa_ctx_server()`).
 **Links:** REQ-GEN-SEC-001
 
 ### REQ-NET-ERR-005 — A short (`length < AUTH_HDR_LEN`) or truncated (`length < ntohs(auth->length)`) read is rejected immediately, not padded or partially processed
@@ -938,7 +940,7 @@ transport that delivers fewer bytes than the RADIUS header requires, or fewer by
 packet claims to contain, MUST NOT be treated as a valid (if short) reply.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:750-761
+**Source:** lib/sendserver.c `radcli_transport_exchange()`
 **Acceptance:** [ERR] negative, local — a reply truncated to 10 bytes, and a reply whose header
 declares 200 bytes but whose UDP datagram contains only 50, both yield `ERROR_RC`.
 
@@ -952,7 +954,7 @@ packet MUST cause the packet to be silently discarded... A Length less than or e
 of the received packet should be processed").
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:796-799
+**Source:** lib/sendserver.c `decode_reply()`
 **Acceptance:** [ERR] unit, local — a UDP datagram padded with 20 extra trailing bytes beyond its
 declared RADIUS length still parses successfully, ignoring the padding.
 
@@ -966,7 +968,7 @@ declared RADIUS length still parses successfully, ignoring the padding.
 with a logged error, via an explicit `default:` case.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:910-930
+**Source:** lib/sendserver.c `decode_reply()`
 **Acceptance:** [ERR] negative, local — a reply with `code = PW_STATUS_SERVER` (12, a code
 radcli never sends as a request but which passes all other checks if forged with a valid
 Response Authenticator) yields `BADRESP_RC`.
@@ -993,11 +995,12 @@ does not apply to the TCP/TLS/DTLS session vtable, whose `close_fd` is intention
 `REQ-NET-TEARDOWN-002`.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:33-36 (`SCLOSE(fd)` macro: closes via `sfuncs->close_fd` if set, then
-`fd = -1`); call sites at lines 576, 586 (both `continue` to the next resolved address, which
-re-acquires `sockfd` before it could reach `cleanup:`), 626, 650, 670, 682, 706 (mid-function
-closes, each safe to immediately follow with `cleanup:`'s own guarded close since the macro already
-nulled `sockfd`), and 845 (`cleanup:` label's own close, guarded by `if (sockfd >= 0)`);
+**Source:** lib/sendserver.c (`SCLOSE(fd)` macro: closes via `sfuncs->close_fd` if set, then
+`fd = -1`); its call sites in `radcli_transport_exchange()`: the per-address `continue`s to the
+next resolved address (which re-acquire `sockfd` before they could reach `cleanup:`), the
+mid-function closes (each safe to immediately follow with `cleanup:`'s own guarded close since
+the macro already nulled `sockfd`), and the `cleanup:` label's own close, guarded by
+`if (sockfd >= 0)`;
 lib/config.c (`close_fd` set to `plain_close_fd` for UDP, so `SCLOSE` is a real
 `close(2)`, not a no-op, for the default transport)
 **Acceptance:** [TEARDOWN] code-review — every new early-return in `radcli_transport_exchange()`
@@ -1016,7 +1019,7 @@ like UDP. It MUST be torn down only by `conn_close()`, invoked either from `rest
 **Strength:** MUST
 **Status:** DERIVED
 **Source:** lib/session.c (`radcli2_priv_sess_init()` never assigns `rh->so.close_fd`, which
-stays NULL from the caller's `memset(&rh->so, 0, ...)`); lib/sendserver.c:32 (`SCLOSE` no-ops on
+stays NULL from the caller's `memset(&rh->so, 0, ...)`); lib/sendserver.c (`SCLOSE` no-ops on
 NULL `close_fd`)
 **Acceptance:** [TEARDOWN] unit, local — 100 consecutive `rc_auth()` calls over a TLS-configured
 `rh` use the same underlying fd (via `rc_tls_fd()`), not a new one per call.
@@ -1085,12 +1088,12 @@ against the unfixed code.
 **Requirement:** See `REQ-NET-NET-015` for the full analysis; restated here as a teardown
 obligation: every function that calls `rc_set_netns()` MUST reach a matching `rc_reset_netns()`
 call on its way out, on both success and error paths, since `rc_reset_netns()` also `close()`s
-the saved namespace file descriptor (`lib/util.c:244-248`) — skipping it on an error path is both
+the saved namespace file descriptor (lib/util.c `rc_reset_netns()`) — skipping it on an error path is both
 a namespace leak (thread stuck in the wrong netns) and a file descriptor leak.
 **Strength:** MUST
 **Status:** DERIVED
-**Source:** lib/sendserver.c:460-466,932-947; lib/tls.c (`rc_init_tls()`); lib/session.c
-(`radcli2_priv_sess_deinit()`); lib/util.c:174-253
+**Source:** lib/sendserver.c `radcli_transport_exchange()`; lib/tls.c (`rc_init_tls()`); lib/session.c
+(`radcli2_priv_sess_deinit()`); lib/util.c `rc_reset_netns()`, `rc_set_netns()`
 **Acceptance:** [TEARDOWN] code-review — same acceptance criterion as `REQ-NET-NET-015`.
 **Links:** REQ-NET-NET-015
 
@@ -1103,23 +1106,23 @@ and `include/includes.h` against the requirements above:
 
 | Public symbol (map.in) | Covered by |
 |---|---|
-| `rc_send_server` | REQ-NET-NET-001, REQ-NET-ERR-001 (thin wrapper over `rc_send_server_ctx`, `lib/sendserver.c:231-234`) |
+| `rc_send_server` | REQ-NET-NET-001, REQ-NET-ERR-001 (thin wrapper over `rc_send_server_ctx`, lib/legacy/send.c `rc_send_server()`) |
 | `rc_tls_fd` | REQ-NET-NET-013 |
 | `rc_check_tls` | REQ-NET-NET-013, REQ-WATCHDOG-NET-004 (`doc/requirements/watchdog.md`) |
 | `rc_get_socket_type` | REQ-NET-NET-012 |
-| `rc_find_server_addr` | Called from `rc_send_server_ctx()` (`lib/sendserver.c:485`) but implemented/owned by `config.md` (server-list resolution is a config concern, not transport) — cited here as a caller dependency only, not duplicated. |
-| `rc_get_srcaddr` | Called at `lib/sendserver.c:523` for `discover_local_ip`; implementation lives in `lib/ip_util.c`, owned by `util.md` — cited as caller dependency only. |
+| `rc_find_server_addr` | Called from lib/legacy/send.c `rc_send_server_ctx()` but implemented/owned by `config.md` (server-list resolution is a config concern, not transport) — cited here as a caller dependency only, not duplicated. |
+| `rc_get_srcaddr` | Called from lib/legacy/send.c `rc_send_server_ctx()` for `discover_local_ip`; implementation lives in `lib/ip_util.c`, owned by `util.md` — cited as caller dependency only. |
 | `rc_openlog`, `rc_setdebug` | Out of scope for `net.md` (logging config, owned by `util.md`/`config.md`); `DEBUG()`'s `rh->debug` read in `lib/sendserver.c` is a per-handle field, not the global `REQ-GEN-SEC-005` exception (that's now `radcli_legacy_debug`, confined to the legacy shim) — not re-litigated here. |
 
 `rc_send_server_ctx` and `RC_AAA_CTX`/`populate_ctx()` are internal (`lib/sendserver.c`, not in
 `radcli.map.in`) but are the actual implementation behind the exported `rc_send_server`/`rc_aaa`
 family; their contract is captured through the `rc_send_server`-citing requirements above and
 `populate_ctx()`'s secret/vector copy is covered implicitly by `REQ-NET-SEC-009`'s "the secret is
-zeroed after `populate_ctx()` runs" ordering (`lib/sendserver.c:856-860`) — no separate
+zeroed after `populate_ctx()` runs" ordering (lib/legacy/send.c `rc_send_server_ctx()`) — no separate
 requirement was needed since `RC_AAA_CTX`'s own contract (constructed correctly, freed via
 `rc_aaa_ctx_free()`) belongs to `attrs.md`.
 
-`SEND_DATA` (`include/radcli/radcli.h:512-523`) is covered structurally by
+`SEND_DATA` (`include/radcli/radcli.h`) is covered structurally by
 `REQ-NET-NET-009` (`timeout`, `retries` fields) and `REQ-NET-SEC-*` (`secret`,
 `code`, `seq_nbr` fields); `send_pairs`/`receive_pairs` are `attrs.md`'s concern.
 
@@ -1128,6 +1131,6 @@ internal-only per `REQ-NET-NET-002`; every function pointer in the vtable (`get_
 `get_active_fd`, `close_fd`, `sendto`, `recvfrom`, `lock`, `unlock`, `static_secret`, `ptr`) is
 exercised by at least one requirement above (`REQ-NET-NET-001/003/005/008`,
 `REQ-NET-TEARDOWN-001/002`, `REQ-NET-SEC-011`'s `static_secret` handling via
-`sfuncs->static_secret` at `lib/sendserver.c:498-501`).
+`sfuncs->static_secret` at lib/legacy/send.c `rc_send_server_ctx()`).
 
 No open `[UNDOCUMENTED]`/`[REVIEW]` gaps remain in this document.
