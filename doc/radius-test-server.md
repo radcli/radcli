@@ -9,11 +9,14 @@ real `radiusd`/`freeradius` in `PATH`. Currently used by:
 - `tests/acct-async-tests.sh` — `rc_acct_async()` delivery and non-blocking return
   (Accounting-Request/Response, `--no-reply`)
 - `tests/request-async-validation-tests.sh` — reply validation on the
-  `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`, `--spoof-source`)
+  `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`,
+  `--short-datagrams-first`, `--spoof-source`, `--spoof-address`,
+  `--other-port-first`)
 - `tests/request-reply-code-tests.sh` — `radcli_request_code()` after a
   rejected reply (`--reply-code`)
-- `tests/request-stray-reply-tests.sh` — a blocking request ignoring a reply
-  with another Identifier (`--stray-first`)
+- `tests/request-stray-reply-tests.sh` — reply validation on the blocking
+  path (`--stray-first`, `--stale-truncated`, `--short-datagrams-first`,
+  `--spoof-source`, `--spoof-address`, `--other-port-first`)
 
 ## Invocation
 
@@ -22,6 +25,8 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
                                [--msg-auth correct|absent|wrong] [--no-reply]
                                [--stale-truncated] [--spoof-source]
                                [--reply-code N] [--stray-first]
+                               [--short-datagrams-first] [--other-port-first]
+                               [--spoof-address]
 ```
 
 | Option | Default | Meaning |
@@ -34,6 +39,9 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--reply-code` | 2 | RADIUS code of the reply to an Access-Request; the packet is otherwise built exactly like the Access-Accept, authenticators included (UDP transport only) |
 | `--stray-first` | off | Send each reply twice: first a valid copy under the next Identifier, then the reply itself (UDP transport only) |
 | `--spoof-source` | off | Send each valid reply from a different local port than the one the request arrived on (UDP transport only) |
+| `--short-datagrams-first` | off | Send a 4-byte datagram and the reply's bare 20-byte header (Length unchanged) ahead of each reply (UDP transport only) |
+| `--spoof-address` | off | Send each valid reply from the server's own port on 127.0.0.2 instead of the address the request arrived on (UDP over IPv4 only) |
+| `--other-port-first` | off | Answer the first request only with a reply under the next Identifier, from a different local port; answer later requests normally (UDP transport only) |
 
 The server accepts one UDP packet at a time and, unless `--no-reply` or
 `--stale-truncated` is given, sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
@@ -64,16 +72,47 @@ reply, with the correct Identifier and a Length that still claims the full
 packet. A client that reuses its receive buffer and does not reject a
 datagram shorter than its own Length field ends up authenticating the real
 header plus the decoy's leftover attribute bytes, and accepts the reply.
-`tests/request-async-validation-tests.sh` uses this to check that the
-`RADCLI_REQUEST_SENDONLY` drain rejects it (`REQ-NET2-SEND-017`).
+Both `tests/request-stray-reply-tests.sh` (blocking) and
+`tests/request-async-validation-tests.sh` (`RADCLI_REQUEST_SENDONLY`) use
+this to check that it is rejected (`REQ-NET-ERR-005`).
+
+### `--short-datagrams-first`
+
+Sends two datagrams the client must discard ahead of the real reply: a
+4-byte one, shorter than the RADIUS header, and the reply's first 20 bytes
+with its Length still claiming the whole reply. Both
+`tests/request-stray-reply-tests.sh` (blocking) and
+`tests/request-async-validation-tests.sh` (`RADCLI_REQUEST_SENDONLY`) check
+that the request still completes with the real reply, rather than failing
+on the short datagrams (`REQ-NET-ERR-005`).
 
 ### `--spoof-source`
 
 Sends the correct, fully valid reply, but from a fresh socket on another
 local port, so its source address does not match the server the request
-went to. `tests/request-async-validation-tests.sh` uses this to check that
-the `RADCLI_REQUEST_SENDONLY` drain, which reads from a shared unconnected
-socket, discards a reply from an unexpected source (`REQ-NET2-SEND-016`).
+went to. Both `tests/request-stray-reply-tests.sh` (blocking) and
+`tests/request-async-validation-tests.sh` (`RADCLI_REQUEST_SENDONLY`) use
+this to check that a reply from an unexpected source is discarded on the
+client's unconnected UDP socket (`REQ-NET-NET-024`).
+
+### `--spoof-address`
+
+Like `--spoof-source`, but the reply leaves from the server's own port on
+127.0.0.2, so only its source address differs from the server the request
+went to (Linux delivers all of 127.0.0.0/8 on loopback). Both test scripts
+use it to check that the address, not just the port, is compared
+(`REQ-NET-NET-024`).
+
+### `--other-port-first`
+
+Answers the first request it receives only from a fresh socket on another
+local port, with a reply under the next Identifier, and sends nothing from
+its own port; every later request (the client's retransmission) is answered
+normally. Both `tests/request-stray-reply-tests.sh` and
+`tests/request-async-validation-tests.sh` use this, with one retry, to check
+that a datagram from another address does not redirect the retransmission:
+the server must receive the request twice and the request must complete
+(`REQ-NET-NET-024`).
 
 ---
 

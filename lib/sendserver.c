@@ -422,7 +422,7 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
 }
 
 /*- Compare two sockaddrs' family, address and port, to check a reply's
- * source on an unconnected UDP socket (REQ-NET-NET-024, REQ-NET2-SEND-016).
+ * source on an unconnected UDP socket (REQ-NET-NET-024).
  *
  * @param from the address a datagram was received from.
  * @param expected the address the request was sent to.
@@ -963,7 +963,7 @@ int radcli2_priv_reqreg_earliest_deadline_ms(rc_handle *rh)
 }
 
 /*- Hand one received reply to the in-flight registry slot it answers,
- * validating it (REQ-NET2-SEND-016/017) and writing the outcome onto the
+ * validating it (REQ-NET-NET-024, REQ-NET-ERR-005) and writing the outcome onto the
  * slot's owner (struct radcli_async_send_st).
  *
  * @param rh a handle to parsed configuration.
@@ -986,7 +986,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 	if (reg == NULL)
 		return 0;
 	/* The caller's buffer is reused across reads: bytes past a short
-	 * read belong to an earlier datagram (REQ-NET2-SEND-017). */
+	 * read belong to an earlier datagram (REQ-NET-ERR-005). */
 	if ((size_t)recv_length < AUTH_HDR_LEN || recv_length < ntohs(recv_auth->length))
 		return 0;
 	id = recv_auth->id;
@@ -1074,17 +1074,20 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
  -*/
 int radcli2_priv_sess_route(rc_handle *rh, uint8_t *buf, size_t cap, int len)
 {
+	/* A DTLS record is not length-framed by lib/session.c (REQ-NET-ERR-005). */
+	if (len < AUTH_HDR_LEN || len < ntohs(((AUTH_HDR *)buf)->length))
+		return RADSEC_ROUTE_DROPPED;
 	/* Only RadSec carries server-initiated requests back to the client
 	 * (REQ-DAE-INIT-010); over plain TCP they match nothing. */
 	if ((rh->so_type == RC_SOCKET_TLS || rh->so_type == RC_SOCKET_DTLS) &&
-	    len >= 1 && (buf[0] == RADCLI_DISCONNECT_REQUEST || buf[0] == RADCLI_COA_REQUEST)) {
+	    (buf[0] == RADCLI_DISCONNECT_REQUEST || buf[0] == RADCLI_COA_REQUEST)) {
 		radcli2_priv_dae_on_radsec_packet(rh, buf, (size_t)len);
 		return RADSEC_ROUTE_DAE;
 	}
 	if (reqreg_deliver(rh, buf, cap, len, NULL))
 		return RADSEC_ROUTE_REPLY;
 	rc_log(LOG_INFO, "%s: packet with code %u matches nothing in flight on the "
-	       "session, ignored", __func__, len >= 1 ? (unsigned)buf[0] : 0U);
+	       "session, ignored", __func__, (unsigned)buf[0]);
 	return RADSEC_ROUTE_DROPPED;
 }
 
