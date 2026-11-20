@@ -837,10 +837,9 @@ Authenticator verification, or decoding — if it is shorter than either,
 leaving any registry slot it names still waiting. The receive buffer is
 reused across datagrams within one drain, so without this check the bytes
 past a short read are left over from an earlier datagram and would be
-authenticated as part of this one. This is the same length rule
-REQ-NET-ERR-005 sets for the blocking path; it differs only in discarding
-the datagram instead of failing the exchange, matching how the drain
-already treats every other datagram it cannot validate.
+authenticated as part of this one. This is the same length rule, and the
+same discard, REQ-NET-ERR-005 sets for the blocking path, matching how the
+drain already treats every other datagram it cannot validate.
 **Strength:** MUST
 **Status:** DERIVED — fixes a bug: the drain checked only `AUTH_HDR_LEN`,
 so a reply's bare header, received right after a discarded datagram that

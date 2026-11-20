@@ -22,15 +22,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* A blocking request that reads a reply with another Identifier first must
- * keep waiting for its own reply within the same attempt, not count that
- * reply as a failed attempt (REQ-NET-NET-010). The peer,
- * tests/radius-server.py --stray-first, sends a valid reply under the next
- * Identifier ahead of the real one; with radius_retries 0 there is no
- * second attempt, so the request only succeeds if the wait continued. */
+/* A blocking request that reads a datagram other than its own reply must
+ * keep waiting for that reply within the same attempt, not end the exchange
+ * or count the attempt as failed (REQ-NET-NET-010, REQ-NET-ERR-005), and
+ * must neither accept a reply from, nor retransmit to, any address but the
+ * one it sent to (REQ-NET-NET-024). tests/request-stray-reply-tests.sh
+ * picks the peer's behaviour (tests/radius-server.py), the retry count and
+ * whether the request must end in the Access-Accept or in RADCLI_TIMEOUT. */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <radcli/radcli2.h>
 
@@ -46,11 +48,16 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	char authserver[160];
+	int retries = 0, expect_timeout = 0;
 	int rc;
 
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <port> <secret>\n", argv[0]);
+	if (argc != 3 && argc != 5) {
+		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout]\n", argv[0]);
 		return 2;
+	}
+	if (argc == 5) {
+		retries = atoi(argv[3]);
+		expect_timeout = strcmp(argv[4], "timeout") == 0;
 	}
 
 	ctx = radcli_ctx_new(0);
@@ -59,7 +66,7 @@ int main(int argc, char **argv)
 	snprintf(authserver, sizeof(authserver), "127.0.0.1:%s:%s", argv[1], argv[2]);
 	if (radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER, authserver) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, 2) != 0 ||
-	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, 0) != 0 ||
+	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, retries) != 0 ||
 	    radcli_ctx_apply(ctx) != 0)
 		die("context setup");
 
@@ -74,15 +81,26 @@ int main(int argc, char **argv)
 		die("radcli_request_new");
 
 	rc = radcli_request_perform(r, RADCLI_REQUEST_NONE);
+	if (expect_timeout) {
+		if (rc != RADCLI_TIMEOUT) {
+			fprintf(stderr, "error: radcli_request_perform() returned %d, code %d; "
+					"expected RADCLI_TIMEOUT\n", rc, (int)radcli_request_code(r));
+			return 1;
+		}
+		radcli_request_free(r);
+		radcli_ctx_free(ctx);
+		printf("OK: the request timed out\n");
+		return 0;
+	}
 	if (rc != RADCLI_OK || radcli_request_code(r) != RADCLI_CODE_ACCESS_ACCEPT) {
 		fprintf(stderr, "error: radcli_request_perform() returned %d, code %d; "
-				"expected the Access-Accept that followed the stray reply\n",
+				"expected the Access-Accept that followed the stray datagram\n",
 			rc, (int)radcli_request_code(r));
 		return 1;
 	}
 
 	radcli_request_free(r);
 	radcli_ctx_free(ctx);
-	printf("OK: a reply with another Identifier did not end the wait\n");
+	printf("OK: a stray datagram did not end the wait\n");
 	return 0;
 }

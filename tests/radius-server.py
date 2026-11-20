@@ -219,7 +219,8 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
 
 def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
         stale_truncated=False, spoof_source=False, reply_code=ACCESS_ACCEPT,
-        stray_first=False):
+        stray_first=False, short_datagrams_first=False, other_port_first=False,
+        spoof_address=False):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -227,6 +228,7 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
     print(f"radius-server: listening on {bind_addr}:{port}, msg-auth={msg_auth_mode}, "
           f"attrs={attrs_mode}, no-reply={no_reply}", flush=True)
 
+    answered_from_other_port = False
     while True:
         data, addr = sock.recvfrom(4096)
         response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply, reply_code)
@@ -246,10 +248,32 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
             # ignore, ahead of the real one.
             sock.sendto(response[:1] + bytes([(response[1] + 1) % 256]) + response[2:], addr)
             sock.sendto(response, addr)
+        elif short_datagrams_first:
+            # A datagram shorter than the RADIUS header, then the reply's
+            # bare header (Length still claiming the whole reply), both of
+            # which the client must discard, ahead of the real reply.
+            sock.sendto(response[:4], addr)
+            sock.sendto(response[:20], addr)
+            sock.sendto(response, addr)
+        elif other_port_first and not answered_from_other_port:
+            # Answer the first request only from another local port, with a
+            # reply under the next Identifier, and send nothing from this
+            # one: the client must still send its retransmission here.
+            answered_from_other_port = True
+            with socket.socket(family, socket.SOCK_DGRAM) as other:
+                other.sendto(response[:1] + bytes([(response[1] + 1) % 256]) + response[2:],
+                             addr)
         elif spoof_source:
             # The correct, valid reply, but from another local port than
             # the one the request was sent to.
             with socket.socket(family, socket.SOCK_DGRAM) as other:
+                other.sendto(response, addr)
+        elif spoof_address:
+            # The correct, valid reply from the server's own port, but on
+            # another loopback address than the one the request was sent to.
+            with socket.socket(family, socket.SOCK_DGRAM) as other:
+                other.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                other.bind(('127.0.0.2', port))
                 other.sendto(response, addr)
         else:
             sock.sendto(response, addr)
@@ -350,6 +374,16 @@ def main():
     parser.add_argument('--stray-first', action='store_true',
                         help='Send each reply twice: first under the next Identifier, then '
                              'unchanged. UDP transport only.')
+    parser.add_argument('--short-datagrams-first', action='store_true',
+                        help='Send a 4-byte datagram and the reply\'s bare 20-byte header '
+                             'ahead of each reply. UDP transport only.')
+    parser.add_argument('--other-port-first', action='store_true',
+                        help='Answer the first request only with a reply under the next '
+                             'Identifier from a different local port; answer later ones '
+                             'normally. UDP transport only.')
+    parser.add_argument('--spoof-address', action='store_true',
+                        help='Send each valid reply from the same port on 127.0.0.2 instead '
+                             'of the address the request arrived on. UDP over IPv4 only.')
     parser.add_argument('--reply-code', type=int, default=ACCESS_ACCEPT,
                         help='RADIUS code to answer an Access-Request with, otherwise '
                              'built exactly like the Access-Accept (default 2). UDP '
@@ -360,13 +394,19 @@ def main():
         if not args.tls_cert or not args.tls_key:
             parser.error('--transport tls requires --tls-cert and --tls-key')
         if (args.no_reply or args.stale_truncated or args.spoof_source or
-                args.stray_first or args.reply_code != ACCESS_ACCEPT):
+                args.stray_first or args.short_datagrams_first or
+                args.other_port_first or args.spoof_address or
+                args.reply_code != ACCESS_ACCEPT):
             parser.error('--no-reply/--stale-truncated/--spoof-source/--stray-first/'
+                         '--short-datagrams-first/--other-port-first/--spoof-address/'
                          '--reply-code are only supported with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
+        if args.spoof_address and ':' in args.bind:
+            parser.error('--spoof-address is only supported over IPv4')
         run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
-            args.stale_truncated, args.spoof_source, args.reply_code, args.stray_first)
+            args.stale_truncated, args.spoof_source, args.reply_code, args.stray_first,
+            args.short_datagrams_first, args.other_port_first, args.spoof_address)
 
 if __name__ == '__main__':
     main()

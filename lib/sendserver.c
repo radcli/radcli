@@ -421,6 +421,37 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
 	}
 }
 
+/*- Compare two sockaddrs' family, address and port, to check a reply's
+ * source on an unconnected UDP socket (REQ-NET-NET-024, REQ-NET2-SEND-016).
+ *
+ * @param from the address a datagram was received from.
+ * @param expected the address the request was sent to.
+ * @return 1 if they match, 0 otherwise.
+ -*/
+static int peer_matches(const struct sockaddr *from, const struct sockaddr *expected)
+{
+	const struct sockaddr_in *from4, *expected4;
+	const struct sockaddr_in6 *from6, *expected6;
+
+	if (from->sa_family != expected->sa_family)
+		return 0;
+
+	switch (from->sa_family) {
+	case AF_INET:
+		from4 = (const struct sockaddr_in *)from;
+		expected4 = (const struct sockaddr_in *)expected;
+		return from4->sin_port == expected4->sin_port &&
+		       memcmp(&from4->sin_addr, &expected4->sin_addr, sizeof(from4->sin_addr)) == 0;
+	case AF_INET6:
+		from6 = (const struct sockaddr_in6 *)from;
+		expected6 = (const struct sockaddr_in6 *)expected;
+		return from6->sin6_port == expected6->sin6_port &&
+		       memcmp(&from6->sin6_addr, &expected6->sin6_addr, sizeof(from6->sin6_addr)) == 0;
+	default:
+		return 0;
+	}
+}
+
 /*- Representation-agnostic send/retry/receive core, shared by
  * rc_send_server_ctx() (legacy VALUE_PAIR API) and lib/request.c's
  * radcli_request_perform() (radcli2 API): resolves server_name (or takes
@@ -429,7 +460,8 @@ static int decode_reply(rc_handle *rh, RC_AAA_CTX **ctx, const char *server_name
  * whole call, sends send_buf once per address/retry, and, for each address
  * in resolution order, retries up to retries times waiting timeout seconds
  * per attempt -- moving to the next address only once the current one is
- * exhausted. On a datagram, validates it via rc_check_reply() (RFC 2865
+ * exhausted. On a datagram, checks its length and source (UDP), then
+ * validates it via rc_check_reply() (RFC 2865
  * SS3 Response Authenticator + Identifier match) and, unless rh's
  * transport is TLS/DTLS, validate_message_authenticator() (RFC 2869
  * SS5.14), discarding anything that fails either and continuing to wait.
@@ -585,6 +617,7 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 		}
 
 		for (;;) {
+			struct sockaddr_storage from;
 			socklen_t salen;
 			int recv_length;
 			struct pollfd pfd;
@@ -648,12 +681,15 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 						break;
 				}
 
-				salen = cur_addr->ai_addrlen;
+				/* Never into cur_addr: the sender of whatever arrives
+				 * must not become the retransmission's destination
+				 * (REQ-NET-NET-024). */
+				salen = sizeof(from);
 				do {
 					recv_length = sfuncs->recvfrom(sfuncs->ptr, sockfd,
 									(char *)recv_buf,
 									(int)recv_buf_cap, 0,
-									SA(cur_addr->ai_addr), &salen);
+									SA(&from), &salen);
 				} while (recv_length == -1 && errno == EINTR);
 
 				if (recv_length <= 0) {
@@ -671,6 +707,25 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 				{
 					AUTH_HDR *recv_auth = (AUTH_HDR *)recv_buf;
 
+					/* RFC 2865 SS3: silently discarded, not fatal
+					 * (REQ-NET-ERR-005). */
+					if (recv_length < AUTH_HDR_LEN ||
+					    recv_length < ntohs(recv_auth->length)) {
+						DEBUG(rh, LOG_ERR, "DEBUG: radcli_transport_exchange: "
+						      "discarding a datagram shorter than its header or "
+						      "Length while waiting for %s:%d", server_name, svc_port);
+						continue;
+					}
+
+					/* The UDP socket is unconnected, so anyone can
+					 * send to it (REQ-NET-NET-024). */
+					if (!on_session && !peer_matches(SA(&from), cur_addr->ai_addr)) {
+						DEBUG(rh, LOG_ERR, "DEBUG: radcli_transport_exchange: "
+						      "discarding a datagram from another address than "
+						      "%s:%d", server_name, svc_port);
+						continue;
+					}
+
 					/* RFC 6614 SS2.1/SS2.5, RFC 7360 SS2.2: the session
 					 * carries every packet type; what is not this
 					 * exchange's reply goes where it belongs
@@ -680,15 +735,6 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 						radcli2_priv_sess_route(rh, recv_buf, recv_buf_cap,
 									  recv_length);
 						continue;
-					}
-
-					if (recv_length < AUTH_HDR_LEN ||
-					    recv_length < ntohs(recv_auth->length)) {
-						rc_log(LOG_ERR, "radcli_transport_exchange: recvfrom: "
-						       "%s:%d: reply is too short", server_name, svc_port);
-						SCLOSE(sockfd);
-						result = ERROR_RC;
-						goto cleanup;
 					}
 
 					if (on_session && recv_auth->id != seq_nbr) {
@@ -752,28 +798,6 @@ int radcli_transport_exchange(rc_handle *rh, RC_AAA_CTX **ctx,
 	}
 
 	return result;
-}
-
-/* Compares two sockaddrs' family+address+port -- REQ-NET2-SEND-016's
- * explicit reply-source check on the shared, unconnected UDP request
- * socket (replacing the kernel-level filtering a connect()ed per-request
- * socket used to give for free). */
-static int reqreg_peer_matches(const struct sockaddr *from, const struct sockaddr *expected)
-{
-	if (from->sa_family != expected->sa_family)
-		return 0;
-	if (from->sa_family == AF_INET) {
-		const struct sockaddr_in *a = (const struct sockaddr_in *)from;
-		const struct sockaddr_in *b = (const struct sockaddr_in *)expected;
-		return a->sin_port == b->sin_port &&
-		       memcmp(&a->sin_addr, &b->sin_addr, sizeof(a->sin_addr)) == 0;
-	}
-	{
-		const struct sockaddr_in6 *a = (const struct sockaddr_in6 *)from;
-		const struct sockaddr_in6 *b = (const struct sockaddr_in6 *)expected;
-		return a->sin6_port == b->sin6_port &&
-		       memcmp(&a->sin6_addr, &b->sin6_addr, sizeof(a->sin6_addr)) == 0;
-	}
 }
 
 /* Lazily allocates rh->reqreg (REQ-NET2-SEND-016). */
@@ -976,7 +1000,7 @@ static int reqreg_deliver(rc_handle *rh, uint8_t *recv_buf, size_t recv_buf_cap,
 	}
 	if (!rslot->valid || !rslot->armed)
 		return 0; /* no in-flight exchange for this Identifier */
-	if (from != NULL && !reqreg_peer_matches(from, SA(&rslot->peer)))
+	if (from != NULL && !peer_matches(from, SA(&rslot->peer)))
 		return 0;
 
 	if (rc_check_reply(recv_auth, (int)recv_buf_cap, rslot->secret,
