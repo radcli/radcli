@@ -45,7 +45,13 @@
  *
  * --other-port-first: a datagram from another port answers the first
  * transmission; the retransmission must still go to the server, whose reply
- * is accepted (REQ-NET-NET-024). */
+ * is accepted (REQ-NET-NET-024).
+ *
+ * --bad-resp-auth: the reply with a wrong Response Authenticator
+ * (REQ-NET-SEC-004). Must time out.
+ *
+ * --forged-first: an Access-Reject with a wrong Response Authenticator
+ * ahead of the real reply, which must still be accepted (REQ-NET-SEC-004). */
 
 #include <stdio.h>
 #include <stdlib.h>

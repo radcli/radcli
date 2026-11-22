@@ -15,6 +15,9 @@
 #             RFC 6613 SS2.6.4 framing error), then reports whether the next
 #             request arrives on the same connection or a new one, and
 #             answers it if new
+#   forged-first  sends, ahead of each reply, an Access-Reject with the
+#             request's Identifier and a valid Message-Authenticator but a
+#             wrong Response Authenticator
 #
 # Prints READY once listening, then DONE replied=N on success, or
 # SECOND-CONNECTION/SAME-CONNECTION in badlen mode.
@@ -30,6 +33,7 @@ import sys
 import time
 
 ACCESS_ACCEPT = 2
+ACCESS_REJECT = 3
 ACCOUNTING_REQUEST = 4
 ACCOUNTING_RESPONSE = 5
 ATTR_MESSAGE_AUTHENTICATOR = 80
@@ -59,10 +63,10 @@ def recv_packet(conn):
     return header + rest
 
 
-def build_access_accept(ident, request_auth, secret):
+def build_access_accept(ident, request_auth, secret, code=ACCESS_ACCEPT):
     ma_hdr = bytes([ATTR_MESSAGE_AUTHENTICATOR, 18])
     body_zeroed = ma_hdr + bytes(16)
-    header_no_auth = struct.pack('!BBH', ACCESS_ACCEPT, ident, 20 + len(body_zeroed))
+    header_no_auth = struct.pack('!BBH', code, ident, 20 + len(body_zeroed))
     ma = hmac.new(secret, header_no_auth + request_auth + body_zeroed, hashlib.md5).digest()
     body = ma_hdr + ma
     resp_auth = hashlib.md5(header_no_auth + request_auth + body + secret).digest()
@@ -79,6 +83,11 @@ def reply_for(pkt, secret):
     if pkt[0] == ACCOUNTING_REQUEST:
         return build_accounting_response(pkt[1], pkt[4:20], secret)
     return build_access_accept(pkt[1], pkt[4:20], secret)
+
+
+def forged_reject_for(pkt, secret):
+    reject = build_access_accept(pkt[1], pkt[4:20], secret, ACCESS_REJECT)
+    return reject[:4] + bytes([reject[4] ^ 0x01]) + reject[5:]
 
 
 def stray_for(pkt):
@@ -105,6 +114,16 @@ def serve_split(conn, args):
         conn.sendall(reply[:3])
         time.sleep(0.1)
         conn.sendall(reply[3:])
+    print('DONE replied=%d' % args.requests, flush=True)
+
+
+def serve_forged_first(conn, args):
+    for _ in range(args.requests):
+        pkt = recv_packet(conn)
+        if pkt is None:
+            print('NO-REQUEST', flush=True)
+            return
+        conn.sendall(forged_reject_for(pkt, args.secret) + reply_for(pkt, args.secret))
     print('DONE replied=%d' % args.requests, flush=True)
 
 
@@ -161,7 +180,7 @@ def main():
     parser.add_argument('--plain', action='store_true', help='plain TCP, no TLS')
     parser.add_argument('--cert')
     parser.add_argument('--key')
-    parser.add_argument('--mode', choices=['split', 'coalesce', 'badlen'], required=True)
+    parser.add_argument('--mode', choices=['split', 'coalesce', 'badlen', 'forged-first'], required=True)
     parser.add_argument('--requests', type=int, default=2)
     parser.add_argument('--batch', type=int, default=1)
     parser.add_argument('--secret', default='radsec')
@@ -192,6 +211,8 @@ def main():
             serve_split(conn, args)
         elif args.mode == 'coalesce':
             serve_coalesce(conn, args)
+        elif args.mode == 'forged-first':
+            serve_forged_first(conn, args)
         else:
             serve_badlen(listener, ctx, conn, args)
     except (socket.timeout, ssl.SSLError, ConnectionError) as e:
