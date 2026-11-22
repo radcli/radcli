@@ -213,8 +213,8 @@ a valid reply within the configured timeout, not a `poll()` hang or `EBADF`.
 
 ### REQ-NET-NET-009 — `rc_send_server_ctx()` retries up to `data->retries` times per configured server, using monotonic elapsed time for the timeout budget
 
-**Requirement:** The send/poll/recv sequence MUST repeat until a reply with a matching sequence
-ID is received (`rc_check_reply()` returns anything other than `BADRESPID_RC`) or
+**Requirement:** The send/poll/recv sequence MUST repeat until a reply that passes
+`rc_check_reply()` (`OK_RC`: matching ID, valid length and Response Authenticator) is received or
 `retries` exceeds `data->retries`, at which point it MUST return `TIMEOUT_RC`. On a TCP or TLS
 session, a repetition only waits again, without sending, while the connection the request went
 out on is still up (REQ-NET-NET-022). The remaining
