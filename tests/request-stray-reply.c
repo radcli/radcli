@@ -26,7 +26,8 @@
  * keep waiting for that reply within the same attempt, not end the exchange
  * or count the attempt as failed (REQ-NET-NET-010, REQ-NET-ERR-005), and
  * must neither accept a reply from, nor retransmit to, any address but the
- * one it sent to (REQ-NET-NET-024). tests/request-stray-reply-tests.sh
+ * one it sent to (REQ-NET-NET-024), nor act on a reply whose Response
+ * Authenticator does not verify (REQ-NET-SEC-004). tests/request-stray-reply-tests.sh
  * picks the peer's behaviour (tests/radius-server.py), the retry count and
  * whether the request must end in the Access-Accept or in RADCLI_TIMEOUT. */
 

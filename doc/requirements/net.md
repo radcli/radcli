@@ -657,15 +657,28 @@ address, matching ID, or well-formed attributes alone. It MUST substitute the *o
 request's* vector into the reply's Authenticator field position, compute
 MD5(reply-with-substituted-vector ‖ secret), and reject (`BADRESP_RC`) any reply whose received
 Authenticator does not match — this is what prevents an off-path attacker who can guess/observe
-the request ID from injecting a forged Access-Accept without knowing the shared secret.
+the request ID from injecting a forged Access-Accept without knowing the shared secret. Every
+exchange, blocking or `RADCLI_REQUEST_SENDONLY`, over every transport, MUST discard a reply
+`rc_check_reply()` does not return `OK_RC` for and keep waiting for the real one: an unverified
+reply's code MUST NOT become the request's result, and it MUST NOT end the wait
+(GHSA-v2f7-mw6g-gf89: radcli 1.x ended the wait on `BADRESP_RC` and returned the reply's code).
 **Strength:** MUST NOT (accept without this check) ; MUST (perform the check, reject on mismatch)
 **Status:** DERIVED
-**Source:** lib/sendserver.c `rc_check_reply()`
-**Acceptance:** [SEC] negative, local — a forged reply with correct `id` but wrong or missing
-Response Authenticator (or authenticator computed with a different secret) MUST be rejected with
-`BADRESP_RC`, not accepted. Per `REQ-GEN-TEST-003`, this negative test is mandatory and must
-precede any positive test.
-**Links:** REQ-GEN-SEC-006, REQ-GEN-TEST-003
+**Source:** lib/sendserver.c `rc_check_reply()`, `radcli_transport_exchange()`,
+`reqreg_deliver()`
+**Acceptance:** [SEC] negative, local, no root — with `tests/radius-server.py --bad-resp-auth`
+(only the Response Authenticator wrong, Message-Authenticator valid), the request ends in a
+timeout for an Access-Accept, Access-Reject and Access-Challenge
+(`tests/request-stray-reply-tests.sh`, `tests/request-async-validation-tests.sh`), and for an
+Access-Accept with and without `require-message-authenticator` and an Accounting-Response
+through `rc_aaa_ctx()`/`rc_acct()` (`tests/resp-auth-tests.sh`, which also covers a client
+configured with a different secret than the server). With `--forged-first` (UDP) and
+`tests/session-framing-server.py --mode forged-first` (TCP in `tests/tcp-session-tests.sh`, TLS
+in `tests/radsec-framing-tests.sh`), a forged Access-Reject under the request's Identifier
+ahead of the real reply does not change the result. All confirmed failing with the receive
+loops restored to their 1.x condition. Per `REQ-GEN-TEST-003`, the negative cases precede the
+positive ones.
+**Links:** REQ-GEN-SEC-006, REQ-GEN-TEST-003, REQ-NET-NET-009, REQ-NET-NET-010
 
 ### REQ-NET-SEC-005 — Message-Authenticator comparison MUST NOT be skipped, and MUST be computed with the Request Authenticator substituted, per RFC 3579 §3.2
 

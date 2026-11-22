@@ -10,7 +10,7 @@ shell_tests = [
   'tcp-tests.sh', 'eap-tests.sh', 'no-server-file-tests.sh', 'reject-tests.sh',
   'skip-unknown-vsa.sh', 'namespace-tests.sh', 'namespace-reconnect-tests.sh', 'radembedded-tests.sh',
   'radembedded-dict-tests.sh', 'ipv6-non-temp-addr-tests.sh',
-  'msg-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
+  'msg-auth-tests.sh', 'resp-auth-tests.sh', 'malformed-packet-tests.sh', 'dns-failover-tests.sh',
   'dae-tests.sh', 'dae-freeradius-tests.sh', 'attr-ids-tests.sh',
   'example-config-tests.sh', 'avp2-api-symmetry-tests.sh', 'tcp-session-tests.sh',
   'session-timeout-tests.sh', 'nonblock-backpressure-tests.sh',

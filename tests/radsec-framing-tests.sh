@@ -82,6 +82,10 @@ run_case split sendonly "DONE replied=2"
 run_case coalesce blocking "DONE replied=2" --batch 1
 run_case coalesce sendonly "DONE replied=2" --batch 2
 run_case badlen badlen "SECOND-CONNECTION"
+# REQ-NET-SEC-004: a forged Access-Reject under the request's Identifier
+# is discarded and the request completes with the real reply.
+run_case forged-first blocking "DONE replied=2"
+run_case forged-first sendonly "DONE replied=2"
 
 echo "[  OK  ] RadSec replies are framed by their Length field"
 exit 0

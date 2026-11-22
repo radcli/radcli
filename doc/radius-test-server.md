@@ -42,6 +42,8 @@ python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
 | `--short-datagrams-first` | off | Send a 4-byte datagram and the reply's bare 20-byte header (Length unchanged) ahead of each reply (UDP transport only) |
 | `--spoof-address` | off | Send each valid reply from the server's own port on 127.0.0.2 instead of the address the request arrived on (UDP over IPv4 only) |
 | `--other-port-first` | off | Answer the first request only with a reply under the next Identifier, from a different local port; answer later requests normally (UDP transport only) |
+| `--bad-resp-auth` | off | Flip one bit of every reply's Response Authenticator, leaving the rest of the reply, a Message-Authenticator included, valid (UDP transport only) |
+| `--forged-first` | off | Send an Access-Reject with the request's Identifier, a valid Message-Authenticator and a wrong Response Authenticator ahead of each reply (UDP transport only) |
 
 The server accepts one UDP packet at a time and, unless `--no-reply` or
 `--stale-truncated` is given, sends one reply, looping forever. It exits when killed (SIGTERM/SIGKILL). Every
@@ -113,6 +115,29 @@ normally. Both `tests/request-stray-reply-tests.sh` and
 that a datagram from another address does not redirect the retransmission:
 the server must receive the request twice and the request must complete
 (`REQ-NET-NET-024`).
+
+### `--bad-resp-auth`
+
+Models a reply forged without the shared secret. Only the Response
+Authenticator is wrong: the Identifier, Length, attributes and any
+Message-Authenticator (computed over the Request Authenticator, RFC 3579
+§3.2) all verify, so the reply can only be rejected by the Response
+Authenticator check (`REQ-NET-SEC-004`), whatever `--msg-auth` or
+`require-message-authenticator` says. It applies to Accounting-Responses too.
+`tests/request-stray-reply-tests.sh`, `tests/request-async-validation-tests.sh`
+(with `--reply-code` 2, 3 and 11) and `tests/resp-auth-tests.sh` check that
+the request ends in a timeout rather than acting on the reply's code.
+
+### `--forged-first`
+
+Sends, ahead of each real reply, an Access-Reject with the request's
+Identifier, a valid Message-Authenticator and a wrong Response
+Authenticator: what an off-path attacker who guessed the Identifier could
+inject. The decoy is a reject even for an Accounting-Request, so a client
+that acted on it ends with a different result than the real reply gives.
+The same scripts check that the request completes with the real reply,
+i.e. that the forged one was neither used nor ended the wait
+(`REQ-NET-SEC-004`, `REQ-NET-NET-009`).
 
 ---
 

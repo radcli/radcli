@@ -36,6 +36,7 @@ import struct
 # RADIUS codes
 ACCESS_REQUEST      = 1
 ACCESS_ACCEPT       = 2
+ACCESS_REJECT       = 3
 ACCOUNTING_REQUEST  = 4
 ACCOUNTING_RESPONSE = 5
 
@@ -164,6 +165,10 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
             ACCOUNTING_RESPONSE, ident, total_len, req_auth, b'', secret)
         return struct.pack('!BBH', ACCOUNTING_RESPONSE, ident, total_len) + resp_auth
 
+    return build_access_reply(ident, req_auth, secret, msg_auth_mode, attrs_mode, reply_code)
+
+def build_access_reply(ident, req_auth, secret, msg_auth_mode, attrs_mode, reply_code):
+    """Build the reply to an Access-Request with Identifier ident."""
     # Build attribute payload.  Per draft-ietf-radext-deprecating-radius,
     # Message-Authenticator MUST be the first attribute in the response.
     reply_attrs = build_reply_attrs(attrs_mode)
@@ -217,10 +222,25 @@ def handle_packet(data, secret, msg_auth_mode, attrs_mode='normal', no_reply=Fal
 
     return packet
 
+def with_bad_response_authenticator(packet):
+    """The packet with one bit of its Response Authenticator flipped; every
+    other field, a Message-Authenticator included, stays valid, so only the
+    Response Authenticator check can reject it."""
+    return packet[:4] + bytes([packet[4] ^ 0x01]) + packet[5:]
+
+def forged_reject_for(request, secret, msg_auth_mode, attrs_mode):
+    """An Access-Reject carrying the request's Identifier and a valid
+    Message-Authenticator, but a wrong Response Authenticator: what an
+    off-path attacker who guessed the Identifier could send without the
+    shared secret."""
+    return with_bad_response_authenticator(
+        build_access_reply(request[1], request[4:20], secret, msg_auth_mode, attrs_mode,
+                           ACCESS_REJECT))
+
 def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_addr='0.0.0.0',
         stale_truncated=False, spoof_source=False, reply_code=ACCESS_ACCEPT,
         stray_first=False, short_datagrams_first=False, other_port_first=False,
-        spoof_address=False):
+        spoof_address=False, bad_resp_auth=False, forged_first=False):
     family = socket.AF_INET6 if ':' in bind_addr else socket.AF_INET
     sock = socket.socket(family, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -234,7 +254,14 @@ def run(port, secret, msg_auth_mode, attrs_mode='normal', no_reply=False, bind_a
         response = handle_packet(data, secret, msg_auth_mode, attrs_mode, no_reply, reply_code)
         if response is None:
             continue
-        if stale_truncated:
+        if bad_resp_auth:
+            response = with_bad_response_authenticator(response)
+        if forged_first:
+            # The client must discard the forged Access-Reject and keep
+            # waiting for the real reply.
+            sock.sendto(forged_reject_for(data, secret, msg_auth_mode, attrs_mode), addr)
+            sock.sendto(response, addr)
+        elif stale_truncated:
             # A full, valid reply under a different Identifier (which the
             # client discards), then only the real reply's 20-byte header,
             # whose Length still claims the full packet: a client that does
@@ -384,6 +411,13 @@ def main():
     parser.add_argument('--spoof-address', action='store_true',
                         help='Send each valid reply from the same port on 127.0.0.2 instead '
                              'of the address the request arrived on. UDP over IPv4 only.')
+    parser.add_argument('--bad-resp-auth', action='store_true',
+                        help='Flip one bit of every reply\'s Response Authenticator, leaving '
+                             'the rest of the reply valid. UDP transport only.')
+    parser.add_argument('--forged-first', action='store_true',
+                        help='Send an Access-Reject with the request\'s Identifier and a '
+                             'wrong Response Authenticator ahead of each reply. UDP '
+                             'transport only.')
     parser.add_argument('--reply-code', type=int, default=ACCESS_ACCEPT,
                         help='RADIUS code to answer an Access-Request with, otherwise '
                              'built exactly like the Access-Accept (default 2). UDP '
@@ -396,17 +430,20 @@ def main():
         if (args.no_reply or args.stale_truncated or args.spoof_source or
                 args.stray_first or args.short_datagrams_first or
                 args.other_port_first or args.spoof_address or
+                args.bad_resp_auth or args.forged_first or
                 args.reply_code != ACCESS_ACCEPT):
             parser.error('--no-reply/--stale-truncated/--spoof-source/--stray-first/'
                          '--short-datagrams-first/--other-port-first/--spoof-address/'
-                         '--reply-code are only supported with --transport udp')
+                         '--bad-resp-auth/--forged-first/--reply-code are only supported '
+                         'with --transport udp')
         run_tls(args.port, args.secret, args.msg_auth, args.tls_cert, args.tls_key, args.attrs)
     else:
         if args.spoof_address and ':' in args.bind:
             parser.error('--spoof-address is only supported over IPv4')
         run(args.port, args.secret, args.msg_auth, args.attrs, args.no_reply, args.bind,
             args.stale_truncated, args.spoof_source, args.reply_code, args.stray_first,
-            args.short_datagrams_first, args.other_port_first, args.spoof_address)
+            args.short_datagrams_first, args.other_port_first, args.spoof_address,
+            args.bad_resp_auth, args.forged_first)
 
 if __name__ == '__main__':
     main()

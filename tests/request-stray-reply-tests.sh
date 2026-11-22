@@ -79,4 +79,12 @@ run_mode --spoof-address 0 timeout 1
 # ... and a datagram from another port does not redirect the retransmission
 run_mode --other-port-first 1 accept 2
 
+# REQ-NET-SEC-004: a reply whose Response Authenticator does not verify is
+# never accepted, whatever its code ...
+run_mode --bad-resp-auth 0 timeout 1
+run_mode "--bad-resp-auth --reply-code 3" 0 timeout 1
+run_mode "--bad-resp-auth --reply-code 11" 0 timeout 1
+# ... and a forged Access-Reject does not end the wait for the real reply
+run_mode --forged-first 0 accept 1
+
 exit 0
