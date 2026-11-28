@@ -34,9 +34,11 @@ trap finish EXIT
 
 # $1: the tests/radius-server.py option selecting the peer's behaviour,
 # $2: radius_retries, $3: accept|timeout|error (the outcome the request must
-# end in), $4: how many Access-Requests the peer must receive.
+# end in), $4: how many Access-Requests the peer must receive, $5
+# (optional): sendonly|nonblock, the RADCLI_REQUEST_SENDONLY variant, $6
+# (optional): the require-message-authenticator setting.
 function run_mode {
-	local mode="$1" retries="$2" expect="$3" requests="$4"
+	local mode="$1" retries="$2" expect="$3" requests="$4" flags="$5" require_ma="$6"
 
 	eval "$GETPORT"
 	python3 ${srcdir}/radius-server.py --port ${PORT} --secret testing123 \
@@ -48,7 +50,7 @@ function run_mode {
 	done
 
 	${top_builddir}/tests/request-async-validation ${PORT} testing123 ${retries} ${expect} \
-		>$TMPFILE 2>&1
+		${flags} ${require_ma} >$TMPFILE 2>&1
 	RET=$?
 	sed 's/^/         | /' $TMPFILE
 	kill ${SRVPID} >/dev/null 2>&1
@@ -56,13 +58,13 @@ function run_mode {
 	SRVPID=""
 
 	if test $(grep -c "received Access-Request" $LOG) -ne ${requests}; then
-		echo "[ FAIL ] ${mode}: expected the server to receive ${requests} Access-Request(s)"
+		echo "[ FAIL ] ${mode} ${flags} ${require_ma}: expected the server to receive ${requests} Access-Request(s)"
 		cat $LOG
 		exit 1
 	fi
 
 	if test $RET != 0; then
-		echo "[ FAIL ] ${mode}: request-async-validation exited with code $RET"
+		echo "[ FAIL ] ${mode} ${flags} ${require_ma}: request-async-validation exited with code $RET"
 		exit 1
 	fi
 }
@@ -87,14 +89,21 @@ run_mode --forged-first 0 accept 1
 
 # REQ-NET-SEC-005..007: a reply that passed rc_check_reply() but fails a
 # Message-Authenticator check ends the request with an error at once,
-# without a retransmission, whatever its code
-run_mode "--msg-auth absent" 1 error 1
-run_mode "--msg-auth not-first" 1 error 1
-run_mode "--msg-auth wrong" 1 error 1
-run_mode "--msg-auth wrong --reply-code 3" 1 error 1
-run_mode "--msg-auth wrong --reply-code 11" 1 error 1
-run_mode "--msg-auth resp-auth-vector" 1 error 1
-run_mode "--msg-auth bad-length" 1 error 1
+# without a retransmission, whatever its code, and the presence/position
+# check is the only one the opt-out disables, with RADCLI_REQUEST_SENDONLY
+# and RADCLI_REQUEST_SENDONLY_NONBLOCK alike
+for flags in sendonly nonblock; do
+	run_mode "--msg-auth absent" 1 error 1 $flags
+	run_mode "--msg-auth not-first" 1 error 1 $flags
+	run_mode "--msg-auth wrong" 1 error 1 $flags
+	run_mode "--msg-auth wrong --reply-code 3" 1 error 1 $flags
+	run_mode "--msg-auth wrong --reply-code 11" 1 error 1 $flags
+	run_mode "--msg-auth resp-auth-vector" 1 error 1 $flags
+	run_mode "--msg-auth bad-length" 1 error 1 $flags
+	run_mode "--msg-auth absent" 1 accept 1 $flags no
+	run_mode "--msg-auth not-first" 1 accept 1 $flags no
+	run_mode "--msg-auth wrong-not-first" 1 error 1 $flags no
+done
 
 echo "[  OK  ] short, wrong-source and unauthenticated datagrams discarded, and replies failing Message-Authenticator checks rejected, on the RADCLI_REQUEST_SENDONLY path"
 exit 0

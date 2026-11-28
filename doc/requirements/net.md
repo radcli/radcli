@@ -701,8 +701,9 @@ attribute MUST be rejected without reading past the declared length. `tests/radi
 --msg-auth resp-auth-vector` (the HMAC keyed to the Response Authenticator the reply would have
 with the Message-Authenticator zeroed, since the final one covers the Message-Authenticator) and
 `--msg-auth bad-length` (a 15-byte value) cover these in `tests/msg-auth-tests.sh`, which also
-checks the length diagnostic, and through the radcli2 blocking and `RADCLI_REQUEST_SENDONLY`
-paths in `tests/request-stray-reply-tests.sh` and `tests/request-async-validation-tests.sh`.
+checks the length diagnostic, and through the radcli2 blocking, `RADCLI_REQUEST_SENDONLY` and
+`RADCLI_REQUEST_SENDONLY_NONBLOCK` paths in `tests/request-stray-reply-tests.sh` and
+`tests/request-async-validation-tests.sh`.
 Per `REQ-GEN-TEST-003`, mandatory negative-first test.
 **Links:** REQ-GEN-TEST-003
 
@@ -727,8 +728,9 @@ with that error at once rather than keep waiting into a timeout (`REQ-NET-NET-00
 Message-Authenticator diagnostic and the absence of a timeout, not only for a failed request.
 `tests/msg-auth-tests.sh` sends the wrong Message-Authenticator on an Access-Reject and an
 Access-Challenge, and `tests/request-stray-reply-tests.sh` and
-`tests/request-async-validation-tests.sh` do the same on the radcli2 blocking and
-`RADCLI_REQUEST_SENDONLY` paths, requiring `RADCLI_ERROR` after a single transmission.
+`tests/request-async-validation-tests.sh` do the same on the radcli2 blocking,
+`RADCLI_REQUEST_SENDONLY` and `RADCLI_REQUEST_SENDONLY_NONBLOCK` paths, requiring
+`RADCLI_ERROR` after a single transmission.
 
 ### REQ-NET-SEC-007 — BLAST RADIUS mitigation: Message-Authenticator MUST be the first attribute in an Access-* reply over RADIUS/UDP and RADIUS/TCP, unless explicitly disabled; MUST NOT be enforced over RADIUS/TLS or RADIUS/DTLS
 
@@ -756,11 +758,11 @@ RC_SOCKET_DTLS` guard at 879 scopes the enforcement to UDP/TCP)
 attribute appended *after* another attribute MUST be rejected under default config, and accepted
 when `require-message-authenticator=false` is set; the rejection is `decode_reply()`'s
 presence/position error, not a timeout (`tests/msg-auth-tests.sh`; the radcli2 blocking and
-`RADCLI_REQUEST_SENDONLY` paths in `tests/request-stray-reply-tests.sh` and
-`tests/request-async-validation-tests.sh`). With `RADCLI_OPT_REQUIRE_MESSAGE_AUTHENTICATOR` set
-to `no`, `tests/request-stray-reply-tests.sh` checks the radcli2 blocking path accepts an
-absent or non-first valid Message-Authenticator and still rejects a wrong non-first one
-(`REQ-NET-SEC-006`). Per `REQ-GEN-TEST-003`,
+`RADCLI_REQUEST_SENDONLY`/`RADCLI_REQUEST_SENDONLY_NONBLOCK` paths in
+`tests/request-stray-reply-tests.sh` and `tests/request-async-validation-tests.sh`). With
+`RADCLI_OPT_REQUIRE_MESSAGE_AUTHENTICATOR` set to `no`, the same two scripts check that each of
+those paths accepts an absent or non-first valid Message-Authenticator and still rejects a
+wrong non-first one (`REQ-NET-SEC-006`). Per `REQ-GEN-TEST-003`,
 negative test mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
 but not first, MUST be accepted (`OK_RC`) regardless of `require-message-authenticator`; a reply
 with a Message-Authenticator attribute present but cryptographically wrong MUST still be rejected
