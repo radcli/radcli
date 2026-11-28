@@ -62,6 +62,24 @@ run_test() {
 	return 0
 }
 
+# expect_ma_error DESC DIAGNOSTIC
+# Checks that the request run_test last ran failed in decode_reply() with
+# DIAGNOSTIC. A reply rejected for its Message-Authenticator has already
+# passed rc_check_reply(), so it ends the request at once with that error,
+# not with a timeout or the reply's own code (REQ-NET-NET-009).
+MA_WRONG="Message-Authenticator is incorrect"
+MA_MISSING="Message-Authenticator is missing or not first"
+expect_ma_error() {
+	if ! grep -q "$2" $TMPFILE; then
+		printf "[ FAIL ] %s: expected \"%s\"\n" "$1" "$2"
+		exit 1
+	fi
+	if grep -q "no reply from RADIUS" $TMPFILE; then
+		printf "[ FAIL ] %s: the request timed out instead of failing on the reply\n" "$1"
+		exit 1
+	fi
+}
+
 # Evaluate this snippet to set PORT to a random unused port number (2000-65000).
 # Example: eval "$GETPORT"
 GETPORT='

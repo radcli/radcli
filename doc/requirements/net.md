@@ -716,7 +716,10 @@ present)
 attribute presence via `rc_avpair_get`, not on `recv_auth->code`)
 **Acceptance:** [SEC] negative, local — a forged Access-Reject carrying a
 Message-Authenticator computed with the wrong secret MUST be rejected (`ERROR_RC`), not passed
-through as `REJECT_RC`.
+through as `REJECT_RC`. Since such a reply has passed `rc_check_reply()`, the request MUST end
+with that error at once rather than keep waiting into a timeout (`REQ-NET-NET-009`):
+`tests/msg-auth-tests.sh` and `tests/tls-msg-auth-tests.sh` check for `decode_reply()`'s
+Message-Authenticator diagnostic and the absence of a timeout, not only for a failed request.
 
 ### REQ-NET-SEC-007 — BLAST RADIUS mitigation: Message-Authenticator MUST be the first attribute in an Access-* reply over RADIUS/UDP and RADIUS/TCP, unless explicitly disabled; MUST NOT be enforced over RADIUS/TLS or RADIUS/DTLS
 
@@ -742,8 +745,9 @@ position over UDP/TCP, respect the opt-out) ; MUST NOT (enforce presence/positio
 RC_SOCKET_DTLS` guard at 879 scopes the enforcement to UDP/TCP)
 **Acceptance:** [SEC] negative, local — over UDP/TCP, a reply with a valid Message-Authenticator
 attribute appended *after* another attribute MUST be rejected under default config, and accepted
-when `require-message-authenticator=false` is set. Per `REQ-GEN-TEST-003`, negative test
-mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
+when `require-message-authenticator=false` is set; the rejection is `decode_reply()`'s
+presence/position error, not a timeout (`tests/msg-auth-tests.sh`). Per `REQ-GEN-TEST-003`,
+negative test mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
 but not first, MUST be accepted (`OK_RC`) regardless of `require-message-authenticator`; a reply
 with a Message-Authenticator attribute present but cryptographically wrong MUST still be rejected
 (exercises `REQ-NET-SEC-006`, unaffected by this requirement's transport scoping).

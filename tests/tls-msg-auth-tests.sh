@@ -138,6 +138,7 @@ start_server wrong
 run_test "Reject response with incorrect MA value over TLS" \
 	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
+expect_ma_error "Test 3" "$MA_WRONG"
 
 # Test 4: require-message-authenticator=no explicitly set over TLS changes
 # nothing -- the presence/position check it would otherwise disable is
