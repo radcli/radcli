@@ -757,7 +757,10 @@ attribute appended *after* another attribute MUST be rejected under default conf
 when `require-message-authenticator=false` is set; the rejection is `decode_reply()`'s
 presence/position error, not a timeout (`tests/msg-auth-tests.sh`; the radcli2 blocking and
 `RADCLI_REQUEST_SENDONLY` paths in `tests/request-stray-reply-tests.sh` and
-`tests/request-async-validation-tests.sh`). Per `REQ-GEN-TEST-003`,
+`tests/request-async-validation-tests.sh`). With `RADCLI_OPT_REQUIRE_MESSAGE_AUTHENTICATOR` set
+to `no`, `tests/request-stray-reply-tests.sh` checks the radcli2 blocking path accepts an
+absent or non-first valid Message-Authenticator and still rejects a wrong non-first one
+(`REQ-NET-SEC-006`). Per `REQ-GEN-TEST-003`,
 negative test mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
 but not first, MUST be accepted (`OK_RC`) regardless of `require-message-authenticator`; a reply
 with a Message-Authenticator attribute present but cryptographically wrong MUST still be rejected
