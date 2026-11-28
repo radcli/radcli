@@ -30,9 +30,9 @@
  * Authenticator does not verify (REQ-NET-SEC-004), and must end in
  * RADCLI_ERROR on a reply whose Message-Authenticator does not
  * (REQ-NET-SEC-005..007). tests/request-stray-reply-tests.sh picks the peer's
- * behaviour (tests/radius-server.py), the retry count and whether the
- * request must end in the Access-Accept, in RADCLI_TIMEOUT or in
- * RADCLI_ERROR. */
+ * behaviour (tests/radius-server.py), the retry count, whether the request
+ * must end in the Access-Accept, in RADCLI_TIMEOUT or in RADCLI_ERROR, and
+ * optionally the require-message-authenticator setting. */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,11 +55,12 @@ int main(int argc, char **argv)
 	int retries = 0, expect_timeout = 0, expect_error = 0;
 	int rc;
 
-	if (argc != 3 && argc != 5) {
-		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout|error]\n", argv[0]);
+	if (argc != 3 && argc != 5 && argc != 6) {
+		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout|error "
+				"[<require-message-authenticator>]]\n", argv[0]);
 		return 2;
 	}
-	if (argc == 5) {
+	if (argc >= 5) {
 		retries = atoi(argv[3]);
 		expect_timeout = strcmp(argv[4], "timeout") == 0;
 		expect_error = strcmp(argv[4], "error") == 0;
@@ -72,6 +73,8 @@ int main(int argc, char **argv)
 	if (radcli_ctx_set_opt_str(ctx, RADCLI_OPT_AUTHSERVER, authserver) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_TIMEOUT, 2) != 0 ||
 	    radcli_ctx_set_opt_int(ctx, RADCLI_OPT_RADIUS_RETRIES, retries) != 0 ||
+	    (argc == 6 && radcli_ctx_set_opt_str(ctx, RADCLI_OPT_REQUIRE_MESSAGE_AUTHENTICATOR,
+						 argv[5]) != 0) ||
 	    radcli_ctx_apply(ctx) != 0)
 		die("context setup");
 

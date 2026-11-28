@@ -33,9 +33,10 @@ trap finish EXIT
 
 # $1: the tests/radius-server.py option selecting the peer's behaviour,
 # $2: radius_retries, $3: accept|timeout|error (the outcome the request must
-# end in), $4: how many Access-Requests the peer must receive.
+# end in), $4: how many Access-Requests the peer must receive, $5 (optional):
+# the require-message-authenticator setting.
 function run_mode {
-	local mode="$1" retries="$2" expect="$3" requests="$4"
+	local mode="$1" retries="$2" expect="$3" requests="$4" require_ma="$5"
 
 	eval "$GETPORT"
 	python3 ${srcdir}/radius-server.py --port ${PORT} --secret testing123 \
@@ -47,7 +48,7 @@ function run_mode {
 	done
 
 	${top_builddir}/tests/request-stray-reply ${PORT} testing123 ${retries} ${expect} \
-		>$TMPFILE 2>&1
+		${require_ma} >$TMPFILE 2>&1
 	RET=$?
 	sed 's/^/         | /' $TMPFILE
 	kill ${SRVPID} >/dev/null 2>&1
@@ -64,7 +65,7 @@ function run_mode {
 		echo "[ FAIL ] ${mode}: request-stray-reply exited with code $RET"
 		exit 1
 	fi
-	echo "[  OK  ] ${mode}"
+	echo "[  OK  ] ${mode}${require_ma:+ (require-message-authenticator ${require_ma})}"
 }
 
 # REQ-NET-NET-010: a reply under another Identifier
@@ -97,5 +98,9 @@ run_mode "--msg-auth wrong --reply-code 3" 1 error 1
 run_mode "--msg-auth wrong --reply-code 11" 1 error 1
 run_mode "--msg-auth resp-auth-vector" 1 error 1
 run_mode "--msg-auth bad-length" 1 error 1
+# ... the presence/position check is the only one the opt-out disables
+run_mode "--msg-auth absent" 1 accept 1 no
+run_mode "--msg-auth not-first" 1 accept 1 no
+run_mode "--msg-auth wrong-not-first" 1 error 1 no
 
 exit 0
