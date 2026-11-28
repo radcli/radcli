@@ -5,24 +5,26 @@ to craft responses that a real server such as FreeRADIUS would not produce, and
 to exercise client behavior (delivery, non-blocking sends) without root or a
 real `radiusd`/`freeradius` in `PATH`. Currently used by:
 
-- `tests/msg-auth-tests.sh` — Message-Authenticator handling (Access-Request/Accept)
+- `tests/msg-auth-tests.sh` — Message-Authenticator handling (Access-Request/Accept,
+  Access-Reject and Access-Challenge via `--reply-code`)
 - `tests/acct-async-tests.sh` — `rc_acct_async()` delivery and non-blocking return
   (Accounting-Request/Response, `--no-reply`)
 - `tests/request-async-validation-tests.sh` — reply validation on the
   `RADCLI_REQUEST_SENDONLY` path (`--stale-truncated`,
   `--short-datagrams-first`, `--spoof-source`, `--spoof-address`,
-  `--other-port-first`)
+  `--other-port-first`, `--bad-resp-auth`, `--forged-first`, `--msg-auth`)
 - `tests/request-reply-code-tests.sh` — `radcli_request_code()` after a
   rejected reply (`--reply-code`)
 - `tests/request-stray-reply-tests.sh` — reply validation on the blocking
   path (`--stray-first`, `--stale-truncated`, `--short-datagrams-first`,
-  `--spoof-source`, `--spoof-address`, `--other-port-first`)
+  `--spoof-source`, `--spoof-address`, `--other-port-first`, `--bad-resp-auth`,
+  `--forged-first`, `--msg-auth`)
 
 ## Invocation
 
 ```
 python3 tests/radius-server.py [--port PORT] [--secret SECRET] \
-                               [--msg-auth correct|absent|wrong] [--no-reply]
+                               [--msg-auth MODE] [--no-reply]
                                [--stale-truncated] [--spoof-source]
                                [--reply-code N] [--stray-first]
                                [--short-datagrams-first] [--other-port-first]
@@ -309,6 +311,8 @@ packet[ma_offset:ma_offset + MA_LEN] = ma_value
 | `absent` | No MA attribute at all |
 | `wrong` | MA present, first, but value is 16 zero bytes (invalid HMAC) |
 | `not-first` | MA present, valid HMAC-MD5, but placed after the other attributes |
+| `resp-auth-vector` | MA present, first, HMAC-MD5 keyed to a Response Authenticator instead of the Request Authenticator |
+| `bad-length` | MA present, first, with a 15-byte value (attribute length 17) |
 
 `wrong` is produced by skipping steps 4+5 above: the MA attribute is present in
 the packet (so the "first attribute" position check passes) but its value is
@@ -317,6 +321,21 @@ never filled in, so the HMAC comparison in the client fails.
 `not-first` places the MA attribute after `build_reply_attrs()` instead of
 before it.  The HMAC is still computed correctly, so value verification passes —
 but radcli rejects the packet because `recv_buffer[AUTH_HDR_LEN]` is not type 80.
+
+`resp-auth-vector` models a server that gets RFC 3579 §3.2 wrong. The
+reply's final Response Authenticator covers the MA value, so the HMAC is
+computed with the Response Authenticator the reply would have with its MA
+zeroed in the Authenticator field. The final Response Authenticator is then
+computed normally, so only the MA check can reject the reply
+(`REQ-NET-SEC-005`).
+
+`bad-length` checks that an MA attribute of the wrong length is rejected for
+its length rather than compared over 16 bytes it does not hold
+(`REQ-NET-SEC-005`).
+
+Every mode applies to whatever `--reply-code` selects, so a wrong MA on an
+Access-Reject or Access-Challenge is `--msg-auth wrong --reply-code 3` or
+`11` (`REQ-NET-SEC-006`).
 
 ---
 

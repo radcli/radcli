@@ -27,9 +27,12 @@
  * or count the attempt as failed (REQ-NET-NET-010, REQ-NET-ERR-005), and
  * must neither accept a reply from, nor retransmit to, any address but the
  * one it sent to (REQ-NET-NET-024), nor act on a reply whose Response
- * Authenticator does not verify (REQ-NET-SEC-004). tests/request-stray-reply-tests.sh
- * picks the peer's behaviour (tests/radius-server.py), the retry count and
- * whether the request must end in the Access-Accept or in RADCLI_TIMEOUT. */
+ * Authenticator does not verify (REQ-NET-SEC-004), and must end in
+ * RADCLI_ERROR on a reply whose Message-Authenticator does not
+ * (REQ-NET-SEC-005..007). tests/request-stray-reply-tests.sh picks the peer's
+ * behaviour (tests/radius-server.py), the retry count and whether the
+ * request must end in the Access-Accept, in RADCLI_TIMEOUT or in
+ * RADCLI_ERROR. */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,16 +52,17 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	char authserver[160];
-	int retries = 0, expect_timeout = 0;
+	int retries = 0, expect_timeout = 0, expect_error = 0;
 	int rc;
 
 	if (argc != 3 && argc != 5) {
-		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout]\n", argv[0]);
+		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout|error]\n", argv[0]);
 		return 2;
 	}
 	if (argc == 5) {
 		retries = atoi(argv[3]);
 		expect_timeout = strcmp(argv[4], "timeout") == 0;
+		expect_error = strcmp(argv[4], "error") == 0;
 	}
 
 	ctx = radcli_ctx_new(0);
@@ -82,6 +86,17 @@ int main(int argc, char **argv)
 		die("radcli_request_new");
 
 	rc = radcli_request_perform(r, RADCLI_REQUEST_NONE);
+	if (expect_error) {
+		if (rc != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_perform() returned %d, code %d; "
+					"expected RADCLI_ERROR\n", rc, (int)radcli_request_code(r));
+			return 1;
+		}
+		radcli_request_free(r);
+		radcli_ctx_free(ctx);
+		printf("OK: the reply was rejected\n");
+		return 0;
+	}
 	if (expect_timeout) {
 		if (rc != RADCLI_TIMEOUT) {
 			fprintf(stderr, "error: radcli_request_perform() returned %d, code %d; "

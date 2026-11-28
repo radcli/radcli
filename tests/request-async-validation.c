@@ -25,7 +25,7 @@
 /* Reply validation on the RADCLI_REQUEST_SENDONLY path, run by
  * tests/request-async-validation-tests.sh against tests/radius-server.py,
  * which picks the peer's behaviour, the retry count and whether the request
- * must end in the Access-Accept or in RADCLI_TIMEOUT:
+ * must end in the Access-Accept, in RADCLI_TIMEOUT or in RADCLI_ERROR:
  *
  * --stale-truncated: the complete valid reply under another Identifier
  * (discarded, but left in the client's receive buffer), then only the real
@@ -51,7 +51,11 @@
  * (REQ-NET-SEC-004). Must time out.
  *
  * --forged-first: an Access-Reject with a wrong Response Authenticator
- * ahead of the real reply, which must still be accepted (REQ-NET-SEC-004). */
+ * ahead of the real reply, which must still be accepted (REQ-NET-SEC-004).
+ *
+ * --msg-auth absent|not-first|wrong|resp-auth-vector|bad-length: a reply
+ * whose Message-Authenticator fails verification (REQ-NET-SEC-005..007).
+ * Must end in RADCLI_ERROR. */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,16 +77,17 @@ int main(int argc, char **argv)
 	radcli_avp_list *send_list;
 	radcli_request *r;
 	char authserver[160];
-	int retries = 0, expect_timeout = 1;
+	int retries = 0, expect_timeout = 1, expect_error = 0;
 	int rc, iterations = 0;
 
 	if (argc != 3 && argc != 5) {
-		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout]\n", argv[0]);
+		fprintf(stderr, "usage: %s <port> <secret> [<retries> accept|timeout|error]\n", argv[0]);
 		return 2;
 	}
 	if (argc == 5) {
 		retries = atoi(argv[3]);
 		expect_timeout = strcmp(argv[4], "timeout") == 0;
+		expect_error = strcmp(argv[4], "error") == 0;
 	}
 
 	ctx = radcli_ctx_new(0);
@@ -126,6 +131,17 @@ int main(int argc, char **argv)
 			die("radcli_ctx_dispatch");
 	}
 
+	if (expect_error) {
+		if (rc != RADCLI_ERROR) {
+			fprintf(stderr, "error: radcli_request_done() returned %d, code %d; "
+					"expected RADCLI_ERROR\n", rc, (int)radcli_request_code(r));
+			return 1;
+		}
+		radcli_request_free(r);
+		radcli_ctx_free(ctx);
+		printf("OK: the reply was rejected\n");
+		return 0;
+	}
 	if (expect_timeout) {
 		if (rc != RADCLI_TIMEOUT) {
 			fprintf(stderr, "error: a reply that must be discarded was accepted "
