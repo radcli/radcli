@@ -7,12 +7,15 @@
 #   correct  - valid HMAC-MD5 (per RFC 3579), placed first per BLAST RADIUS spec
 #   absent   - no Message-Authenticator attribute in the response
 #   wrong    - attribute present (first) but value is all-zeros (deliberately incorrect)
+#   resp-auth-vector - first, HMAC computed with a Response Authenticator in
+#              the header instead of the Request Authenticator
+#   bad-length - first, with a 15-byte value (attribute length 17, not 18)
 # Accounting-Requests get an empty Accounting-Response (no Message-Authenticator
 # handling, per REQ-NET-SEC-008).
 #
 # Usage:
 #   python3 radius-server.py [--port 1812] [--secret testing123] \
-#                            [--msg-auth correct|absent|wrong] [--no-reply]
+#                            [--msg-auth correct|absent|wrong|...] [--no-reply]
 #
 # --no-reply logs every received Access-/Accounting-Request (proving it was
 # delivered) but never sends a response -- used to test a client's
@@ -175,6 +178,10 @@ def build_access_reply(ident, req_auth, secret, msg_auth_mode, attrs_mode, reply
     if msg_auth_mode == 'absent':
         attrs = reply_attrs
         ma_offset = None
+    elif msg_auth_mode == 'bad-length':
+        attrs = struct.pack('!BB', ATTR_MESSAGE_AUTHENTICATOR, 2 + MA_LEN - 1) + \
+            bytes(MA_LEN - 1) + reply_attrs
+        ma_offset = None
     elif msg_auth_mode in ('not-first', 'wrong-not-first'):
         # MA placed after the other attributes (not first)
         ma_placeholder = build_ma_attr()   # 18 bytes, value = 00..0
@@ -190,7 +197,18 @@ def build_access_reply(ident, req_auth, secret, msg_auth_mode, attrs_mode, reply
 
     total_len = 20 + len(attrs)
 
-    if msg_auth_mode in ('correct', 'not-first'):
+    if msg_auth_mode == 'resp-auth-vector':
+        # The RFC 3579 §3.2 mistake of keying the HMAC to a Response
+        # Authenticator rather than the Request Authenticator. The final
+        # Response Authenticator covers the MA value, so the one computed
+        # with the MA still zeroed is used; the reply's own is then valid.
+        vector = compute_response_authenticator(
+            reply_code, ident, total_len, req_auth, attrs, secret)
+        scratch = bytearray(
+            struct.pack('!BBH', reply_code, ident, total_len) + vector + attrs)
+        scratch[ma_offset:ma_offset + MA_LEN] = compute_hmac_md5(bytes(scratch), secret)
+        attrs = bytes(scratch[20:])
+    elif msg_auth_mode in ('correct', 'not-first'):
         # RFC 3579 §3.2: MA in responses is computed over the packet with the
         # Request Authenticator (from the Access-Request) in the Authenticator
         # field — NOT the Response Authenticator.  Build a scratch packet with
@@ -374,7 +392,8 @@ def main():
     parser.add_argument('--port', type=int, default=1812)
     parser.add_argument('--secret', default='testing123')
     parser.add_argument('--msg-auth', dest='msg_auth',
-                        choices=['correct', 'absent', 'wrong', 'not-first', 'wrong-not-first'],
+                        choices=['correct', 'absent', 'wrong', 'not-first', 'wrong-not-first',
+                                 'resp-auth-vector', 'bad-length'],
                         default='correct')
     parser.add_argument('--attrs', dest='attrs',
                         choices=['normal', 'malformed-type-zero', 'malformed-len-one',

@@ -33,8 +33,8 @@ function finish {
 trap finish EXIT
 
 # $1: the tests/radius-server.py option selecting the peer's behaviour,
-# $2: radius_retries, $3: accept|timeout (the outcome the request must end
-# in), $4: how many Access-Requests the peer must receive.
+# $2: radius_retries, $3: accept|timeout|error (the outcome the request must
+# end in), $4: how many Access-Requests the peer must receive.
 function run_mode {
 	local mode="$1" retries="$2" expect="$3" requests="$4"
 
@@ -85,5 +85,16 @@ run_mode "--bad-resp-auth --reply-code 11" 0 timeout 1
 # ... and a forged Access-Reject does not end the wait for the real reply
 run_mode --forged-first 0 accept 1
 
-echo "[  OK  ] short, wrong-source and unauthenticated datagrams discarded on the RADCLI_REQUEST_SENDONLY path"
+# REQ-NET-SEC-005..007: a reply that passed rc_check_reply() but fails a
+# Message-Authenticator check ends the request with an error at once,
+# without a retransmission, whatever its code
+run_mode "--msg-auth absent" 1 error 1
+run_mode "--msg-auth not-first" 1 error 1
+run_mode "--msg-auth wrong" 1 error 1
+run_mode "--msg-auth wrong --reply-code 3" 1 error 1
+run_mode "--msg-auth wrong --reply-code 11" 1 error 1
+run_mode "--msg-auth resp-auth-vector" 1 error 1
+run_mode "--msg-auth bad-length" 1 error 1
+
+echo "[  OK  ] short, wrong-source and unauthenticated datagrams discarded, and replies failing Message-Authenticator checks rejected, on the RADCLI_REQUEST_SENDONLY path"
 exit 0

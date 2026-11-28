@@ -697,8 +697,13 @@ cites RFC 3579 §3.2 explicitly)
 **Acceptance:** [SEC] negative, local — a reply with a Message-Authenticator computed over the
 Response Authenticator (a common implementation bug in third-party servers, deliberately
 mismatched here) MUST be rejected; a reply with `attr_len != 18` for the Message-Authenticator
-attribute MUST be rejected without reading past the declared length. Per `REQ-GEN-TEST-003`,
-mandatory negative-first test.
+attribute MUST be rejected without reading past the declared length. `tests/radius-server.py
+--msg-auth resp-auth-vector` (the HMAC keyed to the Response Authenticator the reply would have
+with the Message-Authenticator zeroed, since the final one covers the Message-Authenticator) and
+`--msg-auth bad-length` (a 15-byte value) cover these in `tests/msg-auth-tests.sh`, which also
+checks the length diagnostic, and through the radcli2 blocking and `RADCLI_REQUEST_SENDONLY`
+paths in `tests/request-stray-reply-tests.sh` and `tests/request-async-validation-tests.sh`.
+Per `REQ-GEN-TEST-003`, mandatory negative-first test.
 **Links:** REQ-GEN-TEST-003
 
 ### REQ-NET-SEC-006 — Message-Authenticator MUST be verified whenever present, regardless of RADIUS response code
@@ -720,6 +725,10 @@ through as `REJECT_RC`. Since such a reply has passed `rc_check_reply()`, the re
 with that error at once rather than keep waiting into a timeout (`REQ-NET-NET-009`):
 `tests/msg-auth-tests.sh` and `tests/tls-msg-auth-tests.sh` check for `decode_reply()`'s
 Message-Authenticator diagnostic and the absence of a timeout, not only for a failed request.
+`tests/msg-auth-tests.sh` sends the wrong Message-Authenticator on an Access-Reject and an
+Access-Challenge, and `tests/request-stray-reply-tests.sh` and
+`tests/request-async-validation-tests.sh` do the same on the radcli2 blocking and
+`RADCLI_REQUEST_SENDONLY` paths, requiring `RADCLI_ERROR` after a single transmission.
 
 ### REQ-NET-SEC-007 — BLAST RADIUS mitigation: Message-Authenticator MUST be the first attribute in an Access-* reply over RADIUS/UDP and RADIUS/TCP, unless explicitly disabled; MUST NOT be enforced over RADIUS/TLS or RADIUS/DTLS
 
@@ -746,7 +755,9 @@ RC_SOCKET_DTLS` guard at 879 scopes the enforcement to UDP/TCP)
 **Acceptance:** [SEC] negative, local — over UDP/TCP, a reply with a valid Message-Authenticator
 attribute appended *after* another attribute MUST be rejected under default config, and accepted
 when `require-message-authenticator=false` is set; the rejection is `decode_reply()`'s
-presence/position error, not a timeout (`tests/msg-auth-tests.sh`). Per `REQ-GEN-TEST-003`,
+presence/position error, not a timeout (`tests/msg-auth-tests.sh`; the radcli2 blocking and
+`RADCLI_REQUEST_SENDONLY` paths in `tests/request-stray-reply-tests.sh` and
+`tests/request-async-validation-tests.sh`). Per `REQ-GEN-TEST-003`,
 negative test mandatory. [SEC] positive, local — over TLS, a reply with Message-Authenticator absent, or present
 but not first, MUST be accepted (`OK_RC`) regardless of `require-message-authenticator`; a reply
 with a Message-Authenticator attribute present but cryptographically wrong MUST still be rejected

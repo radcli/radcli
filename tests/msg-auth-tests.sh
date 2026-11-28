@@ -13,6 +13,10 @@ echo " 3. Client rejects response with wrong MA"
 echo " 4. Client rejects MA that is correct but not first"
 echo " 5. Client accepts response with correct MA"
 echo " 6. Client rejects wrong MA even when not first (require-MA disabled)"
+echo " 7. Client rejects an Access-Reject with wrong MA, not acting on its code"
+echo " 8. Client rejects an Access-Challenge with wrong MA"
+echo " 9. Client rejects MA computed over the Response Authenticator"
+echo " 10. Client rejects MA whose length is not 18"
 echo "==================================================="
 
 if ! python3 -c '' 2>/dev/null; then
@@ -46,9 +50,13 @@ wait_for_server() {
 	return 1
 }
 
+# $1: the --msg-auth mode, remaining arguments: extra tests/radius-server.py
+# options.
 start_server() {
+	local mode="$1"
+	shift
 	python3 ${srcdir}/radius-server.py \
-		--port ${PORT} --secret testing123 --msg-auth "$1" 2>/dev/null &
+		--port ${PORT} --secret testing123 --msg-auth "$mode" "$@" 2>/dev/null &
 	RADIUSPID=$!
 	wait_for_server
 }
@@ -134,6 +142,41 @@ run_test "Reject response with wrong MA even when not first (require-MA disabled
 	"${top_builddir}/src/radiusclient -D -i -f radiusclient-no-req$PID.conf User-Name=test Password=test" \
 	expect_fail || exit 1
 expect_ma_error "Test 6" "$MA_WRONG"
+stop_server
+
+# Tests 7-8: REQ-NET-SEC-006 -- the MA is verified whatever the reply's
+# code, so a reply that would end the login as a reject or a challenge is
+# an error rather than REJECT_RC/CHALLENGE_RC.
+start_server wrong --reply-code 3
+run_test "Reject an Access-Reject with incorrect MA value" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	expect_fail || exit 1
+expect_ma_error "Test 7" "$MA_WRONG"
+stop_server
+
+start_server wrong --reply-code 11
+run_test "Reject an Access-Challenge with incorrect MA value" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	expect_fail || exit 1
+expect_ma_error "Test 8" "$MA_WRONG"
+stop_server
+
+# Test 9: REQ-NET-SEC-005 -- an HMAC keyed to a Response Authenticator
+# instead of the Request Authenticator (RFC 3579 §3.2).
+start_server resp-auth-vector
+run_test "Reject response with MA computed over the Response Authenticator" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	expect_fail || exit 1
+expect_ma_error "Test 9" "$MA_WRONG"
+stop_server
+
+# Test 10: REQ-NET-SEC-005 -- an MA of the wrong length is rejected for its
+# length, not compared over 16 bytes the attribute does not hold.
+start_server bad-length
+run_test "Reject response with a 15-byte MA" \
+	"${top_builddir}/src/radiusclient -D -i -f radiusclient-temp$PID.conf User-Name=test Password=test" \
+	expect_fail || exit 1
+expect_ma_error "Test 10" "Message-Authenticator has wrong length 15"
 stop_server
 
 echo ""
